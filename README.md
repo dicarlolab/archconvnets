@@ -1,4 +1,4 @@
-arch_conv_nets
+archconvnets
 ==============
 
 Architecturally optimized convolutional neural networks trained with regularized backpropagation
