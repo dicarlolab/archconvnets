@@ -1,0 +1,1 @@
+-e git+ssh://git@github.com/dicarlolab/dldata.git@master#egg=dldata
