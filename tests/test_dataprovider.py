@@ -15,14 +15,14 @@ def test_dataprovider_hvm():
     provider = dp.Dldata2ConvnetProviderBase(imgs, metadata, 200)
 
     assert provider.get_data_dims() == 128 * 128, provider.get_data_dims()
-    assert provider.batch_range == range(29), provider.batch_range
+    assert provider.batch_range == range(1, 30), provider.batch_range
 
     X = provider.get_next_batch()
     X1 = provider.get_next_batch()
 
     assert X[0] == X1[0] == 1
-    assert X[1] == 0
-    assert X1[1] == 1
+    assert X[1] == 1
+    assert X1[1] == 2
 
     assert X[2][0].shape == X1[2][0].shape == (16384, 200)
 
@@ -39,8 +39,8 @@ def test_dataprovider_imagenet():
     X1 = provider.get_next_batch()
 
     assert X[0] == X1[0] == 1
-    assert X[1] == 0
-    assert X1[1] == 1
+    assert X[1] == 1
+    assert X1[1] == 2
 
     assert X[2][0].shape == X1[2][0].shape == (256 * 256 * 3, 100)
 
