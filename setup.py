@@ -182,6 +182,7 @@ if os.path.exists(requirements_file):
     if dependency_links is None:
         dependency_links = parse_dependency_links(requirements_file)
 else:
+    print 'could not find the requirements file somehow'
     if requirements is None:
         requirements = []
     if dependency_links is None:
