@@ -162,7 +162,7 @@ if os.path.exists(requirements_file):
     requirements = [str(r.req) for r in parse_requirements(requirements_file)]
     print requirements
     print '----------------------------------------'
-    dependency_links = [str(r.url) for r in parse_requirements(requirements_file)]
+    dependency_links = [str(r.url).split('+')[1] for r in parse_requirements(requirements_file)]
     print dependency_links
 
 if debug:
