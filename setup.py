@@ -196,6 +196,8 @@ if __name__ == '__main__':
         setup(**config.todict())
 
     else:
+        print requirements
+        print dependency_links
         setuptools.setup(
             name=package_name,
             version='dev',
@@ -206,7 +208,7 @@ if __name__ == '__main__':
             include_package_data=True,
 
             install_requires=requirements,
-            print requirements
+            
             dependency_links=dependency_links
-            print dependency_links
+            
         )
