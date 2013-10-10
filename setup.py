@@ -235,5 +235,6 @@ if __name__ == '__main__':
             include_package_data=True,
 
             install_requires=['dldata', 'imagenet'],
-            dependency_links=['http://github.com/dicarlolab/dldata.git@master#egg=dldata','http://github.com/dicarlolab/imagenet.git@master#egg=imagenet']
+            dependency_links=['http://github.com/dicarlolab/dldata/tarball/master#egg=dldata',
+                              'http://github.com/dicarlolab/imagenet/tarball/master#egg=imagenet']
         )
