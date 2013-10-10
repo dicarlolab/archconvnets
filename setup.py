@@ -160,7 +160,7 @@ if requirements_file is None:
 if os.path.exists(requirements_file):
     print 'DEFINIITTTEEEEELY FOUND THE FILE'
     if requirements is None:
-        requirements = [parse_requirements(requirements_file)]
+        requirements = [r in parse_requirements(requirements_file)]
         print requirements
         print '----------------------------------------'
     if dependency_links is None:
