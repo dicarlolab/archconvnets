@@ -495,7 +495,8 @@ class ShowConvNet(ConvNet):
 
         op.options['load_file'].default = None
         return op
-    
+
+import cPickle
 if __name__ == "__main__":
     try:
         op = ShowConvNet.get_options_parser()

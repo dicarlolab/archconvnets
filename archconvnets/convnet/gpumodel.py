@@ -351,7 +351,7 @@ class IGPUModel:
             os.makedirs(checkpoint_dir)
     
         pickle(checkpoint_file_full_path, dic,compress=self.zip_save)
-        
+
         for f in sorted(os.listdir(checkpoint_dir), key=alphanum_key):
             if sum(os.path.getsize(os.path.join(checkpoint_dir, f2)) for f2 in os.listdir(checkpoint_dir)) > self.max_filesize_mb*1024*1024 and f != checkpoint_file:
                 os.remove(os.path.join(checkpoint_dir, f))
@@ -403,10 +403,10 @@ class IGPUModel:
             sys.exit()
         
     @staticmethod
-    def parse_options(op):
+    def parse_options(op, input_opts=None):
         try:
             load_dic = None
-            options = op.parse()
+            options = op.parse(input_opts=input_opts)
             if options["load_file"].value_given:
                 load_dic = IGPUModel.load_checkpoint(options["load_file"].value)
                 old_op = load_dic["op"]

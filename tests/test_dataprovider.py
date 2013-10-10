@@ -1,6 +1,12 @@
-import archconvnets.dataprovider as dp
+import os
+import numpy as np
+
 import dldata.stimulus_sets.hvm as hvm
 import imagenet
+
+import archconvnets.dataprovider as dp
+import archconvnets.convnet.api as api
+
 
 def test_dataprovider_hvm():
     dataset = hvm.HvMWithDiscfade()
@@ -51,3 +57,35 @@ def test_dataprovider_hvm_allbatches():
 
     assert X[0] == 2, 'epoch should be %d but is %d' % (2, X[0])
     assert X[1] == 0, 'batch_num should be %d but is %d' % (0, X[1])
+
+
+def test_cifar10():
+    data_path = os.environ['CIFAR10_PATH']
+    dirn = os.path.abspath(os.path.split(__file__ )[0])
+    layer_def_path = os.path.join(dirn, '../archconvnets/convnet/cifar-layers/layers-80sec.cfg')
+    layer_params_path = os.path.join(dirn, '../archconvnets/convnet/cifar-layers/layer-params-80sec.cfg')
+    save_path = os.path.join(dirn, 'temp_cifar10')
+    convnet_path = os.path.join(dirn, '../archconvnets/convnet/convnet.py')
+    mfile1 = 'model1'
+    command1 = "python %s --data-path=%s --save-path=%s --test-range=6 --train-range=1-5 --layer-def=%s --layer-params=%s --data-provider=cifartest --test-freq=5 --epochs=1 --random-seed=0 --model-file=%s" % (convnet_path, data_path, save_path, layer_def_path, layer_params_path, mfile1)
+
+    mfile2 = 'model2'
+    command2 = "python %s --data-path=%s --save-path=%s --test-range=6 --train-range=1-5 --layer-def=%s --layer-params=%s --data-provider=cifar --test-freq=5 --epochs=1 --random-seed=0 --model-file=%s" % (convnet_path,data_path, save_path, layer_def_path, layer_params_path, mfile2)
+
+    e = os.system(command1)
+    e1 = os.system(command2)
+
+    A = api.unpickle(os.path.join(save_path, mfile1, '1.5'))
+    B = api.unpickle(os.path.join(save_path, mfile2, '1.5'))
+    a = A['model_state']['layers'][-3]['weights']
+    b = B['model_state']['layers'][-3]['weights']
+
+    assert A['op'].options['dp_type'].value == 'cifartest'
+    assert B['op'].options['dp_type'].value == 'cifar'
+
+    assert np.allclose(a, b)
+
+
+def test_unpickle():
+    print(api.CDIR)
+    api.unpickle('/home/yamins/archconvnets/tests/temp_cifar10/model1/1.5')

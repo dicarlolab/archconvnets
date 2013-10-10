@@ -223,12 +223,14 @@ class ConvNet(IGPUModel):
                 "Image Size", default=0 )
         op.add_option("img-channels", "img_channels", IntegerOptionParser,
                 "Number of channels in image", default=3 )
+        op.add_option("random-seed", "random_seed", IntegerOptionParser,
+                "Random Seed", default=0)
         
         return op
     
 if __name__ == "__main__":
-    #nr.seed(5)
     op = ConvNet.get_options_parser()
     op, load_dic = IGPUModel.parse_options(op)
+    nr.seed(op.options['random_seed'].value)
     model = ConvNet(op, load_dic)
     model.start()

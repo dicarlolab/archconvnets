@@ -110,6 +110,8 @@ class Dldata2ConvnetProviderBase(object):
 import skdata.cifar10 as cf10
 
 class CIFAR10TestProvider(Dldata2ConvnetProviderBase):
+    """for test purposes ONLY
+    """
     def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
         dataset = cf10.dataset.CIFAR10()
         meta = dataset.meta
