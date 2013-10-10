@@ -206,5 +206,7 @@ if __name__ == '__main__':
             include_package_data=True,
 
             install_requires=requirements,
+            print requirements
             dependency_links=dependency_links
+            print dependency_links
         )
