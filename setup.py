@@ -163,6 +163,7 @@ if os.path.exists(requirements_file):
     print requirements
     print '----------------------------------------'
     dependency_links = [str(r.url) for r in parse_requirements(requirements_file)]
+    print dependency_links
 
 if debug:
     logging.debug("Module name: %s" % package_name)
