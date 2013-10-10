@@ -1,9 +1,12 @@
-"""distribute- and pip-enabled setup.py """
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+""" distribute- and pip-enabled setup.py """
 
 import logging
 import os
 import re
-from pip.req import parse_requirements
+
 # ----- overrides -----
 
 # set these to anything but None to override the automatic defaults
@@ -11,10 +14,10 @@ packages = None
 package_name = None
 package_data = None
 scripts = None
-requirements_file = None
+requirements_file = 'requirements.txt'
 requirements = None
 dependency_links = None
-use_numpy = False
+use_numpy = True
 
 # ---------------------
 
@@ -124,6 +127,25 @@ def find_package_data(packages):
     return package_data
 
 
+def parse_requirements(file_name):
+    """
+    from:
+        http://cburgmer.posterous.com/pip-requirementstxt-and-setuppy
+    """
+    requirements = []
+    with open(file_name, 'r') as f:
+        for line in f:
+            if re.match(r'(\s*#)|(\s*$)', line):
+                continue
+            if re.match(r'\s*-e\s+', line):
+                requirements.append(re.sub(r'\s*-e\s+.*#egg=(.*)$',\
+                        r'\1', line).strip())
+            elif re.match(r'\s*-f\s+', line):
+                pass
+            else:
+                requirements.append(line.strip())
+    return requirements
+
 
 def parse_dependency_links(file_name):
     """
@@ -158,15 +180,11 @@ if requirements_file is None:
     requirements_file = 'requirements.txt'
 
 if os.path.exists(requirements_file):
-    print 'DEFINIITTTEEEEELY FOUND THE FILE'
     if requirements is None:
-        requirements = [str(r.req) for r in parse_requirements(requirements_file)]
-        print requirements
-        print '----------------------------------------'
+        requirements = parse_requirements(requirements_file)
     if dependency_links is None:
         dependency_links = parse_dependency_links(requirements_file)
 else:
-    print 'could not find the requirements file somehow'
     if requirements is None:
         requirements = []
     if dependency_links is None:
