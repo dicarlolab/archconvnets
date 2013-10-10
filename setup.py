@@ -3,7 +3,7 @@
 import logging
 import os
 import re
-
+from pip.req import parse_requirements
 # ----- overrides -----
 
 # set these to anything but None to override the automatic defaults
@@ -123,25 +123,6 @@ def find_package_data(packages):
                     subdir_findall(package_to_path(package), subdir)
     return package_data
 
-
-def parse_requirements(file_name):
-    """
-    from:
-        http://cburgmer.posterous.com/pip-requirementstxt-and-setuppy
-    """
-    requirements = []
-    with open(file_name, 'r') as f:
-        for line in f:
-            if re.match(r'(\s*#)|(\s*$)', line):
-                continue
-            if re.match(r'\s*-e\s+', line):
-                requirements.append(re.sub(r'\s*-e\s+.*#egg=(.*)$',\
-                        r'\1', line).strip())
-            elif re.match(r'\s*-f\s+', line):
-                pass
-            else:
-                requirements.append(line.strip())
-    return requirements
 
 
 def parse_dependency_links(file_name):
