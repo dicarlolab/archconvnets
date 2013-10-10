@@ -50,7 +50,7 @@ def test_dataprovider_hvm_allbatches():
     dataset = hvm.HvMWithDiscfade()
     imgs = dataset.get_images('float32', {'size': (128, 128), 'global_normalize': False})
     metadata = dataset.meta['category']
-    provider = dp.Dldata2ConvnetProviderBase(imgs, metadata, 200, batch_range=[0, 15])
+    provider = dp.Dldata2ConvnetProviderBase(imgs, metadata, 200, batch_range=[1, 15])
 
     for i in range(3):
         X = provider.get_next_batch()
