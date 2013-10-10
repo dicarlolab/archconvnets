@@ -324,7 +324,6 @@ class LayerWithInputParser(LayerParser):
             
     def parse(self, name, mcp, prev_layers, model=None):
         dic = LayerParser.parse(self, name, mcp, prev_layers, model)
-        
         dic['inputs'] = [inp.strip() for inp in mcp.safe_get(name, 'inputs').split(',')]
         prev_names = [p['name'] for p in prev_layers]
         for inp in dic['inputs']:

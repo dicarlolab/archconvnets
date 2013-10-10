@@ -35,6 +35,8 @@ from convdata import *
 from os import linesep as NL
 #import pylab as pl
 
+from archconvnets import dataprovider
+
 class ConvNet(IGPUModel):
     def __init__(self, op, load_dic, dp_params={}):
         filename_options = []
@@ -198,6 +200,7 @@ class ConvNet(IGPUModel):
         # cifar data provider
         DataProvider.register_data_provider('cifar-rand', 'CIFAR Random', CIFARDataRandomProvider)
         DataProvider.register_data_provider('cifar', 'CIFAR', CIFARDataProvider)
+        DataProvider.register_data_provider('cifartest', 'CIFARTEST' ,  dataprovider.CIFAR10TestProvider)
         DataProvider.register_data_provider('cifar-cropped-rand', 'Cropped CIFAR Random', 
               CroppedCIFARDataRandomProvider)
         DataProvider.register_data_provider('cifar-cropped', 'Cropped CIFAR', CroppedCIFARDataProvider)
@@ -226,7 +229,6 @@ class ConvNet(IGPUModel):
 if __name__ == "__main__":
     #nr.seed(5)
     op = ConvNet.get_options_parser()
-
     op, load_dic = IGPUModel.parse_options(op)
     model = ConvNet(op, load_dic)
     model.start()

@@ -1,4 +1,6 @@
+import os
 import math
+import cPickle
 import numpy as np
 
 
@@ -20,13 +22,17 @@ class Dldata2ConvnetProviderBase(object):
 
     """
     def __init__(self, imgs, metadata, batch_size, batch_range=None, init_epoch=1,
-                                               init_batchnum=None):
+                             init_batchnum=None, dp_params=None, test=False):
+        if dp_params is None:
+            dp_params = {}
+        self.dp_params = dp_params
+        self.test = test
 
         self.batch_size = batch_size
         total_batches = int(math.ceil(len(imgs) / float(batch_size)))
         if batch_range is None:
-            batch_range = range(total_batches)
-        assert set(batch_range) <= set(range(total_batches))
+            batch_range = range(1, total_batches + 1)
+        assert set(batch_range) <= set(range(1, total_batches + 1))
         self.batch_range = batch_range
         if init_batchnum is None or init_batchnum not in batch_range:
             init_batchnum = batch_range[0]
@@ -41,16 +47,18 @@ class Dldata2ConvnetProviderBase(object):
         mshape = imgs.shape[1]
         assert mshape == imgs.shape[2], 'imgs must be square'
         self.imgs = imgs
+        self.img_size = mshape
 
         labels = np.unique(metadata)
-        self.num_labels = len(labels)
+        self._num_classes = len(labels)
         self.metadata = np.zeros(len(metadata)).astype(np.single)
-        for mind in range(self.num_labels):
+        for mind in range(self._num_classes):
             self.metadata[metadata == labels[mind]] = mind
 
     def get_data_dims(self, idx=0):
         ###what about "if idx == 0 else 1"
-        return (self.imgs.shape[1]**2) * self.num_colors
+        print(idx)
+        return (self.imgs.shape[1]**2) * self.num_colors if idx == 0 else 1
 
     def get_next_batch(self):
         if self.data_dic is None or len(self.batch_range) > 1:
@@ -60,7 +68,8 @@ class Dldata2ConvnetProviderBase(object):
         return epoch, batchnum, [self.data_dic['data'], self.data_dic['labels']]
 
     def get_batch(self, batch_num):
-        data = self.imgs[batch_num * self.batch_size: (batch_num+1) * self.batch_size]
+        bn = batch_num - 1
+        data = self.imgs[bn * self.batch_size: (bn+1) * self.batch_size]
         data = np.asarray(data, dtype=np.single)
 
         mshape = data.shape[1]
@@ -72,7 +81,7 @@ class Dldata2ConvnetProviderBase(object):
             data = data.reshape(new_s).T
 
         metadata = self.metadata
-        labels = metadata[batch_num * self.batch_size: (batch_num+1) * self.batch_size]
+        labels = metadata[bn * self.batch_size: (bn+1) * self.batch_size]
         labels = labels.reshape((1, len(labels)))
 
         return {'data': data, 'labels': labels}
@@ -89,3 +98,37 @@ class Dldata2ConvnetProviderBase(object):
     def get_next_batch_num(self):
         return self.batch_range[self.get_next_batch_idx()]
 
+    def get_num_classes(self):
+        return self._num_classes
+    
+    def get_out_img_size(self):
+        return self.img_size
+
+    def get_out_img_depth(self):
+        return self.num_colors
+
+import skdata.cifar10 as cf10
+
+class CIFAR10TestProvider(Dldata2ConvnetProviderBase):
+    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        dataset = cf10.dataset.CIFAR10()
+        meta = dataset.meta
+        meta = np.array([x['label'] for x in meta])
+        imgs = dataset._pixels
+        batch_size = 10000
+        Dldata2ConvnetProviderBase.__init__(self, imgs, meta, batch_size, 
+                                            batch_range=batch_range, 
+                                            init_epoch=init_epoch, 
+                                            init_batchnum=init_batchnum, 
+                                            dp_params=dp_params,
+                                            test=test)
+
+        bmfile = os.path.join(os.path.split(__file__)[0], 
+               'data', 'cifar-10-py-colmajor', 'batches.meta')
+        self.batches_meta = cPickle.load(open(bmfile))
+
+    def get_next_batch(self):
+        bn = self.curr_batchnum
+        a, b, c = Dldata2ConvnetProviderBase.get_next_batch(self)
+        c[0] = c[0] - self.batches_meta['data_mean']
+        return a, b, c
