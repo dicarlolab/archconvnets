@@ -150,4 +150,6 @@ def test_train_extract():
 
 def test_hvmprovider_cache():
     p = dp.HVMCategoryProvider32x32('', None)
-    
+    X = p.get_batch(1)
+    X1 = p.get_batch(1)
+    assert (X['data'] == X1['data']).all()
