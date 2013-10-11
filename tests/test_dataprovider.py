@@ -8,6 +8,7 @@ import archconvnets.dataprovider as dp
 import archconvnets.convnet.api as api
 
 
+
 def test_dataprovider_hvm():
     dataset = hvm.HvMWithDiscfade()
     imgs = dataset.get_images('float32', {'size': (128, 128), 'global_normalize': False})
@@ -56,7 +57,7 @@ def test_dataprovider_hvm_allbatches():
         X = provider.get_next_batch()
 
     assert X[0] == 2, 'epoch should be %d but is %d' % (2, X[0])
-    assert X[1] == 0, 'batch_num should be %d but is %d' % (0, X[1])
+    assert X[1] == 1, 'batch_num should be %d but is %d' % (1, X[1])
 
 
 def test_cifar10():
@@ -74,7 +75,8 @@ def test_cifar10():
 
     e = os.system(command1)
     e1 = os.system(command2)
-
+    print 'trying unpickle from'
+    print os.getcwd()
     A = api.unpickle(os.path.join(save_path, mfile1, '1.5'))
     B = api.unpickle(os.path.join(save_path, mfile2, '1.5'))
     a = A['model_state']['layers'][-3]['weights']
@@ -85,35 +87,27 @@ def test_cifar10():
 
     assert np.allclose(a, b)
 
-def convnet_copy():
+def test_80sec_performance():
     data_path = os.environ['CIFAR10_PATH']
     dirn = os.path.abspath(os.path.split(__file__ )[0])
     layer_def_path_ours = os.path.join(dirn, '../archconvnets/convnet/cifar-layers/layers-80sec.cfg')
-    layer_def_path_theirs = os.path.join(dirn, '../dropnn_release/drop-nn/cifar-layers/layers-80sec.cfg')
+    layer_def_path_theirs = os.path.join(dirn, '../dropnn-release/drop-nn/cifar-layers/layers-80sec.cfg')
 
     layer_params_path_ours = os.path.join(dirn, '../archconvnets/convnet/cifar-layers/layer-params-80sec.cfg')
-    layer_params_path_theirs = os.path.join(dirn, '../dropnn_release/drop-nn/cifar-layers/layer-params-80sec.cfg')
+    layer_params_path_theirs = os.path.join(dirn, '../dropnn-release/drop-nn/cifar-layers/layer-params-80sec.cfg')
     save_path = os.path.join(dirn, 'temp_cifar10')
     convnet_path_ours= os.path.join(dirn, '../archconvnets/convnet/convnet.py')
-    convnet_path_theirs  = os.path.join(dirn, '../dropnn_release/drop-nn/convnet.py')
+    convnet_path_theirs  = os.path.join(dirn, '../dropnn-release/drop-nn/convnet.py')
     mfile1 = 'model1'
-    command1 = "python %s --data-path=%s --save-path=%s --test-range=6 --train-range=1-5 --layer-def=%s --layer-params=%s --data-provider=cifartest --test-freq=5 --epochs=1 --random-seed=0 --model-file=%s" % (convnet_path_ours, data_path_ours, save_path, layer_def_path_ours, layer_params_path_ours, mfile1)
+    command1 = "python %s --data-path=%s --save-path=%s --test-range=6 --train-range=1-5 --layer-def=%s --layer-params=%s --data-provider=cifartest --test-freq=50 --epochs=10 --random-seed=0 --model-file=%s" % (convnet_path_ours, data_path, save_path, layer_def_path_ours, layer_params_path_ours, mfile1)
 
-    mfile2 = 'model2'
-    command2 = "python %s --data-path=%s --save-path=%s --test-range=6 --train-range=1-5 --layer-def=%s --layer-params=%s --data-provider=cifar --test-freq=5 --epochs=1 --random-seed=0 --model-file=%s" % (convnet_path_theirs,data_path_theirs, save_path, layer_def_path_theirs, layer_params_path_theirs, mfile2)
 
     e = os.system(command1)
-    e1 = os.system(command2)
 
     A = api.unpickle(os.path.join(save_path, mfile1, '1.5'))
-    B = api.unpickle(os.path.join(save_path, mfile2, '1.5'))
-    a = A['model_state']['layers'][-3]['weights']
-    b = B['model_state']['layers'][-3]['weights']
 
-    assert A['op'].options['dp_type'].value == 'cifartest'
-    assert B['op'].options['dp_type'].value == 'cifar'
-
-    assert np.allclose(a, b)
+    test_classification_error = A['model_state']['test_outputs'][0][0]['logprob'][1]
+    assert test_classification_error < .3
 
 
 def test_unpickle():
