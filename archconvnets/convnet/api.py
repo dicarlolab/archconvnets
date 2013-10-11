@@ -49,51 +49,33 @@ def configparser_to_dict(mcp):
     return X
 
 
-def setup_training(architecture_params, training_steps, data_provider, data_path, convnet_path, basedir):
-    arch_file = os.path.join(basedir, 'arch.cfg')
+def setup_training(architecture_params, training_params, training_steps, data_provider, data_path, convnet_path, basedir):
+    arch_file = os.path.join(basedir, 'architecture.cfg')
     odict_to_config(architecture_params, arch_file)
+    
+    training_file = os.path.join(basedir, 'training.cfg')
+    odict_to_config(training_params, training_file)
     commands = []
     for tind, ts in enumerate(training_steps):
-        tfile = os.path.join(basedir, 'training.cfg')
-        if os.path.exists(tfile):
-            nfile = nfile + '.old.%d' % tind
-            shutil.move(tfile, nfile)
-        odict_to_config(ts['params'], tfile)
         model_file = os.path.join(basedir, 'model_%d' % tind)
-        test_range = ts['test_range']
-        train_range = ts['train_range']
-        test_freq = ts['test_freq']
-        epochs = ts['epochs']
+        ops = [('train_range', 'train-range', '%s'),
+               ('test_range', 'test-range', '%s'),
+               ('test_freq', 'test-freq', '%d'),
+               ('epochs', 'epochs', '%d'), 
+               ('img_flip', 'img-flip', '%d'),
+               ('img_rs', 'img-rs', '%d'),
+               ('reset_mom', 'reset-mom', '%d'),
+               ('scale_rate', 'scale-rate', '%f')]
+    
         if tind == 0:
-            command = 'python %s --data-path=%s --save-path=%s --test-range=%s --train-range=%s --data-provider=%s --test-freq=%d --epochs=%d --model-file=%s' % (convnet_path, data_path, basedir, test_range, train_raing, data_provider, test_freq, epochs, model_file)
+            command = 'python %s --data-path=%s --save-path=%s --data-provider=%s --model-file=%s' % (convnet_path, data_path, basedir, data_provider,  model_file)
         else:
             prev_fn = os.path.join(basedir, 'model_%d' % (tind - 1))
-            command = 'python %s -f %s --test-freq=%d --epochs=%d --model-file=%s' % (convnet_path, prev_fn, test_freq, epochs, model_file)
-        commands.append(command)
-
-    return commands
-
-
-def setup_training(architecture_params, training_steps, data_provider, data_path, convnet_path, basedir):
-    arch_file = os.path.join(basedir, 'arch.cfg')
-    odict_to_config(architecture_params, arch_file)
-    commands = []
-    for tind, ts in enumerate(training_steps):
-        tfile = os.path.join(basedir, 'training.cfg')
-        if os.path.exists(tfile):
-            nfile = tfile + '.old.%d' % tind
-            shutil.move(tfile, nfile)
-        odict_to_config(ts['params'], tfile)
-        model_file = os.path.join(basedir, 'model_%d' % tind)
-        test_range = ts['test_range']
-        train_range = ts['train_range']
-        test_freq = ts['test_freq']
-        epochs = ts['epochs']
-        if tind == 0:
-            command = 'python %s --data-path=%s --save-path=%s --test-range=%s --train-range=%s --data-provider=%s --test-freq=%d --epochs=%d --model-file=%s' % (convnet_path, data_path, basedir, test_range, train_range, data_provider, test_freq, epochs, model_file)
-        else:
-            prev_fn = os.path.join(basedir, 'model_%d' % (tind - 1))
-            command = 'python %s -f %s --test-range=%s --train-range=%s --test-freq=%d --epochs=%d --model-file=%s' % (convnet_path, prev_fn, test_range, train_range, test_freq, epochs, model_file)
+            command = 'python %s -f %s --model-file=%s' % (convnet_path, prev_fn, model_file)
+        for optname, optstr, fmt in ops:
+            if optname in ts:
+                command += (' --%s=%s' % (optstr, fmt)) % ts[optname]
+                
         commands.append(command)
 
     return commands

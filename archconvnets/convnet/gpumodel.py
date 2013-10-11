@@ -95,7 +95,7 @@ class IGPUModel:
             sys.exit(1)
         for var, val in self.model_state.iteritems():
             setattr(self, var, val)
-            
+
         self.import_model()
         self.init_model_lib()
         

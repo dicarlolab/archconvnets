@@ -10,3 +10,27 @@ git clone this repository and add the path to the PYTHON_PATH variable
 
 follow the install instructions for all requirements listed in requirements.txt
 (including the requirements in those requirements files)
+
+you have to download the cifar-10 dataset, and then set the environment variable 
+CIFAR10_PATH to its location (untarred) to run tests properly:
+```
+cd ~/.skdata
+wget http://www.cs.toronto.edu/~kriz/cifar-10-py-colmajor.tar.gz
+export CIFAR10_PATH=~/.skdata/cifar-10-py-colmajor
+```
+
+If you're on a machine other than honeybadger (or one that is similarly configured)
+modify archconvnets/convnet/build.sh to match your machine's setup (cuda, python, and numpy locations must be specified)
+
+
+Compile
+```
+sh build.sh
+```
+
+running tests
+=================
+you must be in the archconvnets/convnet directory to run tests:
+```
+nosetests tests
+```
