@@ -2,6 +2,11 @@ import os
 import math
 import cPickle
 import numpy as np
+import hashlib
+
+
+def get_id(l):
+    return hashlib.sha1(repr(l)).hexdigest()
 
 
 class Dldata2ConvnetProviderBase(object):
@@ -21,12 +26,24 @@ class Dldata2ConvnetProviderBase(object):
         >>> provider = Dldata2ConvnetProviderBase(imgs, metadata, 200)
 
     """
-    def __init__(self, imgs, metadata, batch_size, batch_range=None, init_epoch=1,
-                             init_batchnum=None, dp_params=None, test=False):
+    def __init__(self, batch_size=None, imgs=None, metadata=None, dataset=None, preproc=None, 
+                 metacol=None, batch_range=None, init_epoch=1, init_batchnum=None, 
+                 dp_params=None, test=False):
+
         if dp_params is None:
             dp_params = {}
         self.dp_params = dp_params
         self.test = test
+
+        self.dataset = dataset
+        self.preproc = preproc
+        self.metacol = metacol
+
+        if imgs is None:
+            imgs = dataset.get_images(preproc)
+
+        if metadata is None:
+            metadata = dataset.meta[metacol]
 
         self.batch_size = batch_size
         total_batches = int(math.ceil(len(imgs) / float(batch_size)))
@@ -69,22 +86,43 @@ class Dldata2ConvnetProviderBase(object):
 
     def get_batch(self, batch_num):
         bn = batch_num - 1
-        data = self.imgs[bn * self.batch_size: (bn+1) * self.batch_size]
-        data = np.asarray(data, dtype=np.single)
 
-        mshape = data.shape[1]
-        new_s = (data.shape[0], mshape **2)
-        if data.ndim == 4:
-            nc = self.num_colors
-            data = np.column_stack([data[:, :, :, i].reshape(new_s) for i in range(nc)]).T
+        preproc = self.preproc
+        batch_size = self.batch_size
+        metacol = self.metacol
+
+        if self.dataset:
+            cache = True
+            batchdir = self.dataset.home('batch_caches', get_id((preproc, batch_size, metacol)))
+            if not os.path.isdir(batchdir):
+                os.makedirs(batchdir)
+            batchfile = os.path.join(batchdir, 'batch_%d' % batch_num)
         else:
-            data = data.reshape(new_s).T
+            cache = False
 
-        metadata = self.metadata
-        labels = metadata[bn * self.batch_size: (bn+1) * self.batch_size]
-        labels = labels.reshape((1, len(labels)))
+        if not cache or not os.path.exists(batchfile):
+            data = self.imgs[bn * self.batch_size: (bn+1) * self.batch_size]
+            data = np.asarray(data, dtype=np.single)
 
-        return {'data': data, 'labels': labels}
+            mshape = data.shape[1]
+            new_s = (data.shape[0], mshape **2)
+            if data.ndim == 4:
+                nc = self.num_colors
+                data = np.column_stack([data[:, :, :, i].reshape(new_s) for i in range(nc)]).T
+            else:
+                data = data.reshape(new_s).T
+
+            metadata = self.metadata
+            labels = metadata[bn * self.batch_size: (bn+1) * self.batch_size]
+            labels = labels.reshape((1, len(labels)))
+            batchval = {'data': data, 'labels': labels}
+            if cache:
+                with open(batchfile, 'wb') as _f:
+                    cPickle.dump(batchval, _f)
+            return batchval
+        else:
+            print('loading from cache %s' % batchfile)
+            return cPickle.loads(open(batchfile).read())
 
     def advance_batch(self):
         self.batch_idx = self.get_next_batch_idx()
@@ -118,7 +156,7 @@ class CIFAR10TestProvider(Dldata2ConvnetProviderBase):
         meta = np.array([x['label'] for x in meta])
         imgs = dataset._pixels
         batch_size = 10000
-        Dldata2ConvnetProviderBase.__init__(self, imgs, meta, batch_size, 
+        Dldata2ConvnetProviderBase.__init__(self, imgs=imgs, metadata=meta, batch_size=batch_size, 
                                             batch_range=batch_range, 
                                             init_epoch=init_epoch, 
                                             init_batchnum=init_batchnum, 
@@ -142,21 +180,16 @@ class HVMCategoryProvider32x32(Dldata2ConvnetProviderBase):
     def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
         import dldata.stimulus_sets.hvm as hvm
         dataset = hvm.HvMWithDiscfade()
-        meta = dataset.meta['category']
-        imgs0 = dataset.get_images('float32', {'size': (32, 32), 'global_normalize': False})
-        imgs = np.zeros(imgs0.shape + (3, ))
-        imgs[:, :, :, 0] = imgs0[:]
-        imgs[:, :, :, 1] = imgs0[:]
-        imgs[:, :, :, 2] = imgs0[:] 
+        metacol = 'category'
+        preproc = {'size': (32, 32, 3), 'dtype': 'float32', 'global_normalize': False}
         batch_size = 10000
-        Dldata2ConvnetProviderBase.__init__(self, imgs, meta, batch_size, 
+        Dldata2ConvnetProviderBase.__init__(self, dataset=dataset, preproc=preproc,
+                                            metacol=metacol, batch_size=batch_size, 
                                             batch_range=batch_range, 
                                             init_epoch=init_epoch, 
                                             init_batchnum=init_batchnum, 
                                             dp_params=dp_params,
                                             test=test)
-
-
 
 
 class CIFAR10TestGrayscaleProvider(Dldata2ConvnetProviderBase):
@@ -168,7 +201,7 @@ class CIFAR10TestGrayscaleProvider(Dldata2ConvnetProviderBase):
         meta = np.array([x['label'] for x in meta])
         imgs = dataset._pixels[:, :, :, 0]
         batch_size = 10000
-        Dldata2ConvnetProviderBase.__init__(self, imgs, meta, batch_size, 
+        Dldata2ConvnetProviderBase.__init__(self, imgs=imgs, metadata=meta, batch_size=batch_size, 
                                             batch_range=batch_range, 
                                             init_epoch=init_epoch, 
                                             init_batchnum=init_batchnum, 
@@ -184,11 +217,7 @@ class CIFARHVMTEST(Dldata2ConvnetProviderBase):
         import dldata.stimulus_sets.hvm as hvm
         dataset = hvm.HvMWithDiscfade()
         meta = dataset.meta['category']
-        imgs0 = dataset.get_images('float32', {'size': (32, 32), 'global_normalize': False})
-        imgs = np.zeros(imgs0.shape + (3, ))
-        imgs[:, :, :, 0] = imgs0[:]
-        imgs[:, :, :, 1] = imgs0[:]
-        imgs[:, :, :, 2] = imgs0[:] 
+        imgs = dataset.get_images({'dtype': 'float32',  'size': (32, 32, 3), 'normalize': False})
 
         dataset = cf10.dataset.CIFAR10()
         meta1 = dataset.meta
@@ -196,9 +225,9 @@ class CIFARHVMTEST(Dldata2ConvnetProviderBase):
         imgs1 = dataset._pixels
 
         meta = np.concatenate([meta1, meta1[:len(meta)]])
-        imgs = np.concatenate([imgs1, imgs])
+        imgs = np.concatenate([imgs1, imgs[:]])
         batch_size = 10000
-        Dldata2ConvnetProviderBase.__init__(self, imgs, meta, batch_size, 
+        Dldata2ConvnetProviderBase.__init__(self, imgs=imgs, metadata=meta, batch_size=batch_size, 
                                             batch_range=batch_range, 
                                             init_epoch=init_epoch, 
                                             init_batchnum=init_batchnum, 
