@@ -32,7 +32,7 @@ class Dldata2ConvnetProviderBase(object):
         total_batches = int(math.ceil(len(imgs) / float(batch_size)))
         if batch_range is None:
             batch_range = range(1, total_batches + 1)
-        assert set(batch_range) <= set(range(1, total_batches + 1))
+        assert set(batch_range) <= set(range(1, total_batches + 1)), (batch_range, total_batches)
         self.batch_range = batch_range
         if init_batchnum is None or init_batchnum not in batch_range:
             init_batchnum = batch_range[0]
@@ -134,3 +134,73 @@ class CIFAR10TestProvider(Dldata2ConvnetProviderBase):
         a, b, c = Dldata2ConvnetProviderBase.get_next_batch(self)
         c[0] = c[0] - self.batches_meta['data_mean']
         return a, b, c
+
+
+class HVMCategoryProvider32x32(Dldata2ConvnetProviderBase):
+    """hvm provider
+    """
+    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        import dldata.stimulus_sets.hvm as hvm
+        dataset = hvm.HvMWithDiscfade()
+        meta = dataset.meta['category']
+        imgs0 = dataset.get_images('float32', {'size': (32, 32), 'global_normalize': False})
+        imgs = np.zeros(imgs0.shape + (3, ))
+        imgs[:, :, :, 0] = imgs0[:]
+        imgs[:, :, :, 1] = imgs0[:]
+        imgs[:, :, :, 2] = imgs0[:] 
+        batch_size = 10000
+        Dldata2ConvnetProviderBase.__init__(self, imgs, meta, batch_size, 
+                                            batch_range=batch_range, 
+                                            init_epoch=init_epoch, 
+                                            init_batchnum=init_batchnum, 
+                                            dp_params=dp_params,
+                                            test=test)
+
+
+
+
+class CIFAR10TestGrayscaleProvider(Dldata2ConvnetProviderBase):
+    """for test purposes ONLY
+    """
+    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        dataset = cf10.dataset.CIFAR10()
+        meta = dataset.meta
+        meta = np.array([x['label'] for x in meta])
+        imgs = dataset._pixels[:, :, :, 0]
+        batch_size = 10000
+        Dldata2ConvnetProviderBase.__init__(self, imgs, meta, batch_size, 
+                                            batch_range=batch_range, 
+                                            init_epoch=init_epoch, 
+                                            init_batchnum=init_batchnum, 
+                                            dp_params=dp_params,
+                                            test=test)
+
+
+
+class CIFARHVMTEST(Dldata2ConvnetProviderBase):
+    """JUST FOR TEST PURPOSES
+    """
+    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        import dldata.stimulus_sets.hvm as hvm
+        dataset = hvm.HvMWithDiscfade()
+        meta = dataset.meta['category']
+        imgs0 = dataset.get_images('float32', {'size': (32, 32), 'global_normalize': False})
+        imgs = np.zeros(imgs0.shape + (3, ))
+        imgs[:, :, :, 0] = imgs0[:]
+        imgs[:, :, :, 1] = imgs0[:]
+        imgs[:, :, :, 2] = imgs0[:] 
+
+        dataset = cf10.dataset.CIFAR10()
+        meta1 = dataset.meta
+        meta1 = np.array([x['label'] for x in meta1])
+        imgs1 = dataset._pixels
+
+        meta = np.concatenate([meta1, meta1[:len(meta)]])
+        imgs = np.concatenate([imgs1, imgs])
+        batch_size = 10000
+        Dldata2ConvnetProviderBase.__init__(self, imgs, meta, batch_size, 
+                                            batch_range=batch_range, 
+                                            init_epoch=init_epoch, 
+                                            init_batchnum=init_batchnum, 
+                                            dp_params=dp_params,
+                                            test=test)

@@ -487,7 +487,7 @@ class ShowConvNet(ConvNet):
               "True: plot hist of test data, False: plot hist of training data", default=True )
         op.add_option("nn-analysis", "nn_analysis", StringOptionParser,
               "run inference on training mode for many times and analysis output", default="")
-        #op.add_option("data-provider", "dp_type", StringOptionParser, "Data provider", default="default")
+        op.add_option("data-provider", "dp_type", StringOptionParser, "Data provider", default="default")
         #op.add_option("write-mv-result", "write_mv_result", StringOptionParser, "Write test data multiview features to file", default="", requires=['feature-path'])
         op.add_option("write-mv-result", "write_mv_result", StringOptionParser, "Write test data multiview features to file", default="" )
         op.add_option("write-mv-mc-result", "write_mv_mc_result", StringOptionParser, "Write test data multiview features on MC inferenceto file", default="" )
@@ -501,7 +501,9 @@ if __name__ == "__main__":
     try:
         op = ShowConvNet.get_options_parser()
         op, load_dic = IGPUModel.parse_options(op)
+        print('here')
         model = ShowConvNet(op, load_dic)
+        print('there')
         model.start()
     except (UnpickleError, ShowNetError, opt.GetoptError), e:
         print "----------------"
