@@ -1,4 +1,7 @@
-"""distribute- and pip-enabled setup.py """
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+""" distribute- and pip-enabled setup.py """
 
 import logging
 import os
@@ -11,10 +14,10 @@ packages = None
 package_name = None
 package_data = None
 scripts = None
-requirements_file = None
+requirements_file = 'requirements.txt'
 requirements = None
 dependency_links = None
-use_numpy = True
+use_numpy = False
 
 # ---------------------
 
@@ -179,8 +182,12 @@ if requirements_file is None:
 if os.path.exists(requirements_file):
     if requirements is None:
         requirements = parse_requirements(requirements_file)
+        print '-----------------------'
+        print requirements
     if dependency_links is None:
         dependency_links = parse_dependency_links(requirements_file)
+        print '----------------'
+        print requirements
 else:
     if requirements is None:
         requirements = []
@@ -227,6 +234,7 @@ if __name__ == '__main__':
             package_data=package_data,
             include_package_data=True,
 
-            install_requires=requirements,
-            dependency_links=dependency_links
+            install_requires=['dldata', 'imagenet'],
+            dependency_links=['http://github.com/dicarlolab/dldata/tarball/master#egg=dldata',
+                              'http://github.com/dicarlolab/imagenet/tarball/master#egg=imagenet']
         )
