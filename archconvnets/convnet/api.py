@@ -1,11 +1,14 @@
+import re
 import os
 import tempfile
 import cPickle
+import numpy as np
 
 from . import convnet as C
 from . import util
 from . import layer
 from collections import OrderedDict
+
 
 CDIR = os.path.abspath(os.path.split(__file__)[0])
 
@@ -79,3 +82,14 @@ def setup_training(architecture_params, training_params, training_steps, data_pr
         commands.append(command)
 
     return commands
+
+
+def assemble_feature_batches(feat_dir):
+    p = re.compile('data_batch_([\d]+)')
+    L = os.listdir(feat_dir)
+    bns = map(int, [p.match(l).groups()[0] for l in L if p.match(l)])
+    bns.sort()
+    data = []
+    for x in bns:
+        data.append(unpickle(os.path.join(feat_dir, 'data_batch_%d' % x))['data'])
+    return np.row_stack(data)
