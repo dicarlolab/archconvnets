@@ -192,6 +192,24 @@ class HVMCategoryProvider32x32(Dldata2ConvnetProviderBase):
                                             test=test)
 
 
+class HVMCategoryProvider64x64(Dldata2ConvnetProviderBase):
+    """hvm provider
+    """
+    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        import dldata.stimulus_sets.hvm as hvm
+        dataset = hvm.HvMWithDiscfade()
+        metacol = 'category'
+        preproc = {'size': (64, 64, 3), 'dtype': 'float32', 'global_normalize': False}
+        batch_size = 200
+        Dldata2ConvnetProviderBase.__init__(self, dataset=dataset, preproc=preproc,
+                                            metacol=metacol, batch_size=batch_size, 
+                                            batch_range=batch_range, 
+                                            init_epoch=init_epoch, 
+                                            init_batchnum=init_batchnum, 
+                                            dp_params=dp_params,
+                                            test=test)
+
+
 class CIFAR10TestGrayscaleProvider(Dldata2ConvnetProviderBase):
     """for test purposes ONLY
     """
