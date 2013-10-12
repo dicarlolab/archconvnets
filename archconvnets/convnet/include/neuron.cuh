@@ -418,6 +418,48 @@ public:
     }
 };
 
+
+/* =======================
+ * PowerNeuron
+ * -----------------------
+ * 
+ * f(x) = x^p
+ * =======================
+ */
+
+class PowerNeuron : public Neuron {
+protected:
+    float _power;
+    void _activate() {
+        assert(_inputs != _outputs);
+        _inputs->apply(NVMatrixOps::Pow(_power), *_outputs);
+    }
+
+    void _computeInputGrad(NVMatrix& actsGrad, NVMatrix& target) {
+        actsGrad.applyBinary(PowerGradientOperator(_power), *_inputs, target);
+    }
+
+    void _addInputGrad(NVMatrix& actsGrad, NVMatrix& target) {
+        actsGrad.applyTernary(AddGradientBinaryOperator<PowerGradientOperator>(PowerGradientOperator(_power)), *\
+_inputs, target, target);
+    }
+public:
+    class PowerGradientOperator {
+    protected:
+         float _power;
+    public:
+        __device__ inline float operator()(float unitActGrad, float unitInput) const {
+            return unitActGrad * _power * powf(unitInput, _power - 1.0f);
+        }
+        PowerGradientOperator(float power): _power(power){
+        }
+    };
+
+    PowerNeuron(float power) : Neuron(), _power(power) {
+    }
+};
+
+
 /* =======================
  * LinearNeuron
  * -----------------------
@@ -453,6 +495,7 @@ public:
     
     LinearNeuron(float a, float b) : Neuron(), _a(a), _b(b) {
     }
+
 };
 #endif	/* NEURONS_CUH */
 

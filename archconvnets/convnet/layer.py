@@ -1170,6 +1170,7 @@ neuron_parsers = sorted([NeuronParser('ident', 'f(x) = x', uses_acts=False, uses
                          NeuronParser('softrelu', 'f(x) = log(1 + e^x)', uses_acts=True, uses_inputs=False),
                          NeuronParser('square', 'f(x) = x^2', uses_acts=False, uses_inputs=True),
                          NeuronParser('sqrt', 'f(x) = sqrt(x)', uses_acts=True, uses_inputs=False),
+                         ParamNeuronParser('power[a]', 'f(x) = power(x, a)', uses_acts=True, uses_inputs=True), 
                          ParamNeuronParser('tanh[a,b]', 'f(x) = a * tanh(b * x)', uses_acts=True, uses_inputs=False),
                          ParamNeuronParser('brelu[a]', 'f(x) = min(a, max(0, x))', uses_acts=True, uses_inputs=False),
                          ParamNeuronParser('linear[a,b]', 'f(x) = a * x + b', uses_acts=True, uses_inputs=False)],

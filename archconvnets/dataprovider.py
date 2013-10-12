@@ -49,7 +49,7 @@ class Dldata2ConvnetProviderBase(object):
         total_batches = int(math.ceil(len(imgs) / float(batch_size)))
         if batch_range is None:
             batch_range = range(1, total_batches + 1)
-        assert set(batch_range) <= set(range(1, total_batches + 1)), (batch_range, total_batches)
+        assert set(batch_range) <= set(range(0, total_batches + 1)), (batch_range, total_batches)
         self.batch_range = batch_range
         if init_batchnum is None or init_batchnum not in batch_range:
             init_batchnum = batch_range[0]
