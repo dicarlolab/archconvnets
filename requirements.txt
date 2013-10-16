@@ -1,2 +1,4 @@
+skdata
+numpy
 -e git+http://github.com/dicarlolab/dldata.git@master#egg=dldata
 -e git+http://github.com/dicarlolab/imagenet.git@master#egg=imagenet
