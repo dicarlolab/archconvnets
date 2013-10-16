@@ -209,7 +209,6 @@ class CIFAR10TestGrayscaleProvider(Dldata2ConvnetProviderBase):
                                             test=test)
 
 
-
 class CIFARHVMTEST(Dldata2ConvnetProviderBase):
     """JUST FOR TEST PURPOSES
     """
@@ -228,6 +227,25 @@ class CIFARHVMTEST(Dldata2ConvnetProviderBase):
         imgs = np.concatenate([imgs1, imgs[:]])
         batch_size = 10000
         Dldata2ConvnetProviderBase.__init__(self, imgs=imgs, metadata=meta, batch_size=batch_size, 
+                                            batch_range=batch_range, 
+                                            init_epoch=init_epoch, 
+                                            init_batchnum=init_batchnum, 
+                                            dp_params=dp_params,
+                                            test=test)
+
+
+class ImagenetPixelHardSynsets2013ChallengeTop40Provider(Dldata2ConvnetProviderBase):
+    """hvm provider
+    """
+    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        import imagenet.dldatasets
+        dataset = imagenet.dldatasets.PixelHardSynsets2013ChallengeTop40Screenset()
+        metacol = 'synset'
+        preproc = {'resize_to': (128, 128), 'dtype': 'float32', 'mode': 'RGB',
+                   'normalize': False, 'mask': None, 'crop': None}
+        batch_size = 1000
+        Dldata2ConvnetProviderBase.__init__(self, dataset=dataset, preproc=preproc,
+                                            metacol=metacol, batch_size=batch_size, 
                                             batch_range=batch_range, 
                                             init_epoch=init_epoch, 
                                             init_batchnum=init_batchnum, 
