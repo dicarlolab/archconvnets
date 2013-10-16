@@ -49,7 +49,8 @@ def configparser_to_dict(mcp):
     return X
 
 
-def setup_training(architecture_params, training_params, training_steps, data_provider, data_path, convnet_path, basedir):
+def setup_training(architecture_params, training_params, training_steps, data_provider,
+                   data_path, convnet_path, basedir):
     arch_file = os.path.join(basedir, 'architecture.cfg')
     odict_to_config(architecture_params, arch_file)
     
@@ -58,7 +59,8 @@ def setup_training(architecture_params, training_params, training_steps, data_pr
     commands = []
     for tind, ts in enumerate(training_steps):
         model_file = os.path.join(basedir, 'model_%d' % tind)
-        ops = [('train_range', 'train-range', '%s'),
+        ops = [('multiview-test', 'multiview_test', '%d'),
+               ('train_range', 'train-range', '%s'),
                ('test_range', 'test-range', '%s'),
                ('test_freq', 'test-freq', '%d'),
                ('epochs', 'epochs', '%d'), 
@@ -68,7 +70,8 @@ def setup_training(architecture_params, training_params, training_steps, data_pr
                ('scale_rate', 'scale-rate', '%f')]
     
         if tind == 0:
-            command = 'python %s --data-path=%s --save-path=%s --data-provider=%s --model-file=%s' % (convnet_path, data_path, basedir, data_provider,  model_file)
+            command = 'python %s --data-path=%s --save-path=%s --data-provider=%s --model-file=%s'\
+                      % (convnet_path, data_path, basedir, data_provider,  model_file)
         else:
             prev_fn = os.path.join(basedir, 'model_%d' % (tind - 1))
             command = 'python %s -f %s --model-file=%s' % (convnet_path, prev_fn, model_file)
