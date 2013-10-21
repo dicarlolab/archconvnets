@@ -3,7 +3,7 @@ import math
 import cPickle
 import numpy as np
 import hashlib
-
+import random
 
 def get_id(l):
     return hashlib.sha1(repr(l)).hexdigest()
@@ -41,10 +41,12 @@ class Dldata2ConvnetProviderBase(object):
 
         if imgs is None:
             imgs = dataset.get_images(preproc)
-
+        n_imgs = imgs.shape[0]
         if metadata is None:
             metadata = dataset.meta[metacol]
-
+        reo = np.arange(n_imgs)
+        random.shuffle(reo)
+        imgs = imgs[reo]; metadata = metadata[reo]
         self.batch_size = batch_size
         total_batches = int(math.ceil(len(imgs) / float(batch_size)))
         if batch_range is None:
@@ -119,6 +121,7 @@ class Dldata2ConvnetProviderBase(object):
             if cache:
                 with open(batchfile, 'wb') as _f:
                     cPickle.dump(batchval, _f)
+            print data.shape
             return batchval
         else:
             print('loading from cache %s' % batchfile)
@@ -181,8 +184,8 @@ class HVMCategoryProvider32x32(Dldata2ConvnetProviderBase):
         import dldata.stimulus_sets.hvm as hvm
         dataset = hvm.HvMWithDiscfade()
         metacol = 'category'
-        preproc = {'size': (32, 32, 3), 'dtype': 'float32', 'global_normalize': False}
-        batch_size = 10000
+        preproc = {'size': (96, 96, 3), 'dtype': 'float32', 'global_normalize': False}
+        batch_size = 2
         Dldata2ConvnetProviderBase.__init__(self, dataset=dataset, preproc=preproc,
                                             metacol=metacol, batch_size=batch_size, 
                                             batch_range=batch_range, 
@@ -239,15 +242,53 @@ class ImagenetPixelHardSynsets2013ChallengeTop40Provider(Dldata2ConvnetProviderB
     """
     def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
         import imagenet.dldatasets
-        dataset = imagenet.dldatasets.PixelHardSynsets2013ChallengeTop40Screenset()
+        dataset = imagenet.dldatasets.PixelHardSynsets2013ChallengeTop25Screenset() #Top40Screenset()
         metacol = 'synset'
-        preproc = {'resize_to': (128, 128), 'dtype': 'float32', 'mode': 'RGB',
+        preproc = {'resize_to': (128, 128), 'dtype': 'float32', 'mode': 'RGB', 'crop_rand': 0, 'seed': 666,
                    'normalize': False, 'mask': None, 'crop': None}
-        batch_size = 1000
+        batch_size = 100
         Dldata2ConvnetProviderBase.__init__(self, dataset=dataset, preproc=preproc,
                                             metacol=metacol, batch_size=batch_size, 
                                             batch_range=batch_range, 
                                             init_epoch=init_epoch, 
                                             init_batchnum=init_batchnum, 
+                                            dp_params=dp_params,
+                                            test=test)
+
+
+class ImagenetPixelHardSynsets2013ChallengeTop40Provider128(Dldata2ConvnetProviderBase):
+    """hvm provider
+    """
+    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        import imagenet.dldatasets
+        dataset = imagenet.dldatasets.PixelHardSynsets2013Challenge() #Top40Screenset()
+        metacol = 'synset'
+        preproc = {'resize_to': (128, 128), 'dtype': 'float32', 'mode': 'RGB',
+                   'normalize': False, 'mask': None, 'crop': None, 'crop_rand': 0}
+        batch_size = 27
+        Dldata2ConvnetProviderBase.__init__(self, dataset=dataset, preproc=preproc,
+                                            metacol=metacol, batch_size=batch_size,
+                                            batch_range=batch_range,
+                                            init_epoch=init_epoch,
+                                            init_batchnum=init_batchnum,
+                                            dp_params=dp_params,
+                                            test=test)
+
+
+class ImagenetPixelHardSynsets2013ChallengeTop40Provider256(Dldata2ConvnetProviderBase):
+    """hvm provider
+    """
+    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        import imagenet.dldatasets
+        dataset = imagenet.dldatasets.PixelHardSynsets2013Challenge() #Top40Screenset()
+        metacol = 'synset'
+        preproc = {'resize_to': (256, 256), 'dtype': 'float32', 'mode': 'RGB',
+                   'normalize': False, 'mask': None, 'crop': None}
+        batch_size = 75
+        Dldata2ConvnetProviderBase.__init__(self, dataset=dataset, preproc=preproc,
+                                            metacol=metacol, batch_size=batch_size,
+                                            batch_range=batch_range,
+                                            init_epoch=init_epoch,
+                                            init_batchnum=init_batchnum,
                                             dp_params=dp_params,
                                             test=test)
