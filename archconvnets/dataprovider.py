@@ -1,9 +1,12 @@
+from sklearn import preprocessing
+import random
+import copy
 import os
 import math
 import cPickle
 import numpy as np
 import hashlib
-import random
+
 
 def get_id(l):
     return hashlib.sha1(repr(l)).hexdigest()
@@ -38,15 +41,16 @@ class Dldata2ConvnetProviderBase(object):
         self.dataset = dataset
         self.preproc = preproc
         self.metacol = metacol
+        self._crop_rand_size = preproc['crop_rand_size']
 
         if imgs is None:
             imgs = dataset.get_images(preproc)
         n_imgs = imgs.shape[0]
         if metadata is None:
             metadata = dataset.meta[metacol]
-        reo = np.arange(n_imgs)
-        random.shuffle(reo)
-        imgs = imgs[reo]; metadata = metadata[reo]
+        random.seed(666)
+        self.reo = np.arange(n_imgs)
+        random.shuffle(self.reo)
         self.batch_size = batch_size
         total_batches = int(math.ceil(len(imgs) / float(batch_size)))
         if batch_range is None:
@@ -66,7 +70,7 @@ class Dldata2ConvnetProviderBase(object):
         mshape = imgs.shape[1]
         assert mshape == imgs.shape[2], 'imgs must be square'
         self.imgs = imgs
-        self.img_size = mshape
+        self.img_size = mshape - self._crop_rand_size
 
         labels = np.unique(metadata)
         self._num_classes = len(labels)
@@ -77,7 +81,7 @@ class Dldata2ConvnetProviderBase(object):
     def get_data_dims(self, idx=0):
         ###what about "if idx == 0 else 1"
         print(idx)
-        return (self.imgs.shape[1]**2) * self.num_colors if idx == 0 else 1
+        return (self.img_size**2) * self.num_colors if idx == 0 else 1
 
     def get_next_batch(self):
         if self.data_dic is None or len(self.batch_range) > 1:
@@ -103,29 +107,40 @@ class Dldata2ConvnetProviderBase(object):
             cache = False
 
         if not cache or not os.path.exists(batchfile):
-            data = self.imgs[bn * self.batch_size: (bn+1) * self.batch_size]
+            data = self.imgs[self.reo[bn * self.batch_size: (bn+1) * self.batch_size]]
             data = np.asarray(data, dtype=np.single)
 
-            mshape = data.shape[1]
-            new_s = (data.shape[0], mshape **2)
-            if data.ndim == 4:
-                nc = self.num_colors
-                data = np.column_stack([data[:, :, :, i].reshape(new_s) for i in range(nc)]).T
-            else:
-                data = data.reshape(new_s).T
-
             metadata = self.metadata
-            labels = metadata[bn * self.batch_size: (bn+1) * self.batch_size]
+            labels = metadata[self.reo[bn * self.batch_size: (bn+1) * self.batch_size]]
             labels = labels.reshape((1, len(labels)))
             batchval = {'data': data, 'labels': labels}
             if cache:
                 with open(batchfile, 'wb') as _f:
                     cPickle.dump(batchval, _f)
-            print data.shape
-            return batchval
         else:
             print('loading from cache %s' % batchfile)
-            return cPickle.loads(open(batchfile).read())
+            x =  cPickle.loads(open(batchfile).read())
+            data = x['data']; labels = x['labels']
+        
+        # crop
+        random.seed(666 + bn + self.curr_epoch)
+        crop_offset_x = random.randint(0,self._crop_rand_size)
+        crop_offset_y = random.randint(0,self._crop_rand_size)
+        print crop_offset_x, crop_offset_y
+        new_size = data.shape[1] - self._crop_rand_size
+        data = copy.deepcopy(data[:, crop_offset_x:(crop_offset_x+new_size)])
+        data = copy.deepcopy(data[:, :, crop_offset_y:(crop_offset_y+new_size)])
+        
+        # reshape
+        mshape = data.shape[1]
+        new_s = (data.shape[0], mshape **2)
+        nc = self.num_colors
+        data = np.column_stack([data[:, :, :, i].reshape(new_s) for i in range(nc)]).T
+        data = preprocessing.scale(data, axis=1)
+        print data.shape
+        print np.unique(labels).shape
+        return {'data': data, 'labels': labels}
+
 
     def advance_batch(self):
         self.batch_idx = self.get_next_batch_idx()
@@ -184,8 +199,8 @@ class HVMCategoryProvider32x32(Dldata2ConvnetProviderBase):
         import dldata.stimulus_sets.hvm as hvm
         dataset = hvm.HvMWithDiscfade()
         metacol = 'category'
-        preproc = {'size': (96, 96, 3), 'dtype': 'float32', 'global_normalize': False}
-        batch_size = 2
+        preproc = {'size': (32, 32, 3), 'dtype': 'float32', 'global_normalize': False}
+        batch_size = 10000
         Dldata2ConvnetProviderBase.__init__(self, dataset=dataset, preproc=preproc,
                                             metacol=metacol, batch_size=batch_size, 
                                             batch_range=batch_range, 
@@ -242,11 +257,11 @@ class ImagenetPixelHardSynsets2013ChallengeTop40Provider(Dldata2ConvnetProviderB
     """
     def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
         import imagenet.dldatasets
-        dataset = imagenet.dldatasets.PixelHardSynsets2013ChallengeTop25Screenset() #Top40Screenset()
+        dataset = imagenet.dldatasets.ChallengeSynsets2013() # PixelHardSynsets2013ChallengeTop40Screenset()
         metacol = 'synset'
-        preproc = {'resize_to': (128, 128), 'dtype': 'float32', 'mode': 'RGB', 'crop_rand': 0, 'seed': 666,
-                   'normalize': False, 'mask': None, 'crop': None}
-        batch_size = 100
+        preproc = {'crop_rand': 0, 'resize_to': (128+18, 128+18), 'dtype': 'float32', 'mode': 'RGB', 'seed': 666,
+                   'normalize': False, 'mask': None, 'crop': None, 'crop_rand_size': 18}
+        batch_size = 75
         Dldata2ConvnetProviderBase.__init__(self, dataset=dataset, preproc=preproc,
                                             metacol=metacol, batch_size=batch_size, 
                                             batch_range=batch_range, 
@@ -255,40 +270,3 @@ class ImagenetPixelHardSynsets2013ChallengeTop40Provider(Dldata2ConvnetProviderB
                                             dp_params=dp_params,
                                             test=test)
 
-
-class ImagenetPixelHardSynsets2013ChallengeTop40Provider128(Dldata2ConvnetProviderBase):
-    """hvm provider
-    """
-    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
-        import imagenet.dldatasets
-        dataset = imagenet.dldatasets.PixelHardSynsets2013Challenge() #Top40Screenset()
-        metacol = 'synset'
-        preproc = {'resize_to': (128, 128), 'dtype': 'float32', 'mode': 'RGB',
-                   'normalize': False, 'mask': None, 'crop': None, 'crop_rand': 0}
-        batch_size = 27
-        Dldata2ConvnetProviderBase.__init__(self, dataset=dataset, preproc=preproc,
-                                            metacol=metacol, batch_size=batch_size,
-                                            batch_range=batch_range,
-                                            init_epoch=init_epoch,
-                                            init_batchnum=init_batchnum,
-                                            dp_params=dp_params,
-                                            test=test)
-
-
-class ImagenetPixelHardSynsets2013ChallengeTop40Provider256(Dldata2ConvnetProviderBase):
-    """hvm provider
-    """
-    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
-        import imagenet.dldatasets
-        dataset = imagenet.dldatasets.PixelHardSynsets2013Challenge() #Top40Screenset()
-        metacol = 'synset'
-        preproc = {'resize_to': (256, 256), 'dtype': 'float32', 'mode': 'RGB',
-                   'normalize': False, 'mask': None, 'crop': None}
-        batch_size = 75
-        Dldata2ConvnetProviderBase.__init__(self, dataset=dataset, preproc=preproc,
-                                            metacol=metacol, batch_size=batch_size,
-                                            batch_range=batch_range,
-                                            init_epoch=init_epoch,
-                                            init_batchnum=init_batchnum,
-                                            dp_params=dp_params,
-                                            test=test)
