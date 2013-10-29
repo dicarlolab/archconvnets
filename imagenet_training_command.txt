@@ -1,0 +1,3 @@
+This should run on munctional1 without issue. It uses 85-90+% of a single GPU's memory.
+
+python convnet.py --save-path=/home/darren/imagenet_full_test --layer-def=/home/darren/archconvnets/archconvnets/convnet/ut_model_full/layer.cfg --layer-params=/home/darren/archconvnets/archconvnets/convnet/ut_model_full/layer-params.cfg --epochs=500 --train-range=1-15482 --test-range=15483-17201 --data-path=/ --data-provider=ImagenetPixelHardSynsets2013ChallengeTop40Provider --conserve-mem=1
