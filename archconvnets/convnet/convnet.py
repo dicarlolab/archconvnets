@@ -204,6 +204,7 @@ class ConvNet(IGPUModel):
         DataProvider.register_data_provider('hvmCategory32x32', 'HVMCATEGORY32x32', dataprovider.HVMCategoryProvider32x32)
         #DataProvider.register_data_provider('ImagenetPixelHardSynsets2013ChallengeTop40Provider128','ImagenetPixelHardSynsets2013ChallengeTop40Provider128', dataprovider.ImagenetPixelHardSynsets2013ChallengeTop40Provider128)
         #DataProvider.register_data_provider('ImagenetPixelHardSynsets2013ChallengeTop40Provider256','ImagenetPixelHardSynsets2013ChallengeTop40Provider256', dataprovider.ImagenetPixelHardSynsets2013ChallengeTop40Provider256)
+        DataProvider.register_data_provider('ImagenetPixelHardSynsets2013ChallengeTop40Provider96','ImagenetPixelHardSynsets2013ChallengeTop40Provider96', dataprovider.ImagenetPixelHardSynsets2013ChallengeTop40Provider96)
         DataProvider.register_data_provider('ImagenetPixelHardSynsets2013ChallengeTop40Provider','ImagenetPixelHardSynsets2013ChallengeTop40Provider', dataprovider.ImagenetPixelHardSynsets2013ChallengeTop40Provider)
         DataProvider.register_data_provider('cifartestgrayscale', 'CIFARTESTGRAYSCALE', dataprovider.CIFAR10TestGrayscaleProvider)
         DataProvider.register_data_provider('cifarhvmtest', 'CIFARHVMTEST', dataprovider.CIFARHVMTEST)

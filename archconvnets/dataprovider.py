@@ -270,3 +270,20 @@ class ImagenetPixelHardSynsets2013ChallengeTop40Provider(Dldata2ConvnetProviderB
                                             dp_params=dp_params,
                                             test=test)
 
+class ImagenetPixelHardSynsets2013ChallengeTop40Provider96(Dldata2ConvnetProviderBase):
+    """hvm provider
+    """
+    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        import imagenet.dldatasets
+        dataset = imagenet.dldatasets.ChallengeSynsets2013() # PixelHardSynsets2013ChallengeTop40Screenset()
+        metacol = 'synset'
+        preproc = {'crop_rand': 0, 'resize_to': (96+13, 96+13), 'dtype': 'float32', 'mode': 'RGB', 'seed': 666,
+                   'normalize': False, 'mask': None, 'crop': None, 'crop_rand_size': 13}
+        batch_size = 128
+        Dldata2ConvnetProviderBase.__init__(self, dataset=dataset, preproc=preproc,
+                                            metacol=metacol, batch_size=batch_size,
+                                            batch_range=batch_range,
+                                            init_epoch=init_epoch,
+                                            init_batchnum=init_batchnum,
+                                            dp_params=dp_params,
+                                            test=test)
