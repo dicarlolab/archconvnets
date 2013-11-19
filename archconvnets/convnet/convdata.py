@@ -84,6 +84,8 @@ class CIFARDataRandomProvider(CIFARDataProvider):
 
 class CroppedCIFARDataProvider(LabeledMemoryDataProvider):
     def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        print batch_range
+        print dp_params
         LabeledMemoryDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
 
         self.border_size = dp_params['crop_border']
@@ -236,12 +238,15 @@ class GeneralDataRandomProvider(GeneralDataProvider):
             datadic[1] = n.require( datadic[1][:,index], dtype=n.single, requirements='C' )
         return epoch, batchnum, [datadic[0], datadic[1]]
 
-
+#def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
 class CroppedGeneralDataProvider(LabeledMemoryDataProvider):
     def __init__(self, data_dir, 
-            img_size, num_colors,  # options i've add to cifar data provider
             batch_range=None, 
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        img_size = 128
+        num_colors = 3
+        print batch_range
+        print dp_params
         LabeledMemoryDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
 
         self.num_colors = num_colors
