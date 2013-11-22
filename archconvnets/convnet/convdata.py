@@ -243,7 +243,7 @@ class CroppedGeneralDataProvider(LabeledMemoryDataProvider):
     def __init__(self, data_dir, 
             batch_range=None, 
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
-        img_size = 128
+        img_size = 138
         num_colors = 3
         print batch_range
         print dp_params
