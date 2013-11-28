@@ -95,11 +95,11 @@ class CroppedCIFARDataProvider(LabeledMemoryDataProvider):
         self.data_mult = self.num_views if self.multiview else 1
         self.num_colors = 3
         
-        for d in self.data_dic:
-            d['data'] = n.require(d['data'], requirements='C')
-            d['labels'] = n.require(n.tile(d['labels'].reshape((1, d['data'].shape[1])), (1, self.data_mult)), requirements='C')
+        #for d in self.data_dic:
+        #    d['data'] = n.require(d['data'], requirements='C')
+        #    d['labels'] = n.require(n.tile(d['labels'].reshape((1, d['data'].shape[1])), (1, self.data_mult)), requirements='C')
         
-        self.cropped_data = [n.zeros((self.get_data_dims(), self.data_dic[0]['data'].shape[1]*self.data_mult), dtype=n.single) for x in xrange(2)]
+        #self.cropped_data = [n.zeros((self.get_data_dims(), self.data_dic[0]['data'].shape[1]*self.data_mult), dtype=n.single) for x in xrange(2)]
 
         self.batches_generated = 0
         self.data_mean = self.batch_meta['data_mean'].reshape((3,32,32))[:,self.border_size:self.border_size+self.inner_size,self.border_size:self.border_size+self.inner_size].reshape((self.get_data_dims(), 1))
@@ -262,11 +262,11 @@ class CroppedGeneralDataProvider(LabeledMemoryDataProvider):
             self.num_views = 5;
         self.data_mult = self.num_views if self.multiview else 1
         
-        for d in self.data_dic:
-            d['data'] = n.require(d['data'], requirements='C')
-            d['labels'] = n.require(n.tile(d['labels'].reshape((1, d['data'].shape[1])), (1, self.data_mult)), requirements='C')
+        #for d in self.data_dic:
+        #    d['data'] = n.require(d['data'], requirements='C')
+        #    d['labels'] = n.require(n.tile(d['labels'].reshape((1, d['data'].shape[1])), (1, self.data_mult)), requirements='C')
         
-        self.cropped_data = [n.zeros((self.get_data_dims(), self.data_dic[0]['data'].shape[1]*self.data_mult), dtype=n.single) for x in xrange(2)]
+        #self.cropped_data = [n.zeros((self.get_data_dims(), self.data_dic[0]['data'].shape[1]*self.data_mult), dtype=n.single) for x in xrange(2)]
 
         self.batches_generated = 0
         self.data_mean = self.batch_meta['data_mean'].reshape((self.num_colors,self.img_size,self.img_size))[:,self.border_size:self.border_size+self.inner_size,self.border_size:self.border_size+self.inner_size].reshape((self.get_data_dims(), 1))

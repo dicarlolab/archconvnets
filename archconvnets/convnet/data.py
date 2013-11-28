@@ -213,16 +213,23 @@ class LabeledDataProvider(DataProvider):
 class LabeledMemoryDataProvider(LabeledDataProvider):
     def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
         LabeledDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
-        self.data_dic = []
-        for i in batch_range:
-            self.data_dic += [unpickle(self.get_data_file_name(i))]
-            self.data_dic[-1]["labels"] = n.c_[n.require(self.data_dic[-1]['labels'], dtype=n.single)]
+        #self.data_dic = []
+        #for i in batch_range:
+        #    self.data_dic += [unpickle(self.get_data_file_name(i))]
+        #    self.data_dic[-1]["labels"] = n.c_[n.require(self.data_dic[-1]['labels'], dtype=n.single)]
             
     def get_next_batch(self):
         epoch, batchnum = self.curr_epoch, self.curr_batchnum
         self.advance_batch()
         bidx = batchnum - self.batch_range[0]
-        return epoch, batchnum, self.data_dic[bidx]
+        data_dic = []
+        data_dic += [unpickle(self.get_data_file_name(bidx))]
+        data_dic[-1]["labels"] = n.c_[n.require(data_dic[-1]['labels'], dtype=n.single)]
+        
+        for d in data_dic:
+            d['data'] = n.require(d['data'], requirements='C')
+            d['labels'] = n.require(n.tile(d['labels'].reshape((1, d['data'].shape[1])), (1, self.data_mult)), requirements='C')
+        return epoch, batchnum, data_dic[0]
     
 dp_types = {"default": "The default data provider; loads one batch into memory at a time",
             "memory": "Loads the entire dataset into memory",
