@@ -243,9 +243,10 @@ class CroppedGeneralDataProvider(LabeledMemoryDataProvider):
     def __init__(self, data_dir, 
             batch_range=None, 
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
-        img_size = 138
+        img_size = 256
         num_colors = 3
         print batch_range
+        dp_params['img_size'] = img_size
         print dp_params
         LabeledMemoryDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
 
@@ -269,6 +270,7 @@ class CroppedGeneralDataProvider(LabeledMemoryDataProvider):
         #self.cropped_data = [n.zeros((self.get_data_dims(), self.data_dic[0]['data'].shape[1]*self.data_mult), dtype=n.single) for x in xrange(2)]
 
         self.batches_generated = 0
+        self.batch_meta['data_mean'] = np.ones(self.img_size*self.img_size*3)*118
         self.data_mean = self.batch_meta['data_mean'].reshape((self.num_colors,self.img_size,self.img_size))[:,self.border_size:self.border_size+self.inner_size,self.border_size:self.border_size+self.inner_size].reshape((self.get_data_dims(), 1))
 
     def get_num_views(self):

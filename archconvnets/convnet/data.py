@@ -210,26 +210,63 @@ class LabeledDataProvider(DataProvider):
     def get_num_classes(self):
         return len(self.batch_meta['label_names'])
     
+import imagenet
+import imagenet.dldatasets
+import random
+import numpy as np
+import Image
+batch_size = 128
 class LabeledMemoryDataProvider(LabeledDataProvider):
     def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
         LabeledDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
-        #self.data_dic = []
-        #for i in batch_range:
-        #    self.data_dic += [unpickle(self.get_data_file_name(i))]
-        #    self.data_dic[-1]["labels"] = n.c_[n.require(self.data_dic[-1]['labels'], dtype=n.single)]
-            
+        self.dataset = imagenet.dldatasets.ChallengeSynsets2013() # PixelHardSynsets2013ChallengeTop40Screenset()
+        self.img_size = dp_params['img_size']
+        metacol = 'synset'
+        preproc = {'crop_rand': 0, 'resize_to': (4, 4), 'dtype': 'float32', 'mode': 'RGB', 'seed': 666,
+           'normalize': False, 'mask': None, 'crop': None, 'crop_rand_size': 0}
+        imgs = self.dataset.get_images(preproc)
+        random.seed(666)
+        self.inds = np.arange(imgs.shape[0])
+        random.shuffle(self.inds)
+        labels_unique = np.unique(self.dataset.meta[metacol])
+        self.label_inds = np.zeros((len(self.dataset.meta)), dtype='int')
+        for label in range(len(labels_unique)):
+            self.label_inds[self.dataset.meta[metacol] == labels_unique[label]] = label
+
     def get_next_batch(self):
         epoch, batchnum = self.curr_epoch, self.curr_batchnum
         self.advance_batch()
         bidx = batchnum - self.batch_range[0]
-        data_dic = []
-        data_dic += [unpickle(self.get_data_file_name(bidx))]
-        data_dic[-1]["labels"] = n.c_[n.require(data_dic[-1]['labels'], dtype=n.single)]
+        img_offset = bidx*batch_size
+        img_inds = self.inds[img_offset:img_offset+batch_size]
+        data_dic = {}
+        data_dic['labels'] = self.label_inds[img_inds]
+        data_dic["labels"] = n.c_[n.require(data_dic['labels'], dtype=n.single)]
+       
+        data_dic['data'] = np.zeros((batch_size, self.img_size, self.img_size, 3),dtype='uint8')
+        for x in range(batch_size):
+             try:
+                 im = Image.open('/imgnet_storage_challengeset/imgs/' + self.dataset.meta[img_inds[x]]['filename'])
+                 sz = im.size
+                 if sz[0] < sz[1]:
+                        diff = sz[1] - sz[0]
+                        box = [0, diff/2, sz[0], sz[0]+diff/2]
+                 else:
+                       diff = sz[0] - sz[1]
+                       box = [diff/2, 0, sz[1]+diff/2, sz[1]]
+                 im = im.crop(box)
+                 im = im.resize((self.img_size,self.img_size))
+                 data_dic['data'][x] = np.asarray(im)
+             except:
+                print 'error loading ' +  self.dataset.meta[img_inds[x]]['filename']
+         
+        data_dic['data'] = data_dic['data'].transpose([3, 1, 2, 0])
+        data_dic['data'] = np.reshape(data_dic['data'], [3*self.img_size*self.img_size, batch_size])
+        data_dic['data'] = np.uint8(data_dic['data'])
         
-        for d in data_dic:
-            d['data'] = n.require(d['data'], requirements='C')
-            d['labels'] = n.require(n.tile(d['labels'].reshape((1, d['data'].shape[1])), (1, self.data_mult)), requirements='C')
-        return epoch, batchnum, data_dic[0]
+        data_dic['data'] = n.require(data_dic['data'], requirements='C')
+        data_dic['labels'] = n.require(n.tile(data_dic['labels'].reshape((1, data_dic['data'].shape[1])), (1, self.data_mult)), requirements='C')
+        return epoch, batchnum, data_dic
     
 dp_types = {"default": "The default data provider; loads one batch into memory at a time",
             "memory": "Loads the entire dataset into memory",
