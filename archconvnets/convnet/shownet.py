@@ -21,7 +21,7 @@
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+import pickle as pk
 import numpy
 import sys
 import getopt as opt
@@ -101,6 +101,10 @@ class ShowConvNet(ConvNet):
 
         numbatches = len(self.train_batch_range)
         test_errors = numpy.row_stack(test_errors)
+        print test_errors, len(test_errors)
+        #file = open('/home/darren/test_errs','w')
+        #pk.dump(test_errors, file)
+        #file.close()
         test_errors = numpy.tile(test_errors, (1, self.testing_freq))
         test_errors = list(test_errors.flatten())
         test_errors += [test_errors[-1]] * max(0,len(train_errors) - len(test_errors))
