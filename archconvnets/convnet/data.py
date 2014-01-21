@@ -190,7 +190,6 @@ class LabeledDummyDataProvider(DummyDataProvider):
 
         return self.curr_epoch, self.curr_batchnum, {'data':data, 'labels':labels}
 
-
 class MemoryDataProvider(DataProvider):
     def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
         DataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
@@ -201,9 +200,8 @@ class MemoryDataProvider(DataProvider):
     def get_next_batch(self):
         epoch, batchnum = self.curr_epoch, self.curr_batchnum
         self.advance_batch()
-
         return epoch, batchnum, self.data_dic[batchnum - self.batch_range[0]]
-        
+
 
 class LabeledDataProvider(DataProvider):   
     def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
@@ -214,19 +212,19 @@ class LabeledDataProvider(DataProvider):
     
 
 class LabeledMemoryDataProvider(LabeledDataProvider):
-        
+    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
+        LabeledDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
+        self.data_dic = []
+        for i in batch_range:
+            self.data_dic += [unpickle(self.get_data_file_name(i))]
+            self.data_dic[-1]["labels"] = n.c_[n.require(self.data_dic[-1]['labels'], dtype=n.single)]
+            
     def get_next_batch(self):
         epoch, batchnum = self.curr_epoch, self.curr_batchnum
         self.advance_batch()
         bidx = batchnum - self.batch_range[0]
-        data_dic = []
-        data_dic += [unpickle(self.get_data_file_name(bidx))]
-        data_dic[-1]["labels"] = n.c_[n.require(data_dic[-1]['labels'], dtype=n.single)]
-        d = data_dic[-1]
-        d[-1]['data'] = n.require(d['data'], requirements='C')
-        d['labels'] = n.require(n.tile(d['labels'].reshape((1, d['data'].shape[1])), (1, self.data_mult)), requirements='C')
-        return epoch, batchnum, data_dic[0]
-        
+        return epoch, batchnum, self.data_dic[bidx]
+
         
 def dldata_to_convenet_reformatting(stims, lbls):
     img_sz = stims.shape[1]
@@ -239,10 +237,13 @@ def dldata_to_convenet_reformatting(stims, lbls):
         nc = stims.shape[3]
         new_s = (nc * (img_sz**2), batch_size)
         stims = stims.transpose([3, 1, 2, 0]).reshape(new_s)    
+        
+    assert lbls.ndim == 1
+    labels = lbls.reshape((1, lbls.shape[0]))
     return {'data': stims, 'labels': labels}
 
-        
-class DLDataProvider(LabeledMemoryDataProvider):
+
+class DLDataProvider(LabeledDataProvider):
 
     def __init__(self, data_dir, batch_range, init_epoch=1,
                         init_batchnum=None, dp_params=None, test=False):
@@ -268,10 +269,18 @@ class DLDataProvider(LabeledMemoryDataProvider):
             labels = np.zeros((mlen, ), dtype='int')
             for label in range(len(labels_unique)):
                 labels[metacol == labels_unique[label]] = label
-        else:
-            labels = metacol[:]
+            metacol = labels
 
+        #assume that if data_dir does not exist, create it properly
+        #otherwise, check that the right number of batches exists and that
+        #the batches.meta exists
         if not os.path.exists(data_dir):
+            print('data_dir %s does not exist, creating' % data_dir)
+            os.makedirs(data_dir)
+            
+            #setting up indices for each batch
+            #either via specified permutation (e.g. "random")
+            #or doing nothing
             perm_type = self.dp_params.get('perm_type')
             if perm_type is not None:
                 mlen = len(meta)
@@ -286,17 +295,22 @@ class DLDataProvider(LabeledMemoryDataProvider):
             else:
                 indset = [slice(batch_size * bidx, batch_size * (bidx + 1)) 
                            for bidx in range(num_batches)]
-                           
+            
+            #get stimarray (may be lazyarray)
+            #something about appearing to require uint8??
             dp_params['preproc']['dtype'] = 'uint8'    #or assertion?
             stimarray = dset.get_images(**self.dp_params['preproc'])
             
+            #actually write out batches, while tallying img mean
             imgs_mean = None
             lsf = 0.
             for bnum, inds in enumerate(indset):
+                #get stimuli and put in the required format
                 stims = stimarray[inds]
-                lbls = meta[meta_attribute][inds]
+                lbls = metacol[inds]
                 d = dldata_to_convnet_reformatting(stims, lbls)
                 
+                #add to the mean
                 if imgs_mean is None:
                     imgs_mean = np.zeros((d['data'].shape[0],))
                 dlen = d['data'].shape[0]
@@ -305,18 +319,21 @@ class DLDataProvider(LabeledMemoryDataProvider):
                 imgs_mean += (1 - fr) * d['data'].mean(1)
                 lsf += dlen
                 
+                #write out batch
                 outdict = {'batch_label': 'batch_%d' % bnum
-                     'labels': labels[ins], 
-                     'data': d['data'], 
+                           'labels': d['labels'], 
+                           'data': d['data'], 
                       #'filenames': np.asarray(dataset.meta[img_inds]['filename']).tolist()    ####need this????
-                     }
-                with open(os.path.join(data_dir, 'data_batch_%d' % bnum), 'w') as _f:
+                           }
+                outpath = os.path.join(data_dir, 'data_batch_%d' % bnum)
+                with open(outpath, 'w') as _f:
                     cPickle.dump(outdict, _f)
                     
+            #write out batches.meta
             outdict = {'num_cases_per_batch': batch_size, 
-                 'label_names': labels_unique,
-                 'num_vis': d['data'].shape[0], 
-                 'data_mean': imgs_mean}   
+                       'label_names': labels_unique,
+                       'num_vis': d['data'].shape[0], 
+                       'data_mean': imgs_mean}   
             with open(os.path.join(data_dir, 'batches.meta'), 'w') as _f:
                 cPickle.dump(outdict, _f)
         
@@ -325,10 +342,15 @@ class DLDataProvider(LabeledMemoryDataProvider):
                 fname = os.path.join(data_dir, 'data_batch_%d' % bnum)
                 assert os.path.exists(fname)
             assert os.path.exists(os.path.join(data_dir, 'batches.meta'))
-
-                
-        LabeledMemoryDataProvider.__init__(self, data_dir, batch_range, 
+       
+        LabeledDataProvider.__init__(self, data_dir, batch_range, 
                                  init_epoch, init_batchnum, dp_params, test)
+
+    def get_next_batch(self):
+        epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
+        d['data'] = n.require(d['data'], requirements='C')  
+        d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
+        return epoch, batchnum, d
 
     
 dp_types = {"default": "The default data provider; loads one batch into memory at a time",

@@ -188,7 +188,7 @@ class GeneralDataProvider(LabeledMemoryDataProvider):
             d['labels'] = n.require(d['labels'].reshape((1, d['data'].shape[1])), dtype=n.single, requirements='C')
 
     def get_next_batch(self):
-        epoch, batchnum, datadic = LabeledMemoryDataProvider.get_next_batch(self)
+        epoch, batchnum, datadic = DLDataProvider.get_next_batch(self)
         return epoch, batchnum, [datadic['data'], datadic['labels']]
 
     # Returns the dimensionality of the two data matrices returned by get_next_batch
@@ -231,13 +231,13 @@ class GeneralDataRandomProvider(GeneralDataProvider):
         return epoch, batchnum, [datadic[0], datadic[1]]
 
 #def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
-class CroppedGeneralDataProvider(LabeledMemoryDataProvider):
+class CroppedGeneralDataProvider(DLDataProvider):
     def __init__(self, data_dir, 
             img_size, num_colors,
             batch_range=None, 
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
 
-        LabeledMemoryDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
+        DLDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
 
         self.num_colors = num_colors
         self.img_size = img_size
@@ -253,18 +253,21 @@ class CroppedGeneralDataProvider(LabeledMemoryDataProvider):
         self.data_mult = self.num_views if self.multiview else 1
         
         self.batches_generated = 0
-        self.data_mean = self.batch_meta['data_mean'].reshape((self.num_colors,self.img_size,self.img_size))[:,self.border_size:self.border_size+self.inner_size,self.border_size:self.border_size+self.inner_size].reshape((self.get_data_dims(), 1))
+        self.data_mean = self.batch_meta['data_mean'].reshape((self.num_colors, self.img_size,
+                        self.img_size))[:,self.border_size: self.border_size+self.inner_size,
+                                        self.border_size: self.border_size+self.inner_size].reshape((self.get_data_dims(), 1))
 
     def get_num_views(self):
         return self.num_views
 
     def get_next_batch(self):
-        epoch, batchnum, datadic = LabeledMemoryDataProvider.get_next_batch(self)
+        epoch, batchnum, datadic = DLDataProvider.get_next_batch(self)
+        datadic['labels'] = n.require(n.tile(datadic['labels'].reshape((1, datadic['data'].shape[1])), (1, self.data_mult)), requirements='C')
 
         # correct for cropped_data size
         #cropped = self.cropped_data[self.batches_generated % 2]
         cropped = n.zeros((self.get_data_dims(), datadic['data'].shape[1]*self.data_mult), dtype=n.single)
-
+        
         self.__trim_borders(datadic['data'], cropped)
         cropped -= self.data_mean
         self.batches_generated += 1
