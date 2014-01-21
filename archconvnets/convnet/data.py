@@ -222,10 +222,9 @@ class LabeledMemoryDataProvider(LabeledDataProvider):
         data_dic = []
         data_dic += [unpickle(self.get_data_file_name(bidx))]
         data_dic[-1]["labels"] = n.c_[n.require(data_dic[-1]['labels'], dtype=n.single)]
-        
-        for d in data_dic:
-            d['data'] = n.require(d['data'], requirements='C')
-            d['labels'] = n.require(n.tile(d['labels'].reshape((1, d['data'].shape[1])), (1, self.data_mult)), requirements='C')
+        d = data_dic[-1]
+        d[-1]['data'] = n.require(d['data'], requirements='C')
+        d['labels'] = n.require(n.tile(d['labels'].reshape((1, d['data'].shape[1])), (1, self.data_mult)), requirements='C')
         return epoch, batchnum, data_dic[0]
     
 dp_types = {"default": "The default data provider; loads one batch into memory at a time",
