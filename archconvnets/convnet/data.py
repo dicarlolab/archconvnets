@@ -253,7 +253,11 @@ class DLDataProvider(LabeledDataProvider):
         modulename, attrname = dp_params['dataset_name']
         module = importlib.import_module(modulename)
         dataset_obj = getattr(module, attrname)
-        dset = dataset_obj(data=dp_params['dataset_data'])
+        dataset_data = dp_params.get('dataset_data', None)
+        if dataset_data is not None:
+            dset = dataset_obj(data=dataset_data)
+        else:
+            dset = dataset_obj()
         meta = dset.meta   
         
         #compute number of batches
@@ -261,24 +265,35 @@ class DLDataProvider(LabeledDataProvider):
         batch_size = dp_params['batch_size'] 
         num_batches = int(math.ceil(mlen / float(batch_size)))
  
-        #format relevant metadata column into integer list if needed
-        metacol = meta[dp_params['meta_attribute']][:]
-        try:
-            metacol + 1
-        except TypeError:
-            labels_unique = n.unique(metacol)
-            labels = n.zeros((mlen, ), dtype='int')
-            for label in range(len(labels_unique)):
-                labels[metacol == labels_unique[label]] = label
-            metacol = labels
-
-        #assume that if data_dir does not exist, create it properly
-        #otherwise, check that the right number of batches exists and that
-        #the batches.meta exists
-        if not os.path.exists(data_dir):
+        batch_regex = re.compile('data_batch_([\d]+)')
+        imgs_mean = None
+        existing_batches = []
+        isf = 0
+        if os.path.exists(data_dir):
+            _L = os.listdir(data_dir)
+            existing_batches = [int(batch_regex.match(_l).groups()[0]) for _l in _L if batch_regex.match(_l)]
+            existing_batches.sort()
+            metafile = os.path.join(data_dir, 'batches.meta')
+            if existing_batches:
+                assert os.path.exists(metafile), 'Batches found but no metafile %s' % metafile
+            if os.path.exists(metafile):
+                bmeta = cPickle.load(open(metafile))
+                ebatches = bmeta['existing_batches']
+                imgs_mean = bmeta['data_mean']
+                isf = bmeta['images_so_far']
+            else:
+                ebatches = []
+            assert existing_batches == ebatches, ('Expected batches', ebatches, 'found batches', existing_batches)
+            needed_batches = [_b for _b in batch_range if _b not in existing_batches]
+            if existing_batches:
+                print('Found batches: ', existing_batches)
+                print('Batches needed: ', needed_batches)
+        else:
             print('data_dir %s does not exist, creating' % data_dir)
+            needed_batches = batch_range[:]
             os.makedirs(data_dir)
-            
+           
+        if needed_batches:
             #setting up indices for each batch
             #either via specified permutation (e.g. "random")
             #or doing nothing
@@ -302,10 +317,22 @@ class DLDataProvider(LabeledDataProvider):
             dp_params['preproc']['dtype'] = 'uint8'    #or assertion?
             stimarray = dset.get_images(preproc=dp_params['preproc'])
             
+            #format relevant metadata column into integer list if needed
+            metacol = meta[dp_params['meta_attribute']][:]
+            try:
+                metacol + 1
+            except TypeError:
+                labels_unique = n.unique(metacol)
+                labels = n.zeros((mlen, ), dtype='int')
+                for label in range(len(labels_unique)):
+                    labels[metacol == labels_unique[label]] = label
+                metacol = labels
+
             #actually write out batches, while tallying img mean
-            imgs_mean = None
-            lsf = 0.
+
             for bnum, inds in enumerate(indset):
+                if bnum not in needed_batches:
+                    continue
                 print('Creating batch %d' % bnum)
                 #get stimuli and put in the required format
                 stims = stimarray[inds]
@@ -316,10 +343,10 @@ class DLDataProvider(LabeledDataProvider):
                 if imgs_mean is None:
                     imgs_mean = n.zeros((d['data'].shape[0],))
                 dlen = d['data'].shape[0]
-                fr = lsf / (lsf + float(dlen))
+                fr = isf / (isf + float(dlen))
                 imgs_mean *= fr
                 imgs_mean += (1 - fr) * d['data'].mean(1)
-                lsf += dlen
+                isf += dlen
                 
                 #write out batch
                 outdict = {'batch_label': 'batch_%d' % bnum,
@@ -332,18 +359,16 @@ class DLDataProvider(LabeledDataProvider):
                     cPickle.dump(outdict, _f)
                     
             #write out batches.meta
+            existing_batches += needed_batches
+            existing_batches.sort()
             outdict = {'num_cases_per_batch': batch_size, 
                        'label_names': labels_unique,  ###what's supposed to be stored here?
                        'num_vis': d['data'].shape[0], 
-                       'data_mean': imgs_mean}   
+                       'data_mean': imgs_mean,
+                       'existing_batches': existing_batches,
+                       'images_so_far': isf}   
             with open(os.path.join(data_dir, 'batches.meta'), 'w') as _f:
                 cPickle.dump(outdict, _f)
-        
-        else:
-            for bnum in range(num_batches):
-                fname = os.path.join(data_dir, 'data_batch_%d' % bnum)
-                assert os.path.exists(fname), "data batch %s doesn't exist" % fname
-            assert os.path.exists(os.path.join(data_dir, 'batches.meta'))
        
         LabeledDataProvider.__init__(self, data_dir, batch_range, 
                                  init_epoch, init_batchnum, dp_params, test)
