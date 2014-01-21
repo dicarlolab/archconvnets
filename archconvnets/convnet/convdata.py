@@ -84,8 +84,6 @@ class CIFARDataRandomProvider(CIFARDataProvider):
 
 class CroppedCIFARDataProvider(LabeledMemoryDataProvider):
     def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
-        print batch_range
-        print dp_params
         LabeledMemoryDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
 
         self.border_size = dp_params['crop_border']
@@ -245,8 +243,7 @@ class CroppedGeneralDataProvider(LabeledMemoryDataProvider):
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
         img_size = 138
         num_colors = 3
-        print batch_range
-        print dp_params
+
         LabeledMemoryDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
 
         self.num_colors = num_colors
