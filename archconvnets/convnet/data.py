@@ -21,7 +21,8 @@
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+import math
+import importlib
 import numpy as n
 from numpy.random import randn, rand, random_integers
 import os
@@ -226,7 +227,7 @@ class LabeledMemoryDataProvider(LabeledDataProvider):
         return epoch, batchnum, self.data_dic[bidx]
 
         
-def dldata_to_convenet_reformatting(stims, lbls):
+def dldata_to_convnet_reformatting(stims, lbls):
     img_sz = stims.shape[1]
     batch_size = stims.shape[0]
     if stims.ndim == 3:
@@ -250,7 +251,7 @@ class DLDataProvider(LabeledDataProvider):
                         
         #load dataset and meta
         modulename, attrname = dp_params['dataset_name']
-        module = __import__(modulename)
+        module = importlib.import_module(modulename)
         dataset_obj = getattr(module, attrname)
         dset = dataset_obj(data=dp_params['dataset_data'])
         meta = dset.meta   
@@ -261,12 +262,12 @@ class DLDataProvider(LabeledDataProvider):
         num_batches = int(math.ceil(mlen / float(batch_size)))
  
         #format relevant metadata column into integer list if needed
-        metacol = meta[dp_params['meta_attribute']]
+        metacol = meta[dp_params['meta_attribute']][:]
         try:
             metacol + 1
         except TypeError:
-            labels_unique = np.unique(metacol)
-            labels = np.zeros((mlen, ), dtype='int')
+            labels_unique = n.unique(metacol)
+            labels = n.zeros((mlen, ), dtype='int')
             for label in range(len(labels_unique)):
                 labels[metacol == labels_unique[label]] = label
             metacol = labels
@@ -281,14 +282,14 @@ class DLDataProvider(LabeledDataProvider):
             #setting up indices for each batch
             #either via specified permutation (e.g. "random")
             #or doing nothing
-            perm_type = self.dp_params.get('perm_type')
+            perm_type = dp_params.get('perm_type')
             if perm_type is not None:
                 mlen = len(meta)
                 if perm_type == 'random':
-                    perm_seed = self.dp_params('perm_seed', 0)
-                    rng = np.random.RandomState(seed=perm_seed)
+                    perm_seed = dp_params('perm_seed', 0)
+                    rng = n.random.RandomState(seed=perm_seed)
                     perm = rng.permutation(mlen)
-                    indset = [perm[np.arange(batch_size * bidx, 
+                    indset = [perm[n.arange(batch_size * bidx, 
                      batch_size * (bidx + 1))] for bidx in range(num_batches)]
                 else:
                     raise ValueError, 'Unknown permutation type.'
@@ -299,12 +300,13 @@ class DLDataProvider(LabeledDataProvider):
             #get stimarray (may be lazyarray)
             #something about appearing to require uint8??
             dp_params['preproc']['dtype'] = 'uint8'    #or assertion?
-            stimarray = dset.get_images(**self.dp_params['preproc'])
+            stimarray = dset.get_images(preproc=dp_params['preproc'])
             
             #actually write out batches, while tallying img mean
             imgs_mean = None
             lsf = 0.
             for bnum, inds in enumerate(indset):
+                print('Creating batch %d' % bnum)
                 #get stimuli and put in the required format
                 stims = stimarray[inds]
                 lbls = metacol[inds]
@@ -312,7 +314,7 @@ class DLDataProvider(LabeledDataProvider):
                 
                 #add to the mean
                 if imgs_mean is None:
-                    imgs_mean = np.zeros((d['data'].shape[0],))
+                    imgs_mean = n.zeros((d['data'].shape[0],))
                 dlen = d['data'].shape[0]
                 fr = lsf / (lsf + float(dlen))
                 imgs_mean *= fr
@@ -320,10 +322,10 @@ class DLDataProvider(LabeledDataProvider):
                 lsf += dlen
                 
                 #write out batch
-                outdict = {'batch_label': 'batch_%d' % bnum
+                outdict = {'batch_label': 'batch_%d' % bnum,
                            'labels': d['labels'], 
                            'data': d['data'], 
-                      #'filenames': np.asarray(dataset.meta[img_inds]['filename']).tolist()    ####need this????
+                      #'filenames': n.asarray(dataset.meta[img_inds]['filename']).tolist()    ####need this????
                            }
                 outpath = os.path.join(data_dir, 'data_batch_%d' % bnum)
                 with open(outpath, 'w') as _f:
@@ -331,7 +333,7 @@ class DLDataProvider(LabeledDataProvider):
                     
             #write out batches.meta
             outdict = {'num_cases_per_batch': batch_size, 
-                       'label_names': labels_unique,
+                       'label_names': labels_unique,  ###what's supposed to be stored here?
                        'num_vis': d['data'].shape[0], 
                        'data_mean': imgs_mean}   
             with open(os.path.join(data_dir, 'batches.meta'), 'w') as _f:
@@ -340,7 +342,7 @@ class DLDataProvider(LabeledDataProvider):
         else:
             for bnum in range(num_batches):
                 fname = os.path.join(data_dir, 'data_batch_%d' % bnum)
-                assert os.path.exists(fname)
+                assert os.path.exists(fname), "data batch %s doesn't exist" % fname
             assert os.path.exists(os.path.join(data_dir, 'batches.meta'))
        
         LabeledDataProvider.__init__(self, data_dir, batch_range, 
