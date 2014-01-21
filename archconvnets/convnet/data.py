@@ -226,6 +226,110 @@ class LabeledMemoryDataProvider(LabeledDataProvider):
         d[-1]['data'] = n.require(d['data'], requirements='C')
         d['labels'] = n.require(n.tile(d['labels'].reshape((1, d['data'].shape[1])), (1, self.data_mult)), requirements='C')
         return epoch, batchnum, data_dic[0]
+        
+        
+def dldata_to_convenet_reformatting(stims, lbls):
+    img_sz = stims.shape[1]
+    batch_size = stims.shape[0]
+    if stims.ndim == 3:
+        new_s = (batch_size, img_sz**2)
+        stims = stims.reshape(new_s).T
+    else:
+        assert stims.ndim == 4
+        nc = stims.shape[3]
+        new_s = (nc * (img_sz**2), batch_size)
+        stims = stims.transpose([3, 1, 2, 0]).reshape(new_s)    
+    return {'data': stims, 'labels': labels}
+
+        
+class DLDataProvider(LabeledMemoryDataProvider):
+
+    def __init__(self, data_dir, batch_range, init_epoch=1,
+                        init_batchnum=None, dp_params=None, test=False):
+                        
+        #load dataset and meta
+        modulename, attrname = dp_params['dataset_name']
+        module = __import__(modulename)
+        dataset_obj = getattr(module, attrname)
+        dset = dataset_obj(data=dp_params['dataset_data'])
+        meta = dset.meta   
+        
+        #compute number of batches
+        mlen = len(meta)   
+        batch_size = dp_params['batch_size'] 
+        num_batches = int(math.ceil(mlen / float(batch_size)))
+ 
+        #format relevant metadata column into integer list if needed
+        metacol = meta[dp_params['meta_attribute']]
+        try:
+            metacol + 1
+        except TypeError:
+            labels_unique = np.unique(metacol)
+            labels = np.zeros((mlen, ), dtype='int')
+            for label in range(len(labels_unique)):
+                labels[metacol == labels_unique[label]] = label
+        else:
+            labels = metacol[:]
+
+        if not os.path.exists(data_dir):
+            perm_type = self.dp_params.get('perm_type')
+            if perm_type is not None:
+                mlen = len(meta)
+                if perm_type == 'random':
+                    perm_seed = self.dp_params('perm_seed', 0)
+                    rng = np.random.RandomState(seed=perm_seed)
+                    perm = rng.permutation(mlen)
+                    indset = [perm[np.arange(batch_size * bidx, 
+                     batch_size * (bidx + 1))] for bidx in range(num_batches)]
+                else:
+                    raise ValueError, 'Unknown permutation type.'
+            else:
+                indset = [slice(batch_size * bidx, batch_size * (bidx + 1)) 
+                           for bidx in range(num_batches)]
+                           
+            dp_params['preproc']['dtype'] = 'uint8'    #or assertion?
+            stimarray = dset.get_images(**self.dp_params['preproc'])
+            
+            imgs_mean = None
+            lsf = 0.
+            for bnum, inds in enumerate(indset):
+                stims = stimarray[inds]
+                lbls = meta[meta_attribute][inds]
+                d = dldata_to_convnet_reformatting(stims, lbls)
+                
+                if imgs_mean is None:
+                    imgs_mean = np.zeros((d['data'].shape[0],))
+                dlen = d['data'].shape[0]
+                fr = lsf / (lsf + float(dlen))
+                imgs_mean *= fr
+                imgs_mean += (1 - fr) * d['data'].mean(1)
+                lsf += dlen
+                
+                outdict = {'batch_label': 'batch_%d' % bnum
+                     'labels': labels[ins], 
+                     'data': d['data'], 
+                      #'filenames': np.asarray(dataset.meta[img_inds]['filename']).tolist()    ####need this????
+                     }
+                with open(os.path.join(data_dir, 'data_batch_%d' % bnum), 'w') as _f:
+                    cPickle.dump(outdict, _f)
+                    
+            outdict = {'num_cases_per_batch': batch_size, 
+                 'label_names': labels_unique,
+                 'num_vis': d['data'].shape[0], 
+                 'data_mean': imgs_mean}   
+            with open(os.path.join(data_dir, 'batches.meta'), 'w') as _f:
+                cPickle.dump(outdict, _f)
+        
+        else:
+            for bnum in range(num_batches):
+                fname = os.path.join(data_dir, 'data_batch_%d' % bnum)
+                assert os.path.exists(fname)
+            assert os.path.exists(os.path.join(data_dir, 'batches.meta'))
+
+                
+        LabeledMemoryDataProvider.__init__(self, data_dir, batch_range, 
+                                 init_epoch, init_batchnum, dp_params, test)
+
     
 dp_types = {"default": "The default data provider; loads one batch into memory at a time",
             "memory": "Loads the entire dataset into memory",
