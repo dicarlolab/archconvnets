@@ -239,10 +239,9 @@ class GeneralDataRandomProvider(GeneralDataProvider):
 #def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
 class CroppedGeneralDataProvider(LabeledMemoryDataProvider):
     def __init__(self, data_dir, 
+            img_size, num_colors,
             batch_range=None, 
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
-        img_size = 138
-        num_colors = 3
 
         LabeledMemoryDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
 
@@ -259,12 +258,6 @@ class CroppedGeneralDataProvider(LabeledMemoryDataProvider):
             self.num_views = 5;
         self.data_mult = self.num_views if self.multiview else 1
         
-        #for d in self.data_dic:
-        #    d['data'] = n.require(d['data'], requirements='C')
-        #    d['labels'] = n.require(n.tile(d['labels'].reshape((1, d['data'].shape[1])), (1, self.data_mult)), requirements='C')
-        
-        #self.cropped_data = [n.zeros((self.get_data_dims(), self.data_dic[0]['data'].shape[1]*self.data_mult), dtype=n.single) for x in xrange(2)]
-
         self.batches_generated = 0
         self.data_mean = self.batch_meta['data_mean'].reshape((self.num_colors,self.img_size,self.img_size))[:,self.border_size:self.border_size+self.inner_size,self.border_size:self.border_size+self.inner_size].reshape((self.get_data_dims(), 1))
 
@@ -273,12 +266,10 @@ class CroppedGeneralDataProvider(LabeledMemoryDataProvider):
 
     def get_next_batch(self):
         epoch, batchnum, datadic = LabeledMemoryDataProvider.get_next_batch(self)
-        #assert( datadic['data'].shape[1] == datadic['labels'].shape[1] )
 
         # correct for cropped_data size
         #cropped = self.cropped_data[self.batches_generated % 2]
         cropped = n.zeros((self.get_data_dims(), datadic['data'].shape[1]*self.data_mult), dtype=n.single)
-        #import pdb; pdb.set_trace();
 
         self.__trim_borders(datadic['data'], cropped)
         cropped -= self.data_mean
