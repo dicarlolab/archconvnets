@@ -6,7 +6,7 @@
 #
 # - Redistributions of source code must retain the above copyright notice,
 #   this list of conditions and the following disclaimer.
-# 
+#
 # - Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
@@ -49,7 +49,7 @@ class CIFARDataProvider(LabeledMemoryDataProvider):
         return epoch, batchnum, [datadic['data'], datadic['labels']]
 
     # Returns the dimensionality of the two data matrices returned by get_next_batch
-    # idx is the index of the matrix. 
+    # idx is the index of the matrix.
     def get_data_dims(self, idx=0):
         return self.img_size**2 * self.num_colors if idx == 0 else 1
 
@@ -59,14 +59,14 @@ class CIFARDataProvider(LabeledMemoryDataProvider):
         return self.num_colors
     def get_num_views(self):
         return 1;
-    
+
     # Takes as input an array returned by get_next_batch
     # Returns a (numCases, imgSize, imgSize, 3) array which can be
     # fed to pylab for plotting.
     # This is used by shownet.py to plot test case predictions.
     def get_plottable_data(self, data):
         return n.require((data + self.data_mean).T.reshape(data.shape[1], 3, self.img_size, self.img_size).swapaxes(1,3).swapaxes(1,2) / 255.0, dtype=n.single)
-    
+
 class CIFARDataRandomProvider(CIFARDataProvider):
     def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
         CIFARDataProvider.__init__( self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test )
@@ -92,7 +92,7 @@ class CroppedCIFARDataProvider(LabeledMemoryDataProvider):
         self.num_views = 5*2
         self.data_mult = self.num_views if self.multiview else 1
         self.num_colors = 3
-        
+
         self.batches_generated = 0
         self.data_mean = self.batch_meta['data_mean'].reshape((3,32,32))[:,self.border_size:self.border_size+self.inner_size,self.border_size:self.border_size+self.inner_size].reshape((self.get_data_dims(), 1))
 
@@ -108,7 +108,7 @@ class CroppedCIFARDataProvider(LabeledMemoryDataProvider):
         cropped -= self.data_mean
         self.batches_generated += 1
         return epoch, batchnum, [cropped, datadic['labels']]
-        
+
     def get_data_dims(self, idx=0):
         return self.inner_size**2 * 3 if idx == 0 else 1
 
@@ -124,7 +124,7 @@ class CroppedCIFARDataProvider(LabeledMemoryDataProvider):
     # This is used by shownet.py to plot test case predictions.
     def get_plottable_data(self, data):
         return n.require((data + self.data_mean).T.reshape(data.shape[1], 3, self.inner_size, self.inner_size).swapaxes(1,3).swapaxes(1,2) / 255.0, dtype=n.single)
-    
+
     def __trim_borders(self, x, target):
         y = x.reshape(3, 32, 32, x.shape[1])
 
@@ -149,14 +149,14 @@ class CroppedCIFARDataProvider(LabeledMemoryDataProvider):
                 if nr.randint(2) == 0: # also flip the image with 50% probability
                     pic = pic[:,:,::-1]
                 target[:,c] = pic.reshape((self.get_data_dims(),))
-    
+
 class CroppedCIFARDataRandomProvider( CroppedCIFARDataProvider ):
     def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
        CroppedCIFARDataProvider.__init__( self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test )
     def get_next_batch(self):
         epoch,batchnum, datadic = CroppedCIFARDataProvider.get_next_batch(self)
         # shuffle only training data,never do on testing
-        if self.test and self.multiview: 
+        if self.test and self.multiview:
            pass
         else:
             # random shuffle datadic['data'] and datadic['labels']
@@ -171,7 +171,7 @@ class CroppedCIFARDataRandomProvider( CroppedCIFARDataProvider ):
 #  General data provider
 #---------------------------------------------------------------------------------------------------
 class GeneralDataProvider(LabeledMemoryDataProvider):
-    def __init__(self, data_dir, 
+    def __init__(self, data_dir,
             img_size, num_colors,  # options i've add to cifar data provider
             batch_range, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
         LabeledMemoryDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
@@ -182,7 +182,7 @@ class GeneralDataProvider(LabeledMemoryDataProvider):
         # labels are in single-precision floating point.
         for d in self.data_dic:
             # This converts the data matrix to single precision and makes sure that it is C-ordered
-            d['data'] = n.require((d['data'] - self.data_mean.reshape( 
+            d['data'] = n.require((d['data'] - self.data_mean.reshape(
                 img_size*img_size*num_colors,1)), dtype=n.single, requirements='C')
             #d['data'] = n.require((d['data'] - 128), dtype=n.single, requirements='C')
             d['labels'] = n.require(d['labels'].reshape((1, d['data'].shape[1])), dtype=n.single, requirements='C')
@@ -192,7 +192,7 @@ class GeneralDataProvider(LabeledMemoryDataProvider):
         return epoch, batchnum, [datadic['data'], datadic['labels']]
 
     # Returns the dimensionality of the two data matrices returned by get_next_batch
-    # idx is the index of the matrix. 
+    # idx is the index of the matrix.
     def get_data_dims(self, idx=0):
         return self.img_size**2 * self.num_colors if idx == 0 else 1
 
@@ -202,21 +202,21 @@ class GeneralDataProvider(LabeledMemoryDataProvider):
         return self.num_colors
     def get_num_views(self):
         return 1;
-    
+
     # Takes as input an array returned by get_next_batch
     # Returns a (numCases, imgSize, imgSize, 3) array which can be
     # fed to pylab for plotting.
     # This is used by shownet.py to plot test case predictions.
     def get_plottable_data(self, data):
         return n.require((data + self.data_mean).T.reshape(data.shape[1], num_colors, self.img_size, self.img_size).swapaxes(1,3).swapaxes(1,2) / 255.0, dtype=n.single)
-    
+
 class GeneralDataRandomProvider(GeneralDataProvider):
-    def __init__(self, data_dir, 
+    def __init__(self, data_dir,
             img_size, num_colors,  # options i've add to cifar data provider
             batch_range, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
-        GeneralDataProvider.__init__( self, data_dir, 
+        GeneralDataProvider.__init__( self, data_dir,
                 img_size, num_colors,
-                batch_range, 
+                batch_range,
                 init_epoch, init_batchnum, dp_params, test )
 
     def get_next_batch(self):
@@ -232,9 +232,9 @@ class GeneralDataRandomProvider(GeneralDataProvider):
 
 #def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
 class CroppedGeneralDataProvider(DLDataProvider):
-    def __init__(self, data_dir, 
+    def __init__(self, data_dir,
             img_size, num_colors,
-            batch_range=None, 
+            batch_range=None,
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
 
         DLDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
@@ -251,7 +251,7 @@ class CroppedGeneralDataProvider(DLDataProvider):
         else :
             self.num_views = 5;
         self.data_mult = self.num_views if self.multiview else 1
-        
+
         self.batches_generated = 0
         self.data_mean = self.batch_meta['data_mean'].reshape((self.num_colors, self.img_size,
                         self.img_size))[:,self.border_size: self.border_size+self.inner_size,
@@ -262,18 +262,21 @@ class CroppedGeneralDataProvider(DLDataProvider):
 
     def get_next_batch(self):
         epoch, batchnum, datadic = DLDataProvider.get_next_batch(self)
-        datadic['labels'] = n.require(n.tile(datadic['labels'].reshape((1, datadic['data'].shape[1])), (1, self.data_mult)), requirements='C')
+        datadic['labels'] = n.require(n.tile(datadic['labels'].reshape((1,
+                                                    datadic['data'].shape[1])),
+                                                    (1, self.data_mult)),
+                                      requirements='C')
 
         # correct for cropped_data size
-        #cropped = self.cropped_data[self.batches_generated % 2]
-        cropped = n.zeros((self.get_data_dims(), datadic['data'].shape[1]*self.data_mult), dtype=n.single)
-        
+        cropped = n.zeros((self.get_data_dims(),
+                     datadic['data'].shape[1]*self.data_mult), dtype=n.single)
+
         self.__trim_borders(datadic['data'], cropped)
         cropped -= self.data_mean
         self.batches_generated += 1
         #assert( cropped.shape[1] == datadic['labels'].shape[1] )
         return epoch, batchnum, [cropped, datadic['labels']]
-        
+
     def get_data_dims(self, idx=0):
         return self.inner_size**2 * self.num_colors if idx == 0 else 1
 
@@ -289,7 +292,7 @@ class CroppedGeneralDataProvider(DLDataProvider):
     # This is used by shownet.py to plot test case predictions.
     def get_plottable_data(self, data):
         return n.require((data + self.data_mean).T.reshape(data.shape[1], 3, self.inner_size, self.inner_size).swapaxes(1,3).swapaxes(1,2) / 255.0, dtype=n.single)
-    
+
     def __trim_borders(self, x, target):
         #y = x.reshape(3, 32, 32, x.shape[1])
         y = x.reshape(self.num_colors, self.img_size, self.img_size, x.shape[1])
@@ -323,20 +326,20 @@ class CroppedGeneralDataProvider(DLDataProvider):
                 if self.img_flip and nr.randint(2) == 0: # also flip the image with 50% probability
                     pic = pic[:,:,::-1]
                 target[:,c] = pic.reshape((self.get_data_dims(),))
-    
+
 class CroppedGeneralDataRandomProvider( CroppedGeneralDataProvider ):
-    def __init__(self, data_dir, 
+    def __init__(self, data_dir,
             img_size, num_colors,  # options i've add to cifar data provider
-            batch_range=None, 
+            batch_range=None,
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
-       CroppedGeneralDataProvider.__init__( self, data_dir, 
+       CroppedGeneralDataProvider.__init__( self, data_dir,
                img_size, num_colors,
-               batch_range, 
+               batch_range,
                init_epoch, init_batchnum, dp_params, test )
     def get_next_batch(self):
         epoch,batchnum, datadic = CroppedGeneralDataProvider.get_next_batch(self)
         # shuffle only training data,never do on testing
-        if self.test and self.multiview: 
+        if self.test and self.multiview:
            pass
         else:
             # random shuffle datadic['data'] and datadic['labels']
@@ -355,15 +358,15 @@ class CroppedGeneralDataRandomProvider( CroppedGeneralDataProvider ):
 class DummyConvNetDataProvider(LabeledDummyDataProvider):
     def __init__(self, data_dim):
         LabeledDummyDataProvider.__init__(self, data_dim)
-        
+
     def get_next_batch(self):
         epoch, batchnum, dic = LabeledDummyDataProvider.get_next_batch(self)
-        
+
         dic['data'] = n.require(dic['data'].T, requirements='C')
         dic['labels'] = n.require(dic['labels'].T, requirements='C')
-        
+
         return epoch, batchnum, [dic['data'], dic['labels']]
-    
+
     # Returns the dimensionality of the two data matrices returned by get_next_batch
     def get_data_dims(self, idx=0):
         return self.batch_meta['num_vis'] if idx == 0 else 1
