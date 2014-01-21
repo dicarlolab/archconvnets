@@ -101,10 +101,6 @@ class ShowConvNet(ConvNet):
 
         numbatches = len(self.train_batch_range)
         test_errors = numpy.row_stack(test_errors)
-        print test_errors, len(test_errors)
-        #file = open('/home/darren/test_errs','w')
-        #pk.dump(test_errors, file)
-        #file.close()
         test_errors = numpy.tile(test_errors, (1, self.testing_freq))
         test_errors = list(test_errors.flatten())
         test_errors += [test_errors[-1]] * max(0,len(train_errors) - len(test_errors))

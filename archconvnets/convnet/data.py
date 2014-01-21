@@ -190,6 +190,7 @@ class LabeledDummyDataProvider(DummyDataProvider):
 
         return self.curr_epoch, self.curr_batchnum, {'data':data, 'labels':labels}
 
+
 class MemoryDataProvider(DataProvider):
     def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
         DataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
@@ -202,6 +203,7 @@ class MemoryDataProvider(DataProvider):
         self.advance_batch()
 
         return epoch, batchnum, self.data_dic[batchnum - self.batch_range[0]]
+        
 
 class LabeledDataProvider(DataProvider):   
     def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
@@ -210,14 +212,9 @@ class LabeledDataProvider(DataProvider):
     def get_num_classes(self):
         return len(self.batch_meta['label_names'])
     
+
 class LabeledMemoryDataProvider(LabeledDataProvider):
-    def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
-        LabeledDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
-        #self.data_dic = []
-        #for i in batch_range:
-        #    self.data_dic += [unpickle(self.get_data_file_name(i))]
-        #    self.data_dic[-1]["labels"] = n.c_[n.require(self.data_dic[-1]['labels'], dtype=n.single)]
-            
+        
     def get_next_batch(self):
         epoch, batchnum = self.curr_epoch, self.curr_batchnum
         self.advance_batch()
