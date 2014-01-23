@@ -232,6 +232,27 @@ class GeneralDataRandomProvider(GeneralDataProvider):
 
 #def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params=None, test=False):
 class CroppedGeneralDataProvider(DLDataProvider):
+    """
+    This is the data provider that should generally be used. Several parameters should be passed in a dictionary called
+    dp_params when calling ConvNet:
+    dataset name: Tuple of moule and dataset name to use
+    meta_attribute: which column in the meta field to use
+    perm_type: 'random' or otherwise, specifies how to order data before batch creation
+    preproc: preprocessing spec which is a dictionary that speciies how to preprocess images (see dldata.stimulus_sets.
+    dataset_templates.ImageLoaderPreprocesser for details)
+
+    Here is an example:
+    dp_params = {'dataset_name': ('dldata.stimulus_sets.synthetic.synthetic_datasets', 'TrainingDataset'),
+    'batch_size': 128,
+    'meta_attribute': 'obj',
+    'perm_type': 'random',
+    'perm_seed': 0,
+    'preproc': {'resize_to': (128, 128, 3),
+    'mode': 'RGB',
+    'dtype': 'float32',
+    'normalize': False}
+    }
+    """
     def __init__(self, data_dir,
             img_size, num_colors,
             batch_range=None,

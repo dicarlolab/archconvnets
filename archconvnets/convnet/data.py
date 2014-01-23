@@ -247,6 +247,7 @@ def dldata_to_convnet_reformatting(stims, lbls):
 
 class DLDataProvider(LabeledDataProvider):
 
+
     def __init__(self, data_dir, batch_range, init_epoch=1,
                         init_batchnum=None, dp_params=None, test=False):
                         
