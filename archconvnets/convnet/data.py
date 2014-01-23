@@ -302,7 +302,7 @@ class DLDataProvider(LabeledDataProvider):
             if perm_type is not None:
                 mlen = len(meta)
                 if perm_type == 'random':
-                    perm_seed = dp_params('perm_seed', 0)
+                    perm_seed = dp_params.get('perm_seed', 0)
                     rng = n.random.RandomState(seed=perm_seed)
                     perm = rng.permutation(mlen)
                     indset = [perm[n.arange(batch_size * bidx, 
