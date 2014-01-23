@@ -22,6 +22,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import datetime
 import numpy as n
 import os
 from time import time, asctime, localtime, strftime
@@ -37,12 +38,26 @@ import shutil
 import platform
 from os import linesep as NL
 
+import pymongo as pm
+import gridfs
+from yamutils.mongo import SONify
+
+def get_checkpoint_fs(fsname = 'convnet_checkpoint_fs'):    
+    checkpoint_db_port = int(os.environ.get('CHECKPOINT_DB_PORT', 27017))
+    try:
+        checkpoint_db = pm.Connection('localhost', port=checkpoint_db_port)['convnet_checkpoint_database']
+    except pm.errors.ConnectionFailure, e:
+        raise(pm.errors.ConnectionFailure(e))
+    else:
+        return gridfs.GridFS(checkpoint_db, fsname)
+
+
 class ModelStateException(Exception):
     pass
 
 # GPU Model interface
 class IGPUModel:
-    def __init__(self, model_name, op, load_dic, filename_options=None, dp_params={}):
+    def __init__(self, model_name, op, load_dic, filename_options=None, dp_params={}, fsname='convnet_checkpoint_fs'):
         # these are input parameters
         self.model_name = model_name
         self.op = op
@@ -50,6 +65,7 @@ class IGPUModel:
         self.load_dic = load_dic
         self.filename_options = filename_options
         self.dp_params = dp_params
+        self.fsname = fsname
         self.get_gpus()
         self.fill_excused_options()
         #assert self.op.all_values_given()
@@ -357,7 +373,25 @@ class IGPUModel:
                 os.remove(os.path.join(checkpoint_dir, f))
             else:
                 break
-            
+
+        val_dict = dict([(_o.name, _o.value) for _o in self.op.get_options_list()])
+        val_dict['save_id'] = checkpoint_file
+        val_dict['save_group'] = checkpoint_dir
+        val_dict['timestamp'] = datetime.datetime.utcnow()
+        if hasattr(self, 'experiment_id'):
+            val_dict['experiment_id'] = self.experiment_id
+        layers = self.model_state['layers']
+        blob = cPickle.dumps({'layers': layers, 'train_outputs': self.model_state['train_outputs']})
+        for k in self.model_state:
+            if k not in ['layers', 'train_outputs']:
+                val_dict[k] = self.model_state[k]
+            elif k == 'train_outputs':
+                tfreq = val_dict['testing_freq']
+                val_dict[k] = self.model_state[k][-tfreq:]
+
+        checkpoint_fs = get_checkpoint_fs(self.fsname)
+        checkpoint_fs.put(blob, **SONify(val_dict))
+
     @staticmethod
     def load_checkpoint(load_dir):
         if os.path.isdir(load_dir):
@@ -423,4 +457,15 @@ class IGPUModel:
             print "Error loading checkpoint:"
             print e
         sys.exit()
-        
+    
+
+def get_checkpoint_fs():    
+    checkpoint_db_port = int(os.environ.get('CHECKPOINT_DB_PORT', 27017))
+    try:
+        checkpoint_db = pm.MongoClient('localhost', port=checkpoint_db_port)
+    except pm.errors.ConnectionFailure, e:
+        raise(pm.errors.ConnectionFailure(e))
+    else:
+        return gridfs.GridFS(checkpoint_db.gridfs_example)
+
+

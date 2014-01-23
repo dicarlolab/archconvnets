@@ -38,12 +38,12 @@ from os import linesep as NL
 from archconvnets import dataprovider
 
 class ConvNet(IGPUModel):
-    def __init__(self, op, load_dic, dp_params={}):
+    def __init__(self, op, load_dic, dp_params={}, fsname='convnet_checkpoint_fs'):
         filename_options = []
         dp_params['multiview_test'] = op.get_value('multiview_test')
         dp_params['crop_border'] = op.get_value('crop_border')
         dp_params['img_flip'] = op.get_value('img_flip')
-        IGPUModel.__init__(self, "ConvNet", op, load_dic, filename_options, dp_params=dp_params)
+        IGPUModel.__init__(self, "ConvNet", op, load_dic, filename_options, dp_params=dp_params, fsname=fsname)
         
     def import_model(self):
         lib_name = "pyconvnet" if is_windows_machine() else "_ConvNet"
