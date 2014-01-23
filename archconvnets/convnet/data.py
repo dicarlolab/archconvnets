@@ -336,9 +336,9 @@ class DLDataProvider(LabeledDataProvider):
                     continue
                 print('Creating batch %d' % bnum)
                 #get stimuli and put in the required format
-                stims = stimarray[inds]
+                stims = n.asarray(stimarray[inds])
                 if 'float' in repr(stims.dtype):
-                    stims = np.uint8(np.round(255 * stims))
+                    stims = n.uint8(n.round(255 * stims))
                 lbls = metacol[inds]
                 d = dldata_to_convnet_reformatting(stims, lbls)
                 
