@@ -201,10 +201,6 @@ class ConvNet(IGPUModel):
         DataProvider.register_data_provider('cifar-rand', 'CIFAR Random', CIFARDataRandomProvider)
         DataProvider.register_data_provider('cifar', 'CIFAR', CIFARDataProvider)
         DataProvider.register_data_provider('cifartest', 'CIFARTEST' ,  dataprovider.CIFAR10TestProvider)
-        DataProvider.register_data_provider('hvmCategory32x32', 'HVMCATEGORY32x32', dataprovider.HVMCategoryProvider32x32)
-        DataProvider.register_data_provider('hvmCategory64x64', 'HVMCATEGORY64x64', dataprovider.HVMCategoryProvider64x64)
-        DataProvider.register_data_provider('cifartestgrayscale', 'CIFARTESTGRAYSCALE', dataprovider.CIFAR10TestGrayscaleProvider)
-        DataProvider.register_data_provider('cifarhvmtest', 'CIFARHVMTEST', dataprovider.CIFARHVMTEST)
         DataProvider.register_data_provider('cifar-cropped-rand', 'Cropped CIFAR Random', 
               CroppedCIFARDataRandomProvider)
         DataProvider.register_data_provider('cifar-cropped', 'Cropped CIFAR', CroppedCIFARDataProvider)

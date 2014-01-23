@@ -21,7 +21,8 @@
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+import math
+import importlib
 import numpy as n
 from numpy.random import randn, rand, random_integers
 import os
@@ -116,6 +117,7 @@ class DataProvider:
             dims = int(type.split('-')[-1])
             return _class(dims)
         elif type in dp_types:
+            print ('img_size', img_size)
             if img_size == 0:
                 _class = dp_classes[type]
                 return _class(data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
@@ -200,8 +202,8 @@ class MemoryDataProvider(DataProvider):
     def get_next_batch(self):
         epoch, batchnum = self.curr_epoch, self.curr_batchnum
         self.advance_batch()
-
         return epoch, batchnum, self.data_dic[batchnum - self.batch_range[0]]
+
 
 class LabeledDataProvider(DataProvider):   
     def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
@@ -210,6 +212,7 @@ class LabeledDataProvider(DataProvider):
     def get_num_classes(self):
         return len(self.batch_meta['label_names'])
     
+
 class LabeledMemoryDataProvider(LabeledDataProvider):
     def __init__(self, data_dir, batch_range, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
         LabeledDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
@@ -223,6 +226,174 @@ class LabeledMemoryDataProvider(LabeledDataProvider):
         self.advance_batch()
         bidx = batchnum - self.batch_range[0]
         return epoch, batchnum, self.data_dic[bidx]
+
+        
+def dldata_to_convnet_reformatting(stims, lbls):
+    img_sz = stims.shape[1]
+    batch_size = stims.shape[0]
+    if stims.ndim == 3:
+        new_s = (batch_size, img_sz**2)
+        stims = stims.reshape(new_s).T
+    else:
+        assert stims.ndim == 4
+        nc = stims.shape[3]
+        new_s = (nc * (img_sz**2), batch_size)
+        stims = stims.transpose([3, 1, 2, 0]).reshape(new_s)    
+        
+    assert lbls.ndim == 1
+    labels = lbls.reshape((1, lbls.shape[0]))
+    return {'data': stims, 'labels': labels}
+
+
+class DLDataProvider(LabeledDataProvider):
+
+
+    def __init__(self, data_dir, batch_range, init_epoch=1,
+                        init_batchnum=None, dp_params=None, test=False):
+                        
+        #load dataset and meta
+        modulename, attrname = dp_params['dataset_name']
+        module = importlib.import_module(modulename)
+        dataset_obj = getattr(module, attrname)
+        dataset_data = dp_params.get('dataset_data', None)
+        if dataset_data is not None:
+            dset = dataset_obj(data=dataset_data)
+        else:
+            dset = dataset_obj()
+        meta = dset.meta   
+        
+        #compute number of batches
+        mlen = len(meta)   
+        batch_size = dp_params['batch_size'] 
+        num_batches = int(math.ceil(mlen / float(batch_size)))
+ 
+        batch_regex = re.compile('data_batch_([\d]+)')
+        imgs_mean = None
+        existing_batches = []
+        isf = 0
+        if os.path.exists(data_dir):
+            _L = os.listdir(data_dir)
+            existing_batches = [int(batch_regex.match(_l).groups()[0]) for _l in _L if batch_regex.match(_l)]
+            existing_batches.sort()
+            metafile = os.path.join(data_dir, 'batches.meta')
+            if existing_batches:
+                assert os.path.exists(metafile), 'Batches found but no metafile %s' % metafile
+            if os.path.exists(metafile):
+                bmeta = cPickle.load(open(metafile))
+                ebatches = bmeta['existing_batches']
+                imgs_mean = bmeta['data_mean']
+                isf = bmeta['images_so_far']
+            else:
+                ebatches = []
+            assert existing_batches == ebatches, ('Expected batches', ebatches, 'found batches', existing_batches)
+            needed_batches = [_b for _b in batch_range if _b not in existing_batches]
+            if existing_batches:
+                print('Found batches: ', existing_batches)
+                print('Batches needed: ', needed_batches)
+        else:
+            print('data_dir %s does not exist, creating' % data_dir)
+            needed_batches = batch_range[:]
+            os.makedirs(data_dir)
+           
+        if needed_batches:
+            #setting up indices for each batch
+            #either via specified permutation (e.g. "random")
+            #or doing nothing
+            perm_type = dp_params.get('perm_type')
+            if perm_type is not None:
+                mlen = len(meta)
+                if perm_type == 'random':
+                    perm_seed = dp_params.get('perm_seed', 0)
+                    rng = n.random.RandomState(seed=perm_seed)
+                    perm = rng.permutation(mlen)
+                    indset = [perm[n.arange(batch_size * bidx, 
+                     batch_size * (bidx + 1))] for bidx in range(num_batches)]
+                elif perm_type == 'ordered_random':
+                    perm_seed = dp_params.get('perm_seed', 0)
+                    rng = n.random.RandomState(seed=perm_seed)
+                    perm = rng.permutation(mlen)
+                    submeta = meta[dp_params['perm_order']].copy()
+                    submeta = submeta[perm]
+                    s = submeta.argsort(order=dp_params['perm_order'])
+                    new_perm = perm[s]
+                    indset = [new_perm[n.arange(batch_size * bidx,
+                     batch_size * (bidx + 1))] for bidx in range(num_batches)]
+                else:
+                    raise ValueError, 'Unknown permutation type.'
+            else:
+                indset = [slice(batch_size * bidx, batch_size * (bidx + 1)) 
+                           for bidx in range(num_batches)]
+            
+            #get stimarray (may be lazyarray)
+            #something about appearing to require uint8??
+            #dp_params['preproc']['dtype'] = 'uint8'    #or assertion?
+            stimarray = dset.get_images(preproc=dp_params['preproc'])
+            
+            #format relevant metadata column into integer list if needed
+            metacol = meta[dp_params['meta_attribute']][:]
+            try:
+                metacol + 1
+                labels_unique = None
+            except TypeError:
+                labels_unique = n.unique(metacol)
+                labels = n.zeros((mlen, ), dtype='int')
+                for label in range(len(labels_unique)):
+                    labels[metacol == labels_unique[label]] = label
+                metacol = labels
+
+            #actually write out batches, while tallying img mean
+
+            for bnum, inds in enumerate(indset):
+                if bnum not in needed_batches:
+                    continue
+                print('Creating batch %d' % bnum)
+                #get stimuli and put in the required format
+                stims = n.asarray(stimarray[inds])
+                if 'float' in repr(stims.dtype):
+                    stims = n.uint8(n.round(255 * stims))
+                lbls = metacol[inds]
+                d = dldata_to_convnet_reformatting(stims, lbls)
+                
+                #add to the mean
+                if imgs_mean is None:
+                    imgs_mean = n.zeros((d['data'].shape[0],))
+                dlen = d['data'].shape[0]
+                fr = isf / (isf + float(dlen))
+                imgs_mean *= fr
+                imgs_mean += (1 - fr) * d['data'].mean(axis=1)
+                isf += dlen
+                
+                #write out batch
+                outdict = {'batch_label': 'batch_%d' % bnum,
+                           'labels': d['labels'], 
+                           'data': d['data'], 
+                      #'filenames': n.asarray(dataset.meta[img_inds]['filename']).tolist()    ####need this????
+                           }
+                outpath = os.path.join(data_dir, 'data_batch_%d' % bnum)
+                with open(outpath, 'w') as _f:
+                    cPickle.dump(outdict, _f)
+                    
+            #write out batches.meta
+            existing_batches += needed_batches
+            existing_batches.sort()
+            outdict = {'num_cases_per_batch': batch_size, 
+                       'label_names': labels_unique,  ###what's supposed to be stored here?
+                       'num_vis': d['data'].shape[0], 
+                       'data_mean': imgs_mean,
+                       'existing_batches': existing_batches,
+                       'images_so_far': isf}   
+            with open(os.path.join(data_dir, 'batches.meta'), 'w') as _f:
+                cPickle.dump(outdict, _f)
+       
+        LabeledDataProvider.__init__(self, data_dir, batch_range, 
+                                 init_epoch, init_batchnum, dp_params, test)
+
+    def get_next_batch(self):
+        epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
+        d['data'] = n.require(d['data'], requirements='C')  
+        d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
+        return epoch, batchnum, d
+
     
 dp_types = {"default": "The default data provider; loads one batch into memory at a time",
             "memory": "Loads the entire dataset into memory",
@@ -239,3 +410,4 @@ dp_classes = {"default": DataProvider,
     
 class DataProviderException(Exception):
     pass
+
