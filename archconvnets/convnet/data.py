@@ -117,6 +117,7 @@ class DataProvider:
             dims = int(type.split('-')[-1])
             return _class(dims)
         elif type in dp_types:
+            print ('img_size', img_size)
             if img_size == 0:
                 _class = dp_classes[type]
                 return _class(data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
@@ -314,7 +315,7 @@ class DLDataProvider(LabeledDataProvider):
             
             #get stimarray (may be lazyarray)
             #something about appearing to require uint8??
-            dp_params['preproc']['dtype'] = 'uint8'    #or assertion?
+            #dp_params['preproc']['dtype'] = 'uint8'    #or assertion?
             stimarray = dset.get_images(preproc=dp_params['preproc'])
             
             #format relevant metadata column into integer list if needed
@@ -336,6 +337,8 @@ class DLDataProvider(LabeledDataProvider):
                 print('Creating batch %d' % bnum)
                 #get stimuli and put in the required format
                 stims = stimarray[inds]
+                if 'float' in repr(stims.dtype):
+                    stims = np.uint8(np.round(255 * stims))
                 lbls = metacol[inds]
                 d = dldata_to_convnet_reformatting(stims, lbls)
                 
@@ -345,7 +348,7 @@ class DLDataProvider(LabeledDataProvider):
                 dlen = d['data'].shape[0]
                 fr = isf / (isf + float(dlen))
                 imgs_mean *= fr
-                imgs_mean += (1 - fr) * d['data'].mean(1)
+                imgs_mean += (1 - fr) * d['data'].mean(axis=1)
                 isf += dlen
                 
                 #write out batch
