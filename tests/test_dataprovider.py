@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from nose.plugins.attrib import attr
 
 import dldata.stimulus_sets.hvm as hvm
 import imagenet
@@ -86,6 +87,8 @@ def test_cifar10():
 
     assert np.allclose(a, b)
 
+
+@attr('slow')
 def test_80sec_performance():
     data_path = os.environ['CIFAR10_PATH']
     dirn = os.path.abspath(os.path.split(__file__ )[0])
@@ -103,7 +106,7 @@ def test_80sec_performance():
 
     e = os.system(command1)
 
-    A = api.unpickle(os.path.join(save_path, mfile1, '1.5'))
+    A = api.unpickle(os.path.join(save_path, mfile1, 'model1'))
 
     test_classification_error = A['model_state']['test_outputs'][0][0]['logprob'][1]
     assert test_classification_error < .3

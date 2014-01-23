@@ -14,7 +14,7 @@
 # (it'll almost certainly be under /usr)
 
 # CUDA toolkit installation directory.
-export CUDA_INSTALL_PATH=/usr/local/cuda
+export CUDA_INSTALL_PATH=/usr/local/cuda-5.5
 
 # CUDA SDK installation directory.
 export CUDA_SDK_PATH=/home/ardila/NVIDIA_GPU_Computing_SDK
