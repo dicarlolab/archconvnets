@@ -322,6 +322,7 @@ class DLDataProvider(LabeledDataProvider):
             metacol = meta[dp_params['meta_attribute']][:]
             try:
                 metacol + 1
+                labels_unique = None
             except TypeError:
                 labels_unique = n.unique(metacol)
                 labels = n.zeros((mlen, ), dtype='int')
