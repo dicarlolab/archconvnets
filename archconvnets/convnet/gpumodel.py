@@ -36,6 +36,8 @@ from data import DataProvider, dp_types
 import sys
 import shutil
 import platform
+import copy 
+
 from os import linesep as NL
 
 import pymongo as pm
@@ -49,7 +51,7 @@ def get_checkpoint_fs(host, port, db_name, fs_name):
     except pm.errors.ConnectionFailure, e:
         raise(pm.errors.ConnectionFailure(e))
     else:
-        return gridfs.GridFS(checkpoint_db, fsname)
+        return gridfs.GridFS(checkpoint_db, fs_name)
 
 
 class ModelStateException(Exception):
@@ -75,7 +77,10 @@ class IGPUModel:
         # these are things that the model must remember but they're not input parameters
         if load_dic:
             self.model_state = load_dic["model_state"]
-            self.save_file = self.options["load_file"].value
+            if self.options["load_file"].value:
+                self.save_file = self.options["load_file"].value
+            else:  #assumes load_query was given
+                self.save_file = load_dic["save_file"]
             if not os.path.isdir(self.save_file):
                 self.save_file = os.path.dirname(self.save_file)
             # split file name out
@@ -388,13 +393,16 @@ class IGPUModel:
             return unpickle(os.path.join(load_dir, sorted(os.listdir(load_dir), key=alphanum_key)[-1]))
         return unpickle(load_dir)
         
-    def load_checkpoint_from_db(query):
-        checkpoint_fs = get_checkpoint_fs(self.checkpoint_fs_host, 
-                                          self.checkpoint_fs_port, 
-                                          self.checkpoint_db_name,
-                                          self.checkpoint_fs_name)                   
-        fn = checkpoint_fs._GridFS__files.find(query, sort={'timestamp': -1})[0]
-        return cPickle.loads(checkpoint_fs.get_last_version(fn).read())
+    @staticmethod
+    def load_checkpoint_from_db(query, checkpoint_fs_host, checkpoint_fs_port, checkpoint_db_name, checkpoint_fs_name):
+        checkpoint_fs = get_checkpoint_fs(checkpoint_fs_host, 
+                                          checkpoint_fs_port, 
+                                          checkpoint_db_name,
+                                          checkpoint_fs_name)                   
+        rec = checkpoint_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
+        load_dic = cPickle.loads(checkpoint_fs.get_last_version(_id=rec['_id']).read())
+        load_dic["save_file"] = os.path.join(rec['save_path'], rec['save_file'])
+        return load_dic
 
     @staticmethod
     def get_options_parser():
@@ -429,7 +437,7 @@ class IGPUModel:
         op.add_option("checkpoint-fs-name", "checkpoint_fs_name", StringOptionParser,
                 "Name for gridfs FS for saved checkpoints", default="convnet_checkpoint_fs")
         op.add_option("experiment-id", "experiment_id", StringOptionParser, "Id for grouping results in database", default="")
-        op.add_optjon("load-query", "load_query", JSONOptionParser, "Query for loading checkpoint from database", default="")
+        op.add_option("load-query", "load_query", JSONOptionParser, "Query for loading checkpoint from database", default="", excuses=OptionsParser.EXCLUDE_ALL)
         return op
 
     @staticmethod
@@ -452,7 +460,11 @@ class IGPUModel:
             if options["load_file"].value_given:
                 load_dic = IGPUModel.load_checkpoint(options["load_file"].value)
             if options["load_query"].value_given:
-                load_dic = IGPUModel.load_checkpoint_from_db(options["load_query"].value)
+                load_dic = IGPUModel.load_checkpoint_from_db(options["load_query"].value,
+                                                             options["checkpoint_fs_host"].value,
+                                                             options["checkpoint_fs_port"].value,
+                                                             options["checkpoint_db_name"].value,
+                                                             options["checkpoint_fs_name"].value)
             if load_dic is not None:
                 old_op = load_dic["op"]
                 old_op.merge_from(op)
@@ -476,7 +488,7 @@ def get_convenient_mongodb_representation(self):
     val_dict['save_path'] = self.save_path
     val_dict['save_file'] = self.save_file
     val_dict['epoch'] = self.epoch
-    vak_dict['batch_num'] = self.batchnum
+    val_dict['batch_num'] = self.batchnum
     val_dict['timestamp'] = datetime.datetime.utcnow()
     val_dict['experiment_id'] = self.experiment_id
 
