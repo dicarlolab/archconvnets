@@ -57,7 +57,8 @@ class ConvNet(IGPUModel):
         
     def init_model_state(self):
         ms = self.model_state
-        if self.load_file:
+        if self.options['load_file'].value_given or self.options['load_query'].value_given:
+            print('loading layers from checkpoint')
             ms['layers'] = lay.LayerParser.parse_layers(self.layer_def, self.layer_params, self, ms['layers'])
         else:
             ms['layers'] = lay.LayerParser.parse_layers(self.layer_def, self.layer_params, self)
