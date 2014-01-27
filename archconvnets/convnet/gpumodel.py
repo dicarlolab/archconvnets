@@ -22,6 +22,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import datetime
 import numpy as n
 import os
 from time import time, asctime, localtime, strftime
@@ -35,7 +36,23 @@ from data import DataProvider, dp_types
 import sys
 import shutil
 import platform
+import copy 
+
 from os import linesep as NL
+
+import pymongo as pm
+import gridfs
+from yamutils.mongo import SONify
+
+
+def get_checkpoint_fs(host, port, db_name, fs_name):    
+    try:
+        checkpoint_db = pm.Connection(host=host, port=port)[db_name]
+    except pm.errors.ConnectionFailure, e:
+        raise(pm.errors.ConnectionFailure(e))
+    else:
+        return gridfs.GridFS(checkpoint_db, fs_name)
+
 
 class ModelStateException(Exception):
     pass
@@ -60,7 +77,10 @@ class IGPUModel:
         # these are things that the model must remember but they're not input parameters
         if load_dic:
             self.model_state = load_dic["model_state"]
-            self.save_file = self.options["load_file"].value
+            if self.options["load_file"].value:
+                self.save_file = self.options["load_file"].value
+            else:  #assumes load_query was given
+                self.save_file = load_dic["save_file"]
             if not os.path.isdir(self.save_file):
                 self.save_file = os.path.dirname(self.save_file)
             # split file name out
@@ -357,12 +377,32 @@ class IGPUModel:
                 os.remove(os.path.join(checkpoint_dir, f))
             else:
                 break
-            
+
+        if self.save_db:
+            val_dict = get_convenient_mongodb_representation(self)
+            checkpoint_fs = get_checkpoint_fs(self.checkpoint_fs_host, 
+                                              self.checkpoint_fs_port, 
+                                              self.checkpoint_db_name,
+                                              self.checkpoint_fs_name)       
+            blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)   
+            checkpoint_fs.put(blob, **val_dict)
+
     @staticmethod
     def load_checkpoint(load_dir):
         if os.path.isdir(load_dir):
             return unpickle(os.path.join(load_dir, sorted(os.listdir(load_dir), key=alphanum_key)[-1]))
         return unpickle(load_dir)
+        
+    @staticmethod
+    def load_checkpoint_from_db(query, checkpoint_fs_host, checkpoint_fs_port, checkpoint_db_name, checkpoint_fs_name):
+        checkpoint_fs = get_checkpoint_fs(checkpoint_fs_host, 
+                                          checkpoint_fs_port, 
+                                          checkpoint_db_name,
+                                          checkpoint_fs_name)                   
+        rec = checkpoint_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
+        load_dic = cPickle.loads(checkpoint_fs.get_last_version(_id=rec['_id']).read())
+        load_dic["save_file"] = os.path.join(rec['save_path'], rec['save_file'])
+        return load_dic
 
     @staticmethod
     def get_options_parser():
@@ -388,6 +428,16 @@ class IGPUModel:
         op.add_option("model-file", "model_file", StringOptionParser, "Model File Name", default="" )
         op.add_option("reset-mom", "reset_mom", BooleanOptionParser, "Reset layer momentum",
               default=False )
+        ####### db configs #######
+        op.add_option("save-db", "save_db", BooleanOptionParser, "Save checkpoints to mongo database?", default=0)
+        op.add_option("checkpoint-fs-host", "checkpoint_fs_host", StringOptionParser, "Host for Saving Checkpoints to DB", default="localhost")
+        op.add_option("checkpoint-fs-host", "checkpoint_fs_port", IntegerOptionParser, "Port for Saving Checkpoints to DB", default=27017)
+        op.add_option("checkpoint-db-name", "checkpoint_db_name", StringOptionParser, 
+                "Name for mongodb database for saved checkpoints", default="convnet_checkpoint_db")
+        op.add_option("checkpoint-fs-name", "checkpoint_fs_name", StringOptionParser,
+                "Name for gridfs FS for saved checkpoints", default="convnet_checkpoint_fs")
+        op.add_option("experiment-id", "experiment_id", StringOptionParser, "Id for grouping results in database", default="")
+        op.add_option("load-query", "load_query", JSONOptionParser, "Query for loading checkpoint from database", default="", excuses=OptionsParser.EXCLUDE_ALL)
         return op
 
     @staticmethod
@@ -409,6 +459,13 @@ class IGPUModel:
             options = op.parse(input_opts=input_opts)
             if options["load_file"].value_given:
                 load_dic = IGPUModel.load_checkpoint(options["load_file"].value)
+            if options["load_query"].value_given:
+                load_dic = IGPUModel.load_checkpoint_from_db(options["load_query"].value,
+                                                             options["checkpoint_fs_host"].value,
+                                                             options["checkpoint_fs_port"].value,
+                                                             options["checkpoint_db_name"].value,
+                                                             options["checkpoint_fs_name"].value)
+            if load_dic is not None:
                 old_op = load_dic["op"]
                 old_op.merge_from(op)
                 op = old_op
@@ -423,4 +480,36 @@ class IGPUModel:
             print "Error loading checkpoint:"
             print e
         sys.exit()
-        
+
+
+def get_convenient_mongodb_representation(self):
+    val_dict = dict([(_o.name, _o.value) for _o in self.op.get_options_list()])
+
+    val_dict['save_path'] = self.save_path
+    val_dict['save_file'] = self.save_file
+    val_dict['epoch'] = self.epoch
+    val_dict['batch_num'] = self.batchnum
+    val_dict['timestamp'] = datetime.datetime.utcnow()
+    val_dict['experiment_id'] = self.experiment_id
+
+    for k in self.model_state:
+        if k == 'layers':
+            bad_keys = ['weights', 'inputLayers', 'biasesInc', 
+                        'biases', 'weightsInc']
+            layers = copy.deepcopy(self.model_state[k])
+            for _l in layers:
+                for _bk in bad_keys:
+                    if _bk in _l:
+                        _l.pop(_bk)
+            layers = dict([(_l['name'], _l) for _l in layers])
+            val_dict[k] = layers
+        elif k == 'train_outputs':
+            tfreq = val_dict['testing_freq']
+            val_dict[k] = self.model_state[k][-tfreq:]
+        elif k == 'test_outputs':
+            val_dict[k] = self.model_state[k][-1]
+        else:
+            val_dict[k] = self.model_state[k]
+
+    return SONify(val_dict)
+

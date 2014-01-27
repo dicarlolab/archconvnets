@@ -43,7 +43,8 @@ class ConvNet(IGPUModel):
         dp_params['multiview_test'] = op.get_value('multiview_test')
         dp_params['crop_border'] = op.get_value('crop_border')
         dp_params['img_flip'] = op.get_value('img_flip')
-        IGPUModel.__init__(self, "ConvNet", op, load_dic, filename_options, dp_params=dp_params)
+        IGPUModel.__init__(self, "ConvNet", op, load_dic, filename_options,
+                              dp_params=dp_params)
         
     def import_model(self):
         lib_name = "pyconvnet" if is_windows_machine() else "_ConvNet"
@@ -56,7 +57,8 @@ class ConvNet(IGPUModel):
         
     def init_model_state(self):
         ms = self.model_state
-        if self.load_file:
+        if self.options['load_file'].value_given or self.options['load_query'].value_given:
+            print('loading layers from checkpoint')
             ms['layers'] = lay.LayerParser.parse_layers(self.layer_def, self.layer_params, self, ms['layers'])
         else:
             ms['layers'] = lay.LayerParser.parse_layers(self.layer_def, self.layer_params, self)

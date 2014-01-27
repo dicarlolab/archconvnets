@@ -23,6 +23,7 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
+import json
 from getopt import getopt
 import os
 import re
@@ -347,7 +348,30 @@ class RangeOptionParser(OptionParser):
     @staticmethod
     def is_type(value):
         return type(value) == list
+        
+        
+class JSONOptionParser(OptionParser):
+    @staticmethod
+    def parse(value):
+        try: 
+            return json.loads(value)
+        except ValueError, e:
+            raise OptionException(e)
+
+    @staticmethod
+    def get_type_str():
+        return "json"
     
+    @staticmethod
+    def is_type(value):
+        try:
+            json.dumps(value)
+        except:
+            return False
+        else:
+            return True
+    
+
 class ListOptionParser(OptionParser):
     """
     A parser that parses a delimited list of items. If the "parsers"
