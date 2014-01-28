@@ -164,7 +164,7 @@ class ConvNet(IGPUModel):
     def conditional_save(self):
         self.save_state()
         print "-------------------------------------------------------"
-        print "Saved checkpoint to %s" % 
+        print "Saved checkpoint with experiment_id %s" % repr(self.experiment_data['experiment_id'])
         print "=======================================================",
 
     def aggregate_test_outputs(self, test_outputs):

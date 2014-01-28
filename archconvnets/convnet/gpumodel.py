@@ -77,6 +77,8 @@ class IGPUModel:
         # these are things that the model must remember but they're not input parameters
         if load_dic:
             self.model_state = load_dic["model_state"]
+            if not self.options["experiment_data"].value_given:
+                self.experiment_data = load_dic["rec"]["experiment_data"]
         else:
             self.model_state = {}
             self.model_state["train_outputs"] = []
@@ -403,7 +405,7 @@ class IGPUModel:
                 "Name for mongodb database for saved checkpoints", default="convnet_checkpoint_db")
         op.add_option("checkpoint-fs-name", "checkpoint_fs_name", StringOptionParser,
                 "Name for gridfs FS for saved checkpoints", default="convnet_checkpoint_fs")
-        op.add_option("experiment-data", "experiment_data", JSONOptionParser, "Id for grouping results in database", default="")
+        op.add_option("experiment-data", "experiment_data", JSONOptionParser, "Data for grouping results in database", default="")
         op.add_option("load-query", "load_query", JSONOptionParser, "Query for loading checkpoint from database", default="", excuses=OptionsParser.EXCLUDE_ALL)
         return op
 
@@ -424,6 +426,8 @@ class IGPUModel:
         try:
             load_dic = None
             options = op.parse(input_opts=input_opts)
+            if options["experiment_data"].value_given:
+                assert "experiment_id" in options["experiment_data"].value
             if options["load_file"].value_given:
                 load_dic = IGPUModel.load_checkpoint(options["load_file"].value)
             if options["load_query"].value_given:
@@ -460,6 +464,12 @@ def get_convenient_mongodb_representation(self):
 
 def get_convenient_mongodb_representation_base(op, model_state):
     val_dict = dict([(_o.name, _o.value) for _o in op.get_options_list()])
+    def make_mongo_safe(_d):
+        for _k in _d:
+            if '.' in _k:
+                _d[_k.replace('.', '___')] = _d.pop(_k)
+    if 'load_query' in val_dict:
+        val_dict['load_query'] = make_mongo_safe(val_dict['load_query'])
 
     for k in model_state:
         if k == 'layers':
