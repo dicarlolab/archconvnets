@@ -44,8 +44,8 @@ class ShowNetError(Exception):
     pass
 
 class ShowConvNet(ConvNet):
-    def __init__(self, op, load_dic):
-        ConvNet.__init__(self, op, load_dic)
+    def __init__(self, op, load_dic, dp_params):
+        ConvNet.__init__(self, op, load_dic, dp_params=dp_params)
     
     def get_gpus(self):
         self.need_gpu = ( self.op.get_value('show_preds') or     
@@ -271,6 +271,7 @@ class ShowConvNet(ConvNet):
             if next_data[1] == b1:
                 break
         pickle(os.path.join(self.feature_path, 'batches.meta'), {'source_model':self.load_file,
+                                                                 'source_model_query': self.load_query,
                                                                  'num_vis':num_ftrs})
 
     def do_hist_features(self):
@@ -466,7 +467,8 @@ class ShowConvNet(ConvNet):
     def get_options_parser(cls):
         op = ConvNet.get_options_parser()
         for option in list(op.options):
-            if option not in ('gpu', 'load_file', 'train_batch_range', 'test_batch_range'):
+            if option not in ('gpu', 'load_file', 'train_batch_range', 'test_batch_range', 'load_query', 
+                             'checkpoint_fs_host', 'checkpoint_fs_port', 'checkpoint_db_name', 'checkpoint_fs_name', 'data_path'):
                 op.delete_option(option)
         op.add_option("show-cost", "show_cost", StringOptionParser, "Show specified objective function", default="")
         op.add_option("show-filters", "show_filters", StringOptionParser, "Show learned filters in specified layer", default="")
@@ -501,9 +503,7 @@ if __name__ == "__main__":
     try:
         op = ShowConvNet.get_options_parser()
         op, load_dic = IGPUModel.parse_options(op)
-        print('here')
         model = ShowConvNet(op, load_dic)
-        print('there')
         model.start()
     except (UnpickleError, ShowNetError, opt.GetoptError), e:
         print "----------------"

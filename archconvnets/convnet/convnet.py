@@ -37,8 +37,12 @@ from os import linesep as NL
 
 
 class ConvNet(IGPUModel):
-    def __init__(self, op, load_dic, dp_params={}):
+    def __init__(self, op, load_dic, dp_params=None):
+        if dp_params is None:
+            dp_params = {}
         filename_options = []
+        if op.options["dp_params"].value_given:
+            dp_params.update(op.options["dp_params"].value)
         dp_params['multiview_test'] = op.get_value('multiview_test')
         dp_params['crop_border'] = op.get_value('crop_border')
         dp_params['img_flip'] = op.get_value('img_flip')
@@ -224,6 +228,7 @@ class ConvNet(IGPUModel):
                 "Number of channels in image", default=3 )
         op.add_option("random-seed", "random_seed", IntegerOptionParser,
                 "Random Seed", default=0)
+        op.add_option("dp-params", "dp_params", JSONOptionParser, "Data provider paramers", default='')
 
         return op
 

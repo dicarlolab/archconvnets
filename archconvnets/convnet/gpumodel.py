@@ -66,7 +66,6 @@ class IGPUModel:
         self.options = op.options
         self.load_dic = load_dic
         self.filename_options = filename_options
-        self.dp_params = dp_params
         self.get_gpus()
         self.fill_excused_options()
         #assert self.op.all_values_given()
@@ -74,6 +73,7 @@ class IGPUModel:
         for o in op.get_options_list():
             setattr(self, o.name, o.value)
 
+        self.dp_params = dp_params
         # these are things that the model must remember but they're not input parameters
         if load_dic:
             self.model_state = load_dic["model_state"]
@@ -426,7 +426,7 @@ class IGPUModel:
         try:
             load_dic = None
             options = op.parse(input_opts=input_opts)
-            if options["experiment_data"].value_given:
+            if "experiment_data" in options and options["experiment_data"].value_given:
                 assert "experiment_id" in options["experiment_data"].value
             if options["load_file"].value_given:
                 load_dic = IGPUModel.load_checkpoint(options["load_file"].value)

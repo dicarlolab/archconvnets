@@ -117,7 +117,6 @@ class DataProvider:
             dims = int(type.split('-')[-1])
             return _class(dims)
         elif type in dp_types:
-            print ('img_size', img_size)
             if img_size == 0:
                 _class = dp_classes[type]
                 return _class(data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
