@@ -77,31 +77,15 @@ class IGPUModel:
         # these are things that the model must remember but they're not input parameters
         if load_dic:
             self.model_state = load_dic["model_state"]
-            if self.options["load_file"].value:
-                self.save_file = self.options["load_file"].value
-            else:  #assumes load_query was given
-                self.save_file = load_dic["save_file"]
-            if not os.path.isdir(self.save_file):
-                self.save_file = os.path.dirname(self.save_file)
-            # split file name out
-            (pdir,self.save_file) = os.path.split( self.save_file )
-            if( len(self.save_file) == 0 ):
-                (pdir,self.save_file) = os.path.split( pdir )
-            if( os.path.samefile( pdir, self.save_path ) ):
-               print "pdir:" , pdir
-               print "self.save_path: ", self.save_path
         else:
             self.model_state = {}
-            if self.model_file: # use pre-defined name
-               self.save_file = self.model_file
-            else: # generate self.save_file string
-               if filename_options is not None:
-                   self.save_file = model_name + "_" + '_'.join(['%s_%s' % (char, self.options[opt].get_str_value()) for opt, char in filename_options]) + '_' + strftime('%Y-%m-%d_%H.%M.%S')
-
             self.model_state["train_outputs"] = []
             self.model_state["test_outputs"] = []
             self.model_state["epoch"] = 1
             self.model_state["batchnum"] = self.train_batch_range[0]
+            if not self.options["experiment_data"].value_given:
+                idval = model_name + "_" + '_'.join(['%s_%s' % (char, self.options[opt].get_str_value()) for opt, char in filename_options]) + '_' + strftime('%Y-%m-%d_%H.%M.%S')
+                self.experiment_data = {'experiment_id': idval}
 
         self.init_data_providers()
         if load_dic: 
@@ -181,7 +165,6 @@ class IGPUModel:
         self.print_model_state()
         print "Running on CUDA device(s) %s" % ", ".join("%d" % d for d in self.device_ids)
         print "Current time: %s" % asctime(localtime())
-        print "Saving checkpoints to %s" % os.path.join(self.save_path, self.save_file)
         print "========================="
         next_data = self.get_next_batch()
 
@@ -363,20 +346,6 @@ class IGPUModel:
         
         dic = {"model_state": self.model_state,
                "op": self.op}
-            
-        checkpoint_dir = os.path.join(self.save_path, self.save_file)
-        checkpoint_file = "%d.%d" % (self.epoch, self.batchnum)
-        checkpoint_file_full_path = os.path.join(checkpoint_dir, checkpoint_file)
-        if not os.path.exists(checkpoint_dir):
-            os.makedirs(checkpoint_dir)
-    
-        pickle(checkpoint_file_full_path, dic,compress=self.zip_save)
-
-        for f in sorted(os.listdir(checkpoint_dir), key=alphanum_key):
-            if sum(os.path.getsize(os.path.join(checkpoint_dir, f2)) for f2 in os.listdir(checkpoint_dir)) > self.max_filesize_mb*1024*1024 and f != checkpoint_file:
-                os.remove(os.path.join(checkpoint_dir, f))
-            else:
-                break
 
         if self.save_db:
             val_dict = get_convenient_mongodb_representation(self)
@@ -401,7 +370,7 @@ class IGPUModel:
                                           checkpoint_fs_name)                   
         rec = checkpoint_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
         load_dic = cPickle.loads(checkpoint_fs.get_last_version(_id=rec['_id']).read())
-        load_dic["save_file"] = os.path.join(rec['save_path'], rec['save_file'])
+        load_dic['rec'] = rec
         return load_dic
 
     @staticmethod
@@ -414,7 +383,6 @@ class IGPUModel:
         op.add_option("test-freq", "testing_freq", IntegerOptionParser, "Testing frequency", default=25)
         op.add_option("epochs", "num_epochs", IntegerOptionParser, "Number of epochs", default=500)
         op.add_option("data-path", "data_path", StringOptionParser, "Data path")
-        op.add_option("save-path", "save_path", StringOptionParser, "Save path")
         op.add_option("max-filesize", "max_filesize_mb", IntegerOptionParser, "Maximum save file size (MB)", default=5000)
         op.add_option("max-test-err", "max_test_err", FloatOptionParser, "Maximum test error for saving")
         op.add_option("num-gpus", "num_gpus", IntegerOptionParser, "Number of GPUs", default=1)
@@ -425,7 +393,6 @@ class IGPUModel:
         ####### my additionial config #########
         op.add_option("scale-rate", "scale_rate", FloatOptionParser, "Learning Rate Scale Factor", default=1 )
         op.add_option("adp-drop", "adp_drop", BooleanOptionParser, "Adaptive Drop Training", default=False )
-        op.add_option("model-file", "model_file", StringOptionParser, "Model File Name", default="" )
         op.add_option("reset-mom", "reset_mom", BooleanOptionParser, "Reset layer momentum",
               default=False )
         ####### db configs #######
@@ -436,7 +403,7 @@ class IGPUModel:
                 "Name for mongodb database for saved checkpoints", default="convnet_checkpoint_db")
         op.add_option("checkpoint-fs-name", "checkpoint_fs_name", StringOptionParser,
                 "Name for gridfs FS for saved checkpoints", default="convnet_checkpoint_fs")
-        op.add_option("experiment-id", "experiment_id", StringOptionParser, "Id for grouping results in database", default="")
+        op.add_option("experiment-data", "experiment_data", JSONOptionParser, "Id for grouping results in database", default="")
         op.add_option("load-query", "load_query", JSONOptionParser, "Query for loading checkpoint from database", default="", excuses=OptionsParser.EXCLUDE_ALL)
         return op
 
@@ -483,20 +450,22 @@ class IGPUModel:
 
 
 def get_convenient_mongodb_representation(self):
-    val_dict = dict([(_o.name, _o.value) for _o in self.op.get_options_list()])
-
-    val_dict['save_path'] = self.save_path
-    val_dict['save_file'] = self.save_file
+    val_dict = get_convenient_mongodb_representation_base(self.op, self.model_state)
     val_dict['epoch'] = self.epoch
     val_dict['batch_num'] = self.batchnum
     val_dict['timestamp'] = datetime.datetime.utcnow()
-    val_dict['experiment_id'] = self.experiment_id
+    val_dict['experiment_data'] = self.experiment_data
+    return SONify(val_dict)
 
-    for k in self.model_state:
+
+def get_convenient_mongodb_representation_base(op, model_state):
+    val_dict = dict([(_o.name, _o.value) for _o in op.get_options_list()])
+
+    for k in model_state:
         if k == 'layers':
             bad_keys = ['weights', 'inputLayers', 'biasesInc', 
                         'biases', 'weightsInc']
-            layers = copy.deepcopy(self.model_state[k])
+            layers = copy.deepcopy(model_state[k])
             for _l in layers:
                 for _bk in bad_keys:
                     if _bk in _l:
@@ -505,11 +474,11 @@ def get_convenient_mongodb_representation(self):
             val_dict[k] = layers
         elif k == 'train_outputs':
             tfreq = val_dict['testing_freq']
-            val_dict[k] = self.model_state[k][-tfreq:]
+            val_dict[k] = model_state[k][-tfreq:]
         elif k == 'test_outputs':
-            val_dict[k] = self.model_state[k][-1]
+            val_dict[k] = model_state[k][-1]
         else:
-            val_dict[k] = self.model_state[k]
+            val_dict[k] = model_state[k]
 
     return SONify(val_dict)
 

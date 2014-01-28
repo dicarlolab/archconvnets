@@ -101,7 +101,6 @@ class ConvNet(IGPUModel):
 
     def fill_excused_options(self):
         if self.op.get_value('check_grads'):
-            self.op.set_value('save_path', '')
             self.op.set_value('train_batch_range', '0')
             self.op.set_value('test_batch_range', '0')
             self.op.set_value('data_path', '')
@@ -165,7 +164,7 @@ class ConvNet(IGPUModel):
     def conditional_save(self):
         self.save_state()
         print "-------------------------------------------------------"
-        print "Saved checkpoint to %s" % os.path.join(self.save_path, self.save_file)
+        print "Saved checkpoint to %s" % 
         print "=======================================================",
 
     def aggregate_test_outputs(self, test_outputs):
@@ -182,7 +181,7 @@ class ConvNet(IGPUModel):
         op.add_option("mini", "minibatch_size", IntegerOptionParser, "Minibatch size", default=128)
         op.add_option("layer-def", "layer_def", StringOptionParser, "Layer definition file", set_once=True)
         op.add_option("layer-params", "layer_params", StringOptionParser, "Layer parameter file")
-        op.add_option("check-grads", "check_grads", BooleanOptionParser, "Check gradients and quit?", default=0, excuses=['data_path','save_path','train_batch_range','test_batch_range'])
+        op.add_option("check-grads", "check_grads", BooleanOptionParser, "Check gradients and quit?", default=0, excuses=['data_path','train_batch_range','test_batch_range'])
         op.add_option("multiview-test", "multiview_test", BooleanOptionParser, "Cropped DP: test on multiple patches?", default=0, requires=['logreg_name'])
         op.add_option("crop-border", "crop_border", IntegerOptionParser, "Cropped DP: crop border size", default=4, set_once=True)
         op.add_option("logreg-name", "logreg_name", StringOptionParser, "Cropped DP: logreg layer name (for --multiview-test)", default="")
