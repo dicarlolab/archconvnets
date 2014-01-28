@@ -1,0 +1,1 @@
+python convnet.py --layer-params=/home/darren/archconvnets/archconvnets/convnet/ut_model_full/layer-params_reduced1.cfg --load-query='{"experiment_data.experiment_id":"mytestrun2"}'
