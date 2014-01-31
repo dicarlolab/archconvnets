@@ -6,9 +6,8 @@ import scipy.stats as stats
 
 import archconvnets.convnet as C
 
-def getstats(fname):
+def getstats(fname, linds):
     X = C.util.unpickle(fname)
-    linds = [(1, [2, 4]), (2, [8, 22]), (3, [12, 26]), (4, [14, 28]), (5, [16, 30])]
     sval = {}
     for level, ilist in linds:
         sval[level] = {}
@@ -37,7 +36,71 @@ def compute_all_stats(dirname):
     L = L[ls][::20]
     for l in L:
         print(l)
-        s = getstats(os.path.join('/export/imgnet_storage_full/ConvNet_full_nofc', l))
+        s = getstats(os.path.join('/export/imgnet_storage_full/ConvNet_full_nofc', l), linds = [(1, [2, 4]), (2, [8, 22]), (3, [12, 26]), (4, [14, 28]), (5, [16, 30])])
         with open(os.path.join(dirname, l), 'w') as _f:
             cPickle.dump(s, _f)
 
+
+def compute_all_stats_cifar_stats(dirname):
+
+    linds = [(1, [2]), (2, [5])]
+
+    """ 
+    if not os.path.exists(os.path.join(dirname, 'color_orig')):
+        os.makedirs(os.path.join(dirname, 'color_orig'))
+    dirn = '/home/darren/cifar_checkpoints/color/orig/ConvNet__2014-01-15_12.13.14'
+    L = np.array(os.listdir(dirn))
+    Lf = np.array(map(float, L))
+    ls = Lf.argsort()
+    L = L[ls]
+    for l in L:
+        print(l)
+        s = getstats(os.path.join(dirn, l), linds=linds)
+        with open(os.path.join(dirname, 'color_orig', l), 'w') as _f:
+            cPickle.dump(s, _f)
+
+    if not os.path.exists(os.path.join(dirname, 'no_color_orig')):
+        os.makedirs(os.path.join(dirname, 'no_color_orig'))
+    dirn = '/home/darren/cifar_checkpoints/no_color/orig/ConvNet__2014-01-15_14.24.24'
+    L = np.array(os.listdir(dirn))
+    Lf = np.array(map(float, L))
+    ls = Lf.argsort()
+    L = L[ls]
+    for l in L:
+        print(l)
+        s = getstats(os.path.join(dirn, l), linds=linds)
+        with open(os.path.join(dirname, 'no_color_orig', l), 'w') as _f:
+            cPickle.dump(s, _f)
+    
+
+    linds = [(1, [2]), (2, [5]), (3, [8]), (4, [10])]
+
+    if not os.path.exists(os.path.join(dirname, 'color_conv')):
+        os.makedirs(os.path.join(dirname, 'color_conv'))
+    dirn = '/home/darren/cifar_checkpoints/color/conv_instead_of_local/ConvNet__2014-01-16_17.40.17'
+    L = np.array(os.listdir(dirn))
+    Lf = np.array(map(float, L))
+    ls = Lf.argsort()
+    L = L[ls]
+    for l in L:
+        print(l)
+        s = getstats(os.path.join(dirn, l), linds=linds)
+        with open(os.path.join(dirname, 'color_conv', l), 'w') as _f:
+            cPickle.dump(s, _f)
+
+    """
+
+    linds = [(1, [2]), (2, [5]), (3, [8]), (4, [11])]
+
+    if not os.path.exists(os.path.join(dirname, 'color_convpool')):
+        os.makedirs(os.path.join(dirname, 'color_convpool'))
+    dirn = '/home/darren/cifar_checkpoints/color/conv_instead_of_local_w_pooling/ConvNet__2014-01-16_17.53.33'
+    L = np.array(os.listdir(dirn))
+    Lf = np.array(map(float, L))
+    ls = Lf.argsort()
+    L = L[ls]
+    for l in L:
+        print(l)
+        s = getstats(os.path.join(dirn, l), linds=linds)
+        with open(os.path.join(dirname, 'color_convpool', l), 'w') as _f:
+            cPickle.dump(s, _f)
