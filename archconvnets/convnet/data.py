@@ -246,11 +246,11 @@ def dldata_to_convnet_reformatting(stims, lbls):
 
 class DLDataProvider(LabeledDataProvider):
 
-
     def __init__(self, data_dir, batch_range, init_epoch=1,
                         init_batchnum=None, dp_params=None, test=False):
                         
         #load dataset and meta
+        self.replace_label = dp_params.get('replace_label', False)
         modulename, attrname = dp_params['dataset_name']
         module = importlib.import_module(modulename)
         dataset_obj = getattr(module, attrname)
@@ -259,12 +259,13 @@ class DLDataProvider(LabeledDataProvider):
             dset = dataset_obj(data=dataset_data)
         else:
             dset = dataset_obj()
-        meta = dset.meta   
+        meta = self.meta = dset.meta   
+        mlen = len(meta)
         
         #compute number of batches
         mlen = len(meta)   
         batch_size = dp_params['batch_size'] 
-        num_batches = int(math.ceil(mlen / float(batch_size)))
+        num_batches = self.num_batches = int(math.ceil(mlen / float(batch_size)))
  
         batch_regex = re.compile('data_batch_([\d]+)')
         imgs_mean = None
@@ -293,55 +294,18 @@ class DLDataProvider(LabeledDataProvider):
             print('data_dir %s does not exist, creating' % data_dir)
             needed_batches = batch_range[:]
             os.makedirs(data_dir)
-           
+        
+        if needed_batches or self.replace_label:
+            indset = self.indset = self.get_indset()
+            metacol = self.metacol = self.get_metacol()
+        
         if needed_batches:
-            #setting up indices for each batch
-            #either via specified permutation (e.g. "random")
-            #or doing nothing
-            perm_type = dp_params.get('perm_type')
-            if perm_type is not None:
-                mlen = len(meta)
-                if perm_type == 'random':
-                    perm_seed = dp_params.get('perm_seed', 0)
-                    rng = n.random.RandomState(seed=perm_seed)
-                    perm = rng.permutation(mlen)
-                    indset = [perm[n.arange(batch_size * bidx, 
-                     batch_size * (bidx + 1))] for bidx in range(num_batches)]
-                elif perm_type == 'ordered_random':
-                    perm_seed = dp_params.get('perm_seed', 0)
-                    rng = n.random.RandomState(seed=perm_seed)
-                    perm = rng.permutation(mlen)
-                    submeta = meta[dp_params['perm_order']].copy()
-                    submeta = submeta[perm]
-                    s = submeta.argsort(order=dp_params['perm_order'])
-                    new_perm = perm[s]
-                    indset = [new_perm[n.arange(batch_size * bidx,
-                     batch_size * (bidx + 1))] for bidx in range(num_batches)]
-                else:
-                    raise ValueError, 'Unknown permutation type.'
-            else:
-                indset = [slice(batch_size * bidx, batch_size * (bidx + 1)) 
-                           for bidx in range(num_batches)]
-            
             #get stimarray (may be lazyarray)
             #something about appearing to require uint8??
             #dp_params['preproc']['dtype'] = 'uint8'    #or assertion?
             stimarray = dset.get_images(preproc=dp_params['preproc'])
-            
-            #format relevant metadata column into integer list if needed
-            metacol = meta[dp_params['meta_attribute']][:]
-            try:
-                metacol + 1
-                labels_unique = None
-            except TypeError:
-                labels_unique = n.unique(metacol)
-                labels = n.zeros((mlen, ), dtype='int')
-                for label in range(len(labels_unique)):
-                    labels[metacol == labels_unique[label]] = label
-                metacol = labels
-
+ 
             #actually write out batches, while tallying img mean
-
             for bnum, inds in enumerate(indset):
                 if bnum not in needed_batches:
                     continue
@@ -388,10 +352,70 @@ class DLDataProvider(LabeledDataProvider):
                                  init_epoch, init_batchnum, dp_params, test)
 
     def get_next_batch(self):
-        epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
+        epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)            
         d['data'] = n.require(d['data'], requirements='C')  
         d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
         return epoch, batchnum, d
+        
+    def get_batch(self, batch_num):
+        dic = LabeledDataProvider.get_batch(batch_num)
+        if self.replace_label:
+            metacol = self.metacol
+            indset = self.indset            
+            lbls = metacol[indset[batch_num]]
+            assert lbls.ndim == 1
+            labels = lbls.reshape((1, lbls.shape[0]))
+            dic['labels'] = labels
+        return  dic
+
+    def get_metacol(self):
+        meta = self.meta
+        mlen = len(meta)
+        #format relevant metadata column into integer list if needed
+        metacol = meta[dp_params['meta_attribute']][:]
+        try:
+            metacol + 1
+            labels_unique = None
+        except TypeError:
+            labels_unique = n.unique(metacol)
+            labels = n.zeros((mlen, ), dtype='int')
+            for label in range(len(labels_unique)):
+                labels[metacol == labels_unique[label]] = label
+            metacol = labels
+        return metacol
+
+    def get_indset(self):
+        dp_params = self.params
+        perm_type = dp_params.get('perm_type')
+        perm_type = dp_params.get('perm_type')
+        num_batches = self.num_batches
+        batch_size = dp_params['batch_size']
+        meta = self.meta
+        
+        if perm_type is not None:
+            mlen = len(self.meta)
+            if perm_type == 'random':
+                perm_seed = dp_params.get('perm_seed', 0)
+                rng = n.random.RandomState(seed=perm_seed)
+                perm = rng.permutation(mlen)
+                indset = [perm[n.arange(batch_size * bidx, 
+                 batch_size * (bidx + 1))] for bidx in range(num_batches)]
+            elif perm_type == 'ordered_random':
+                perm_seed = dp_params.get('perm_seed', 0)
+                rng = n.random.RandomState(seed=perm_seed)
+                perm = rng.permutation(mlen)
+                submeta = meta[dp_params['perm_order']].copy()
+                submeta = submeta[perm]
+                s = submeta.argsort(order=dp_params['perm_order'])
+                new_perm = perm[s]
+                indset = [new_perm[n.arange(batch_size * bidx,
+                 batch_size * (bidx + 1))] for bidx in range(num_batches)]
+            else:
+                raise ValueError, 'Unknown permutation type.'
+        else:
+            indset = [slice(batch_size * bidx, batch_size * (bidx + 1)) 
+                       for bidx in range(num_batches)]
+        return indset
 
     
 dp_types = {"default": "The default data provider; loads one batch into memory at a time",
