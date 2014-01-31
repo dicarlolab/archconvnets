@@ -261,6 +261,7 @@ class DLDataProvider(LabeledDataProvider):
             dset = dataset_obj()
         meta = self.meta = dset.meta   
         mlen = len(meta)
+        self.dp_params = dp_params
         
         #compute number of batches
         mlen = len(meta)   
@@ -340,7 +341,7 @@ class DLDataProvider(LabeledDataProvider):
             existing_batches += needed_batches
             existing_batches.sort()
             outdict = {'num_cases_per_batch': batch_size, 
-                       'label_names': labels_unique,  ###what's supposed to be stored here?
+                       'label_names': self.labels_unique, 
                        'num_vis': d['data'].shape[0], 
                        'data_mean': imgs_mean,
                        'existing_batches': existing_batches,
@@ -351,6 +352,9 @@ class DLDataProvider(LabeledDataProvider):
         LabeledDataProvider.__init__(self, data_dir, batch_range, 
                                  init_epoch, init_batchnum, dp_params, test)
 
+        if self.replace_label:
+            self.batch_meta['label_names'] = self.labels_unique
+
     def get_next_batch(self):
         epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)            
         d['data'] = n.require(d['data'], requirements='C')  
@@ -358,7 +362,7 @@ class DLDataProvider(LabeledDataProvider):
         return epoch, batchnum, d
         
     def get_batch(self, batch_num):
-        dic = LabeledDataProvider.get_batch(batch_num)
+        dic = LabeledDataProvider.get_batch(self, batch_num)
         if self.replace_label:
             metacol = self.metacol
             indset = self.indset            
@@ -372,12 +376,12 @@ class DLDataProvider(LabeledDataProvider):
         meta = self.meta
         mlen = len(meta)
         #format relevant metadata column into integer list if needed
-        metacol = meta[dp_params['meta_attribute']][:]
+        metacol = meta[self.dp_params['meta_attribute']][:]
         try:
             metacol + 1
             labels_unique = None
         except TypeError:
-            labels_unique = n.unique(metacol)
+            labels_unique = self.labels_unique = n.unique(metacol)
             labels = n.zeros((mlen, ), dtype='int')
             for label in range(len(labels_unique)):
                 labels[metacol == labels_unique[label]] = label
@@ -385,7 +389,7 @@ class DLDataProvider(LabeledDataProvider):
         return metacol
 
     def get_indset(self):
-        dp_params = self.params
+        dp_params = self.dp_params
         perm_type = dp_params.get('perm_type')
         perm_type = dp_params.get('perm_type')
         num_batches = self.num_batches
