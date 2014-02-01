@@ -130,7 +130,7 @@ def compute_all_synth_0_stats():
     edata = {'experiment_data.experiment_id': "synthetic_training_bsize256_large_category"}
     ids = list(coll.find(edata, fields=['_id']).sort('timestamp'))[::N]
 
-    fs = gridfs.GridFS(conn['convnet_checkpoint_db'], 'convnet_checkpoint_fs')
+    fs = gridfs.GridFS(conn['convnet_checkpoint_db'], 'convnet_checkpoint_filter_fs')
     for idq in ids:
         print(idq)
         dic, s = getstats_from_db(idq, linds)
