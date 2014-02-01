@@ -4,13 +4,27 @@ import os
 import numpy as np
 import scipy.stats as stats
 
-import archconvnets.convnet as C
+import pymongo as pm
+from yamutils.mongo import SONify
+
+import archconvnets.convnet as convnet
+import archconvnets.convnet.gpumodel as gpumodel
 
 def getstats(fname, linds):
-    X = C.util.unpickle(fname)
+    return getstats_base(convnet.util.unpickle(fname), linds)
+
+
+def getstats_from_db(query, linds, checkpoint_fs_host='localhost', 
+                            checkpoint_fs_port=27017,
+                            checkpoint_db_name='convnet_checkpoint_db',
+                            checkpoint_fs_name='convnet_checkpoint_fs'):
+    dic = gpumodel.IGPUModel.load_checkpoint_from_db(query, checkpoint_fs_host, checkpoint_fs_port, checkpoint_db_name, checkpoint_fs_name)
+    return dic, getstats_base(dic, linds)
+
+
+def getstats_base(X, linds):
     sval = {}
     for level, ilist in linds:
-        sval[level] = {}
         for l_ind in ilist:
             layer = X['model_state']['layers'][l_ind]
             w = layer['weights'][0]
@@ -25,7 +39,8 @@ def getstats(fname, linds):
             mat2 = np.row_stack([np.row_stack([w[i, :, :, j] for i in range(w.shape[0])]).T for j in range(w.shape[3])] )
             cf2 = np.corrcoef(mat2.T)
             cf2t = np.corrcoef(mat2)
-            sval[level][l_ind] = {'karray': karray, 'kall': kall, 'corr': cf, 'corr2': cf2, 'corr_t': cft, 'corr2_t': cf2t}
+            lname = X['model_state']['layers'][l_ind]['name']
+            sval[lname] = {'karray': karray, 'kall': kall, 'corr': cf, 'corr2': cf2, 'corr_t': cft, 'corr2_t': cf2t}
     return sval
             
 
@@ -104,3 +119,21 @@ def compute_all_stats_cifar_stats(dirname):
         s = getstats(os.path.join(dirn, l), linds=linds)
         with open(os.path.join(dirname, 'color_convpool', l), 'w') as _f:
             cPickle.dump(s, _f)
+
+import gridfs
+def compute_all_synth_0_stats():
+    N = 5
+    conn = pm.Connection()
+    linds = [(1, [4, 2]), (2, [8, 26]), (3, [12, 30]), (4, [14, 32]), (5, [16, 34])]
+
+    coll = conn['convnet_checkpoint_db']['convnet_checkpoint_fs.files']
+    edata = {'experiment_data.experiment_id': "synthetic_training_bsize256_large_category"}
+    ids = list(coll.find(edata, fields=['_id']).sort('timestamp'))[::N]
+
+    fs = gridfs.GridFS(conn['convnet_checkpoint_db'], 'convnet_checkpoint_fs')
+    for idq in ids:
+        print(idq)
+        dic, s = getstats_from_db(idq, linds)
+        blob = cPickle.dumps(s)
+        fs.put(blob, fromid=idq['_id'], experiment_data= dic['rec']['experiment_data'])
+
