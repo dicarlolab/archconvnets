@@ -135,5 +135,4 @@ def compute_all_synth_0_stats():
         print(idq)
         dic, s = getstats_from_db(idq, linds)
         blob = cPickle.dumps(s)
-        fs.put(blob, fromid=idq['_id'], experiment_data= dic['rec']['experiment_data'])
-
+        fs.put(blob, **dic['rec']) 
