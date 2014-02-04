@@ -126,7 +126,8 @@ def compute_all_synth_0_stats():
     conn = pm.Connection()
     linds = [(1, [4, 2]), (2, [8, 26]), (3, [12, 30]), (4, [14, 32]), (5, [16, 34])]
     linds = [(1, [4, 2])]
-    coll = conn['convnet_checkpoint_db']['convnet_checkpoint_fs.files']
+    checkpoint_db_name = 'convnet_checkpoint_db'
+    checkpoint_fs_name = 'convnet_checkpoints_fs'
     #edata = {'experiment_data.experiment_id': "synthetic_training_bsize256_large_category"}
     #edata = {'experiment_data.experiment_id': "synthetic_training_bsize256",
     #          #'layer_def': '/home/yamins/archconvnets/archconvnets/convnet/ut_model_full/layer_mod2.cfg'
@@ -134,12 +135,21 @@ def compute_all_synth_0_stats():
     #    }
     #edata = {'experiment_data.experiment_id': "synthetic_training_bsize256_firstlayer"}
     #edata = {'experiment_data.experiment_id': "synthetic_training_firstlayer_large"}
-    edata = {'experiment_data.experiment_id': "synthetic_training_firstlayer_large_category"}
+    #edata = {'experiment_data.experiment_id': "synthetic_training_firstlayer_large_category"}
+    edata = {}
+    linds = [(1, [4, 2]), (2, [8, 12]), (3, [12, 26]), (4, [14, 28]), (5, [16, 30])]
+    checkpont_fs_name = 'reference_models'
+    coll = conn[checkpoint_db_name][checkpoint_fs_name]
     ids = list(coll.find(edata, fields=['_id']).sort('timestamp'))[::N]
 
     fs = gridfs.GridFS(conn['convnet_checkpoint_db'], 'convnet_checkpoint_filter_fs')
     for idq in ids:
         print(idq)
         dic, s = getstats_from_db(idq, linds)
+        dic['rec']['checkpoint_db_name'] = checkpoint_db_name
+        dic['rec']['checkpoint_fs_name'] = checkpoint_fs_name
         blob = cPickle.dumps(s)
         fs.put(blob, **dic['rec']) 
+
+
+
