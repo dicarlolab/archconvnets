@@ -125,9 +125,16 @@ def compute_all_synth_0_stats():
     N = 5
     conn = pm.Connection()
     linds = [(1, [4, 2]), (2, [8, 26]), (3, [12, 30]), (4, [14, 32]), (5, [16, 34])]
-
+    linds = [(1, [4, 2])]
     coll = conn['convnet_checkpoint_db']['convnet_checkpoint_fs.files']
-    edata = {'experiment_data.experiment_id': "synthetic_training_bsize256_large_category"}
+    #edata = {'experiment_data.experiment_id': "synthetic_training_bsize256_large_category"}
+    #edata = {'experiment_data.experiment_id': "synthetic_training_bsize256",
+    #          #'layer_def': '/home/yamins/archconvnets/archconvnets/convnet/ut_model_full/layer_mod2.cfg'
+    #     'dp_params.dataset_name': [u'dldata.stimulus_sets.synthetic.synthetic_datasets', u'TrainingDatasetLarge']
+    #    }
+    #edata = {'experiment_data.experiment_id': "synthetic_training_bsize256_firstlayer"}
+    #edata = {'experiment_data.experiment_id': "synthetic_training_firstlayer_large"}
+    edata = {'experiment_data.experiment_id': "synthetic_training_firstlayer_large_category"}
     ids = list(coll.find(edata, fields=['_id']).sort('timestamp'))[::N]
 
     fs = gridfs.GridFS(conn['convnet_checkpoint_db'], 'convnet_checkpoint_filter_fs')
