@@ -100,7 +100,7 @@ class ExtractConvNet(ConvNet):
     def get_options_parser(cls):
         op = ConvNet.get_options_parser()
         for option in list(op.options):
-            if option not in ('gpu', 'load_file', 'train_batch_range', 'test_batch_range', 'load_query', 'checkpoint_fs_host', 'checkpoint_fs_port', 'checkpoint_db_name', 'checkpoint_fs_name', 'data_path', 'dp_type', 'dp_params'):
+            if option not in ('gpu', 'load_file', 'train_batch_range', 'test_batch_range', 'load_query', 'checkpoint_fs_host', 'checkpoint_fs_port', 'checkpoint_db_name', 'checkpoint_fs_name', 'data_path', 'dp_type', 'dp_params', 'img_size'):
                 op.delete_option(option)
         op.add_option("write-features", "write_features", StringOptionParser, "Write test data features from given layer", default="", requires=['feature-path'])
         op.add_option("feature-path", "feature_path", StringOptionParser, "Write test data features to this path (to be used with --write-features)", default="")
