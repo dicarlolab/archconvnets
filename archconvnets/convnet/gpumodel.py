@@ -77,7 +77,7 @@ class IGPUModel:
         # these are things that the model must remember but they're not input parameters
         if load_dic:
             self.model_state = load_dic["model_state"]
-            if not self.options["experiment_data"].value_given:
+            if not "experiment_data" in self.options or not self.options["experiment_data"].value_given:
                 self.experiment_data = load_dic["rec"]["experiment_data"]
         else:
             self.model_state = {}
