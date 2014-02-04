@@ -402,8 +402,7 @@ class DLDataProvider(LabeledDataProvider):
                 perm_seed = dp_params.get('perm_seed', 0)
                 rng = n.random.RandomState(seed=perm_seed)
                 perm = rng.permutation(mlen)
-                indset = [perm[n.arange(batch_size * bidx, 
-                 batch_size * (bidx + 1))] for bidx in range(num_batches)]
+                indset = [perm[batch_size * bidx: batch_size * (bidx + 1)] for bidx in range(num_batches)]
             elif perm_type == 'ordered_random':
                 perm_seed = dp_params.get('perm_seed', 0)
                 rng = n.random.RandomState(seed=perm_seed)
@@ -412,8 +411,7 @@ class DLDataProvider(LabeledDataProvider):
                 submeta = submeta[perm]
                 s = submeta.argsort(order=dp_params['perm_order'])
                 new_perm = perm[s]
-                indset = [new_perm[n.arange(batch_size * bidx,
-                 batch_size * (bidx + 1))] for bidx in range(num_batches)]
+                indset = [new_perm[batch_size * bidx: batch_size * (bidx + 1)] for bidx in range(num_batches)]
             else:
                 raise ValueError, 'Unknown permutation type.'
         else:
