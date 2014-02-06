@@ -33,41 +33,48 @@ import random as r
 import numpy.random as nr
 from convnet import ConvNet
 from options import *
+import pymongo as pm
+import gridfs
+import copy
+
+FEATURE_DB_PORT = int(os.environ.get('FEATURE_DB_PORT', 22334))
+FEATURE_DB = pm.MongoClient('localhost', port=FEATURE_DB_PORT)['features']
+FEATURE_COLLECTION = FEATURE_DB['features']
+
 
 class ExtractNetError(Exception):
     pass
 
+
 class ExtractConvNet(ConvNet):
     def __init__(self, op, load_dic, dp_params=None):
+        if op.get_value('write_db'):
+            self.coll = self.get_feature_coll()
+            self.ind_set = self.test_data_provider.get_indset()
+            try:
+                self.meta = self.test_data_provider.meta
+            except ValueError:
+                raise ExtractNetError('Writing to database only supported using a data provider that has a meta')
+            try:
+                model_id = self.load_dic['rec']['_id']
+                self.base_record = {'checkpoint_fs_host': op.get_value('checkpoint_fs_host'),
+                                    'checkpoint_fs_port': op.get_value('checkpoint_fs_port'),
+                                    'checkpoint_db_name': op.get_value('checkpoint_db_name'),
+                                    'checkpoint_fs_name': op.get_value('checkpoint_fs_name'),
+                                    'write_features': op.get_value('write_features'),
+                                    'dp_params': dp_params,
+                                    'model_id': model_id}
+            except KeyError:
+                raise ExtractNetError('Writing to database only supported using models stored in database')
         ConvNet.__init__(self, op, load_dic, dp_params=dp_params)
-    
-    def get_gpus(self):
-        self.need_gpu = True
-        if self.need_gpu:
-            ConvNet.get_gpus(self)
-    
-    def init_data_providers(self):
-        class Dummy:
-            def advance_batch(self):
-                pass
-        if self.need_gpu:
-            ConvNet.init_data_providers(self)
-        else:
-            self.train_data_provider = self.test_data_provider = Dummy()
-    
-    def import_model(self):
-        if self.need_gpu:
-            ConvNet.import_model(self)
-            
+
+    def get_feature_coll(self):
+        return FEATURE_COLLECTION
+
     def init_model_state(self):
         ConvNet.init_model_state(self)
         self.ftr_layer_idx = self.get_layer_idx(self.op.get_value('write_features'))
 
-            
-    def init_model_lib(self):
-        if self.need_gpu:
-            ConvNet.init_model_lib(self)
-    
     def do_write_features(self):
         if not os.path.exists(self.feature_path):
             os.makedirs(self.feature_path)
@@ -78,32 +85,55 @@ class ExtractConvNet(ConvNet):
             batch = next_data[1]
             data = next_data[2]
             ftrs = n.zeros((data[0].shape[1], num_ftrs), dtype=n.single)
-            self.libmodel.startFeatureWriter(data + [ftrs], self.ftr_layer_idx,1)
-            
+            self.libmodel.startFeatureWriter(data + [ftrs], self.ftr_layer_idx, 1)
+
             # load the next batch while the current one is computing
             next_data = self.get_next_batch(train=False)
             self.finish_batch()
-            path_out = os.path.join(self.feature_path, 'data_batch_%d' % batch)
-            pickle(path_out, {'data': ftrs, 'labels': data[1]})
-            print "Wrote feature file %s" % path_out
-            if next_data[1] == b1:
-                break
-        pickle(os.path.join(self.feature_path, 'batches.meta'), {'source_model':self.load_file,
-                                                                 'source_model_query': self.load_query,
-                                                                 'num_vis':num_ftrs})
+            if self.op.get_value('write_db'):
+                self.write_features_to_db(ftrs, batch)
+            else:
+                path_out = os.path.join(self.feature_path, 'data_batch_%d' % batch)
+                pickle(path_out, {'data': ftrs, 'labels': data[1]})
+                print "Wrote feature file %s" % path_out
+                if next_data[1] == b1:
+                    break
+        if not self.op.get_value('write_db'):
+            pickle(os.path.join(self.feature_path, 'batches.meta'), {'source_model': self.load_file,
+                                                                     'source_model_query': self.load_query,
+                                                                     'num_vis': num_ftrs})
+
+    def write_features_to_db(self, ftrs, batch):
+        lists = [list(ftr) for ftr in ftrs]
+        ids = self.meta['id'][self.ind_set[batch]]
+        for ftr, img_id in zip(lists, ids):
+            record = copy.deepcopy(self.base_record)
+            record['id'] = img_id
+            record['feature'] = ftr
+            self.coll.insert(record)
 
     def start(self):
         self.op.print_values()
         self.do_write_features()
-            
+
     @classmethod
     def get_options_parser(cls):
         op = ConvNet.get_options_parser()
         for option in list(op.options):
-            if option not in ('gpu', 'load_file', 'train_batch_range', 'test_batch_range', 'load_query', 'checkpoint_fs_host', 'checkpoint_fs_port', 'checkpoint_db_name', 'checkpoint_fs_name', 'data_path', 'dp_type', 'dp_params', 'img_size'):
+            if option not in ('gpu', 'load_file', 'train_batch_range', 'test_batch_range',
+                              'load_query', 'checkpoint_fs_host', 'checkpoint_fs_port',
+                              'checkpoint_db_name', 'checkpoint_fs_name', 'data_path',
+                              'dp_type', 'dp_params', 'img_size'):
                 op.delete_option(option)
-        op.add_option("write-features", "write_features", StringOptionParser, "Write test data features from given layer", default="", requires=['feature-path'])
-        op.add_option("feature-path", "feature_path", StringOptionParser, "Write test data features to this path (to be used with --write-features)", default="")
+        op.add_option("write-features", "write_features",
+                      StringOptionParser, "Write test data features from given layer",
+                      default="", requires=['feature-path'])
+        op.add_option("feature-path", "feature_path",
+                      StringOptionParser, "Write test data features to this path (to be used with --write-features)",
+                      default="")
+        op.add_option("write-db", "write_db",
+                      BooleanOptionParser, "Write all data features from the dataset to mongodb in standard format",
+                      default=False)
         
         op.options['load_file'].default = None
         return op

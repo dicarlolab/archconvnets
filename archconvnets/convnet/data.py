@@ -247,7 +247,7 @@ def dldata_to_convnet_reformatting(stims, lbls):
 class DLDataProvider(LabeledDataProvider):
 
     def __init__(self, data_dir, batch_range, init_epoch=1,
-                        init_batchnum=None, dp_params=None, test=False):
+                 init_batchnum=None, dp_params=None, test=False):
                         
         #load dataset and meta
         self.replace_label = dp_params.get('replace_label', False)
@@ -260,7 +260,6 @@ class DLDataProvider(LabeledDataProvider):
         else:
             dset = dataset_obj()
         meta = self.meta = dset.meta   
-        mlen = len(meta)
         self.dp_params = dp_params
         
         #compute number of batches
