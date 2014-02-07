@@ -36,6 +36,7 @@ from options import *
 import pymongo as pm
 import gridfs
 import copy
+from yamutils.mongo import SONify
 
 FEATURE_DB_PORT = int(os.environ.get('FEATURE_DB_PORT', 22334))
 FEATURE_DB = pm.MongoClient('localhost', port=FEATURE_DB_PORT)['features']
@@ -48,6 +49,7 @@ class ExtractNetError(Exception):
 
 class ExtractConvNet(ConvNet):
     def __init__(self, op, load_dic, dp_params=None):
+        ConvNet.__init__(self, op, load_dic, dp_params=dp_params)
         if op.get_value('write_db'):
             self.coll = self.get_feature_coll()
             self.ind_set = self.test_data_provider.get_indset()
@@ -62,11 +64,10 @@ class ExtractConvNet(ConvNet):
                                     'checkpoint_db_name': op.get_value('checkpoint_db_name'),
                                     'checkpoint_fs_name': op.get_value('checkpoint_fs_name'),
                                     'write_features': op.get_value('write_features'),
-                                    'dp_params': dp_params,
+                                    'dp_params': op.get_value('dp_params'),
                                     'model_id': model_id}
             except KeyError:
                 raise ExtractNetError('Writing to database only supported using models stored in database')
-        ConvNet.__init__(self, op, load_dic, dp_params=dp_params)
 
     def get_feature_coll(self):
         return FEATURE_COLLECTION
@@ -96,21 +97,22 @@ class ExtractConvNet(ConvNet):
                 path_out = os.path.join(self.feature_path, 'data_batch_%d' % batch)
                 pickle(path_out, {'data': ftrs, 'labels': data[1]})
                 print "Wrote feature file %s" % path_out
-                if next_data[1] == b1:
-                    break
+            if next_data[1] == b1:
+                break
         if not self.op.get_value('write_db'):
             pickle(os.path.join(self.feature_path, 'batches.meta'), {'source_model': self.load_file,
                                                                      'source_model_query': self.load_query,
                                                                      'num_vis': num_ftrs})
 
     def write_features_to_db(self, ftrs, batch):
+        print 'Uploading batch %d to database' % batch
         lists = [list(ftr) for ftr in ftrs]
         ids = self.meta['id'][self.ind_set[batch]]
         for ftr, img_id in zip(lists, ids):
             record = copy.deepcopy(self.base_record)
             record['id'] = img_id
             record['feature'] = ftr
-            self.coll.insert(record)
+            self.coll.insert(SONify(record))
 
     def start(self):
         self.op.print_values()
