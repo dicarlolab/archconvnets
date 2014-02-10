@@ -37,10 +37,15 @@ import pymongo as pm
 import gridfs
 import copy
 from yamutils.mongo import SONify
+from pymongo.errors import ConnectionFailure
 
-FEATURE_DB_PORT = int(os.environ.get('FEATURE_DB_PORT', 22334))
-FEATURE_DB = pm.MongoClient('localhost', port=FEATURE_DB_PORT)['features']
-FEATURE_COLLECTION = FEATURE_DB['features']
+try:
+    FEATURE_DB_PORT = int(os.environ.get('FEATURE_DB_PORT', 22334))
+    FEATURE_DB = pm.MongoClient('localhost', port=FEATURE_DB_PORT)['features']
+    FEATURE_COLLECTION = FEATURE_DB['features']
+except ConnectionFailure:
+    print 'Feature database not configured'
+    FEATURE_COLLECTION = None
 
 
 class ExtractNetError(Exception):
@@ -63,7 +68,7 @@ class ExtractConvNet(ConvNet):
                                     'checkpoint_fs_port': op.get_value('checkpoint_fs_port'),
                                     'checkpoint_db_name': op.get_value('checkpoint_db_name'),
                                     'checkpoint_fs_name': op.get_value('checkpoint_fs_name'),
-                                    'write_features': op.get_value('write_features'),
+                                    'layer': op.get_value('layer'),
                                     'dp_params': op.get_value('dp_params'),
                                     'model_id': model_id}
             except KeyError:
@@ -74,7 +79,7 @@ class ExtractConvNet(ConvNet):
 
     def init_model_state(self):
         ConvNet.init_model_state(self)
-        self.ftr_layer_idx = self.get_layer_idx(self.op.get_value('write_features'))
+        self.ftr_layer_idx = self.get_layer_idx(self.op.get_value('layer'))
 
     def do_write_features(self):
         if not os.path.exists(self.feature_path):
@@ -93,7 +98,7 @@ class ExtractConvNet(ConvNet):
             self.finish_batch()
             if self.op.get_value('write_db'):
                 self.write_features_to_db(ftrs, batch)
-            else:
+            if self.op.get_value('write_disk'):
                 path_out = os.path.join(self.feature_path, 'data_batch_%d' % batch)
                 pickle(path_out, {'data': ftrs, 'labels': data[1]})
                 print "Wrote feature file %s" % path_out
@@ -127,12 +132,15 @@ class ExtractConvNet(ConvNet):
                               'checkpoint_db_name', 'checkpoint_fs_name', 'data_path',
                               'dp_type', 'dp_params', 'img_size'):
                 op.delete_option(option)
-        op.add_option("write-features", "write_features",
+        op.add_option("layer",
                       StringOptionParser, "Write test data features from given layer",
-                      default="", requires=['feature-path'])
-        op.add_option("feature-path", "feature_path",
-                      StringOptionParser, "Write test data features to this path (to be used with --write-features)",
                       default="")
+        op.add_option("feature-path", "feature_path",
+                      StringOptionParser, "Write test data features to this path (to be used with --layer)",
+                      default="")
+        op.add_option("write_disk", "write-disk",
+                      BooleanOptionParser, "Write test data features to this path (to be used with --layer)",
+                      default=True)
         op.add_option("write-db", "write_db",
                       BooleanOptionParser, "Write all data features from the dataset to mongodb in standard format",
                       default=False)
