@@ -54,6 +54,7 @@ class ExtractNetError(Exception):
 
 class ExtractConvNet(ConvNet):
     def __init__(self, op, load_dic, dp_params=None):
+        print dp_params
         ConvNet.__init__(self, op, load_dic, dp_params=dp_params)
         if op.get_value('write_db'):
             self.coll = self.get_feature_coll()
@@ -70,7 +71,8 @@ class ExtractConvNet(ConvNet):
                                     'checkpoint_fs_name': op.get_value('checkpoint_fs_name'),
                                     'layer': op.get_value('layer'),
                                     'dp_params': op.get_value('dp_params'),
-                                    'model_id': model_id}
+                                    'model_id': model_id,
+                                    'version': 0}
             except KeyError:
                 raise ExtractNetError('Writing to database only supported using models stored in database')
 
@@ -113,6 +115,11 @@ class ExtractConvNet(ConvNet):
         print 'Uploading batch %d to database' % batch
         lists = [list(ftr) for ftr in ftrs]
         ids = self.meta['id'][self.ind_set[batch]]
+        query = {'dp_params.preproc': self.base_record['preproc'],
+                 'dp_params.dataset_name': self.base_record['dp_params']['dataset_name'],
+                 'model_id': self.base_record['model_id'],
+                 'id': {'$in': ids}}
+        self.coll.update(query, {'$inc': {'version': -1}})
         for ftr, img_id in zip(lists, ids):
             record = copy.deepcopy(self.base_record)
             record['id'] = img_id
@@ -132,14 +139,14 @@ class ExtractConvNet(ConvNet):
                               'checkpoint_db_name', 'checkpoint_fs_name', 'data_path',
                               'dp_type', 'dp_params', 'img_size'):
                 op.delete_option(option)
-        op.add_option("layer",
+        op.add_option("layer", 'feature_layer',
                       StringOptionParser, "Write test data features from given layer",
                       default="")
         op.add_option("feature-path", "feature_path",
                       StringOptionParser, "Write test data features to this path (to be used with --layer)",
                       default="")
-        op.add_option("write_disk", "write-disk",
-                      BooleanOptionParser, "Write test data features to this path (to be used with --layer)",
+        op.add_option("write-disk", "write_disk",
+                      BooleanOptionParser, "Write test data features from --layer to --feature-path)",
                       default=True)
         op.add_option("write-db", "write_db",
                       BooleanOptionParser, "Write all data features from the dataset to mongodb in standard format",
@@ -153,6 +160,7 @@ if __name__ == "__main__":
     try:
         op = ExtractConvNet.get_options_parser()
         op, load_dic = IGPUModel.parse_options(op)
+        op.print_values()
         model = ExtractConvNet(op, load_dic)
         model.start()
     except (UnpickleError, ExtractNetError, opt.GetoptError), e:

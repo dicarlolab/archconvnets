@@ -426,6 +426,8 @@ class IGPUModel:
         try:
             load_dic = None
             options = op.parse(input_opts=input_opts)
+            print 'new'
+            print op.print_values()
             if "experiment_data" in options and options["experiment_data"].value_given:
                 assert "experiment_id" in options["experiment_data"].value
             if options["load_file"].value_given:
@@ -438,7 +440,12 @@ class IGPUModel:
                                                              options["checkpoint_fs_name"].value)
             if load_dic is not None:
                 old_op = load_dic["op"]
+                print 'old'
+                old_op.print_values()
+
                 old_op.merge_from(op)
+                print 'after merge:'
+                old_op.print_values()
                 op = old_op
             op.eval_expr_defaults()
             return op, load_dic
