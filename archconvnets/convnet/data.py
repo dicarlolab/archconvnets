@@ -271,7 +271,8 @@ class DLDataProvider(LabeledDataProvider):
         mlen = len(meta)
         batch_size = dp_params['batch_size']
         num_batches = self.num_batches = int(math.ceil(mlen / float(batch_size)))
-
+        assert num_batches >= len(batch_range),\
+            'This dataset has only %s batches but %s were requested' % (num_batches, len(batch_range))
         batch_regex = re.compile('data_batch_([\d]+)')
         imgs_mean = None
         existing_batches = []
@@ -290,7 +291,8 @@ class DLDataProvider(LabeledDataProvider):
                 isf = bmeta['images_so_far']
             else:
                 ebatches = []
-            assert existing_batches == ebatches, ('Expected batches', ebatches, 'found batches', existing_batches)
+
+            assert existing_batches == ebatches  # , ('Expected batches', ebatches, 'found batches', existing_batches)
             needed_batches = [_b for _b in batch_range if _b not in existing_batches]
             if existing_batches:
                 print('Found batches: ', existing_batches)

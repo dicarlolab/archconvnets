@@ -46,7 +46,6 @@ class ConvNet(IGPUModel):
         dp_params['multiview_test'] = op.get_value('multiview_test')
         dp_params['crop_border'] = op.get_value('crop_border')
         dp_params['img_flip'] = op.get_value('img_flip')
-        print dp_params
         IGPUModel.__init__(self, "ConvNet", op, load_dic, filename_options,
                            dp_params=dp_params)
 

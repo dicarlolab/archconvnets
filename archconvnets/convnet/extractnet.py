@@ -38,11 +38,11 @@ import gridfs
 import copy
 from yamutils.mongo import SONify
 from pymongo.errors import ConnectionFailure
+import datetime
 
 try:
     FEATURE_DB_PORT = int(os.environ.get('FEATURE_DB_PORT', 22334))
     FEATURE_DB = pm.MongoClient('localhost', port=FEATURE_DB_PORT)['features']
-    FEATURE_COLLECTION = FEATURE_DB['features']
 except ConnectionFailure:
     print 'Feature database not configured'
     FEATURE_COLLECTION = None
@@ -54,36 +54,41 @@ class ExtractNetError(Exception):
 
 class ExtractConvNet(ConvNet):
     def __init__(self, op, load_dic, dp_params=None):
-        print dp_params
         ConvNet.__init__(self, op, load_dic, dp_params=dp_params)
+        self.feature_path = op.get_value('feature_path')
         if op.get_value('write_db'):
-            self.coll = self.get_feature_coll()
+            self.coll = self.get_feature_coll(op.get_value('dp_params')['dataset_name'])
+            self.coll.ensure_index([('id', 1), ('feature_layer', 1), ('model_id', 1), ('dp_params.preproc', 1)],
+                                   unique=True)
             self.ind_set = self.test_data_provider.get_indset()
             try:
                 self.meta = self.test_data_provider.meta
             except ValueError:
                 raise ExtractNetError('Writing to database only supported using a data provider that has a meta')
             try:
+                print self.load_dic['rec']['_id']
                 model_id = self.load_dic['rec']['_id']
                 self.base_record = {'checkpoint_fs_host': op.get_value('checkpoint_fs_host'),
                                     'checkpoint_fs_port': op.get_value('checkpoint_fs_port'),
                                     'checkpoint_db_name': op.get_value('checkpoint_db_name'),
                                     'checkpoint_fs_name': op.get_value('checkpoint_fs_name'),
-                                    'layer': op.get_value('layer'),
+                                    'feature_layer': op.get_value('feature_layer'),
                                     'dp_params': op.get_value('dp_params'),
-                                    'model_id': model_id,
-                                    'version': 0}
+                                    'model_id': model_id}
             except KeyError:
                 raise ExtractNetError('Writing to database only supported using models stored in database')
 
-    def get_feature_coll(self):
-        return FEATURE_COLLECTION
+    def get_feature_coll(self, dataset_name):
+        collection_name = str(dataset_name[0]) + str(dataset_name[1])
+        coll = FEATURE_DB[collection_name]
+        return coll
 
     def init_model_state(self):
         ConvNet.init_model_state(self)
-        self.ftr_layer_idx = self.get_layer_idx(self.op.get_value('layer'))
+        self.ftr_layer_idx = self.get_layer_idx(self.op.get_value('feature_layer'))
 
     def do_write_features(self):
+        print self.feature_path
         if not os.path.exists(self.feature_path):
             os.makedirs(self.feature_path)
         next_data = self.get_next_batch(train=False)
@@ -106,20 +111,27 @@ class ExtractConvNet(ConvNet):
                 print "Wrote feature file %s" % path_out
             if next_data[1] == b1:
                 break
-        if not self.op.get_value('write_db'):
+        if self.op.get_value('write_disk'):
             pickle(os.path.join(self.feature_path, 'batches.meta'), {'source_model': self.load_file,
                                                                      'source_model_query': self.load_query,
                                                                      'num_vis': num_ftrs})
+        if self.op.get_value('write_db'):  # log the extraction
+            record = {'log':
+                          {'feature_layer': op.get_value('feature_layer'),
+                           'preproc': op.get_value('dp_params')['preproc'],
+                           'model_id': self.base_record['model_id']},
+                      'extraction_time': datetime.datetime.now().isoformat()}
+            self.coll.insert(SONify(record))
 
     def write_features_to_db(self, ftrs, batch):
         print 'Uploading batch %d to database' % batch
         lists = [list(ftr) for ftr in ftrs]
         ids = self.meta['id'][self.ind_set[batch]]
-        query = {'dp_params.preproc': self.base_record['preproc'],
-                 'dp_params.dataset_name': self.base_record['dp_params']['dataset_name'],
+        query = {'dp_params.preproc': self.base_record['dp_params']['preproc'],
+                 'feature_layer': self.base_record['feature_layer'],
                  'model_id': self.base_record['model_id'],
                  'id': {'$in': ids}}
-        self.coll.update(query, {'$inc': {'version': -1}})
+        self.coll.remove(SONify(query))
         for ftr, img_id in zip(lists, ids):
             record = copy.deepcopy(self.base_record)
             record['id'] = img_id
@@ -139,7 +151,7 @@ class ExtractConvNet(ConvNet):
                               'checkpoint_db_name', 'checkpoint_fs_name', 'data_path',
                               'dp_type', 'dp_params', 'img_size'):
                 op.delete_option(option)
-        op.add_option("layer", 'feature_layer',
+        op.add_option("feature-layer", 'feature_layer',
                       StringOptionParser, "Write test data features from given layer",
                       default="")
         op.add_option("feature-path", "feature_path",
@@ -151,16 +163,17 @@ class ExtractConvNet(ConvNet):
         op.add_option("write-db", "write_db",
                       BooleanOptionParser, "Write all data features from the dataset to mongodb in standard format",
                       default=False)
-        
+
         op.options['load_file'].default = None
         return op
 
+
 import cPickle
+
 if __name__ == "__main__":
     try:
         op = ExtractConvNet.get_options_parser()
         op, load_dic = IGPUModel.parse_options(op)
-        op.print_values()
         model = ExtractConvNet(op, load_dic)
         model.start()
     except (UnpickleError, ExtractNetError, opt.GetoptError), e:
