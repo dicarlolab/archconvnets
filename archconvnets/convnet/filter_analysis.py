@@ -1,5 +1,6 @@
 import cPickle
 import os
+import copy
 
 import numpy as np
 import scipy.stats as stats
@@ -20,8 +21,8 @@ def getstats_from_db(query, linds, checkpoint_fs_host='localhost',
                             checkpoint_fs_name='convnet_checkpoint_fs'):
     dic = gpumodel.IGPUModel.load_checkpoint_from_db(query, checkpoint_fs_host, checkpoint_fs_port, checkpoint_db_name, checkpoint_fs_name)
     if linds is None:
-        linds = [i for i in range(len(X['model_stats']['layers'])) if 'weights' in dic['model_stats']['layers'][i]]
-    return dic, getstats_base(dic, linds)
+        linds = [i for i in range(len(dic['model_state']['layers'])) if 'weights' in dic['model_state']['layers'][i]]
+    return dic['rec'], getstats_base(dic, linds)
 
 
 def getstats_base(X, linds):
@@ -33,9 +34,10 @@ def getstats_base(X, linds):
         karray = stats.kurtosis(w)
         kall = stats.kurtosis(w.ravel())
         cf0 = np.corrcoef(w)
-        cf0t = np.corroef(w.T)
+        cf0t = np.corrcoef(w.T)
         wmean = w.mean(1)
         w2mean = (w**2).mean(1)
+        lname = X['model_state']['layers'][l_ind]['name']
         sval[lname] = {'karray': karray, 'kall': kall, 'corr0': cf0, 'corr0_t': cf0t,
                             'wmean': wmean, 'w2mean': w2mean}
 
@@ -49,7 +51,6 @@ def getstats_base(X, linds):
             mat2 = np.row_stack([np.row_stack([w[i, :, :, j] for i in range(w.shape[0])]).T for j in range(w.shape[3])] )
             cf2 = np.corrcoef(mat2.T)
             cf2t = np.corrcoef(mat2)
-            lname = X['model_state']['layers'][l_ind]['name']
             sval[lname].update({'corr': cf, 'corr2': cf2, 'corr_t': cft, 'corr2_t': cf2t})
 
     return sval
@@ -173,19 +174,27 @@ def compute_more_stats():
            'convnet_checkpoint_fs'),
           ({u'experiment_data.experiment_id': u'imagenet_training_reference_0'}, 
            'reference_models'),
-          ({u'experimennt_data.experiment_id': u'imagenet_training_reference_0_nofc'}, 'reference_models')]
+          ({u'experiment_data.experiment_id': u'imagenet_training_reference_0_nofc'}, 'reference_models')]
     
     for q, fname in qs:
         print q, fname
         dic, s = getstats_from_db(q, None, checkpoint_fs_name=fname)
-        dic['rec']['checkpoint_db_name'] = checkpoint_db_name
-        dic['rec']['checkpoint_fs_name'] = checkpoint_fs_name
-        blob = cPickle.dumps(s)
-        fs.put(blob, **dic['rec'])
+        dic['checkpoint_fs_name'] = fname
+        dic['old_id'] = dic.pop('_id')
+        for lname in s:
+            dic1 = copy.deepcopy(dic)
+            dic1['lname'] = lname
+            dic1['filename'] = str(dic1['old_id']) + '_' + lname
+            blob = cPickle.dumps(s[lname])
+            fs.put(blob, **dic1)
 
 
 from archconvnets.convnet import api
 def compute_performance(mname, lname, bdir):
+    import dldata.stimulus_sets.hvm as hvm
+    import dldata.stimulus_sets.synthetic.synthetic_datasets as sd
+    from dldata.metrics import utils
+
     Xa = api.assemble_feature_batches(os.path.join(bdir, mname + '_HvMWithDiscfade_' + lname + 'a'))
     Xb = api.assemble_feature_batches(os.path.join(bdir, mname + '_HvMWithDiscfade_' + lname + 'b'))
     X = np.column_stack([Xa, Xb])
@@ -239,10 +248,6 @@ def compute_performance(mname, lname, bdir):
     return {'rec_hvm_a': rec_a, 'rec_hvm_b': rec_b, 'rec_hvm': rec, 
             'rec_a_training': rec_a_t, 'rec_b_training': rec_b, 'rec_training': rec_t}
 
-
-import dldata.stimulus_sets.hvm as hvm
-import dldata.stimulus_sets.synthetic.synthetic_datasets as sd
-from dldata.metrics import utils
 
 def do_train(outdir, bdir):
     model_names = ["imagenet_trained", "synthetic_category_trained"]
