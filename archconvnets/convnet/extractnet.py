@@ -36,6 +36,7 @@ from options import *
 import pymongo as pm
 import gridfs
 import copy
+import collections
 from yamutils.mongo import SONify
 from pymongo.errors import ConnectionFailure
 import datetime
@@ -54,6 +55,9 @@ class ExtractNetError(Exception):
 
 class ExtractConvNet(ConvNet):
     def __init__(self, op, load_dic, dp_params=None):
+        """
+        NOTE: preprocs are sorted before being stored with every entry when write-db is used
+        """
         ConvNet.__init__(self, op, load_dic, dp_params=dp_params)
         self.feature_path = op.get_value('feature_path')
         if op.get_value('write_db'):
@@ -68,12 +72,15 @@ class ExtractConvNet(ConvNet):
             try:
                 print self.load_dic['rec']['_id']
                 model_id = self.load_dic['rec']['_id']
+                dp_params = op.get_value('dp_params')
+                preproc = collections.OrderedDict(sorted(dp_params['preproc'].items()))  # Mongo cares about order
+                dp_params['preproc'] = preproc
                 self.base_record = {'checkpoint_fs_host': op.get_value('checkpoint_fs_host'),
                                     'checkpoint_fs_port': op.get_value('checkpoint_fs_port'),
                                     'checkpoint_db_name': op.get_value('checkpoint_db_name'),
                                     'checkpoint_fs_name': op.get_value('checkpoint_fs_name'),
                                     'feature_layer': op.get_value('feature_layer'),
-                                    'dp_params': op.get_value('dp_params'),
+                                    'dp_params': dp_params,
                                     'model_id': model_id}
             except KeyError:
                 raise ExtractNetError('Writing to database only supported using models stored in database')
@@ -104,7 +111,7 @@ class ExtractConvNet(ConvNet):
             next_data = self.get_next_batch(train=False)
             self.finish_batch()
             if self.op.get_value('write_db'):
-                self.write_features_to_db(ftrs, batch)
+                self.write_features_to_db(ftrs, batch, data)
             if self.op.get_value('write_disk'):
                 path_out = os.path.join(self.feature_path, 'data_batch_%d' % batch)
                 pickle(path_out, {'data': ftrs, 'labels': data[1]})
@@ -116,17 +123,23 @@ class ExtractConvNet(ConvNet):
                                                                      'source_model_query': self.load_query,
                                                                      'num_vis': num_ftrs})
         if self.op.get_value('write_db'):  # log the extraction
-            record = {'log':
-                          {'feature_layer': op.get_value('feature_layer'),
-                           'preproc': op.get_value('dp_params')['preproc'],
-                           'model_id': self.base_record['model_id']},
+            record = {'dataset_name': op.get_value('dp_params')['dataset_name'],
+                      'feature_layer': op.get_value('feature_layer'),
+                      'preproc': self.base_record['dp_params']['preproc'],
+                      'model_id': self.base_record['model_id'],
                       'extraction_time': datetime.datetime.now().isoformat()}
-            self.coll.insert(SONify(record))
+            extraction_logs = self.get_extraction_log_collection()
+            extraction_logs.insert(SONify(record))
 
-    def write_features_to_db(self, ftrs, batch):
+    def get_extraction_log_collection(self):
+        return FEATURE_DB['logs']
+
+    def write_features_to_db(self, ftrs, batch, data):
         print 'Uploading batch %d to database' % batch
         lists = [list(ftr) for ftr in ftrs]
-        ids = self.meta['id'][self.ind_set[batch]]
+        inds = self.ind_set[batch]
+        ids = self.meta['id'][inds]
+        assert self.meta[self.base_record['dp_params']['meta_attribute']][inds] == data[1]
         query = {'dp_params.preproc': self.base_record['dp_params']['preproc'],
                  'feature_layer': self.base_record['feature_layer'],
                  'model_id': self.base_record['model_id'],
