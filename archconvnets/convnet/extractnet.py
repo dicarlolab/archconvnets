@@ -69,13 +69,11 @@ class ExtractConvNet(ConvNet):
             ConvNet.init_model_lib(self)
 
     def do_write_features(self):
-        if not os.path.exists(self.feature_path):
-            os.makedirs(self.feature_path
         next_data = self.get_next_batch(train=False)
         b1 = next_data[1]
-        for lnum, lind in enumerate(self.ftr_layer_indxs):
+        for lnum, lind in enumerate(self.ftr_layer_idxs):
             lname = self.op.get_value('write_features')[lnum]
-            ldir = os.path.join(self.feature_path, lname)
+            ldir = self.feature_path + '_' + lname
             if not os.path.exists(ldir):
                 os.makedirs(ldir)
             num_ftrs = self.layers[lind]['outputs']
