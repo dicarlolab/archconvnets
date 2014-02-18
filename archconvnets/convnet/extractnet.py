@@ -139,7 +139,7 @@ class ExtractConvNet(ConvNet):
         lists = [list(ftr) for ftr in ftrs]
         inds = self.ind_set[batch]
         ids = self.meta['id'][inds]
-        assert self.meta[self.base_record['dp_params']['meta_attribute']][inds] == data[1]
+
         query = {'dp_params.preproc': self.base_record['dp_params']['preproc'],
                  'feature_layer': self.base_record['feature_layer'],
                  'model_id': self.base_record['model_id'],
