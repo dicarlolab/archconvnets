@@ -323,7 +323,12 @@ class DLDataProvider(LabeledDataProvider):
                     stims = n.uint8(n.round(255 * stims))
                 lbls = metacol[inds]
                 d = dldata_to_convnet_reformatting(stims, lbls)
+<<<<<<< HEAD
 
+=======
+                d['ids'] = meta[inds]['id']
+                
+>>>>>>> master
                 #add to the mean
                 if imgs_mean is None:
                     imgs_mean = n.zeros((d['data'].shape[0],))
@@ -335,10 +340,18 @@ class DLDataProvider(LabeledDataProvider):
 
                 #write out batch
                 outdict = {'batch_label': 'batch_%d' % bnum,
+<<<<<<< HEAD
                            'labels': d['labels'],
                            'data': d['data'],
                            #'filenames': n.asarray(dataset.meta[img_inds]['filename']).tolist()    ####need this????
                 }
+=======
+                           'labels': d['labels'], 
+                           'data': d['data'], 
+                           'ids': d['ids']
+                      #'filenames': n.asarray(dataset.meta[img_inds]['filename']).tolist()    ####need this????
+                           }
+>>>>>>> master
                 outpath = os.path.join(data_dir, 'data_batch_%d' % bnum)
                 with open(outpath, 'w') as _f:
                     cPickle.dump(outdict, _f)
@@ -417,6 +430,18 @@ class DLDataProvider(LabeledDataProvider):
                 s = submeta.argsort(order=dp_params['perm_order'])
                 new_perm = perm[s]
                 indset = [new_perm[batch_size * bidx: batch_size * (bidx + 1)] for bidx in range(num_batches)]
+            elif perm_type == 'query_random':
+                perm_seed = dp_params.get('perm_seed', 0)
+                rng = n.random.RandomState(seed=perm_seed)
+                query = dp_params['perm_query']
+                qf = get_lambda_from_query_config(query)
+                inds = n.array(map(qf, meta))
+                indsf = n.invert(inds).nonzero()[0]
+                indst = inds.nonzero()[0]
+                inds1 = indst[rng.permutation(len(indst))]
+                inds2 = indsf[rng.permutation(len(indsf))]
+                inds = n.concatenate([inds1, inds2])
+                indset = [inds[batch_size * bidx: batch_size * (bidx + 1)] for bidx in range(num_batches)]    
             else:
                 raise ValueError, 'Unknown permutation type.'
         else:
@@ -442,3 +467,14 @@ dp_classes = {"default": DataProvider,
 class DataProviderException(Exception):
     pass
 
+
+def get_lambda_from_query_config(q):
+    """turns a dictionary specificying a mongo query (basically)
+    into a lambda for subsetting a data table
+    """
+    if hasattr(q, '__call__'):
+        return q
+    elif q == None:
+        return lambda x: True
+    else:
+        return lambda x:  all([x[k] in v for k, v in q.items()])  
