@@ -68,6 +68,11 @@ Neuron& Neuron::makeNeuron(PyObject* neuronDict) {
     if (type == "sqrt") {
         return *new SqrtNeuron();
     }
+
+    if (type == "power") {
+        float pval = pyDictGetFloat(neuronParamsDict, "a"); 
+        return *new PowerNeuron(pval);
+    }
     
     if (type == "linear") {
         float a = pyDictGetFloat(neuronParamsDict, "a");
