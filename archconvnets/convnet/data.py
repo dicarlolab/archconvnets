@@ -6,7 +6,7 @@
 #
 # - Redistributions of source code must retain the above copyright notice,
 #   this list of conditions and the following disclaimer.
-# 
+#
 # - Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
@@ -323,12 +323,8 @@ class DLDataProvider(LabeledDataProvider):
                     stims = n.uint8(n.round(255 * stims))
                 lbls = metacol[inds]
                 d = dldata_to_convnet_reformatting(stims, lbls)
-<<<<<<< HEAD
-
-=======
                 d['ids'] = meta[inds]['id']
-                
->>>>>>> master
+
                 #add to the mean
                 if imgs_mean is None:
                     imgs_mean = n.zeros((d['data'].shape[0],))
@@ -340,18 +336,10 @@ class DLDataProvider(LabeledDataProvider):
 
                 #write out batch
                 outdict = {'batch_label': 'batch_%d' % bnum,
-<<<<<<< HEAD
                            'labels': d['labels'],
                            'data': d['data'],
-                           #'filenames': n.asarray(dataset.meta[img_inds]['filename']).tolist()    ####need this????
-                }
-=======
-                           'labels': d['labels'], 
-                           'data': d['data'], 
                            'ids': d['ids']
-                      #'filenames': n.asarray(dataset.meta[img_inds]['filename']).tolist()    ####need this????
                            }
->>>>>>> master
                 outpath = os.path.join(data_dir, 'data_batch_%d' % bnum)
                 with open(outpath, 'w') as _f:
                     cPickle.dump(outdict, _f)
@@ -441,7 +429,7 @@ class DLDataProvider(LabeledDataProvider):
                 inds1 = indst[rng.permutation(len(indst))]
                 inds2 = indsf[rng.permutation(len(indsf))]
                 inds = n.concatenate([inds1, inds2])
-                indset = [inds[batch_size * bidx: batch_size * (bidx + 1)] for bidx in range(num_batches)]    
+                indset = [inds[batch_size * bidx: batch_size * (bidx + 1)] for bidx in range(num_batches)]
             else:
                 raise ValueError, 'Unknown permutation type.'
         else:
@@ -477,4 +465,4 @@ def get_lambda_from_query_config(q):
     elif q == None:
         return lambda x: True
     else:
-        return lambda x:  all([x[k] in v for k, v in q.items()])  
+        return lambda x:  all([x[k] in v for k, v in q.items()])
