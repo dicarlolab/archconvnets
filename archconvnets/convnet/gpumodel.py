@@ -6,7 +6,7 @@
 #
 # - Redistributions of source code must retain the above copyright notice,
 #   this list of conditions and the following disclaimer.
-# 
+#
 # - Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
@@ -36,7 +36,7 @@ from data import DataProvider, dp_types
 import sys
 import shutil
 import platform
-import copy 
+import copy
 
 from os import linesep as NL
 
@@ -45,7 +45,7 @@ import gridfs
 from yamutils.mongo import SONify
 
 
-def get_checkpoint_fs(host, port, db_name, fs_name):    
+def get_checkpoint_fs(host, port, db_name, fs_name):
     try:
         checkpoint_db = pm.Connection(host=host, port=port)[db_name]
     except pm.errors.ConnectionFailure, e:
@@ -69,7 +69,7 @@ class IGPUModel:
         self.get_gpus()
         self.fill_excused_options()
         #assert self.op.all_values_given()
-        
+
         for o in op.get_options_list():
             setattr(self, o.name, o.value)
 
@@ -90,9 +90,9 @@ class IGPUModel:
                 self.experiment_data = {'experiment_id': idval}
 
         self.init_data_providers()
-        if load_dic: 
+        if load_dic:
             self.train_data_provider.advance_batch()
-            
+
         # model state often requries knowledge of data provider, so it's initialized after
         try:
             self.init_model_state()
@@ -104,40 +104,40 @@ class IGPUModel:
 
         self.import_model()
         self.init_model_lib()
-        
+
     def import_model(self):
         print "========================="
         print "Importing %s C++ module" % ('_' + self.model_name)
-        self.libmodel = __import__('_' + self.model_name) 
-                   
+        self.libmodel = __import__('_' + self.model_name)
+
     def fill_excused_options(self):
         pass
-    
+
     def init_data_providers(self):
         self.dp_params['convnet'] = self
         try:
             self.test_data_provider = DataProvider.get_instance(
-                    self.data_path, 
+                    self.data_path,
                     self.img_size, self.img_channels,  # options i've add to cifar data provider
-                    self.test_batch_range, 
+                    self.test_batch_range,
                     type=self.dp_type, dp_params=self.dp_params, test=True)
             self.train_data_provider = DataProvider.get_instance(
-                    self.data_path, 
+                    self.data_path,
                     self.img_size, self.img_channels,  # options i've add to cifar data provider
-                    self.train_batch_range, 
-                    self.model_state["epoch"], self.model_state["batchnum"], 
+                    self.train_batch_range,
+                    self.model_state["epoch"], self.model_state["batchnum"],
                     type=self.dp_type, dp_params=self.dp_params, test=False)
         except DataProviderException, e:
             print "Unable to create data provider: %s" % e
             self.print_data_providers()
             sys.exit()
-        
+
     def init_model_state(self):
         pass
-       
+
     def init_model_lib(self):
         pass
-    
+
     def start(self):
         if self.test_only:
             self.test_outputs += [self.get_test_error()]
@@ -150,7 +150,7 @@ class IGPUModel:
 
     def reset_modelMom( self ):
         self.libmodel.resetModelMom( );
-    
+
     def train(self):
         print "============================================"
         print "learning rate scale     : ", self.scale_rate
@@ -171,7 +171,7 @@ class IGPUModel:
         next_data = self.get_next_batch()
 
         #for ii in range(100):
-        #    plot_col_image( next_data[2][0][:,ii], 24, 24, 3, 
+        #    plot_col_image( next_data[2][0][:,ii], 24, 24, 3,
         #            "index: "+str(next_data[2][1][0,ii]) )
 
         if self.adp_drop:
@@ -199,13 +199,13 @@ class IGPUModel:
 
             if self.batchnum == 1 and self.adp_drop:
                 dropRate = self.adjust_dropRate( dropRate )
-            
+
             compute_time_py = time()
             self.start_batch(data)
-            
+
             # load the next batch while the current one is computing
             next_data = self.get_next_batch()
-            
+
             batch_output = self.finish_batch()
             self.train_outputs += [batch_output]
             epoch_cost += self.print_train_results()
@@ -216,22 +216,22 @@ class IGPUModel:
                 self.print_test_results()
                 self.print_test_status()
                 self.conditional_save()
-            
+
             self.print_train_time(time() - compute_time_py)
         self.cleanup()
-    
+
     def cleanup(self):
         sys.exit(0)
-        
+
     def set_dropRate( self, dropRate ):
-        print "set drop rate: ", dropRate 
+        print "set drop rate: ", dropRate
         self.libmodel.setDropRate( dropRate );
 
     def adjust_dropRate( self, dropRate ):
         #self.print_costs(self.train_outputs[-1])
         #costs, num_cases = cost_outputs[0], cost_outputs[1]
         if not self.train_outputs:
-            return dropRate 
+            return dropRate
         costs, num_cases = self.train_outputs[-1][0], self.train_outputs[-1][1]
         for errname in costs.keys():
             #costs[errname] = [(v) for v in costs[errname]]
@@ -244,13 +244,13 @@ class IGPUModel:
 
     def sync_with_host(self):
         self.libmodel.syncWithHost()
-            
+
     def print_model_state(self):
         pass
-    
+
     def get_num_batches_done(self):
         return len(self.train_batch_range) * (self.epoch - 1) + self.batchnum - self.train_batch_range[0] + 1
-    
+
     def get_next_batch(self, train=True):
         dp = self.train_data_provider
         if not train:
@@ -269,22 +269,22 @@ class IGPUModel:
         #plot_col_image( data[2][0][:,0], w, h, d, 'data 0 ' )
 
         return data
-    
+
     def parse_batch_data(self, batch_data, train=True):
         return batch_data[0], batch_data[1], batch_data[2]['data']
-    
+
     def start_batch(self, batch_data, train=True):
         self.libmodel.startBatch(batch_data[2], not train)
-    
+
     def finish_batch(self):
         return self.libmodel.finishBatch()
-    
+
     def print_iteration(self):
         print "\t%d.%d..." % (self.epoch, self.batchnum),
-    
+
     def print_train_time(self, compute_time_py):
         print "(%.3f sec)" % (compute_time_py)
-    
+
     def print_train_results(self):
         batch_error = self.train_outputs[-1][0]
         if not (batch_error > 0 and batch_error < 2e20):
@@ -300,18 +300,18 @@ class IGPUModel:
     def print_test_status(self):
         status = (len(self.test_outputs) == 1 or self.test_outputs[-1][0] < self.test_outputs[-2][0]) and "ok" or "WORSE"
         print status,
-        
+
     def conditional_save(self):
         batch_error = self.test_outputs[-1][0]
         if batch_error > 0 and batch_error < self.max_test_err:
             self.save_state()
         else:
             print "\tTest error > %g, not saving." % self.max_test_err,
-    
+
     def aggregate_test_outputs(self, test_outputs):
         test_error = tuple([sum(t[r] for t in test_outputs) / (1 if self.test_one else len(self.test_batch_range)) for r in range(len(test_outputs[-1]))])
         return test_error
-    
+
     def get_test_error(self):
         next_data = self.get_next_batch(train=False)
         test_outputs = []
@@ -327,35 +327,35 @@ class IGPUModel:
             if not load_next:
                 break
             sys.stdout.flush()
-            
+
         return self.aggregate_test_outputs(test_outputs)
-    
+
     def set_var(self, var_name, var_val):
         setattr(self, var_name, var_val)
         self.model_state[var_name] = var_val
         return var_val
-        
+
     def get_var(self, var_name):
         return self.model_state[var_name]
-        
+
     def has_var(self, var_name):
         return var_name in self.model_state
-        
+
     def save_state(self):
         for att in self.model_state:
             if hasattr(self, att):
                 self.model_state[att] = getattr(self, att)
-        
+
         dic = {"model_state": self.model_state,
                "op": self.op}
 
         if self.save_db:
             val_dict = get_convenient_mongodb_representation(self)
-            checkpoint_fs = get_checkpoint_fs(self.checkpoint_fs_host, 
-                                              self.checkpoint_fs_port, 
+            checkpoint_fs = get_checkpoint_fs(self.checkpoint_fs_host,
+                                              self.checkpoint_fs_port,
                                               self.checkpoint_db_name,
-                                              self.checkpoint_fs_name)       
-            blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)   
+                                              self.checkpoint_fs_name)
+            blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
             checkpoint_fs.put(blob, **val_dict)
 
     @staticmethod
@@ -363,15 +363,18 @@ class IGPUModel:
         if os.path.isdir(load_dir):
             return unpickle(os.path.join(load_dir, sorted(os.listdir(load_dir), key=alphanum_key)[-1]))
         return unpickle(load_dir)
-        
+
     @staticmethod
-    def load_checkpoint_from_db(query, checkpoint_fs_host, checkpoint_fs_port, checkpoint_db_name, checkpoint_fs_name):
-        checkpoint_fs = get_checkpoint_fs(checkpoint_fs_host, 
-                                          checkpoint_fs_port, 
+    def load_checkpoint_from_db(query, checkpoint_fs_host, checkpoint_fs_port, checkpoint_db_name, checkpoint_fs_name, only_rec=False):
+        checkpoint_fs = get_checkpoint_fs(checkpoint_fs_host,
+                                          checkpoint_fs_port,
                                           checkpoint_db_name,
-                                          checkpoint_fs_name)                   
+                                          checkpoint_fs_name)
         rec = checkpoint_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
-        load_dic = cPickle.loads(checkpoint_fs.get_last_version(_id=rec['_id']).read())
+        if not only_rec:
+            load_dic = cPickle.loads(checkpoint_fs.get_last_version(_id=rec['_id']).read())
+        else:
+            load_dic = {}
         load_dic['rec'] = rec
         return load_dic
 
@@ -401,7 +404,7 @@ class IGPUModel:
         op.add_option("save-db", "save_db", BooleanOptionParser, "Save checkpoints to mongo database?", default=0)
         op.add_option("checkpoint-fs-host", "checkpoint_fs_host", StringOptionParser, "Host for Saving Checkpoints to DB", default="localhost")
         op.add_option("checkpoint-fs-port", "checkpoint_fs_port", IntegerOptionParser, "Port for Saving Checkpoints to DB", default=27017)
-        op.add_option("checkpoint-db-name", "checkpoint_db_name", StringOptionParser, 
+        op.add_option("checkpoint-db-name", "checkpoint_db_name", StringOptionParser,
                 "Name for mongodb database for saved checkpoints", default="convnet_checkpoint_db")
         op.add_option("checkpoint-fs-name", "checkpoint_fs_name", StringOptionParser,
                 "Name for gridfs FS for saved checkpoints", default="convnet_checkpoint_fs")
@@ -414,13 +417,13 @@ class IGPUModel:
         print "Available data providers:"
         for dp, desc in dp_types.iteritems():
             print "    %s: %s" % (dp, desc)
-            
+
     def get_gpus(self):
         self.device_ids = [get_gpu_lock(g) for g in self.op.get_value('gpu')]
         if GPU_LOCK_NO_LOCK in self.device_ids:
             print "Not enough free GPUs!"
             sys.exit()
-        
+
     @staticmethod
     def parse_options(op, input_opts=None):
         try:
@@ -473,7 +476,7 @@ def get_convenient_mongodb_representation_base(op, model_state):
 
     for k in model_state:
         if k == 'layers':
-            bad_keys = ['weights', 'inputLayers', 'biasesInc', 
+            bad_keys = ['weights', 'inputLayers', 'biasesInc',
                         'biases', 'weightsInc']
             layers = copy.deepcopy(model_state[k])
             for _l in layers:
