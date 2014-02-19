@@ -80,14 +80,14 @@ class ExtractConvNet(ConvNet):
             except KeyError:
                 raise ExtractNetError('Writing to database only supported using models stored in database')
 
+    def get_feature_coll(self, dataset_name):
+        collection_name = str(dataset_name[0]) + str(dataset_name[1])
+        coll = FEATURE_DB[collection_name]
+        return coll
 
     def init_model_state(self):
         ConvNet.init_model_state(self)
         self.ftr_layer_idxs = [self.get_layer_idx(_l) for _l in self.op.get_value('write_features')]
-
-    def init_model_lib(self):
-        if self.need_gpu:
-            ConvNet.init_model_lib(self)
 
     def do_write_features(self):
         next_data = self.get_next_batch(train=False)
