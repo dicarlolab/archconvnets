@@ -30,13 +30,15 @@ from numpy.random import randn, rand
 from numpy import s_, dot, tile, zeros, ones, zeros_like, array, ones_like
 from util import *
 from data import *
-from options import *
 from math import ceil, floor, sqrt
 from data import DataProvider, dp_types
 import sys
 import shutil
 import platform
 import copy
+
+from .options import *
+
 
 from os import linesep as NL
 
