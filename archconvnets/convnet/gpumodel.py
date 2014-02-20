@@ -389,7 +389,7 @@ class IGPUModel:
         op.add_option("data-provider", "dp_type", StringOptionParser, "Data provider", default="default")
         op.add_option("test-freq", "testing_freq", IntegerOptionParser, "Testing frequency", default=25)
         op.add_option("epochs", "num_epochs", IntegerOptionParser, "Number of epochs", default=500)
-        op.add_option("data-path", "data_path", StringOptionParser, "Data path")
+        op.add_option("data-path", "data_path", StringOptionParser, "Data path", default="")
         op.add_option("max-filesize", "max_filesize_mb", IntegerOptionParser, "Maximum save file size (MB)", default=5000)
         op.add_option("max-test-err", "max_test_err", FloatOptionParser, "Maximum test error for saving")
         op.add_option("num-gpus", "num_gpus", IntegerOptionParser, "Number of GPUs", default=1)
