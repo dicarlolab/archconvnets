@@ -37,7 +37,7 @@ import shutil
 import platform
 import copy
 
-from .options import *
+from options import *
 
 
 from os import linesep as NL
@@ -427,10 +427,10 @@ class IGPUModel:
             sys.exit()
 
     @staticmethod
-    def parse_options(op, input_opts=None):
+    def parse_options(op, input_opts=None, ignore_argv=False):
         try:
             load_dic = None
-            options = op.parse(input_opts=input_opts)
+            options = op.parse(input_opts=input_opts, ignore_argv=ignore_argv)
             if "experiment_data" in options and options["experiment_data"].value_given:
                 assert "experiment_id" in options["experiment_data"].value
             if options["load_file"].value_given:
