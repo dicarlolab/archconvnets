@@ -259,8 +259,8 @@ class LayerParser:
                     ltype = mcp.safe_get(name, 'type')
                     if ltype not in layer_parsers:
                         raise LayerParsingError("Layer '%s': Unknown layer type: '%s'" % (name, ltype))
-                    layers += [layer_parsers[ltype]().parse(name, mcp, layers, model)]
-                
+                    layers += [layer_parsers[ltype]().parse(name, mcp, layers, model)]                
+
                 layers = LayerParser.detach_neuron_layers(layers)
                 for l in layers:
                     lp = layer_parsers[l['type']]()
@@ -283,8 +283,8 @@ class LayerParser:
                 lp.add_params(mcp)
                 lp.dic['conserveMem'] = model.op.get_value('conserve_mem')
         except LayerParsingError, e:
-            print e
-            sys.exit(1)
+            print(e)
+            raise LayerParsingError(e)
         return layers
         
     @staticmethod
