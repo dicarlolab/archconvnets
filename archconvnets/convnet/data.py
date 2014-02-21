@@ -23,6 +23,7 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import math
 import importlib
+import hashlib
 import numpy as n
 from numpy.random import randn, rand, random_integers
 import os
@@ -265,14 +266,13 @@ class DLDataProvider(LabeledDataProvider):
 
         #default data location
         if data_dir == '':
-            pstring = hashlib.sha1(repr(dp_params['preproc'])) + '_%d' % dp_params['batch_size']
+            pstring = hashlib.sha1(repr(dp_params['preproc'])).hexdigest() + '_%d' % dp_params['batch_size']
             data_dir = dset.home('convnet_batches', pstring)
 
         #compute number of batches
         mlen = len(meta)
         batch_size = dp_params['batch_size']
         num_batches = self.num_batches = int(math.ceil(mlen / float(batch_size)))
-
         batch_regex = re.compile('data_batch_([\d]+)')
         imgs_mean = None
         existing_batches = []
@@ -362,7 +362,7 @@ class DLDataProvider(LabeledDataProvider):
                        'data_mean': imgs_mean,
                        'existing_batches': existing_batches,
                        'images_so_far': isf,
-                       'dataset_name': dp_params['datset_name'],
+                       'dataset_name': dp_params['dataset_name'],
                        'dataset_data': dataset_data,
                        'preproc': dp_params['preproc']}
             with open(os.path.join(data_dir, 'batches.meta'), 'w') as _f:
