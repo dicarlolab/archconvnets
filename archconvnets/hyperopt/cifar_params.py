@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import numpy as np
 
 try:
     from hyperopt.pyll import scope
@@ -10,23 +11,23 @@ from hyperopt.pyll_utils import hp_normal, hp_lognormal, hp_qnormal, hp_qlognorm
 from hyperopt.pyll_utils import hp_choice
 
 
-num_filters1 = scope.int(hp_qloguniform('num_filters1',np.log(16), np.log(96), q=4))
+num_filters1 = scope.int(hp_qloguniform('num_filters1',np.log(16), np.log(96), q=16))
 filter1_size = scope.int(hp_quniform('filter1_shape', 2, 12, 1))
 
-num_filters2 = scope.int(hp_qloguniform('num_filters2',np.log(16), np.log(96), q=4))
+num_filters2 = scope.int(hp_qloguniform('num_filters2',np.log(16), np.log(96), q=16))
 filter2_size = scope.int(hp_quniform('filter2_shape', 2, 12, 1))
 
-num_filters3 = scope.int(hp_qloguniform('num_filters3',np.log(16), np.log(96), q=4))
-filter3_size = scope.int(hp_quniform('filter3_shape', 2, 12, 1))
+num_filters3 = scope.int(hp_qloguniform('num_filters3',np.log(16), np.log(96), q=16))
+filter3_size = scope.int(hp_quniform('filter3_shape', 2, 10, 1))
 
-num_filters4 = scope.int(hp_qloguniform('num_filters4',np.log(16), np.log(64), q=4))
-filter4_size = scope.int(hp_quniform('filter4_shape', 2, 12, 1))
+num_filters4 = scope.int(hp_qloguniform('num_filters4',np.log(16), np.log(64), q=16))
+filter4_size = scope.int(hp_quniform('filter4_shape', 2, 10, 1))
 
 pool1_sizex = scope.int(hp_quniform('pool1_sizex', 2, 5, 1))
-pool1_type = hp_choice('pool1_type', ['max', 'mean'])
+pool1_type = hp_choice('pool1_type', ['max', 'avg'])
 
 pool2_sizex = scope.int(hp_quniform('pool2_sizex', 2, 5, 1))
-pool2_type = hp_choice('pool2_type', ['max', 'mean'])
+pool2_type = hp_choice('pool2_type', ['max', 'avg'])
 
 rnorm1_size = scope.int(hp_quniform('rnorm1_size', 5, 12, 1))
 rnorm2_size = scope.int(hp_quniform('rnorm2_size', 5, 12, 1))
@@ -45,7 +46,7 @@ layer_def_template = OrderedDict([('data', OrderedDict([('type', 'data'),
                                     ('filtersize', filter1_size),
                                     ('neuron', 'relu'),
                                     ('initw', '0.0001'),
-                                    ('partialsum', '4'),
+                                    ('partialsum', '1'),
                                     ('sharedbiases', '1')])),
              ('pool1', OrderedDict([('type', 'pool'),
                                     ('pool', pool1_type),
@@ -68,7 +69,7 @@ layer_def_template = OrderedDict([('data', OrderedDict([('type', 'data'),
                                     ('channels', num_filters1),
                                     ('neuron', 'relu'),
                                     ('initw', '0.01'),
-                                    ('partialsum', '8'),
+                                    ('partialsum', '1'),
                                     ('sharedbiases', '1')])),
              ('rnorm2', OrderedDict([('type', 'cmrnorm'),
                                      ('inputs', 'conv2'),
@@ -155,4 +156,4 @@ learning_params_template = OrderedDict([('conv1', OrderedDict([('epsw', '0.001')
 
 def template_func(args):
     return {'layer_def': layer_def_template,
-            'learning_poarams': learning_params_template}
+            'learning_params': learning_params_template}
