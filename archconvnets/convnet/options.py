@@ -130,13 +130,17 @@ class OptionsParser:
         if name in self.options:
             del self.options[name]
             
-    def parse(self, eval_expr_defaults=False, input_opts=None):
+    def parse(self, eval_expr_defaults=False, input_opts=None, ignore_argv=False):
         """Parses the options in sys.argv based on the options added to this parser. The
         default behavior is to leave any expression default options as OptionExpression objects.
         Set eval_expr_defaults=True to circumvent this."""
         short_opt_str = ''.join(["%s:" % self.options[name].letter for name in self.options if len(self.options[name].letter) == 1])
         long_opts = ["%s=" % self.options[name].letter for name in self.options if len(self.options[name].letter) > 1]
-        (go, ga) = getopt(sys.argv[1:], short_opt_str, longopts=long_opts)
+        if ignore_argv:
+            _argv = []
+        else:
+            _argv = sys.argv[:1]
+        (go, ga) = getopt(_argv, short_opt_str, longopts=long_opts)
         dic = dict(go)
         if input_opts is not None:
             dic.update(input_opts)
