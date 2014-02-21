@@ -215,6 +215,8 @@ class ConvNet(IGPUModel):
               CroppedGeneralDataRandomProvider)
         DataProvider.register_data_provider(
                 'general-cropped', 'Cropped General', CroppedGeneralDataProvider)
+        DataProvider.register_data_provider('general-cropped-vectors', 'Cropped General_Vector',
+                                            CroppedImageAndVectorProvider)
 
         # ----------options related with data----------------
         op.add_option("img-rs", "img_rs", BooleanOptionParser,
