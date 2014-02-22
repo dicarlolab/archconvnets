@@ -18,10 +18,10 @@ num_filters2 = scope.int(hp_qloguniform('num_filters2',np.log(16), np.log(96), q
 filter2_size = scope.int(hp_quniform('filter2_shape', 2, 12, 1))
 
 num_filters3 = scope.int(hp_qloguniform('num_filters3',np.log(16), np.log(96), q=16))
-filter3_size = scope.int(hp_quniform('filter3_shape', 2, 10, 1))
+filter3_size = scope.int(hp_quniform('filter3_shape', 2, 7, 1))
 
 num_filters4 = scope.int(hp_qloguniform('num_filters4',np.log(16), np.log(64), q=16))
-filter4_size = scope.int(hp_quniform('filter4_shape', 2, 10, 1))
+filter4_size = scope.int(hp_quniform('filter4_shape', 2, 7, 1))
 
 pool1_sizex = scope.int(hp_quniform('pool1_sizex', 2, 5, 1))
 pool1_type = hp_choice('pool1_type', ['max', 'avg'])
