@@ -139,7 +139,7 @@ class OptionsParser:
         if ignore_argv:
             _argv = []
         else:
-            _argv = sys.argv[:1]
+            _argv = sys.argv[1:]
         (go, ga) = getopt(_argv, short_opt_str, longopts=long_opts)
         dic = dict(go)
         if input_opts is not None:
