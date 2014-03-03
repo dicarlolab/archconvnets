@@ -217,7 +217,8 @@ class IGPUModel:
                 self.test_outputs += [self.get_test_error()]
                 self.print_test_results()
                 self.print_test_status()
-                self.conditional_save()
+                if (self.get_num_batches_done() / self.testing_freq) % self.save_frequency == 0:
+                    self.conditional_save()
 
             self.print_train_time(time() - compute_time_py)
         self.cleanup()
@@ -412,6 +413,8 @@ class IGPUModel:
                 "Name for gridfs FS for saved checkpoints", default="convnet_checkpoint_fs")
         op.add_option("experiment-data", "experiment_data", JSONOptionParser, "Data for grouping results in database", default="")
         op.add_option("load-query", "load_query", JSONOptionParser, "Query for loading checkpoint from database", default="", excuses=OptionsParser.EXCLUDE_ALL)
+        op.add_option("save-frequency", "save_frequency", IntegerOptionParser,
+                                        "Save every nth test checkpoint", default=1)
         return op
 
     @staticmethod
