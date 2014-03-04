@@ -353,7 +353,7 @@ class IGPUModel:
                                               self.checkpoint_fs_port,
                                               self.checkpoint_db_name,
                                               self.checkpoint_fs_name)
-            if (self.get_num_batches_done() % self.saving_freq) == 0:
+            if ((self.get_num_batches_done() / self.testing_freq) % self.saving_freq) == 0:
                 dic = {"model_state": self.model_state,
                        "op": self.op}          
                 val_dict['saved_filters'] = True  
@@ -407,7 +407,9 @@ class IGPUModel:
               default=False )
         ####### db configs #######
         op.add_option("save-db", "save_db", BooleanOptionParser, "Save checkpoints to mongo database?", default=0)
-        op.add_option("saving-freq", "saving_freq", IntegerOptionParser, "Frequency for saving filters to db filesystem", default=100)
+        op.add_option("saving-freq", "saving_freq", IntegerOptionParser, 
+                      "Frequency for saving filters to db filesystem, as a multiple of testing-freq", 
+                      default=1)
         op.add_option("checkpoint-fs-host", "checkpoint_fs_host", StringOptionParser, "Host for Saving Checkpoints to DB", default="localhost")
         op.add_option("checkpoint-fs-port", "checkpoint_fs_port", IntegerOptionParser, "Port for Saving Checkpoints to DB", default=27017)
         op.add_option("checkpoint-db-name", "checkpoint_db_name", StringOptionParser,
