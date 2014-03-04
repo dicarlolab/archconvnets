@@ -347,16 +347,19 @@ class IGPUModel:
         for att in self.model_state:
             if hasattr(self, att):
                 self.model_state[att] = getattr(self, att)
-
-        dic = {"model_state": self.model_state,
-               "op": self.op}
-
         if self.save_db:
             val_dict = get_convenient_mongodb_representation(self)
             checkpoint_fs = get_checkpoint_fs(self.checkpoint_fs_host,
                                               self.checkpoint_fs_port,
                                               self.checkpoint_db_name,
                                               self.checkpoint_fs_name)
+            if (self.get_num_batches_done() % self.saving_freq) == 0:
+                dic = {"model_state": self.model_state,
+                       "op": self.op}          
+                val_dict['saved_filters'] = True  
+            else:
+                dic = {}
+                val_dict['saved_filters'] = False
             blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
             checkpoint_fs.put(blob, **val_dict)
 
@@ -404,6 +407,7 @@ class IGPUModel:
               default=False )
         ####### db configs #######
         op.add_option("save-db", "save_db", BooleanOptionParser, "Save checkpoints to mongo database?", default=0)
+        op.add_option("saving-freq", "saving_freq", IntegerOptionParser, "Frequency for saving filters to db filesystem", default=100)
         op.add_option("checkpoint-fs-host", "checkpoint_fs_host", StringOptionParser, "Host for Saving Checkpoints to DB", default="localhost")
         op.add_option("checkpoint-fs-port", "checkpoint_fs_port", IntegerOptionParser, "Port for Saving Checkpoints to DB", default=27017)
         op.add_option("checkpoint-db-name", "checkpoint_db_name", StringOptionParser,
