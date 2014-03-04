@@ -259,8 +259,8 @@ class LayerParser:
                     ltype = mcp.safe_get(name, 'type')
                     if ltype not in layer_parsers:
                         raise LayerParsingError("Layer '%s': Unknown layer type: '%s'" % (name, ltype))
-                    layers += [layer_parsers[ltype]().parse(name, mcp, layers, model)]
-                
+                    layers += [layer_parsers[ltype]().parse(name, mcp, layers, model)]                
+
                 layers = LayerParser.detach_neuron_layers(layers)
                 for l in layers:
                     lp = layer_parsers[l['type']]()
@@ -283,8 +283,8 @@ class LayerParser:
                 lp.add_params(mcp)
                 lp.dic['conserveMem'] = model.op.get_value('conserve_mem')
         except LayerParsingError, e:
-            print e
-            sys.exit(1)
+            print(e)
+            raise LayerParsingError(e)
         return layers
         
     @staticmethod
@@ -1170,6 +1170,7 @@ neuron_parsers = sorted([NeuronParser('ident', 'f(x) = x', uses_acts=False, uses
                          NeuronParser('softrelu', 'f(x) = log(1 + e^x)', uses_acts=True, uses_inputs=False),
                          NeuronParser('square', 'f(x) = x^2', uses_acts=False, uses_inputs=True),
                          NeuronParser('sqrt', 'f(x) = sqrt(x)', uses_acts=True, uses_inputs=False),
+                         ParamNeuronParser('power[a]', 'f(x) = power(x, a)', uses_acts=True, uses_inputs=True), 
                          ParamNeuronParser('tanh[a,b]', 'f(x) = a * tanh(b * x)', uses_acts=True, uses_inputs=False),
                          ParamNeuronParser('brelu[a]', 'f(x) = min(a, max(0, x))', uses_acts=True, uses_inputs=False),
                          ParamNeuronParser('linear[a,b]', 'f(x) = a * x + b', uses_acts=True, uses_inputs=False)],
