@@ -353,15 +353,27 @@ class IGPUModel:
                                               self.checkpoint_fs_port,
                                               self.checkpoint_db_name,
                                               self.checkpoint_fs_name)
-            if ((self.get_num_batches_done() / self.testing_freq) % self.saving_freq) == 0:
-                dic = {"model_state": self.model_state,
-                       "op": self.op}          
-                val_dict['saved_filters'] = True  
+            dic = {"model_state": self.model_state,
+                       "op": self.op}
+            val_dict['saved_filters'] = True
+            if (self.saving_freq > 0) and (((self.get_num_batches_done() / self.testing_freq) % self.saving_freq) == 0):
+                val_dict['__save_protected__'] = True
             else:
-                dic = {}
-                val_dict['saved_filters'] = False
+                val_dict['__save_protected__'] = False
             blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
-            checkpoint_fs.put(blob, **val_dict)
+            idval = checkpoint_fs.put(blob, **val_dict)
+            print('Saved (with filters) to id %s' % str(idval))
+            to_remove_filters = checkpoint_fs._GridFS__files.find({'experiment_data': self.experiment_data, 
+                                                'saved_filters': True,
+                                                '__save_protected__': False}).sort('timestamp')
+            for trf in to_remove_filters:
+                if trf['_id'] != idval:
+                    print('Removing filters saved to id %s' % str(trf['_id']))
+                    checkpoint_fs.delete(trf['_id'])
+                    blob = cPickle.dumps({}, protocol=cPickle.HIGHEST_PROTOCOL)
+                    trf['saved_filters'] = False
+                    checkpoint_fs.put(blob, **trf)
+                                      
 
     @staticmethod
     def load_checkpoint(load_dir):
@@ -375,6 +387,7 @@ class IGPUModel:
                                           checkpoint_fs_port,
                                           checkpoint_db_name,
                                           checkpoint_fs_name)
+        query['saved_filters'] = True
         rec = checkpoint_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
         if not only_rec:
             load_dic = cPickle.loads(checkpoint_fs.get_last_version(_id=rec['_id']).read())
