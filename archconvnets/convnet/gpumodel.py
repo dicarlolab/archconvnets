@@ -356,7 +356,7 @@ class IGPUModel:
             dic = {"model_state": self.model_state,
                        "op": self.op}
             val_dict['saved_filters'] = True
-            if ((self.get_num_batches_done() / self.testing_freq) % self.saving_freq) == 0:
+            if (self.saving_freq > 0) and (((self.get_num_batches_done() / self.testing_freq) % self.saving_freq) == 0):
                 val_dict['__save_protected__'] = True
             else:
                 val_dict['__save_protected__'] = False
