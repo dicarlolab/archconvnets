@@ -363,9 +363,9 @@ class IGPUModel:
             blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
             idval = checkpoint_fs.put(blob, **val_dict)
             print('Saved (with filters) to id %s' % str(idval))
-            to_remove_filters = checkpoint_fs._GridFS__files.find({'experiment_data': self.experiment_data, 
+            to_remove_filters = list(checkpoint_fs._GridFS__files.find({'experiment_data': self.experiment_data, 
                                                 'saved_filters': True,
-                                                '__save_protected__': False}).sort('timestamp')
+                                                '__save_protected__': False}).sort('timestamp'))
             for trf in to_remove_filters:
                 if trf['_id'] != idval:
                     print('Removing filters saved to id %s' % str(trf['_id']))
