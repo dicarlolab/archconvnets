@@ -389,7 +389,7 @@ class DLDataProvider(LabeledDataProvider):
             assert lbls.ndim == 1
             labels = lbls.reshape((1, lbls.shape[0]))
             dic['labels'] = labels
-        return  dic
+        return dic
 
     def get_metacol(self):
         meta = self.meta

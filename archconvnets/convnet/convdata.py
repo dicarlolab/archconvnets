@@ -274,8 +274,9 @@ class CroppedGeneralDataProvider(DLDataProvider):
         self.data_mult = self.num_views if self.multiview else 1
 
         self.batches_generated = 0
+        print self.batch_meta['data_mean'].dtype
         self.data_mean = self.batch_meta['data_mean'].reshape((self.num_colors, self.img_size,
-                        self.img_size))[:,self.border_size: self.border_size+self.inner_size,
+                         self.img_size))[:,self.border_size: self.border_size+self.inner_size,
                                         self.border_size: self.border_size+self.inner_size].reshape((self.get_data_dims(), 1))
 
     def get_num_views(self):
@@ -348,6 +349,42 @@ class CroppedGeneralDataProvider(DLDataProvider):
                     pic = pic[:,:,::-1]
                 target[:,c] = pic.reshape((self.get_data_dims(),))
 
+
+class CroppedImageAndVectorProvider(CroppedGeneralDataProvider):
+
+    def get_next_batch(self):
+        epoch, batchnum, datadic = DLDataProvider.get_next_batch(self)
+        datadic['labels'] = n.require(n.tile(datadic['labels'].reshape((1,
+                                                    datadic['data'].shape[1])),
+                                                    (1, self.data_mult)),
+                                      requirements='C')
+
+        # correct for cropped_data size
+        cropped = n.zeros((self.get_data_dims(),
+                     datadic['data'].shape[1]*self.data_mult), dtype=n.single)
+
+        self._CroppedGeneralDataProvider__trim_borders(datadic['data'], cropped)
+        cropped -= self.data_mean
+        self.batches_generated += 1
+        #assert( cropped.shape[1] == datadic['labels'].shape[1] )
+        vectors = datadic['vectors']  # list of other vecors tha can be
+        # fed to data layer (ie neural or behavioral data)
+        data_list = [cropped, datadic['labels']]
+        vectors = [n.require(v, requirements='C') for v in datadic['vectors']]
+        data_list.extend([v for v in vectors])
+        for data in data_list:
+            print data.shape
+            print data.dtype
+        return epoch, batchnum, data_list
+
+    def get_data_dims(self, idx=0):
+        if idx < 2:
+            return self.inner_size**2 * self.num_colors if idx == 0 else 1
+        else:
+            vector_idx = idx-2
+            return self.batch_meta['vector_dims'][vector_idx]
+
+
 class CroppedGeneralDataRandomProvider( CroppedGeneralDataProvider ):
     def __init__(self, data_dir,
             img_size, num_colors,  # options i've add to cifar data provider
@@ -367,8 +404,8 @@ class CroppedGeneralDataRandomProvider( CroppedGeneralDataProvider ):
             num_data = datadic[0].shape[1]
             index = range( num_data )
             r.shuffle(index)
-            datadic[0] = n.require( datadic[0][:,index], dtype=n.single, requirements='C' )
-            datadic[1] = n.require( datadic[1][:,index], dtype=n.single, requirements='C' )
+            datadic[0] = n.require( datadic[0][:, index], dtype=n.single, requirements='C' )
+            datadic[1] = n.require( datadic[1][:, index], dtype=n.single, requirements='C' )
         return epoch, batchnum, [datadic[0], datadic[1]]
 
 
