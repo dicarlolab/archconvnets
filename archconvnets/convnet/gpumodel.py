@@ -115,6 +115,7 @@ class IGPUModel:
     
     def init_data_providers(self):
         self.dp_params['convnet'] = self
+	print self.dp_params
         try:
             self.test_data_provider = DataProvider.get_instance(
                     self.data_path, 
