@@ -1,3 +1,4 @@
+import os
 import numpy.random as nr
 import json
 import cPickle
