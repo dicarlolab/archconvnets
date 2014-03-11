@@ -64,7 +64,7 @@ def cifar_random_experiment(dbname, host, port, bandit, bandit_kwargdict):
 
 bandit_exceptions = [
             (
-                lambda e: 
+                lambda e:
                     isinstance(e, LayerParsingError)
                 ,
                 lambda e: {
@@ -108,7 +108,7 @@ def cifar_prediction_bandit_evaluate(config, kwargs, features=None):
     exp_str = json.dumps({"experiment_id": exp_id,
                           "config": config,
                           "config_id": config_id})
-    
+
     op = ConvNet.get_options_parser()
     oppdict = [('--save-db', '1'),
                ('--crop', '4'),
@@ -119,6 +119,7 @@ def cifar_prediction_bandit_evaluate(config, kwargs, features=None):
                ('--data-provider', 'general-cropped'),
                ('--dp-params', '{"preproc": {"normalize": false, "dtype": "float32", "mask": null, "crop": null, "resize_to": [32, 32], "mode": "RGB"}, "batch_size": 10000, "meta_attribute": "category", "dataset_name":["dldata.stimulus_sets.cifar10", "Cifar10"]}'),
                ('--test-freq', '50'),
+               ('--saving-freq', '0'),
                ('--epochs', '100'),
                ('--img-size', '32'),
                ('--experiment-data', exp_str),
@@ -133,7 +134,7 @@ def cifar_prediction_bandit_evaluate(config, kwargs, features=None):
     except SystemExit, e:
         if not e.code == 0:
             raise e
-    
+
     cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=27017, checkpoint_db_name='cifar_prediction', checkpoint_fs_name=fs_name, only_rec=True)
     rec = cpt['rec']
     rec['kwargs'] = kwargs
