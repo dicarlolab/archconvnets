@@ -125,6 +125,9 @@ def cifar_prediction_bandit_evaluate(config, kwargs, features=None):
                ('--experiment-data', exp_str),
                ('--checkpoint-db-name', 'cifar_prediction'),
                ("--checkpoint-fs-name", fs_name)]
+    gpu_num = os.environ.get('BANDIT_GPU', None)
+    if gpu_num is not None:
+        oppdict.append(('--gpu', gpu_num))
 
     op, load_dic = IGPUModel.parse_options(op, input_opts=dict(oppdict), ignore_argv=True)
     nr.seed(0)
