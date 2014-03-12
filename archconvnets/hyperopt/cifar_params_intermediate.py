@@ -171,7 +171,7 @@ def config_interpretation(layers):
             l0name = l + '_pre'
             layers[l]['inputs'] = l0name
             l10 = OrderedDict([('type', 'neuron'),
-                               ('neuron', 'linear[1, 0.00001]'),
+                               ('neuron', 'linear[1, 0.00000001]'),
                                ('inputs', l)])
             l10name = l + '_postpre'
             l1 = OrderedDict([('type', 'neuron'),
