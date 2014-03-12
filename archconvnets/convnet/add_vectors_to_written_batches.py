@@ -13,7 +13,7 @@ meta = dataset.meta
 batch_regex = re.compile('data_batch_([\d]+)')
 imgs_mean = None
 existing_batches = []
-batch_path = '/export/imgnet_storage_full/ardila/hvm_batches'
+batch_path = '/export/imgnet_storage_full/ardila/hvm_batches2'
 _L = os.listdir(batch_path)
 existing_batches = [int(batch_regex.match(_l).groups()[0]) for _l in _L if batch_regex.match(_l)]
 for batch in existing_batches:
@@ -28,5 +28,6 @@ for batch in existing_batches:
     vectors = np.column_stack(vectors)
     data_dic['vectors'] = [vectors]
     cPickle.dump(data_dic, open(path, 'wb'))
-batch_meta = cPickle.load(os.path.join(batch_path, 'batches.meta'), 'rb')
+batch_meta = cPickle.load(open(os.path.join(batch_path, 'batches.meta'), 'rb'))
 batch_meta['vector_dims'] = [v.shape[0] for v in data_dic['vectors']]
+batch_meta = cPickle.dump(batch_meta, open(os.path.join(batch_path, 'batches.meta'), 'wb'))

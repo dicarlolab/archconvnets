@@ -117,6 +117,7 @@ class IGPUModel:
 
     def init_data_providers(self):
         self.dp_params['convnet'] = self
+	print self.dp_params
         try:
             self.test_data_provider = DataProvider.get_instance(
                     self.data_path,
@@ -455,6 +456,7 @@ class IGPUModel:
             if options["load_file"].value_given:
                 load_dic = IGPUModel.load_checkpoint(options["load_file"].value)
             if options["load_query"].value_given:
+                print "loadin from db"
                 load_dic = IGPUModel.load_checkpoint_from_db(options["load_query"].value,
                                                              options["checkpoint_fs_host"].value,
                                                              options["checkpoint_fs_port"].value,

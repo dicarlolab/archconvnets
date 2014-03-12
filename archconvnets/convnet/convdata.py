@@ -259,7 +259,6 @@ class CroppedGeneralDataProvider(DLDataProvider):
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
 
         DLDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
-
         self.num_colors = num_colors
         self.img_size = img_size
         self.border_size = dp_params['crop_border']
@@ -272,9 +271,11 @@ class CroppedGeneralDataProvider(DLDataProvider):
         else :
             self.num_views = 5;
         self.data_mult = self.num_views if self.multiview else 1
-
+	print self.border_size
+	print self.num_colors
+	print self.img_size
+	print self.inner_size
         self.batches_generated = 0
-        print self.batch_meta['data_mean'].dtype
         self.data_mean = self.batch_meta['data_mean'].reshape((self.num_colors, self.img_size,
                          self.img_size))[:,self.border_size: self.border_size+self.inner_size,
                                         self.border_size: self.border_size+self.inner_size].reshape((self.get_data_dims(), 1))
