@@ -24,10 +24,10 @@ num_filters4 = scope.int(hp_qloguniform('num_filters4',np.log(16), np.log(64), q
 filter4_size = scope.int(hp_quniform('filter4_shape', 2, 7, 1))
 
 pool1_sizex = scope.int(hp_quniform('pool1_sizex', 2, 5, 1))
-pool1_type = hp_choice('pool1_type', ['max', 'avg', hp_uniform('pool_order_%d' % i, 0.4, 12)]))])
+pool1_type = hp_choice('pool1_type', ['max', 'avg', hp_uniform('pool_order_1', 0.4, 12)])
 
 pool2_sizex = scope.int(hp_quniform('pool2_sizex', 2, 5, 1))
-pool2_type = hp_choice('pool2_type', ['max', 'avg', hp_uniform('pool_order_%d' % i, 0.4, 12)]))])
+pool2_type = hp_choice('pool2_type', ['max', 'avg', hp_uniform('pool_order_2', 0.4, 12)])
 
 rnorm1_size = scope.int(hp_quniform('rnorm1_size', 5, 12, 1))
 rnorm2_size = scope.int(hp_quniform('rnorm2_size', 5, 12, 1))
