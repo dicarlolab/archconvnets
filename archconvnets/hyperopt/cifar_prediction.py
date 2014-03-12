@@ -142,6 +142,7 @@ def cifar_prediction_bandit_evaluate(config, kwargs, features=None):
                ('--train-range', '0-4'),
                ('--test-range', '5'),
                ('--layer-def', layer_fname),
+               ('--conserve-mem', '1'),
                ('--layer-params', layer_param_fname),
                ('--data-provider', 'general-cropped'),
                ('--dp-params', '{"preproc": {"normalize": false, "dtype": "float32", "mask": null, "crop": null, "resize_to": [32, 32], "mode": "RGB"}, "batch_size": 10000, "meta_attribute": "category", "dataset_name":["dldata.stimulus_sets.cifar10", "Cifar10"]}'),
