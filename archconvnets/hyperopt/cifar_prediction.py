@@ -18,6 +18,7 @@ from ..convnet.api import odict_to_config
 from ..convnet.layer import LayerParsingError
 
 from . import cifar_params
+from . import cifar_params_intermediate
 from . import cifar_params_new
 from .hyperopt_helpers import suggest_multiple_from_name
 
@@ -27,6 +28,16 @@ def cifar_random_experiment0(experiment_id):
     host = 'localhost'
     port = 22334
     bandit = 'cifar_prediction_bandit'
+    bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
+    exp = cifar_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
+    return exp
+
+
+def cifar_random_experiment_intermediate(experiment_id):
+    dbname = 'cifar_predictions_random_experiment_intermediate'
+    host = 'localhost'
+    port = 22334
+    bandit = 'cifar_prediction_bandit_intermediate'
     bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
     exp = cifar_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
     return exp
@@ -81,6 +92,20 @@ bandit_exceptions = [
 def cifar_prediction_bandit(argdict):
     template = cifar_params.template_func(argdict['param_args'])
     return scope.cifar_prediction_bandit_evaluate(template, argdict)
+
+
+@hyperopt.base.as_bandit(exceptions=bandit_exceptions)
+def cifar_prediction_bandit_intermediate(argdict):
+    template = cifar_params_intermediate.template_func(argdict['param_args'])
+    interpreted_template = scope.config_interpret_intermediate(template)
+    return scope.cifar_prediction_bandit_evaluate(interpreted_template, argdict)
+
+
+@scope.define
+def config_interpret_intermediate(config):
+    config = copy.deepcopy(config)
+    config['layer_def'] = cifar_params_intermediate.config_interpretation(config['layer_def'])
+    return config
 
 
 @hyperopt.base.as_bandit(exceptions=bandit_exceptions)
