@@ -18,11 +18,11 @@ conv_template = lambda i : [OrderedDict([('type', 'conv'),
                                     ('stride', hp_choice('conv_stride_%d' % i, [1, 2])),
                                     ('filterSize', scope.int(hp_quniform('conv_filter_shape_%d' % i, 2, 8, 1))),
                                     ('neuron', 'relu'),
-                                    ('initw', hp_choice('conv_initw_%d' % i, [1e-4, 1e-3, 1e-2])),
+                                    ('initw', hp_choice('conv_initw_%d' % i, [1e-4, 1e-3, 1e-2, 1e-1])),
                                     ('partialsum', 1),
                                     ('sharedbiases', 1)]),  
-                 OrderedDict([('epsw', hp_choice('conv_epsw_%d' % i, [1e-4, 1e-3, 1e-2])),
-                               ('epsb', hp_choice('conv_epsb_%d' % i, [2e-4, 2e-3, 2e-2])),
+                 OrderedDict([('epsw', hp_choice('conv_epsw_%d' % i, [1e-4, 1e-3, 1e-2, 1e-1])),
+                               ('epsb', hp_choice('conv_epsb_%d' % i, [2e-4, 2e-3, 2e-2, 1e-1])),
                                ('momw', hp_uniform('conv_momw_%d' % i, .55, .95)),
                                ('momb', hp_uniform('conv_momb_%d' % i, .55, .95)),
                                ('wc', 0)])]
@@ -47,13 +47,13 @@ norm_template = lambda i: [OrderedDict([('type', 'cmrnorm'),
 
 local_template = lambda i : [OrderedDict([('type', 'local'),
                                      ('filters', scope.int(hp_qloguniform('local_num_filters_%d' % i, np.log(16), np.log(96), q=16))),
-                                     ('padding', hp_choice('clocal_padding_%d' % i, [1, 2])),
+                                     ('padding', hp_choice('local_padding_%d' % i, [1, 2])),
                                      ('stride', hp_choice('local_stride_%d' % i, [1, 2])),
                                      ('filterSize', scope.int(hp_quniform('local_filter_shape_%d' % i, 2, 12, 1))),
                                      ('neuron', 'relu'),
                                      ('initw', hp_choice('local_initw_%d' % i, [1e-4, 1e-3, 1e-2, 1e-1]))]), 
-                  OrderedDict([('epsw', hp_choice('local_epsw_%d' % i, [1e-4, 1e-3, 1e-2])),
-                               ('epsb', hp_choice('local_epsb_%d' % i, [2e-4, 2e-3, 2e-2])),
+                  OrderedDict([('epsw', hp_choice('local_epsw_%d' % i, [1e-4, 1e-3, 1e-2, 1e-1])),
+                               ('epsb', hp_choice('local_epsb_%d' % i, [2e-4, 2e-3, 2e-2, 1e-1])),
                                ('momw', hp_uniform('local_momw_%d' % i, .55, .95)),
                                ('momb', hp_uniform('local_momb_%d' % i, .55, .95)),
                                ('wc', 0.004)])]
@@ -73,26 +73,26 @@ def channel_layers_nolocal(N):
 
 final_layers = OrderedDict([('fc1', OrderedDict([('type', 'fcdropo'),
                                     ('outputs', scope.int(hp_qloguniform('fc1_num_outputs', np.log(64), np.log(256), q=64))),
-                                    ('initw', hp_choice('fc1_initw', [1e-4, 1e-3, 1e-2])),
+                                    ('initw', hp_choice('fc1_initw', [1e-4, 1e-3, 1e-2, 1e-1])),
                                     ('neuron', 'relu'),
                                     ('rate', 0.5)])),
              ('fc10', OrderedDict([('type', 'fc'),
                                    ('outputs', '10'),
                                    ('inputs', 'fc1'),
-                                   ('initw', hp_choice('fc10_initw', [1e-4, 1e-3, 1e-2]))])),
+                                   ('initw', hp_choice('fc10_initw', [1e-4, 1e-3, 1e-2, 1e-1]))])),
              ('probs', OrderedDict([('type', 'softmax'),
                                     ('inputs', 'fc10')])),
              ('logprob', OrderedDict([('type', 'cost.logreg'),
                                       ('inputs', 'labels,probs')]))])
                                       
 
-final_layers_learning_params = OrderedDict([('fc1', OrderedDict([('epsw', hp_choice('fc1_epsw', [1e-4, 1e-3, 1e-2])),
-                                           ('epsb', hp_choice('fc1_epsb', [2e-4, 2e-3, 2e-2])),
+final_layers_learning_params = OrderedDict([('fc1', OrderedDict([('epsw', hp_choice('fc1_epsw', [1e-4, 1e-3, 1e-2, 1e-1])),
+                                           ('epsb', hp_choice('fc1_epsb', [2e-4, 2e-3, 2e-2, 2e-1])),
                                            ('momw', hp_uniform('fc1_momw', .55, .95)),
                                            ('momb', hp_uniform('fc1_momb', .55, .95)),
                                            ('wc', 0.004)])),
-                                            ('fc10', OrderedDict([('epsw', hp_choice('fc10_epsw', [1e-4, 1e-3, 1e-2])),
-                                           ('epsb', hp_choice('fc10_epsb', [2e-4, 2e-3, 2e-2])),
+                                            ('fc10', OrderedDict([('epsw', hp_choice('fc10_epsw', [1e-4, 1e-3, 1e-2, 1e-1])),
+                                           ('epsb', hp_choice('fc10_epsb', [2e-4, 2e-3, 2e-2, 2e-1])),
                                            ('momw', hp_uniform('fc10_momw', .55, .95)),
                                            ('momb', hp_uniform('fc10_momb', .55, .95)),
                                            ('wc', 0.01)])),
@@ -143,7 +143,7 @@ def config_interpretation(config):
 
     newlayers = OrderedDict([])
     for (l_ind, l) in enumerate(layers):            
-        if layers[l]['type'] == 'pool' and isinstance(layers[l]['pool'], int):
+        if layers[l]['type'] == 'pool' and isinstance(layers[l]['pool'], float):
             order = layers[l]['pool']
             layers[l]['pool'] = 'avg'
             l00 = OrderedDict([('type', 'neuron'),
