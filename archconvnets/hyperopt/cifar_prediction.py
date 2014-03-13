@@ -123,7 +123,7 @@ def config_interpret_intermediate(config):
 @hyperopt.base.as_bandit(exceptions=bandit_exceptions)
 def cifar_prediction_bandit_intermediate2(argdict):
     template = cifar_params_intermediate2.template_func(argdict['param_args'])
-    interpreted_template = scope.config_interpret_intermediate(template)
+    interpreted_template = scope.config_interpret_intermediate2(template)
     return scope.cifar_prediction_bandit_evaluate(interpreted_template, argdict)
 
 

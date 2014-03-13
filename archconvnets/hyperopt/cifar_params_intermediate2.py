@@ -1,3 +1,4 @@
+import copy
 from collections import OrderedDict
 import numpy as np
 
@@ -187,6 +188,7 @@ def config_interpretation(layers):
     layers = copy.deepcopy(layers)
     newlayers = OrderedDict([])
     for (l_ind, l) in enumerate(layers):
+        print(l_ind, layers[l]['type'])
         if layers[l]['type'] == 'pool' and isinstance(layers[l]['pool'], float):
             order = layers[l]['pool']
             layers[l]['pool'] = 'avg'
@@ -215,6 +217,7 @@ def config_interpretation(layers):
             newlayers[l10name] = l10
             newlayers[l1name] = l1
         elif layers[l]['type'] == None:
+            print('here')
             if l_ind < len(layers):
                 ln1 = layers.keys()[l_ind + 1]
                 ln0  = layers.keys()[l_ind - 1]
