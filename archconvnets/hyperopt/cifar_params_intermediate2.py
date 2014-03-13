@@ -124,11 +124,13 @@ layer_def_template = OrderedDict([('data', OrderedDict([('type', 'data'),
                                                  ('neuron', 'relu'),
                                                  ('initw', 0.04)])])),
              ('fc128', hp_choice('fc', [OrderedDict([('type', 'fcdropo'),
-                                    ('outputs', 128),
-                                    ('inputs', 'conv4'),
-                                    ('initw', 0.01),
-                                    ('neuron', 'relu'),
-                                    ('rate', 0.5)]), None])),
+                                                     ('outputs', 128),
+                                                     ('inputs', 'conv4'),
+                                                     ('initw', 0.01),
+                                                     ('neuron', 'relu'),
+                                                     ('rate', 0.5)]),
+                                        OderedDict([('inputs', 'conv4'),
+                                                    ('type', None)])])),
              ('fc10', OrderedDict([('type', 'fc'),
                                    ('outputs', 10),
                                    ('inputs', 'fc128'),
@@ -208,7 +210,7 @@ def config_interpretation(layers):
             newlayers[l] = layers[l]
             newlayers[l10name] = l10
             newlayers[l1name] = l1
-        elif l is None:
+        elif layers[l]['type'] == None:
             if l_ind < len(layers):
                 ln1 = layers.keys()[l_ind + 1]
                 ln0  = layers.keys()[l_ind - 1]
