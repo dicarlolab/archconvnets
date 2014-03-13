@@ -173,7 +173,7 @@ learning_params_template = OrderedDict([('conv1', OrderedDict([('epsw', 0.001),
                                                               ('momw', 0.9),
                                                               ('momb', 0.9),
                                                               ('wc', 0.01)])),
-                                        ('logprob', OrderedDict([('coeff', 1')]))])
+                                        ('logprob', OrderedDict([('coeff', 1)]))])
 
 
 
