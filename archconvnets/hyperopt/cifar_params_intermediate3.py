@@ -133,7 +133,7 @@ layer_def_template = OrderedDict([('data', OrderedDict([('type', 'data'),
                                                        ('channels', num_filters3),
                                                        ('size', rnorm3_size)])])),                                             
              ('conv4', hp_choice('conv4', [OrderedDict([('type', 'conv'),
-                                                 ('inputs', 'conv3'),
+                                                 ('inputs', 'pool3'),
                                                  ('filters', num_filters4),
                                                  ('padding', 1),
                                                  ('stride', 1),
@@ -251,7 +251,7 @@ def config_interpretation(layers):
                     layers[o]['inputs'] = layers[o]['inputs'].replace(l, inputs)
         else:
             newlayers[l] = layers[l]
-
+    print('NL', newlayers)
     return newlayers
 
 
