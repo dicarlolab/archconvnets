@@ -277,26 +277,13 @@ def cifar_prediction_bandit_evaluate2(config, kwargs, features=None):
         if not e.code == 0:
             raise e
             
-    bquery = json.dumps({"experiment_data.experiment_id": exp_id, "experimnet_data.config_id": config_id})
-    _, layer_param_fname2 = tempfile.mkstemp()
-    learning_params_copy = copy.deepcopy(config['learning_params'])
-    reduce_learning_rates(learning_params_copy, .1)
-    odict_to_config(learning_params_copy, savepath=layer_param_fname2)    
-    
-    op2 = ConvNet.get_options_parser()
-    oppdict2 = [('--layer-params', layer_param_fname2),
-               ('--load-query', bquery)]
-    if gpu_num is not None:
-        oppdict2.append(('--gpu', gpu_num))
-
-    op2, load_dic2 = IGPUModel.parse_options(op2, input_opts=dict(oppdict2), ignore_argv=True)
-    nr.seed(0)
-    model2 = ConvNet(op2, load_dic2)
+    model.scale_learningRate(0.1)
     try:
-        model2.start()
+        model.start()
     except SystemExit, e:
         if not e.code == 0:
             raise e
+            
 
     cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=27017, checkpoint_db_name='cifar_prediction', checkpoint_fs_name=fs_name, only_rec=True)
     rec = cpt['rec']
