@@ -30,7 +30,7 @@ pool1_type = hp_choice('pool1_type', ['max', 'avg', hp_uniform('pool_order_1', 1
 pool2_sizex = scope.int(hp_quniform('pool2_sizex', 2, 5, 1))
 pool2_type = hp_choice('pool2_type', ['max', 'avg', hp_uniform('pool_order_2', 1, 4)])
 
-pool3_sizex = scope.int(hp_quniform('pool2_sizex', 2, 5, 1))
+pool3_sizex = scope.int(hp_quniform('pool3_sizex', 2, 5, 1))
 pool3_type = hp_choice('pool3_type', ['max', 'avg', hp_uniform('pool_order_3', 1, 4)])
 
 rnorm1_size = scope.int(hp_quniform('rnorm1_size', 5, 12, 1))
@@ -196,7 +196,7 @@ learning_params_template = OrderedDict([('conv1', OrderedDict([('epsw', hp_choic
                                                                ('momw', 0.9),
                                                                ('momb', 0.9),
                                                                ('wc', 0.004)])),
-                                        ('fc128', OrderedDict(('epsw', hp_choice('epsw_fc128', [1e-2, 3e-3, 1e-3, 5e-4, 1e-4])),
+                                        ('fc128', OrderedDict([('epsw', hp_choice('epsw_fc128', [1e-2, 3e-3, 1e-3, 5e-4, 1e-4])),
                                                               ('epsb', hp_choice('epsb_fc128', [2e-2, 6e-3, 2e-3, 5e-4, 2e-4])),
                                                               ('momw', 0.9),
                                                               ('momb', 0.9),
