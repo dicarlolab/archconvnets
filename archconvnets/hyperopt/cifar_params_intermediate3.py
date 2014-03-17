@@ -244,8 +244,9 @@ def config_interpretation(layers):
             newlayers[l1name] = l1
         elif layers[l]['type'] == None:
             if l_ind < len(layers):
-                inputs = l['inputs']
-                outputs = [_n for _n in layers if l in layers[_n].split(',')]
+                inputs = layers[l]['inputs']
+                outputs = [_n for _n in layers if l in layers[_n].get('inputs', '').split(',')]
+                print('outputs', outputs)
                 for o in outputs:
                     layers[o]['inputs'] = layers[o]['inputs'].replace(l, inputs)
         else:
