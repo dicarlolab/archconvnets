@@ -257,9 +257,9 @@ def cifar_prediction_bandit_evaluate2(config, kwargs, features=None):
                ('--layer-params', layer_param_fname),
                ('--data-provider', 'general-cropped'),
                ('--dp-params', '{"preproc": {"normalize": false, "dtype": "float32", "mask": null, "crop": null, "resize_to": [32, 32], "mode": "RGB"}, "batch_size": 10000, "meta_attribute": "category", "dataset_name":["dldata.stimulus_sets.cifar10", "Cifar10"]}'),
-               ('--test-freq', '25'),
+               ('--test-freq', '50'),
                ('--saving-freq', '0'),
-               ('--epochs', '10'),
+               ('--epochs', '50'),
                ('--img-size', '32'),
                ('--experiment-data', exp_str),
                ('--checkpoint-db-name', 'cifar_prediction'),
@@ -278,6 +278,7 @@ def cifar_prediction_bandit_evaluate2(config, kwargs, features=None):
             raise e
             
     model.scale_learningRate(0.1)
+    model.num_epochs = 100
     try:
         model.start()
     except SystemExit, e:
