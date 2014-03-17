@@ -149,7 +149,7 @@ def config_interpret_intermediate2(config):
 def cifar_prediction_bandit_intermediate3(argdict):
     template = cifar_params_intermediate3.template_func(argdict['param_args'])
     interpreted_template = scope.config_interpret_intermediate3(template)
-    return scope.cifar_prediction_bandit_evaluate(interpreted_template, argdict)
+    return scope.cifar_prediction_bandit_evaluate2(interpreted_template, argdict)
 
 
 @scope.define
@@ -212,6 +212,88 @@ def cifar_prediction_bandit_evaluate(config, kwargs, features=None):
     model = ConvNet(op, load_dic)
     try:
         model.start()
+    except SystemExit, e:
+        if not e.code == 0:
+            raise e
+
+    cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=27017, checkpoint_db_name='cifar_prediction', checkpoint_fs_name=fs_name, only_rec=True)
+    rec = cpt['rec']
+    rec['kwargs'] = kwargs
+    rec['loss'] = rec['test_outputs'][0]['logprob'][0]
+    rec['status'] = 'ok'
+
+    return rec
+
+
+def reduce_learning_rates(config, factor):
+    for l in config:
+        for k in l:
+            if 'eps' in k:
+                config[l][k] *= factor
+
+
+@scope.define
+def cifar_prediction_bandit_evaluate2(config, kwargs, features=None):
+    _, layer_fname = tempfile.mkstemp()
+    odict_to_config(config['layer_def'], savepath=layer_fname)
+    _, layer_param_fname = tempfile.mkstemp()
+    odict_to_config(config['learning_params'], savepath=layer_param_fname)
+
+    exp_id = kwargs['experiment_id']
+    fs_name = 'cifar_prediction'
+    config_str = json.dumps(config)
+    config_id = hashlib.sha1(config_str).hexdigest()
+    exp_str = json.dumps({"experiment_id": exp_id,
+                          "config": config,
+                          "config_id": config_id})
+
+    op = ConvNet.get_options_parser()
+    oppdict = [('--save-db', '1'),
+               ('--crop', '4'),
+               ('--train-range', '0-4'),
+               ('--test-range', '5'),
+               ('--layer-def', layer_fname),
+               ('--conserve-mem', '1'),
+               ('--layer-params', layer_param_fname),
+               ('--data-provider', 'general-cropped'),
+               ('--dp-params', '{"preproc": {"normalize": false, "dtype": "float32", "mask": null, "crop": null, "resize_to": [32, 32], "mode": "RGB"}, "batch_size": 10000, "meta_attribute": "category", "dataset_name":["dldata.stimulus_sets.cifar10", "Cifar10"]}'),
+               ('--test-freq', '25'),
+               ('--saving-freq', '0'),
+               ('--epochs', '10'),
+               ('--img-size', '32'),
+               ('--experiment-data', exp_str),
+               ('--checkpoint-db-name', 'cifar_prediction'),
+               ("--checkpoint-fs-name", fs_name)]
+    gpu_num = os.environ.get('BANDIT_GPU', None)
+    if gpu_num is not None:
+        oppdict.append(('--gpu', gpu_num))
+
+    op, load_dic = IGPUModel.parse_options(op, input_opts=dict(oppdict), ignore_argv=True)
+    nr.seed(0)
+    model = ConvNet(op, load_dic)
+    try:
+        model.start()
+    except SystemExit, e:
+        if not e.code == 0:
+            raise e
+            
+    bquery = json.dumps({"experiment_data.experiment_id": exp_id, "experimnet_data.config_id": config_id})
+    _, layer_param_fname2 = tempfile.mkstemp()
+    learning_params_copy = copy.deepcopy(config['learning_params'])
+    reduce_learning_rates(learning_params_copy, .1)
+    odict_to_config(learning_params_copy, savepath=layer_param_fname2)    
+    
+    op2 = ConvNet.get_options_parser()
+    oppdict2 = [('--layer-params', layer_param_fname2),
+               ('--load-query', bquery)]
+    if gpu_num is not None:
+        oppdict2.append(('--gpu', gpu_num))
+
+    op2, load_dic2 = IGPUModel.parse_options(op2, input_opts=dict(oppdict2), ignore_argv=True)
+    nr.seed(0)
+    model2 = ConvNet(op2, load_dic2)
+    try:
+        model2.start()
     except SystemExit, e:
         if not e.code == 0:
             raise e
