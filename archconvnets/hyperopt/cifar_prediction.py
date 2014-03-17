@@ -1,4 +1,5 @@
 import os
+import copy
 import numpy.random as nr
 import json
 import cPickle
@@ -18,6 +19,8 @@ from ..convnet.api import odict_to_config
 from ..convnet.layer import LayerParsingError
 
 from . import cifar_params
+from . import cifar_params_intermediate
+from . import cifar_params_intermediate2
 from . import cifar_params_new
 from .hyperopt_helpers import suggest_multiple_from_name
 
@@ -27,6 +30,26 @@ def cifar_random_experiment0(experiment_id):
     host = 'localhost'
     port = 22334
     bandit = 'cifar_prediction_bandit'
+    bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
+    exp = cifar_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
+    return exp
+
+
+def cifar_random_experiment_intermediate(experiment_id):
+    dbname = 'cifar_predictions_random_experiment_intermediate'
+    host = 'localhost'
+    port = 22334
+    bandit = 'cifar_prediction_bandit_intermediate'
+    bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
+    exp = cifar_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
+    return exp
+
+
+def cifar_random_experiment_intermediate2(experiment_id):
+    dbname = 'cifar_predictions_random_experiment_intermediate2'
+    host = 'localhost'
+    port = 22334
+    bandit = 'cifar_prediction_bandit_intermediate2'
     bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
     exp = cifar_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
     return exp
@@ -84,6 +107,34 @@ def cifar_prediction_bandit(argdict):
 
 
 @hyperopt.base.as_bandit(exceptions=bandit_exceptions)
+def cifar_prediction_bandit_intermediate(argdict):
+    template = cifar_params_intermediate.template_func(argdict['param_args'])
+    interpreted_template = scope.config_interpret_intermediate(template)
+    return scope.cifar_prediction_bandit_evaluate(interpreted_template, argdict)
+
+
+@scope.define
+def config_interpret_intermediate(config):
+    config = copy.deepcopy(config)
+    config['layer_def'] = cifar_params_intermediate.config_interpretation(config['layer_def'])
+    return config
+
+
+@hyperopt.base.as_bandit(exceptions=bandit_exceptions)
+def cifar_prediction_bandit_intermediate2(argdict):
+    template = cifar_params_intermediate2.template_func(argdict['param_args'])
+    interpreted_template = scope.config_interpret_intermediate2(template)
+    return scope.cifar_prediction_bandit_evaluate(interpreted_template, argdict)
+
+
+@scope.define
+def config_interpret_intermediate2(config):
+    config = copy.deepcopy(config)
+    config['layer_def'] = cifar_params_intermediate2.config_interpretation(config['layer_def'])
+    return config
+
+
+@hyperopt.base.as_bandit(exceptions=bandit_exceptions)
 def cifar_prediction_bandit_new(argdict):
     template = cifar_params_new.template_func(argdict['param_args'])
     interpreted_template = scope.config_interpret(template)
@@ -116,6 +167,7 @@ def cifar_prediction_bandit_evaluate(config, kwargs, features=None):
                ('--train-range', '0-4'),
                ('--test-range', '5'),
                ('--layer-def', layer_fname),
+               ('--conserve-mem', '1'),
                ('--layer-params', layer_param_fname),
                ('--data-provider', 'general-cropped'),
                ('--dp-params', '{"preproc": {"normalize": false, "dtype": "float32", "mask": null, "crop": null, "resize_to": [32, 32], "mode": "RGB"}, "batch_size": 10000, "meta_attribute": "category", "dataset_name":["dldata.stimulus_sets.cifar10", "Cifar10"]}'),
