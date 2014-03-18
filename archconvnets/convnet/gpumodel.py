@@ -487,6 +487,7 @@ def get_convenient_mongodb_representation(self):
     val_dict['batch_num'] = self.batchnum
     val_dict['timestamp'] = datetime.datetime.utcnow()
     val_dict['experiment_data'] = self.experiment_data
+    print(val_dict['experiment_data']['config']['layer_def'].keys())
     return SONify(val_dict)
 
 
