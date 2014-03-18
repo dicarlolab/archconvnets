@@ -475,7 +475,7 @@ void FCDropLayer::set_dropRate( float dropRate ) {
 }
 
 
-/* 
+/*
  * =======================
  * FCLDropOutLayer
  * =======================
