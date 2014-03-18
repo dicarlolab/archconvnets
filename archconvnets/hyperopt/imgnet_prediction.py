@@ -1,4 +1,5 @@
 import os
+import collection
 import copy
 import numpy.random as nr
 import json
@@ -116,7 +117,7 @@ def imgnet_prediction_bandit_evaluate(config, kwargs, features=None):
     if gpu_num is not None:
         oppdict.append(('--gpu', gpu_num))
 
-    op, load_dic = IGPUModel.parse_options(op, input_opts=dict(oppdict), ignore_argv=True)
+    op, load_dic = IGPUModel.parse_options(op, input_opts=collections.OrderedDict(oppdict), ignore_argv=True)
     nr.seed(0)
     model = ConvNet(op, load_dic)
     try:
