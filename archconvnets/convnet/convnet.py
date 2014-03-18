@@ -22,6 +22,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import collections
 import numpy as n
 import numpy.random as nr
 from util import *
@@ -65,7 +66,7 @@ class ConvNet(IGPUModel):
             ms['layers'] = lay.LayerParser.parse_layers(self.layer_def, self.layer_params, self, ms['layers'])
         else:
             ms['layers'] = lay.LayerParser.parse_layers(self.layer_def, self.layer_params, self)
-        self.layers_dic = dict(zip([l['name'] for l in ms['layers']], ms['layers']))
+        self.layers_dic = collections.OrderedDict(zip([l['name'] for l in ms['layers']], ms['layers']))
 
         logreg_name = self.op.get_value('logreg_name')
         if logreg_name:
