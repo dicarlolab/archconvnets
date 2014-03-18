@@ -25,6 +25,7 @@
 import datetime
 import numpy as n
 import os
+import collections
 from time import time, asctime, localtime, strftime
 from numpy.random import randn, rand
 from numpy import s_, dot, tile, zeros, ones, zeros_like, array, ones_like
@@ -366,12 +367,13 @@ class IGPUModel:
             print('Saved (with filters) to id %s' % str(idval))
             to_remove_filters = list(checkpoint_fs._GridFS__files.find({'experiment_data': self.experiment_data, 
                                                 'saved_filters': True,
-                                                '__save_protected__': False}).sort('timestamp'))
+                                                '__save_protected__': False}, 
+                                                as_class=collections.OrderedDict).sort('timestamp'))
             for trf in to_remove_filters:
                 if trf['_id'] != idval:
                     print('Removing filters saved to id %s' % str(trf['_id']))
                     checkpoint_fs.delete(trf['_id'])
-                    blob = cPickle.dumps({}, protocol=cPickle.HIGHEST_PROTOCOL)
+                    blob = cPickle.dumps(collections.OrderedDict(), protocol=cPickle.HIGHEST_PROTOCOL)
                     trf['saved_filters'] = False
                     checkpoint_fs.put(blob, **trf)
                                       
