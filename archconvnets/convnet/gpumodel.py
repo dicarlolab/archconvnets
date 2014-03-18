@@ -90,7 +90,7 @@ class IGPUModel:
             self.model_state["batchnum"] = self.train_batch_range[0]
             if not self.options["experiment_data"].value_given:
                 idval = model_name + "_" + '_'.join(['%s_%s' % (char, self.options[opt].get_str_value()) for opt, char in filename_options]) + '_' + strftime('%Y-%m-%d_%H.%M.%S')
-                self.experiment_data = {'experiment_id': idval}
+                self.experiment_data = collections.OrderedDict([('experiment_id', idval)])
 
         self.init_data_providers()
         if load_dic:
@@ -491,7 +491,7 @@ def get_convenient_mongodb_representation(self):
 
 
 def get_convenient_mongodb_representation_base(op, model_state):
-    val_dict = dict([(_o.name, _o.value) for _o in op.get_options_list()])
+    val_dict = collections.OrderedDict([(_o.name, _o.value) for _o in op.get_options_list()])
     def make_mongo_safe(_d):
         for _k in _d:
             if '.' in _k:
@@ -508,7 +508,7 @@ def get_convenient_mongodb_representation_base(op, model_state):
                 for _bk in bad_keys:
                     if _bk in _l:
                         _l.pop(_bk)
-            layers = dict([(_l['name'], _l) for _l in layers])
+            layers = collections.OrderedDict([(_l['name'], _l) for _l in layers])
             val_dict[k] = layers
         elif k == 'train_outputs':
             tfreq = val_dict['testing_freq']

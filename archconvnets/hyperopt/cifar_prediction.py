@@ -221,9 +221,9 @@ def cifar_prediction_bandit_evaluate(config, kwargs, features=None):
     fs_name = 'cifar_prediction'
     config_str = json.dumps(config)
     config_id = hashlib.sha1(config_str).hexdigest()
-    exp_str = json.dumps({"experiment_id": exp_id,
-                          "config": config,
-                          "config_id": config_id})
+    exp_str = json.dumps(collections.OrderedDict([("experiment_id", exp_id),
+                          ("config", config),
+                          ("config_id", config_id)]))
 
     op = ConvNet.get_options_parser()
     oppdict = [('--save-db', '1'),
@@ -246,7 +246,7 @@ def cifar_prediction_bandit_evaluate(config, kwargs, features=None):
     if gpu_num is not None:
         oppdict.append(('--gpu', gpu_num))
 
-    op, load_dic = IGPUModel.parse_options(op, input_opts=dict(oppdict), ignore_argv=True)
+    op, load_dic = IGPUModel.parse_options(op, input_opts=collections.OrderedDict(oppdict), ignore_argv=True)
     nr.seed(0)
     model = ConvNet(op, load_dic)
     try:
@@ -282,9 +282,9 @@ def cifar_prediction_bandit_evaluate2(config, kwargs, features=None):
     fs_name = 'cifar_prediction'
     config_str = json.dumps(config)
     config_id = hashlib.sha1(config_str).hexdigest()
-    exp_str = json.dumps({"experiment_id": exp_id,
-                          "config": config,
-                          "config_id": config_id})
+    exp_str = json.dumps(collections.OrderedDict([("experiment_id", exp_id),
+                          ("config", config),
+                          ("config_id", config_id)]))
 
     op = ConvNet.get_options_parser()
     oppdict = [('--save-db', '1'),
@@ -307,7 +307,7 @@ def cifar_prediction_bandit_evaluate2(config, kwargs, features=None):
     if gpu_num is not None:
         oppdict.append(('--gpu', gpu_num))
 
-    op, load_dic = IGPUModel.parse_options(op, input_opts=dict(oppdict), ignore_argv=True)
+    op, load_dic = IGPUModel.parse_options(op, input_opts=collections.OrderedDict(oppdict), ignore_argv=True)
     nr.seed(0)
     model = ConvNet(op, load_dic)
     try:
