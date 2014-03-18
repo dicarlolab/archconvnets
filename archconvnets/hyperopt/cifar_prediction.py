@@ -64,6 +64,17 @@ def cifar_random_experiment_intermediate3(experiment_id):
     bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
     exp = cifar_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
     return exp
+    
+
+def cifar_tpe_experiment_intermediate3(experiment_id):
+    dbname = 'cifar_predictions_tpe_experiment_intermediate3'
+    host = 'localhost'
+    port = 22334
+    bandit = 'cifar_prediction_bandit_intermediate3'
+    bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id,
+                        'epochs_round0': 70, 'epochs_round1': 75}
+    exp = cifar_tpe_experiment(dbname, host, port, bandit, bandit_kwargdict)
+    return exp
 
 
 def cifar_random_experiment_new(experiment_id):
@@ -95,6 +106,30 @@ def cifar_random_experiment(dbname, host, port, bandit, bandit_kwargdict):
                                bandit_kwargs_list=bandit_kwargs_list,
                                bandit_algo_args_list=[() for _i in range(num)],
                                bandit_algo_kwargs_list=[{} for _i in range(num)])
+
+
+def cifar_tpe_experiment(dbname, host, port, bandit, bandit_kwargdict,
+                           num,
+                           gamma,
+                           n_startup_jobs):
+    bandit_algo_names = ['hyperopt.TreeParzenEstimator'] * num
+    bandit_names = ['archconvnets.hyperopt.cifar_prediction.%s' % bandit] * num
+    #ek = hashlib.sha1(cPickle.dumps(bandit_kwargdict)).hexdigest()
+    exp_keys = ['cifar_prediction_tpe_%s_%s_%i' % (bandit, bandit_kwargdict['experiment_id'], i) for i in range(num)]
+    bandit_args_list = [(bandit_kwargdict,) for i in range(num)]
+    bandit_kwargs_list = [{} for i in range(num)]
+    return suggest_multiple_from_name(dbname=dbname,
+                               host=host,
+                               port=port,
+                               bandit_algo_names=bandit_algo_names,
+                               bandit_names=bandit_names,
+                               exp_keys=exp_keys,
+                               N=None,
+                               bandit_args_list=bandit_args_list,
+                               bandit_kwargs_list=[{} for _i in range(num)],
+                               bandit_algo_args_list=[() for _i in range(num)],
+                               bandit_algo_kwargs_list=[{'gamma':gamma,
+                    'n_startup_jobs': n_startup_jobs} for _i in range(num)])
 
 
 bandit_exceptions = [
@@ -259,7 +294,7 @@ def cifar_prediction_bandit_evaluate2(config, kwargs, features=None):
                ('--dp-params', '{"preproc": {"normalize": false, "dtype": "float32", "mask": null, "crop": null, "resize_to": [32, 32], "mode": "RGB"}, "batch_size": 10000, "meta_attribute": "category", "dataset_name":["dldata.stimulus_sets.cifar10", "Cifar10"]}'),
                ('--test-freq', '50'),
                ('--saving-freq', '0'),
-               ('--epochs', '75'),
+               ('--epochs', kwargs.get('epochs_round0', 75)),
                ('--img-size', '32'),
                ('--experiment-data', exp_str),
                ('--checkpoint-db-name', 'cifar_prediction'),
@@ -278,7 +313,7 @@ def cifar_prediction_bandit_evaluate2(config, kwargs, features=None):
             raise e
             
     model.scale_learningRate(0.1)
-    model.num_epochs = 100
+    model.num_epochs = kwargs.get('epochs_round1', 100)
     try:
         model.start()
     except SystemExit, e:
