@@ -24,6 +24,7 @@
 
 import sys
 import json
+import collections
 from getopt import getopt
 import os
 import re
@@ -358,7 +359,7 @@ class JSONOptionParser(OptionParser):
     @staticmethod
     def parse(value):
         try: 
-            return json.loads(value)
+            return json.loads(value, object_pairs_hook=collections.OrderedDict)
         except ValueError, e:
             raise OptionException(e)
 

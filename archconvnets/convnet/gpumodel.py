@@ -83,7 +83,7 @@ class IGPUModel:
             if not "experiment_data" in self.options or not self.options["experiment_data"].value_given:
                 self.experiment_data = load_dic["rec"]["experiment_data"]
         else:
-            self.model_state = {}
+            self.model_state = collections.OrderedDict()
             self.model_state["train_outputs"] = []
             self.model_state["test_outputs"] = []
             self.model_state["epoch"] = 1
@@ -487,7 +487,6 @@ def get_convenient_mongodb_representation(self):
     val_dict['batch_num'] = self.batchnum
     val_dict['timestamp'] = datetime.datetime.utcnow()
     val_dict['experiment_data'] = self.experiment_data
-    print(val_dict['experiment_data']['config']['layer_def'].keys())
     return SONify(val_dict)
 
 
