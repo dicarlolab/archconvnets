@@ -91,7 +91,6 @@ def imgnet_prediction_bandit_evaluate(config, kwargs, features=None):
     config_str = json.dumps(config)
     config_id = hashlib.sha1(config_str).hexdigest()
     exp_str = json.dumps({"experiment_id": exp_id,
-                          "config": config,
                           "config_id": config_id})
 
     op = ConvNet.get_options_parser()
@@ -129,6 +128,7 @@ def imgnet_prediction_bandit_evaluate(config, kwargs, features=None):
     cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=6666, checkpoint_db_name='imgnet_prediction', checkpoint_fs_name=fs_name, only_rec=True)
     rec = cpt['rec']
     rec['kwargs'] = kwargs
+    rec['spec'] = config
     rec['loss'] = rec['test_outputs'][0]['logprob'][0]
     rec['status'] = 'ok'
 
