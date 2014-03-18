@@ -355,8 +355,8 @@ class IGPUModel:
                                               self.checkpoint_fs_port,
                                               self.checkpoint_db_name,
                                               self.checkpoint_fs_name)
-            dic = {"model_state": self.model_state,
-                       "op": self.op}
+            dic = collections.OrderedDict([("model_state", self.model_state),
+                               ("op", self.op)])
             val_dict['saved_filters'] = True
             if (self.saving_freq > 0) and (((self.get_num_batches_done() / self.testing_freq) % self.saving_freq) == 0):
                 val_dict['__save_protected__'] = True
