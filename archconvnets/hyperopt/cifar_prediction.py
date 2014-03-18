@@ -73,7 +73,10 @@ def cifar_tpe_experiment_intermediate3(experiment_id):
     bandit = 'cifar_prediction_bandit_intermediate3'
     bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id,
                         'epochs_round0': 70, 'epochs_round1': 75}
-    exp = cifar_tpe_experiment(dbname, host, port, bandit, bandit_kwargdict)
+    exp = cifar_tpe_experiment(dbname, host, port, bandit, bandit_kwargdict,
+                              num=1,
+                              gamma=0.25,
+                              n_statup_jobs=1000)
     return exp
 
 
