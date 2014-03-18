@@ -1,4 +1,5 @@
 import os
+import collections
 import copy
 import numpy.random as nr
 import json
