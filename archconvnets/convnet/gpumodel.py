@@ -70,9 +70,9 @@ def cleanup_checkpoint_db(host, port, db_name, fs_name, keep_recents=True):
         rcoll = rfs._GridFS__files
         edatas = rcoll.distinct('experiment_data')
         for ed in edatas:
-            rec = rcoll.find({'experiment_data': experiment_data}
+            rec = rcoll.find({'experiment_data': ed},
                              as_class=collections.OrderedDict).sort([('timestamp', -1)])[0]
-            blob = rfs.get_last_version(_id: rec['_id'])
+            blob = rfs.get_last_version(_id=rec['_id'])
             idval = fs.put(blob, **rec)    
             print('saved record with filters to id %s' % repr(idval))
         
@@ -393,7 +393,7 @@ class IGPUModel:
                 save_recent = False
             else:
                 val_dict['saved_filters'] = False
-                'Saved (without filters) to id %s'
+                msg = 'Saved (without filters) to id %s'
                 dic = collections.OrderedDict()
                 save_recent = True
             blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
@@ -430,6 +430,7 @@ class IGPUModel:
         count = checkpoint_fs._GridFS__files.find(query).count()
         fs_to_use = checkpoint_fs
         rec = None
+        loading_from = 0
         if count > 0:
             rec = checkpoint_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
 
@@ -437,17 +438,22 @@ class IGPUModel:
                                           checkpoint_fs_port,
                                           checkpoint_db_name,
                                           checkpoint_fs_name)
-        count_recent = checkpoint_recent_fs._GridFS__files.find(query]).count()
+        count_recent = checkpoint_recent_fs._GridFS__files.find(query).count()
         if count_recent > 0:
             rec_r = checkpoint_recent_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
-            if rec is not None:
-                if rec_r['timestamp'] > rec['timestamp']:
-                    rec = rec_r
-                    fs_to_use = checkpoint_recent_fs
+            if rec is None or rec_r['timestamp'] > rec['timestamp']:
+                loading_from = 1
+                rec = rec_r
+                fs_to_use = checkpoint_recent_fs
                     
         if (count + count_recent) == 0:
-            raise NoMatchingCheckpointError('No Matching Checkpoint for query %s' % repr(query))
-        
+            raise NoMatchingCheckpointError('No Matching Checkpoint for query %s in db %s, %s, %s, %s' % (repr(query), checkpoint_fs_host, checkpoint_fs_port, checkpoint_db_name, checkpoint_fs_name))
+       
+        if loading_from == 0:
+            print('loading from regular storage')
+        else:
+            print('loading from recent db')
+ 
         if not only_rec:
             load_dic = cPickle.loads(fs_to_use.get_last_version(_id=rec['_id']).read())
         else:
