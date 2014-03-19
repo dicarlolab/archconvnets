@@ -385,7 +385,7 @@ class IGPUModel:
                                               self.checkpoint_fs_name)
             
             
-            if (self.saving_freq > 0) and (((self.get_num_batches_done() / self.testing_freq) % self.saving_freq) == 0):
+            if self.save_filters and (self.saving_freq > 0) and (((self.get_num_batches_done() / self.testing_freq) % self.saving_freq) == 0):
                 val_dict['saved_filters'] = True
                 dic = collections.OrderedDict([("model_state", self.model_state),
                                ("op", self.op)])
@@ -395,7 +395,7 @@ class IGPUModel:
                 val_dict['saved_filters'] = False
                 msg = 'Saved (without filters) to id %s'
                 dic = collections.OrderedDict()
-                save_recent = True
+                save_recent = self.save_filters
             blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
             idval = checkpoint_fs.put(blob, **val_dict)
             print(msg % str(idval))
@@ -485,6 +485,7 @@ class IGPUModel:
               default=False )
         ####### db configs #######
         op.add_option("save-db", "save_db", BooleanOptionParser, "Save checkpoints to mongo database?", default=0)
+        op.add_option("save-filters", "save_filters", BooleanOptionParser, "Save filters to database?", default=1)
         op.add_option("saving-freq", "saving_freq", IntegerOptionParser, 
                       "Frequency for saving filters to db filesystem, as a multiple of testing-freq", 
                       default=1)
