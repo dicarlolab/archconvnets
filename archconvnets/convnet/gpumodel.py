@@ -395,7 +395,7 @@ class IGPUModel:
                 val_dict['saved_filters'] = False
                 msg = 'Saved (without filters) to id %s'
                 dic = collections.OrderedDict()
-                save_recent = self.save_filters
+                save_recent = self.save_filters and self.save_recent_filters
             blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
             idval = checkpoint_fs.put(blob, **val_dict)
             print(msg % str(idval))
@@ -450,9 +450,9 @@ class IGPUModel:
             raise NoMatchingCheckpointError('No Matching Checkpoint for query %s in db %s, %s, %s, %s' % (repr(query), checkpoint_fs_host, checkpoint_fs_port, checkpoint_db_name, checkpoint_fs_name))
        
         if loading_from == 0:
-            print('loading from regular storage')
+            print('Loading checkpoint from regular storage.')
         else:
-            print('loading from recent db')
+            print('Loading checkpoint from "recent" storage.')
  
         if not only_rec:
             load_dic = cPickle.loads(fs_to_use.get_last_version(_id=rec['_id']).read())
@@ -486,6 +486,7 @@ class IGPUModel:
         ####### db configs #######
         op.add_option("save-db", "save_db", BooleanOptionParser, "Save checkpoints to mongo database?", default=0)
         op.add_option("save-filters", "save_filters", BooleanOptionParser, "Save filters to database?", default=1)
+        op.add_option("save-recent-filters", 'save_recent_filters', BooleanOptionParser, "Save recent filters to database?", default=1)
         op.add_option("saving-freq", "saving_freq", IntegerOptionParser, 
                       "Frequency for saving filters to db filesystem, as a multiple of testing-freq", 
                       default=1)
@@ -521,7 +522,7 @@ class IGPUModel:
             if options["load_file"].value_given:
                 load_dic = IGPUModel.load_checkpoint(options["load_file"].value)
             if options["load_query"].value_given:
-                print "loadin from db"
+                print "Loading checkpoint from database."
                 load_dic = IGPUModel.load_checkpoint_from_db(options["load_query"].value,
                                                              options["checkpoint_fs_host"].value,
                                                              options["checkpoint_fs_port"].value,
