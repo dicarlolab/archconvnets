@@ -290,6 +290,7 @@ def cifar_prediction_bandit_evaluate2(config, kwargs, features=None):
 
     op = ConvNet.get_options_parser()
     oppdict = [('--save-db', '1'),
+               ('--save-recent-filters', '0'),
                ('--crop', '4'),
                ('--train-range', '0-4'),
                ('--test-range', '5'),
@@ -299,7 +300,7 @@ def cifar_prediction_bandit_evaluate2(config, kwargs, features=None):
                ('--data-provider', 'general-cropped'),
                ('--dp-params', '{"preproc": {"normalize": false, "dtype": "float32", "mask": null, "crop": null, "resize_to": [32, 32], "mode": "RGB"}, "batch_size": 10000, "meta_attribute": "category", "dataset_name":["dldata.stimulus_sets.cifar10", "Cifar10"]}'),
                ('--test-freq', kwargs.get('test_freq', 50)),
-               ('--saving-freq', '0'),
+               ('--saving-freq', '3'),
                ('--epochs', kwargs.get('epochs_round0', 75)),
                ('--img-size', '32'),
                ('--experiment-data', exp_str),
