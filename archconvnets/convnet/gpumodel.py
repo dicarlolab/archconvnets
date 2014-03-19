@@ -55,10 +55,38 @@ def get_checkpoint_fs(host, port, db_name, fs_name):
         raise(pm.errors.ConnectionFailure(e))
     else:
         return gridfs.GridFS(checkpoint_db, fs_name)
+        
+        
+def get_recent_checkpoint_fs(host, port, db_name, fs_name):
+    return get_checkpoint_fs(host, port, db_name + "__RECENT", fs_name)
+
+
+def cleanup_checkpoint_db(host, port, db_name, fs_name, keep_recents=True):
+
+    rfs = get_recent_checkpoint_fs(host, port, db_name, fs_name)
+
+    if keep_recents:
+        fs = get_checkpoint_fs(host, port, db_name, fs_name)
+        rcoll = rfs._GridFS__files
+        edatas = rcoll.distinct('experiment_data')
+        for ed in edatas:
+            rec = rcoll.find({'experiment_data': ed},
+                             as_class=collections.OrderedDict).sort([('timestamp', -1)])[0]
+            blob = rfs.get_last_version(_id=rec['_id'])
+            idval = fs.put(blob, **rec)    
+            print('saved record with filters to id %s' % repr(idval))
+        
+    conn = pm.Connection(host=host, port=port)
+    conn.drop_database(rfs._GridFS__database)
 
 
 class ModelStateException(Exception):
     pass
+
+
+class NoMatchingCheckpointError(Exception):
+    pass
+    
 
 # GPU Model interface
 class IGPUModel:
@@ -355,28 +383,35 @@ class IGPUModel:
                                               self.checkpoint_fs_port,
                                               self.checkpoint_db_name,
                                               self.checkpoint_fs_name)
-            dic = collections.OrderedDict([("model_state", self.model_state),
-                               ("op", self.op)])
-            val_dict['saved_filters'] = True
+            
+            
             if (self.saving_freq > 0) and (((self.get_num_batches_done() / self.testing_freq) % self.saving_freq) == 0):
-                val_dict['__save_protected__'] = True
+                val_dict['saved_filters'] = True
+                dic = collections.OrderedDict([("model_state", self.model_state),
+                               ("op", self.op)])
+                msg = 'Saved (with filters) to id %s'
+                save_recent = False
             else:
-                val_dict['__save_protected__'] = False
+                val_dict['saved_filters'] = False
+                msg = 'Saved (without filters) to id %s'
+                dic = collections.OrderedDict()
+                save_recent = True
             blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
             idval = checkpoint_fs.put(blob, **val_dict)
-            print('Saved (with filters) to id %s' % str(idval))
-            to_remove_filters = list(checkpoint_fs._GridFS__files.find({'experiment_data': self.experiment_data, 
-                                                'saved_filters': True,
-                                                '__save_protected__': False}, 
-                                                as_class=collections.OrderedDict).sort('timestamp'))
-            for trf in to_remove_filters:
-                if trf['_id'] != idval:
-                    print('Removing filters saved to id %s' % str(trf['_id']))
-                    checkpoint_fs.delete(trf['_id'])
-                    blob = cPickle.dumps(collections.OrderedDict(), protocol=cPickle.HIGHEST_PROTOCOL)
-                    trf['saved_filters'] = False
-                    checkpoint_fs.put(blob, **trf)
-                                      
+            print(msg % str(idval))
+            
+            if save_recent:
+                checkpoint_recent_fs = get_recent_checkpoint_fs(self.checkpoint_fs_host,
+                                              self.checkpoint_fs_port,
+                                              self.checkpoint_db_name,
+                                              self.checkpoint_fs_name)
+                dic = collections.OrderedDict([("model_state", self.model_state),
+                               ("op", self.op)])
+                val_dict['saved_filters'] = True
+                blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
+                idval = checkpoint_recent_fs.put(blob, **val_dict)
+                msg = 'Saved recent (with filters) to id %s'
+                print(msg % str(idval))
 
     @staticmethod
     def load_checkpoint(load_dir):
@@ -390,10 +425,37 @@ class IGPUModel:
                                           checkpoint_fs_port,
                                           checkpoint_db_name,
                                           checkpoint_fs_name)
+        
         query['saved_filters'] = True
-        rec = checkpoint_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
+        count = checkpoint_fs._GridFS__files.find(query).count()
+        fs_to_use = checkpoint_fs
+        rec = None
+        loading_from = 0
+        if count > 0:
+            rec = checkpoint_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
+
+        checkpoint_recent_fs = get_recent_checkpoint_fs(checkpoint_fs_host,
+                                          checkpoint_fs_port,
+                                          checkpoint_db_name,
+                                          checkpoint_fs_name)
+        count_recent = checkpoint_recent_fs._GridFS__files.find(query).count()
+        if count_recent > 0:
+            rec_r = checkpoint_recent_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
+            if rec is None or rec_r['timestamp'] > rec['timestamp']:
+                loading_from = 1
+                rec = rec_r
+                fs_to_use = checkpoint_recent_fs
+                    
+        if (count + count_recent) == 0:
+            raise NoMatchingCheckpointError('No Matching Checkpoint for query %s in db %s, %s, %s, %s' % (repr(query), checkpoint_fs_host, checkpoint_fs_port, checkpoint_db_name, checkpoint_fs_name))
+       
+        if loading_from == 0:
+            print('loading from regular storage')
+        else:
+            print('loading from recent db')
+ 
         if not only_rec:
-            load_dic = cPickle.loads(checkpoint_fs.get_last_version(_id=rec['_id']).read())
+            load_dic = cPickle.loads(fs_to_use.get_last_version(_id=rec['_id']).read())
         else:
             load_dic = {}
         load_dic['rec'] = rec
