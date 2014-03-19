@@ -78,7 +78,7 @@ def cifar_tpe_experiment_intermediate3(experiment_id):
     exp = cifar_tpe_experiment(dbname, host, port, bandit, bandit_kwargdict,
                               num=1,
                               gamma=0.25,
-                              n_startup_jobs=1000)
+                              n_startup_jobs=200)
     return exp
 
 
