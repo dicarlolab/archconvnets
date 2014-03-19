@@ -300,7 +300,7 @@ def cifar_prediction_bandit_evaluate2(config, kwargs, features=None):
                ('--data-provider', 'general-cropped'),
                ('--dp-params', '{"preproc": {"normalize": false, "dtype": "float32", "mask": null, "crop": null, "resize_to": [32, 32], "mode": "RGB"}, "batch_size": 10000, "meta_attribute": "category", "dataset_name":["dldata.stimulus_sets.cifar10", "Cifar10"]}'),
                ('--test-freq', kwargs.get('test_freq', 50)),
-               ('--saving-freq', '7'),
+               ('--saving-freq', '14'),
                ('--epochs', kwargs.get('epochs_round0', 75)),
                ('--img-size', '32'),
                ('--experiment-data', exp_str),
