@@ -964,7 +964,7 @@ class ConvLayerParser(LocalLayerParser):
         dic['sharedBiases'] = mcp.safe_get_bool(name, 'sharedBiases', default=True)
 
         if dic['partialSum'] != 0 and dic['modules'] % dic['partialSum'] != 0:
-            raise LayerParsingError("Layer '%s': convolutional layer produces %dx%d=%d outputs per filter, but given partialSum parameter (%d) does not divide this number" % (name, dic['modulesX'], dic['modulesX'], dic['modules'], dic['partialSum']))
+            dic['partialSum'] = dic['modules'] #raise LayerParsingError("Layer '%s': convolutional layer produces %dx%d=%d outputs per filter, but given partialSum parameter (%d) does not divide this number" % (name, dic['modulesX'], dic['modulesX'], dic['modules'], dic['partialSum']))
 
         num_biases = dic['filters'] if dic['sharedBiases'] else dic['modules']*dic['filters']
 
