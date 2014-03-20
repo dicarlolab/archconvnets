@@ -60,7 +60,7 @@ def cifar_random_experiment_intermediate2(experiment_id):
 def cifar_random_experiment_intermediate3(experiment_id):
     dbname = 'cifar_predictions_random_experiment_intermediate3'
     host = 'localhost'
-    port = 22334
+    port = 6667
     bandit = 'cifar_prediction_bandit_intermediate3'
     bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
     exp = cifar_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
@@ -257,7 +257,7 @@ def cifar_prediction_bandit_evaluate(config, kwargs, features=None):
         if not e.code == 0:
             raise e
 
-    cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=27017, checkpoint_db_name='cifar_prediction', checkpoint_fs_name=fs_name, only_rec=True)
+    cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=6666, checkpoint_db_name='cifar_prediction', checkpoint_fs_name=fs_name, only_rec=True)
     rec = cpt['rec']
     rec['kwargs'] = kwargs
     rec['loss'] = rec['test_outputs'][0]['logprob'][0]
@@ -328,7 +328,7 @@ def cifar_prediction_bandit_evaluate2(config, kwargs, features=None):
             raise e
             
 
-    cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=27017, checkpoint_db_name='cifar_prediction', checkpoint_fs_name=fs_name, only_rec=True)
+    cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=6666, checkpoint_db_name='cifar_prediction', checkpoint_fs_name=fs_name, only_rec=True)
     rec = cpt['rec']
     rec['kwargs'] = kwargs
     rec['loss'] = rec['test_outputs'][0]['logprob'][0]

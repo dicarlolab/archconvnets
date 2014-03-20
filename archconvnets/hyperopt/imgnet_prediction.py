@@ -1,5 +1,5 @@
 import os
-import collection
+import collections
 import copy
 import numpy.random as nr
 import json
@@ -19,19 +19,18 @@ from ..convnet.convnet import ConvNet
 from ..convnet.api import odict_to_config
 from ..convnet.layer import LayerParsingError
 
-from . import imgnet_params_new_no_bias
+from . import imgnet_params_intermediate3
 from .hyperopt_helpers import suggest_multiple_from_name
 
-
-def imgnet_random_experiment_new_no_bias(experiment_id):
-    dbname = 'imgnet_predictions_random_experiment_new_no_bias'
+def imgnet_random_experiment_intermediate3(experiment_id):
+    dbname = 'imgnet_predictions_random_experiment_intermediate3'
     host = 'localhost'
     port = 6667
-    bandit = 'imgnet_prediction_bandit_new_no_bias'
-    bandit_kwargdict = {'param_args': {'num_layers': 1}, 'experiment_id': experiment_id}
+    bandit = 'imgnet_prediction_bandit_intermediate3'
+    bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
     exp = imgnet_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
     return exp
-
+    
 
 def imgnet_random_experiment(dbname, host, port, bandit, bandit_kwargdict):
     num = 1
@@ -54,6 +53,30 @@ def imgnet_random_experiment(dbname, host, port, bandit, bandit_kwargdict):
                                bandit_algo_kwargs_list=[{} for _i in range(num)])
 
 
+def imgnet_tpe_experiment(dbname, host, port, bandit, bandit_kwargdict,
+                           num,
+                           gamma,
+                           n_startup_jobs):
+    bandit_algo_names = ['hyperopt.TreeParzenEstimator'] * num
+    bandit_names = ['archconvnets.hyperopt.imgnet_prediction.%s' % bandit] * num
+    #ek = hashlib.sha1(cPickle.dumps(bandit_kwargdict)).hexdigest()
+    exp_keys = ['imgnet_prediction_tpe_%s_%s_%i' % (bandit, bandit_kwargdict['experiment_id'], i) for i in range(num)]
+    bandit_args_list = [(bandit_kwargdict,) for i in range(num)]
+    bandit_kwargs_list = [{} for i in range(num)]
+    return suggest_multiple_from_name(dbname=dbname,
+                               host=host,
+                               port=port,
+                               bandit_algo_names=bandit_algo_names,
+                               bandit_names=bandit_names,
+                               exp_keys=exp_keys,
+                               N=None,
+                               bandit_args_list=bandit_args_list,
+                               bandit_kwargs_list=[{} for _i in range(num)],
+                               bandit_algo_args_list=[() for _i in range(num)],
+                               bandit_algo_kwargs_list=[{'gamma':gamma,
+                    'n_startup_jobs': n_startup_jobs} for _i in range(num)])
+
+
 bandit_exceptions = [
             (
                 lambda e:
@@ -69,19 +92,33 @@ bandit_exceptions = [
 
 
 @hyperopt.base.as_bandit(exceptions=bandit_exceptions)
-def imgnet_prediction_bandit_new_no_bias(argdict):
-    template = imgnet_params_new_no_bias.template_func(argdict['param_args'])
-    interpreted_template = scope.config_interpret(template)
+def imgnet_prediction_bandit_intermediate(argdict):
+    template = imgnet_params_intermediate.template_func(argdict['param_args'])
+    interpreted_template = scope.config_interpret_intermediate(template)
     return scope.imgnet_prediction_bandit_evaluate(interpreted_template, argdict)
 
+@hyperopt.base.as_bandit(exceptions=bandit_exceptions)
+def imgnet_prediction_bandit_intermediate3(argdict):
+    template = imgnet_params_intermediate3.template_func(argdict['param_args'])
+    interpreted_template = scope.config_interpret_intermediate3(template)
+    return scope.imgnet_prediction_bandit_evaluate2(interpreted_template, argdict)
+
 
 @scope.define
-def config_interpret(template):
-    return imgnet_params_new_no_bias.config_interpretation(template)
+def config_interpret_intermediate3(config):
+    config = copy.deepcopy(config)
+    config['layer_def'] = imgnet_params_intermediate3.config_interpretation(config['layer_def'])
+    return config
+
+def reduce_learning_rates(config, factor):
+    for l in config:
+        for k in l:
+            if 'eps' in k:
+                config[l][k] *= factor
 
 
 @scope.define
-def imgnet_prediction_bandit_evaluate(config, kwargs, features=None):
+def imgnet_prediction_bandit_evaluate2(config, kwargs, features=None):
     _, layer_fname = tempfile.mkstemp()
     odict_to_config(config['layer_def'], savepath=layer_fname)
     _, layer_param_fname = tempfile.mkstemp()
@@ -91,24 +128,26 @@ def imgnet_prediction_bandit_evaluate(config, kwargs, features=None):
     fs_name = 'imgnet_prediction'
     config_str = json.dumps(config)
     config_id = hashlib.sha1(config_str).hexdigest()
-    exp_str = json.dumps({"experiment_id": exp_id,
-                          "config_id": config_id})
+    exp_str = json.dumps(collections.OrderedDict([("experiment_id", exp_id),
+                          ("config", config),
+                          ("config_id", config_id)]))
 
     op = ConvNet.get_options_parser()
     oppdict = [('--save-db', '1'),
-               ('--crop', '9'),
-               ('--train-range', '0-4'),
-               ('--test-range', '5'),
+               ('--save-recent-filters', '0'),
+               ('--crop-border', '9'),
+               ('--train-range', '0-4350'),#'0-4'),
+               ('--test-range', '4351-4550'),#'5'),
                ('--layer-def', layer_fname),
                ('--conserve-mem', '1'),
                ('--layer-params', layer_param_fname),
+               ('--checkpoint-fs-port', '6666'),
                ('--data-provider', 'general-cropped'),
                ('--data-path', '/export/storage/imgnet_256batchsz_138px'),
                ('--dp-params', '{"perm_type": "random", "perm_seed": 0, "preproc": {"normalize": false, "dtype": "float32", "resize_to": [138, 138], "mode": "RGB", "crop": null, "mask": null}, "batch_size": 256, "meta_attribute": "synset", "dataset_name": ["imagenet.dldatasets", "ChallengeSynsets2013_offline"]}'),
-               ('--test-freq', '100'),
-               ('--saving-freq', '0'),
-               ('--checkpoint-fs-port', '6666'),
-               ('--epochs', '10'),
+               ('--test-freq', kwargs.get('test_freq', 100)),
+               ('--saving-freq', '100'),
+               ('--epochs', kwargs.get('epochs_round0', 10)),
                ('--img-size', '138'),
                ('--experiment-data', exp_str),
                ('--checkpoint-db-name', 'imgnet_prediction'),
@@ -125,11 +164,21 @@ def imgnet_prediction_bandit_evaluate(config, kwargs, features=None):
     except SystemExit, e:
         if not e.code == 0:
             raise e
+            
+    model.scale_learningRate(0.1)
+    model.num_epochs = kwargs.get('epochs_round1', 15)
+    try:
+        model.start()
+    except SystemExit, e:
+        if not e.code == 0:
+            raise e
+            
 
+    print exp_id
+    print config_id
     cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=6666, checkpoint_db_name='imgnet_prediction', checkpoint_fs_name=fs_name, only_rec=True)
     rec = cpt['rec']
     rec['kwargs'] = kwargs
-    rec['spec'] = config
     rec['loss'] = rec['test_outputs'][0]['logprob'][0]
     rec['status'] = 'ok'
 
