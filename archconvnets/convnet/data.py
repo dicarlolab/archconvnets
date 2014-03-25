@@ -82,8 +82,8 @@ class DataProvider:
             dic = unpickle(self.get_data_file_name(batch_num))
         return dic
 
-    def get_data_dims(self):
-        return self.batch_meta['num_vis']
+    def get_data_dims(self, idx=0):
+        return self.batch_meta['num_vis'] if idx == 0 else 1
 
     def advance_batch(self):
         self.batch_idx = self.get_next_batch_idx()
@@ -211,6 +211,31 @@ class LabeledDataProvider(DataProvider):
 
     def get_num_classes(self):
         return len(self.batch_meta['label_names'])
+
+
+class LabeledDataProviderTrans(LabeledDataProvider):
+
+    def __init__(self, data_dir,
+            img_size, num_colors,
+            batch_range=None,
+            init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+
+        LabeledDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
+        self.num_colors = num_colors
+        self.img_size = img_size
+
+    def get_out_img_size( self ):
+        return self.img_size
+
+    def get_out_img_depth( self ):
+        return self.num_colors 
+
+    def get_next_batch(self):
+        epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
+        d['data'] = n.c_[n.require(d['data'], dtype=n.single, requirements='C')]
+        d['data'] = d['data'].T
+        d['labels'] = n.c_[n.require(d['labels'], dtype=n.single, requirements='C')]
+        return epoch, batchnum, [d['data'], d['labels']]
 
 
 class LabeledMemoryDataProvider(LabeledDataProvider):
