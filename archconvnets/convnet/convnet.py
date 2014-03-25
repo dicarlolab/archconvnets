@@ -33,6 +33,7 @@ import sys
 import math as m
 import layer as lay
 from convdata import *
+from data import LabeledDataProvider
 from os import linesep as NL
 #import pylab as pl
 
@@ -201,6 +202,8 @@ class ConvNet(IGPUModel):
         op.options['dp_type'].default = None
 
         # dummy provider
+        DataProvider.register_data_provider('labeled-data', 'Labeled Data', LabeledDataProvider)
+        DataProvider.register_data_provider('labeled-data-trans', 'Labeled Data Trans', LabeledDataProviderTrans)
         DataProvider.register_data_provider('dummy-cn-n', 'Dummy ConvNet', DummyConvNetDataProvider)
         # cifar data provider
         DataProvider.register_data_provider('cifar-rand', 'CIFAR Random', CIFARDataRandomProvider)
