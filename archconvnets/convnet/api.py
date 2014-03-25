@@ -87,12 +87,15 @@ def setup_training(architecture_params, training_params, training_steps, data_pr
     return commands
 
 
-def assemble_feature_batches(feat_dir):
+def assemble_feature_batches(feat_dir, N=None, seed=0):
     p = re.compile('data_batch_([\d]+)')
     L = os.listdir(feat_dir)
     bns = map(int, [p.match(l).groups()[0] for l in L if p.match(l)])
     bns.sort()
     data = []
     for x in bns:
+        ft = unpickle(os.path.join(feat_dir, 'data_batch_%d' % x))['data']
+        if N is not None:
+            ft = ft[:, np.random.RandomState(seed=seed).permutation(ft.shape[1])[:N]]
         data.append(unpickle(os.path.join(feat_dir, 'data_batch_%d' % x))['data'])
     return np.row_stack(data)
