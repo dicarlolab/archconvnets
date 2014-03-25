@@ -219,7 +219,6 @@ class LabeledDataProviderTrans(LabeledDataProvider):
             img_size, num_colors,
             batch_range=None,
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
-
         LabeledDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
         self.num_colors = num_colors
         self.img_size = img_size
@@ -232,8 +231,9 @@ class LabeledDataProviderTrans(LabeledDataProvider):
 
     def get_next_batch(self):
         epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
-        d['data'] = n.c_[n.require(d['data'], dtype=n.single, requirements='C')]
+        d['data'] = n.require(d['data'], dtype=n.single, requirements='C')
         d['data'] = d['data'].T
+        d['data'] = n.require(d['data'], requirements='C')
         d['labels'] = n.c_[n.require(d['labels'], dtype=n.single, requirements='C')]
         return epoch, batchnum, [d['data'], d['labels']]
 
