@@ -14,6 +14,23 @@ def train_softmax(data_path, train_range, test_range, test_freq, save_freq, epoc
           initW=0.01, epsw=0.001, epsb=0.001, momw=0.9, momb=0.9,
           db_name='softmax_results', fs_name='softmax_results'):
 
+    """train (and test) softmax classifier on top of a feature set.  
+       
+       this makes a specific call to convnet.py so results are stored in a convnet checkpoint db,
+       just as with any such convnet training process.   The specific call that is made is to train a single 
+       fc layer, followed by a softmax. 
+    
+       data_path: location of the feature batches (expected to be in the standard archconvnets format, 
+           so thus labels are containined as well for each image)
+       train_range: valid train range specification, e.g. "0-20"
+       test_range: valid test range specificaiton, e.g. "20-40"
+       test_freq, save_freq, epochs:  as in convnet.py
+       eid: string, experiment_id for storing results
+       db_name: db where results are stored 
+       fs_name: fs where results are stored
+       initW, epsw, epsb, momw, momb: floats.  parameters to the training.
+    """
+
     X = cPickle.loads(open(os.path.join(data_path, 'batches.meta')).read())
     nv = X['num_vis']
     nl = len(X['label_names'])
