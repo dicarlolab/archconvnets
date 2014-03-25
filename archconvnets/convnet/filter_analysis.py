@@ -204,7 +204,7 @@ def add_stds(m1, m2, s1, s2, n1, n2):
 from dldata.metrics import utils
 from dldata.metrics import classifier
 
-def compute_performance_mcc_batches(lname, bdir, train_batches, test_batches, normalize=True):
+def compute_performance_mcc_batches(lname, bdir, train_batches, test_batches, mname, normalize=True):
     train_abatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'a', 'data_batch_%d' % tb) for tb in train_batches]
     train_bbatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'b', 'data_batch_%d' % tb) for tb in train_batches]
 
@@ -212,16 +212,18 @@ def compute_performance_mcc_batches(lname, bdir, train_batches, test_batches, no
     N_a = 1000
     b_meta = cPickle.loads(open(os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'b', 'batches.meta')).read())
     N_b = 1000
-    assert a_meta['label_names'] == b_meta['label_names']
+    assert (a_meta['label_names'] == b_meta['label_names']).all()
     label_names = a_meta['label_names']
-    labelset = np.arange(label_names)
-    cls = classifier.MCC2(labelset, N_a + N_b)
+    labelset = np.arange(len(label_names))
+    cls = classifier.MaximumCorrelationClassifier2(labelset, N_a + N_b)
+    cls.initialize()
 
     if normalize:
         train_mean = None
         train_std = None
         N = 0
         for a, b in zip(train_abatches, train_bbatches):
+            print(a, b)
             A = cPickle.loads(open(a).read())
             A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
             B = cPickle.loads(open(b).read())
@@ -242,6 +244,7 @@ def compute_performance_mcc_batches(lname, bdir, train_batches, test_batches, no
 
 
     for a, b in zip(train_abatches, train_bbatches):
+        print(a, b)
         A = cPickle.loads(open(a).read())
         A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
         B = cPickle.loads(open(b).read())
@@ -249,7 +252,7 @@ def compute_performance_mcc_batches(lname, bdir, train_batches, test_batches, no
         F = np.column_stack([A['data'], B['data']])
         if normalize:
             F = normalizer(F)
-        cls.partial_fit(F, A['labels'])
+        cls.partial_fit(F, A['labels'][0], labelcheck=False)
 
 
     test_abatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'a', 'data_batch_%d' % tb) for tb in test_batches]
@@ -258,6 +261,7 @@ def compute_performance_mcc_batches(lname, bdir, train_batches, test_batches, no
     prediction = []
     actual = []
     for a, b in zip(test_abatches, test_bbatches):
+        print(a, b)
         A = cPickle.loads(open(a).read())
         A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
         B = cPickle.loads(open(b).read())
@@ -266,19 +270,19 @@ def compute_performance_mcc_batches(lname, bdir, train_batches, test_batches, no
         if normalize:
             F = normalizer(F)
         prediction.append(cls.predict(F))
-        actual.append(A['labels'])
+        actual.append(A['labels'][0])
 
     prediction = np.concatenate(prediction)
-    actual = np.concatenate(actual)
+    actual = np.concatenate(actual).astype(int)
 
     actual = label_names[actual]
     prediction = label_names[prediction]
 
-    split_result = classifier.get_test_result(actual, predictions, label_names, prefix='test')
+    split_result = classifier.get_test_result(actual, prediction, label_names, prefix='test')
 
-    utils.compute_classifier_metrics({}, [split_result], {}, slice(None), labelset)
+    #utils.compute_classifier_metrics({}, [split_result], {}, slice(None), labelset)
 
-    return result
+    return split_result
 
 from archconvnets.convnet import api
 import imagenet.dldatasets as inet
