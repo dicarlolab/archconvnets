@@ -15,7 +15,7 @@ def getstats(fname, linds):
     return getstats_base(convnet.util.unpickle(fname), linds)
 
 
-def getstats_from_db(query, linds, checkpoint_fs_host='localhost', 
+def getstats_from_db(query, linds, checkpoint_fs_host='localhost',
                             checkpoint_fs_port=27017,
                             checkpoint_db_name='convnet_checkpoint_db',
                             checkpoint_fs_name='convnet_checkpoint_fs'):
@@ -54,7 +54,7 @@ def getstats_base(X, linds):
             sval[lname].update({'corr': cf, 'corr2': cf2, 'corr_t': cft, 'corr2_t': cf2t})
 
     return sval
-            
+
 
 def compute_all_stats(dirname):
     L = np.array(os.listdir('/export/imgnet_storage_full/ConvNet_full_nofc'))
@@ -72,7 +72,7 @@ def compute_all_stats_cifar_stats(dirname):
 
     linds = [(1, [2]), (2, [5])]
 
-    """ 
+    """
     if not os.path.exists(os.path.join(dirname, 'color_orig')):
         os.makedirs(os.path.join(dirname, 'color_orig'))
     dirn = '/home/darren/cifar_checkpoints/color/orig/ConvNet__2014-01-15_12.13.14'
@@ -98,7 +98,7 @@ def compute_all_stats_cifar_stats(dirname):
         s = getstats(os.path.join(dirn, l), linds=linds)
         with open(os.path.join(dirname, 'no_color_orig', l), 'w') as _f:
             cPickle.dump(s, _f)
-    
+
 
     linds = [(1, [2]), (2, [5]), (3, [8]), (4, [10])]
 
@@ -134,7 +134,7 @@ def compute_all_stats_cifar_stats(dirname):
 
 import gridfs
 def compute_all_synth_0_stats():
-    
+
     conn = pm.Connection()
     N = 5
     #linds = [(1, [4, 2]), (2, [8, 26]), (3, [12, 30]), (4, [14, 32]), (5, [16, 34])]
@@ -163,7 +163,7 @@ def compute_all_synth_0_stats():
         dic['rec']['checkpoint_db_name'] = checkpoint_db_name
         dic['rec']['checkpoint_fs_name'] = checkpoint_fs_name
         blob = cPickle.dumps(s)
-        fs.put(blob, **dic['rec']) 
+        fs.put(blob, **dic['rec'])
 
 
 def compute_more_stats():
@@ -172,10 +172,10 @@ def compute_more_stats():
 
     qs = [({'experiment_data.experiment_id': "synthetic_training_bsize256_large_category"},
            'convnet_checkpoint_fs'),
-          ({u'experiment_data.experiment_id': u'imagenet_training_reference_0'}, 
+          ({u'experiment_data.experiment_id': u'imagenet_training_reference_0'},
            'reference_models'),
           ({u'experiment_data.experiment_id': u'imagenet_training_reference_0_nofc'}, 'reference_models')]
-    
+
     for q, fname in qs:
         print q, fname
         dic, s = getstats_from_db(q, None, checkpoint_fs_name=fname)
@@ -188,6 +188,97 @@ def compute_more_stats():
             blob = cPickle.dumps(s[lname])
             fs.put(blob, **dic1)
 
+
+def add_stds(m1, m2, s1, s2, n1, n2):
+    v1 = s1**2
+    v2 = s2**2
+    n1 = float(n1)
+    n2 = float(n2)
+    a = (n1 / (n1+n2)) * (v1 + m1**2)
+    b = (n2 / (n1+n2)) * (v2 + m2**2)
+    c = (n1 / (n1+n2)) * m1
+    d = (n2 / (n1+n2)) * m2
+    t = a + b - (c + d)**2
+    return np.sqrt(t)
+
+from dldata.metrics import utils
+from dldata.metrics import classifier
+
+def compute_performance_mcc_batches(lname, bdir, train_batches, test_batches, normalize=True):
+    train_abatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'a', 'data_batch_%d' % tb) for tb in train_batches]
+    train_bbatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'b', 'data_batch_%d' % tb) for tb in train_batches]
+
+    a_meta = cPickle.loads(open(os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'a', 'batches.meta')).read())
+    N_a = 1000
+    b_meta = cPickle.loads(open(os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'b', 'batches.meta')).read())
+    N_b = 1000
+    assert a_meta['label_names'] == b_meta['label_names']
+    label_names = a_meta['label_names']
+    labelset = np.arange(label_names)
+    cls = classifier.MCC2(labelset, N_a + N_b)
+
+    if normalize:
+        train_mean = None
+        train_std = None
+        N = 0
+        for a, b in zip(train_abatches, train_bbatches):
+            A = cPickle.loads(open(a).read())
+            A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
+            B = cPickle.loads(open(b).read())
+            B['data'] = B['data'][:, np.random.RandomState(0).permutation(B['data'].shape[1])[:N_b]]
+            F = np.column_stack([A['data'], B['data']])
+
+            if train_mean is None:
+                train_mean = F.mean(axis=0)
+                train_std = np.maximum(F.std(axis=0), 1e-8)
+            else:
+                fr = float(N) / (N + len(F))
+                m2 = F.mean(axis=0)
+                train_mean = fr * train_mean + (1 - fr) * F.mean(axis=0)
+                train_std = add_stds(train_mean, m2, train_std, F.std(axis=0), N, len(F))
+
+            N += len(F)
+        normalizer = lambda x: (x - train_mean) / np.maximum(train_std, 1e-8)
+
+
+    for a, b in zip(train_abatches, train_bbatches):
+        A = cPickle.loads(open(a).read())
+        A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
+        B = cPickle.loads(open(b).read())
+        B['data'] = B['data'][:, np.random.RandomState(0).permutation(B['data'].shape[1])[:N_b]]
+        F = np.column_stack([A['data'], B['data']])
+        if normalize:
+            F = normalizer(F)
+        cls.partial_fit(F, A['labels'])
+
+
+    test_abatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'a', 'data_batch_%d' % tb) for tb in test_batches]
+    test_bbatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'b', 'data_batch_%d' % tb) for tb in test_batches]
+
+    prediction = []
+    actual = []
+    for a, b in zip(test_abatches, test_bbatches):
+        A = cPickle.loads(open(a).read())
+        A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
+        B = cPickle.loads(open(b).read())
+        B['data'] = B['data'][:, np.random.RandomState(0).permutation(B['data'].shape[1])[:N_b]]
+        F = np.column_stack([A['data'], B['data']])
+        if normalize:
+            F = normalizer(F)
+        prediction.append(cls.predict(F))
+        actual.append(A['labels'])
+
+    prediction = np.concatenate(prediction)
+    actual = np.concatenate(actual)
+
+    actual = label_names[actual]
+    prediction = label_names[prediction]
+
+    split_result = classifier.get_test_result(actual, predictions, label_names, prefix='test')
+
+    utils.compute_classifier_metrics({}, [split_result], {}, slice(None), labelset)
+
+    return result
 
 from archconvnets.convnet import api
 import imagenet.dldatasets as inet
@@ -212,7 +303,7 @@ def compute_performance(mname, lname, bdir):
     'train_q': {'var': ['V6']},
     'test_q': {'var': ['V6']},
     'split_by': 'obj'}
-    
+
     dataset = hvm.HvMWithDiscfade()
     meta = dataset.meta
     meta0 = meta[np.random.RandomState(0).permutation(len(meta))]
@@ -245,7 +336,7 @@ def compute_performance(mname, lname, bdir):
     'test_q': {},
     'split_by': 'obj'}
 
-    #ev = {'npc_train': 400, 
+    #ev = {'npc_train': 400,
     #   	  'npc_test': 100,
     #  'num_splits': NS,
 #	  'npc_validate': 0,
@@ -261,7 +352,7 @@ def compute_performance(mname, lname, bdir):
     rec_b_t = utils.compute_metric_base(Xb[:, np.random.RandomState(0).permutation(Xb.shape[1])[:2000]], meta0, ev)
     rec_t = utils.compute_metric_base(X[:, np.random.RandomState(0).permutation(X.shape[1])[:2000]], meta0, ev)
 
-    return {'rec_hvm_a': rec_a, 'rec_hvm_b': rec_b, 'rec_hvm': rec, 
+    return {'rec_hvm_a': rec_a, 'rec_hvm_b': rec_b, 'rec_hvm': rec,
             'rec_a_training': rec_a_t, 'rec_b_training': rec_b, 'rec_training': rec_t
             }
 
