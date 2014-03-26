@@ -205,34 +205,40 @@ def add_stds(m1, m2, s1, s2, n1, n2):
 from dldata.metrics import utils
 from dldata.metrics import classifier
 
-def compute_performance_online_batches(lname, bdir, train_batches, test_batches, mname, normalize=True, ctype='MCC'):
-    train_abatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'a', 'data_batch_%d' % tb) for tb in train_batches]
-    train_bbatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'b', 'data_batch_%d' % tb) for tb in train_batches]
+def compute_performance_online_batches_challenge_set(lname, bdir, train_batches, test_batches, normalize=True, ctype='MCC', num_feats=2000):
+    lnames = [lname + 'a', lname + 'b']
+    dname = 'ChallengeSynsets2013_offline'
+    return compute_performance_online_batches(lnames, bdir, dname, train_batches, test_batches, mname, normalize=normalize, ctype=ctype, num_feats=num_feats)
 
-    a_meta = cPickle.loads(open(os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'a', 'batches.meta')).read())
-    N_a = 1000
-    b_meta = cPickle.loads(open(os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'b', 'batches.meta')).read())
-    N_b = 1000
-    assert (a_meta['label_names'] == b_meta['label_names']).all()
-    label_names = a_meta['label_names']
+
+def compute_performance_online_batches(lnames, bdir, dname, train_batches, test_batches, mname, normalize=True, ctype='MCC', num_feats=2000):
+    train_batches = [[os.path.join(mname + '_' + dname + '_' + lname, 'data_batch_%d' % tb) for tb in train_batches] for lname in lnames]
+    test_batches = [[os.path.join(mname + '_' + dname + '_' + lname, 'data_batch_%d' % tb) for tb in test_batches] for lname in lnames]
+
+    metas = [cPickle.loads(open(os.path.join(bdir, mname + '_' + dname + '_' + lname, 'batches.meta')).read()) for lname in lnames]
+    assert all([_m['label_names'] == metas[0]['label_names'] for _m in metas])
+
+    label_names = metas[0]['label_names']
     labelset = np.arange(len(label_names))
     if ctype == 'MCC':
-        cls = classifier.MaximumCorrelationClassifier2(labelset, N_a + N_b)
+        cls = classifier.MaximumCorrelationClassifier2(labelset, num_feats)
         cls.initialize()
     elif ctype == 'SGD':
         cls = sklinear_model.SGDClassifier()
 
+    N_a = num_feats/len(lnames)
     if normalize:
         train_mean = None
         train_std = None
         N = 0
-        for a, b in zip(train_abatches, train_bbatches):
-            print(a, b)
-            A = cPickle.loads(open(a).read())
-            A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
-            B = cPickle.loads(open(b).read())
-            B['data'] = B['data'][:, np.random.RandomState(0).permutation(B['data'].shape[1])[:N_b]]
-            F = np.column_stack([A['data'], B['data']])
+        for flist in zip(*train_batches):
+            print(flist)
+            F = []
+            for f in flist:
+                A = cPickle.loads(open(f).read())
+                A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
+                F.append(A['data'])
+            F = np.column_stack(F)
 
             if train_mean is None:
                 train_mean = F.mean(axis=0)
@@ -247,13 +253,13 @@ def compute_performance_online_batches(lname, bdir, train_batches, test_batches,
         normalizer = lambda x: (x - train_mean) / np.maximum(train_std, 1e-8)
 
 
-    for a, b in zip(train_abatches, train_bbatches):
-        print(a, b)
-        A = cPickle.loads(open(a).read())
-        A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
-        B = cPickle.loads(open(b).read())
-        B['data'] = B['data'][:, np.random.RandomState(0).permutation(B['data'].shape[1])[:N_b]]
-        F = np.column_stack([A['data'], B['data']])
+    for flist in zip(*train_batches):
+        F = []
+        for f in flist:
+            A = cPickle.loads(open(f).read())
+            A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
+            F.append(A['data'])
+        F = np.column_stack(F)
         if normalize:
             F = normalizer(F)
         if ctype == 'MCC':
@@ -267,13 +273,14 @@ def compute_performance_online_batches(lname, bdir, train_batches, test_batches,
 
     prediction = []
     actual = []
-    for a, b in zip(test_abatches, test_bbatches):
-        print(a, b)
-        A = cPickle.loads(open(a).read())
-        A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
-        B = cPickle.loads(open(b).read())
-        B['data'] = B['data'][:, np.random.RandomState(0).permutation(B['data'].shape[1])[:N_b]]
-        F = np.column_stack([A['data'], B['data']])
+    for flist in zip(*test_batches):
+        print(flist)
+        F = []
+        for f in flist:
+            A = cPickle.loads(open(f).read())
+            A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
+            F.append(A['data'])
+        F = np.column_stack(F)
         if normalize:
             F = normalizer(F)
         prediction.append(cls.predict(F))
@@ -281,15 +288,11 @@ def compute_performance_online_batches(lname, bdir, train_batches, test_batches,
 
     prediction = np.concatenate(prediction)
     actual = np.concatenate(actual).astype(int)
-
     actual = label_names[actual]
     prediction = label_names[prediction]
-
     split_result = classifier.get_test_result(actual, prediction, label_names, prefix='test')
+    return split_result, cls
 
-    #utils.compute_classifier_metrics({}, [split_result], {}, slice(None), labelset)
-
-    return split_result
 
 from archconvnets.convnet import api
 import imagenet.dldatasets as inet
@@ -315,7 +318,7 @@ def compute_performance(mname, lname, bdir):
     'test_q': {'var': ['V6']},
     'split_by': 'obj'}
 
-    
+
     #dataset = hvm.HvMWithDiscfade()
     #meta = dataset.meta
     #meta0 = meta[np.random.RandomState(0).permutation(len(meta))]
@@ -348,7 +351,7 @@ def compute_performance(mname, lname, bdir):
     #'split_by': 'obj'}
     #rec_t = utils.compute_metric_base(X, meta0, ev)
 
-    ev = {'npc_train': 150, 
+    ev = {'npc_train': 150,
        	  'npc_test': 50,
           'num_splits': NS,
 	  'npc_validate': 0,
@@ -363,7 +366,7 @@ def compute_performance(mname, lname, bdir):
     rec_c = utils.compute_metric_base(X, meta0, ev)
 
     return {
-            #'rec_hvm': rec, 
+            #'rec_hvm': rec,
             #'rec_training': rec_t
              'rec_challenge': rec_c}
 
