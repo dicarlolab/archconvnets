@@ -196,9 +196,9 @@ def compute_performance(mname, lname, bdir):
     import dldata.stimulus_sets.synthetic.synthetic_datasets as sd
     from dldata.metrics import utils
 
-    Xa = api.assemble_feature_batches(os.path.join(bdir, mname + '_HvMWithDiscfade_' + lname + 'a'))
-    Xb = api.assemble_feature_batches(os.path.join(bdir, mname + '_HvMWithDiscfade_' + lname + 'b'))
-    X = np.column_stack([Xa, Xb])
+    #Xa = api.assemble_feature_batches(os.path.join(bdir, mname + '_HvMWithDiscfade_' + lname + 'a'), N=1000)
+    #Xb = api.assemble_feature_batches(os.path.join(bdir, mname + '_HvMWithDiscfade_' + lname + 'b'), N=1000)
+    #X = np.column_stack([Xa, Xb])
 
     NS = 5
     ev = {'npc_train': 35,
@@ -213,67 +213,67 @@ def compute_performance(mname, lname, bdir):
     'test_q': {'var': ['V6']},
     'split_by': 'obj'}
     
-    dataset = hvm.HvMWithDiscfade()
-    meta = dataset.meta
-    meta0 = meta[np.random.RandomState(0).permutation(len(meta))]
-    rec_a = utils.compute_metric_base(Xa[:, np.random.RandomState(0).permutation(Xa.shape[1])[:2000]], meta0, ev)
-    rec_b = utils.compute_metric_base(Xb[:, np.random.RandomState(0).permutation(Xb.shape[1])[:2000]], meta0, ev)
-    rec = utils.compute_metric_base(X[:, np.random.RandomState(0).permutation(X.shape[1])[:2000]], meta0, ev)
+    #dataset = hvm.HvMWithDiscfade()
+    #meta = dataset.meta
+    #meta0 = meta[np.random.RandomState(0).permutation(len(meta))]
+    #rec = utils.compute_metric_base(X, meta0, ev)
 
-    dataset = sd.TrainingDatasetLarge()
-    #dataset = inet.ChallengeSynsets2013_offline()
+    #dataset = sd.TrainingDatasetLarge()
+    dataset = inet.ChallengeSynsets2013_offline()
     meta = dataset.meta
 
-    Xa = api.assemble_feature_batches(os.path.join(bdir, mname + '_TrainingDatasetLarge_' + lname + 'a'))
-    Xb = api.assemble_feature_batches(os.path.join(bdir, mname + '_TrainingDatasetLarge_' + lname + 'b'))
-    #Xa = api.assemble_feature_batches(os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'a'))
-    #Xb = api.assemble_feature_batches(os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'b'))
+    #Xa = api.assemble_feature_batches(os.path.join(bdir, mname + '_TrainingDatasetLarge_' + lname + 'a'))
+    #Xb = api.assemble_feature_batches(os.path.join(bdir, mname + '_TrainingDatasetLarge_' + lname + 'b'))
+    Xa = api.assemble_feature_batches(os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'a'), N=1000)
+    Xb = api.assemble_feature_batches(os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'b'), N=1000)
     X = np.column_stack([Xa, Xb])
 
     meta0 = meta[np.random.RandomState(0).permutation(len(meta))][: X.shape[0]]
 
-    NS = 5
-    ev = {'npc_train': 31,
-    'npc_test': 5,
-    'num_splits': NS,
-    'npc_validate': 0,
-    'metric_screen': 'classifier',
-    'metric_labels': None,
-    'metric_kwargs': {'model_type': 'MCC2'},
-    'labelfunc': 'category',
-    'train_q': {},
-    'test_q': {},
-    'split_by': 'obj'}
+    #NS = 5
+    #ev = {'npc_train': 31,
+    #'npc_test': 5,
+    #'num_splits': NS,
+    #'npc_validate': 0,
+    #'metric_screen': 'classifier',
+    #'metric_labels': None,
+    #'metric_kwargs': {'model_type': 'MCC2'},
+    #'labelfunc': 'category',
+    #'train_q': {},
+    #'test_q': {},
+    #'split_by': 'obj'}
+    #rec_t = utils.compute_metric_base(X, meta0, ev)
 
-    #ev = {'npc_train': 400, 
-    #   	  'npc_test': 100,
-    #  'num_splits': NS,
-#	  'npc_validate': 0,
-#	  'metric_screen' : 'classifier', #
-#	  'metric_labels': None,
-#	  'metric_kwargs': {'model_type': 'MCC2'},
-#	  'labelfunc': 'synset',
-#	  'train_q': {},
-#	  'test_q': {},
-#	  'split_by': 'synset'}
+    ev = {'npc_train': 150, 
+       	  'npc_test': 50,
+          'num_splits': NS,
+	  'npc_validate': 0,
+	  'metric_screen' : 'classifier', #
+	  'metric_labels': None,
+	  'metric_kwargs': {'model_type': 'MCC2'},
+	  'labelfunc': 'synset',
+	  'train_q': {},
+	  'test_q': {},
+	  'split_by': 'synset'}
 
-    rec_a_t = utils.compute_metric_base(Xa[:, np.random.RandomState(0).permutation(Xa.shape[1])[:2000]], meta0, ev)
-    rec_b_t = utils.compute_metric_base(Xb[:, np.random.RandomState(0).permutation(Xb.shape[1])[:2000]], meta0, ev)
-    rec_t = utils.compute_metric_base(X[:, np.random.RandomState(0).permutation(X.shape[1])[:2000]], meta0, ev)
+    rec_c = utils.compute_metric_base(X, meta0, ev)
 
-    return {'rec_hvm_a': rec_a, 'rec_hvm_b': rec_b, 'rec_hvm': rec, 
-            'rec_a_training': rec_a_t, 'rec_b_training': rec_b, 'rec_training': rec_t
+    return {
+            #'rec_hvm': rec, 
+            #'rec_training': rec_t
+             'rec_challenge': rec_c
             }
 
 
-def do_train(outdir, bdir):
-    model_names = ["imagenet_trained", "synthetic_category_trained", "rosch_trained"]
+def do_train(outdir, bdir, post=''):
+    #model_names = ["imagenet_trained", "synthetic_category_trained", "rosch_trained"]
+    model_names = ["imagenet_trained", "rosch_trained"]
     layer_names = ['conv1_1','conv2_4', 'conv3_7', 'conv4_8','conv5_9', 'pool3_11', 'fc1_12', 'rnorm4_13','fc2_14', 'rnorm5_15']
-    for mname in model_names[2:]:
+    for mname in model_names[:]:
         for lname in layer_names:
             print(mname, lname)
             res = compute_performance(mname, lname, bdir)
-            fname = os.path.join(outdir, '%s_%s.pkl' %(mname, lname))
+            fname = os.path.join(outdir, '%s_%s%s.pkl' %(mname, lname, post))
             with open(fname, 'w') as _f:
                 cPickle.dump(res, _f)
 
