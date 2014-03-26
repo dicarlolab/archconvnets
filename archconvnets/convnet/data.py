@@ -399,6 +399,8 @@ class DLDataProvider(LabeledDataProvider):
 
         if self.replace_label:
             self.batch_meta['label_names'] = self.labels_unique
+        else:
+            self.labels_unique = self.batch_meta['label_names']
 
     def get_next_batch(self):
         epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
