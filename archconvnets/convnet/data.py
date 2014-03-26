@@ -219,6 +219,9 @@ class LabeledDataProviderTrans(LabeledDataProvider):
             img_size, num_colors,
             batch_range=None,
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        data_dir = data_dir.split('|')
+        if len(data_dir) == 1:
+            data_dir = data_dir[0]
         if isinstance(data_dir, list):
             self._dps = [LabeledDataProviderTrans(d, img_size, num_colors, batch_range=batch_range,
                                init_epoch=init_epoch, init_batchnum=init_batchnum,
@@ -229,26 +232,27 @@ class LabeledDataProviderTrans(LabeledDataProvider):
         self.num_colors = num_colors
         self.img_size = img_size
 
-    def get_batch_meta(self):
-        if isinstance(self.data_dir, list):
-            bm = [d.get_batch_meta() for d in self._dps]
+    @staticmethod
+    def get_batch_meta(data_dir):
+        if isinstance(data_dir, list):
+            bm = [DataProvider.get_batch_meta(d) for d in data_dir]
             keys = bm[0].keys()
             mdict = {}
             for k in keys:
                 if k not in ['data_mean', 'num_vis']:
                     mdict[k] = bm[0][k]
             mdict['num_vis'] = sum([b['num_vis'] for b in bm])
-            if 'data_mean': in bm[0]:
-                mdict['data_mean'] = np.concatenate([b['data_mean'] for b in bm])
+            if 'data_mean' in bm[0]:
+                mdict['data_mean'] = n.concatenate([b['data_mean'] for b in bm])
             return mdict
         else:
-            return DataProvider.get_data_mean(self)
+            return DataProvider.get_batch_meta(data_dir)
 
     def get_out_img_size( self ):
         return self.img_size
 
     def get_out_img_depth( self ):
-        if isinstance(data_dir, list):
+        if isinstance(self.data_dir, list):
             return self.num_colors * len(self._dps)
         else:
             return self.num_colors
@@ -259,9 +263,9 @@ class LabeledDataProviderTrans(LabeledDataProvider):
             epoch = bs[0][0]
             batch_num = bs[0][1]
             labels = bs[0][2][1]
-            data = np.row_stack([b[2][0] for b in bs])
+            data = n.row_stack([b[2][0] for b in bs])
             self.advance_batch()
-            return epoch, batchnum, [data, labels]
+            return epoch, batch_num, [data, labels]
         else:
             epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
             d['data'] = n.require(d['data'], dtype=n.single, requirements='C')

@@ -12,7 +12,7 @@ from .api import odict_to_config
 
 def train_softmax(data_path, train_range, test_range, test_freq, save_freq, epochs, eid,
           initW=0.01, epsw=0.001, epsb=0.001, momw=0.9, momb=0.9,
-          db_name='softmax_results', fs_name='softmax_results'):
+          db_name='softmax_results', fs_name='softmax_results', gpu_num=None):
 
     """train (and test) softmax classifier on top of a feature set.  
        
@@ -31,9 +31,12 @@ def train_softmax(data_path, train_range, test_range, test_freq, save_freq, epoc
        initW, epsw, epsb, momw, momb: floats.  parameters to the training.
     """
 
-    X = cPickle.loads(open(os.path.join(data_path, 'batches.meta')).read())
-    nv = X['num_vis']
-    nl = len(X['label_names'])
+    if isinstance(data_path, str):
+        data_path = [data_path]
+
+    X = [cPickle.loads(open(os.path.join(d, 'batches.meta')).read()) for d in data_path]
+    nv = sum([x['num_vis'] for x in X])
+    nl = len(X[0]['label_names'])
     
     layer_def = OrderedDict([('data', OrderedDict([('type', 'data'), 
                                                    ('dataidx', '0')])), 
@@ -73,7 +76,7 @@ def train_softmax(data_path, train_range, test_range, test_freq, save_freq, epoc
                ('--layer-params', layer_param_fname),               
                ('--conserve-mem', '1'),
                ('--data-provider', 'labeled-data-trans'),
-               ('--data-path', data_path),
+               ('--data-path', "|".join(data_path)),
                ('--test-freq', test_freq),
                ('--saving-freq', save_freq),
                ('--epochs', epochs),
@@ -82,7 +85,8 @@ def train_softmax(data_path, train_range, test_range, test_freq, save_freq, epoc
                ('--img-channels', '%d' % nv),
                ('--checkpoint-db-name', db_name),
                ("--checkpoint-fs-name", fs_name)]
-    gpu_num = os.environ.get('BANDIT_GPU', None)
+    if gpu_num is None:
+        gpu_num = os.environ.get('BANDIT_GPU', None)
     if gpu_num is not None:
         oppdict.append(('--gpu', gpu_num))
 
