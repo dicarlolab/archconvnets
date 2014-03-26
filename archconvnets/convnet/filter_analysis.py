@@ -10,6 +10,7 @@ from yamutils.mongo import SONify
 
 import archconvnets.convnet as convnet
 import archconvnets.convnet.gpumodel as gpumodel
+import sklearn.linear_model as sklinear_model
 
 def getstats(fname, linds):
     return getstats_base(convnet.util.unpickle(fname), linds)
@@ -204,7 +205,7 @@ def add_stds(m1, m2, s1, s2, n1, n2):
 from dldata.metrics import utils
 from dldata.metrics import classifier
 
-def compute_performance_mcc_batches(lname, bdir, train_batches, test_batches, mname, normalize=True):
+def compute_performance_online_batches(lname, bdir, train_batches, test_batches, mname, normalize=True, ctype='MCC'):
     train_abatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'a', 'data_batch_%d' % tb) for tb in train_batches]
     train_bbatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'b', 'data_batch_%d' % tb) for tb in train_batches]
 
@@ -215,8 +216,11 @@ def compute_performance_mcc_batches(lname, bdir, train_batches, test_batches, mn
     assert (a_meta['label_names'] == b_meta['label_names']).all()
     label_names = a_meta['label_names']
     labelset = np.arange(len(label_names))
-    cls = classifier.MaximumCorrelationClassifier2(labelset, N_a + N_b)
-    cls.initialize()
+    if ctype == 'MCC':
+        cls = classifier.MaximumCorrelationClassifier2(labelset, N_a + N_b)
+        cls.initialize()
+    elif ctype == 'SGD':
+        cls = sklinear_model.SGDClassifier()
 
     if normalize:
         train_mean = None
@@ -252,7 +256,10 @@ def compute_performance_mcc_batches(lname, bdir, train_batches, test_batches, mn
         F = np.column_stack([A['data'], B['data']])
         if normalize:
             F = normalizer(F)
-        cls.partial_fit(F, A['labels'][0], labelcheck=False)
+        if ctype == 'MCC':
+            cls.partial_fit(F, A['labels'][0], labelcheck=False)
+        else:
+            cls.partial_fit(F, A['labels'][0], classes=labelset)
 
 
     test_abatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'a', 'data_batch_%d' % tb) for tb in test_batches]
