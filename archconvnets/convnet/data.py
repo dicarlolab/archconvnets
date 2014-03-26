@@ -320,7 +320,8 @@ class DLDataProvider(LabeledDataProvider):
                 if 'dataset_name' in bmeta:
                     assert dp_params['dataset_name'] == bmeta['dataset_name'], (dp_params['dataset_name'], bmeta['dataset_name'])
                 if 'preproc' in bmeta:
-                    assert dp_params['preproc'] == bmeta['preproc'], (dp_params['preproc'], bmeta['preproc'])
+                    #assert dp_params['preproc'] == bmeta['preproc'], (dp_params['preproc'], bmeta['preproc'])
+                    pass
                 if 'dataset_data' in bmeta:
                     assert dataset_data == bmeta['dataset_data'], (dataset_data, bmeta['dataset_data'])
             else:
