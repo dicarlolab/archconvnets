@@ -63,7 +63,7 @@ class DataProvider:
             sub_dic = unpickle(subbatch_path)
             self._join_batches(batch_dic, sub_dic)
         else:
-            raise IndexError("Sub-batch %d.%d does not exist in %s" % (batch_num,sub_batchnum, self.data_dir))
+            raise IndexError("Sub-batch %d.%d does not exist in %s" % (batch_num, sub_batchnum, self.data_dir))
 
     def _join_batches(self, main_batch, sub_batch):
         main_batch['data'] = n.r_[main_batch['data'], sub_batch['data']]
@@ -219,23 +219,63 @@ class LabeledDataProviderTrans(LabeledDataProvider):
             img_size, num_colors,
             batch_range=None,
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+        if isinstance(data_dir, list):
+            self._dps = [LabeledDataProviderTrans(d, img_size, num_colors, batch_range=batch_range,
+                               init_epoch=init_epoch, init_batchnum=init_batchnum,
+                               dp_params=dp_params, test=test) for d in data_dir]
+        else:
+            self._dps = None
         LabeledDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
         self.num_colors = num_colors
         self.img_size = img_size
+
+    def get_batch_meta(self):
+        if isinstance(self.data_dir, list):
+            bm = [d.get_batch_meta() for d in self._dps]
+            keys = bm[0].keys()
+            mdict = {}
+            for k in keys:
+                if k not in ['data_mean', 'num_vis']:
+                    mdict[k] = bm[0][k]
+            mdict['num_vis'] = sum([b['num_vis'] for b in bm])
+            if 'data_mean': in bm[0]:
+                mdict['data_mean'] = np.concatenate([b['data_mean'] for b in bm])
+            return mdict
+        else:
+            return DataProvider.get_data_mean(self)
 
     def get_out_img_size( self ):
         return self.img_size
 
     def get_out_img_depth( self ):
-        return self.num_colors 
+        if isinstance(data_dir, list):
+            return self.num_colors * len(self._dps)
+        else:
+            return self.num_colors
 
     def get_next_batch(self):
-        epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
-        d['data'] = n.require(d['data'], dtype=n.single, requirements='C')
-        d['data'] = d['data'].T
-        d['data'] = n.require(d['data'], requirements='C')
-        d['labels'] = n.c_[n.require(d['labels'], dtype=n.single, requirements='C')]
-        return epoch, batchnum, [d['data'], d['labels']]
+        if isinstance(self.data_dir, list):
+            bs = [d.get_next_batch() for d in self._dps]
+            epoch = bs[0][0]
+            batch_num = bs[0][1]
+            labels = bs[0][2][1]
+            data = np.row_stack([b[2][0] for b in bs])
+            self.advance_batch()
+            return epoch, batchnum, [data, labels]
+        else:
+            epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
+            d['data'] = n.require(d['data'], dtype=n.single, requirements='C')
+            d['data'] = d['data'].T
+            d['data'] = n.require(d['data'], requirements='C')
+            d['labels'] = n.c_[n.require(d['labels'], dtype=n.single, requirements='C')]
+            return epoch, batchnum, [d['data'], d['labels']]
+
+    @staticmethod
+    def get_batch_nums(srcdir):
+        if isinstance(srcdir, list):
+            return DataProvider.get_batch_nums(srcdir[0])
+        else:
+            return DataProvider.get_batch_nums(srcdir)
 
 
 class LabeledMemoryDataProvider(LabeledDataProvider):
@@ -373,7 +413,6 @@ class DLDataProvider(LabeledDataProvider):
                            'labels': d['labels'],
                            'data': d['data'],
                            'ids': d['ids']
-                      #'filenames': n.asarray(dataset.meta[img_inds]['filename']).tolist()    ####need this????
                            }
                 outpath = os.path.join(data_dir, 'data_batch_%d' % bnum)
                 with open(outpath, 'w') as _f:
