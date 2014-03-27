@@ -311,7 +311,7 @@ def imgnet_prediction_bandit_evaluate2(config, kwargs, features=None):
                ('--layer-params', layer_param_fname),
                ('--checkpoint-fs-port', '6666'),
                ('--data-provider', 'general-cropped'),
-               ('--data-path', '/export/storage/imgnet_256batchsz_138px'),
+               ('--data-path', '/storage/imgnet_256batchsz_138px'),
                ('--dp-params', '{"perm_type": "random", "perm_seed": 0, "preproc": {"normalize": false, "dtype": "float32", "resize_to": [138, 138], "mode": "RGB", "crop": null, "mask": null}, "batch_size": 256, "meta_attribute": "synset", "dataset_name": ["imagenet.dldatasets", "ChallengeSynsets2013_offline"]}'),
                ('--test-freq', kwargs.get('test_freq', 100)),
                ('--saving-freq', '100'),
