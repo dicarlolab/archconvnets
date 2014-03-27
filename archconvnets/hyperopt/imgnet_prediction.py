@@ -19,11 +19,51 @@ from ..convnet.convnet import ConvNet
 from ..convnet.api import odict_to_config
 from ..convnet.layer import LayerParsingError
 
+from . import imgnet_params_intermediaten1_filtersz_poolnormsz
+from . import imgnet_params_intermediaten1_filtersz_normparams
+from . import imgnet_params_intermediaten1_filtersz
+from . import imgnet_params_intermediaten1
 from . import imgnet_params_intermediate0
 from . import imgnet_params_intermediate1
 from . import imgnet_params_intermediate2
 from . import imgnet_params_intermediate3
 from .hyperopt_helpers import suggest_multiple_from_name
+
+def imgnet_random_experiment_intermediaten1_filtersz_normparams(experiment_id):
+    dbname = 'imgnet_predictions_random_experiment_intermediaten1_normparams'
+    host = 'localhost'
+    port = 6667
+    bandit = 'imgnet_prediction_bandit_intermediaten1_filtersz_normparams'
+    bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
+    exp = imgnet_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
+    return exp
+
+def imgnet_random_experiment_intermediaten1_filtersz_poolnormsz(experiment_id):
+    dbname = 'imgnet_predictions_random_experiment_intermediaten1_poolnormsz'
+    host = 'localhost'
+    port = 6667
+    bandit = 'imgnet_prediction_bandit_intermediaten1_filtersz_poolnormsz'
+    bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
+    exp = imgnet_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
+    return exp
+
+def imgnet_random_experiment_intermediaten1_filtersz(experiment_id):
+    dbname = 'imgnet_predictions_random_experiment_intermediaten1_filtersz'
+    host = 'localhost'
+    port = 6667
+    bandit = 'imgnet_prediction_bandit_intermediaten1_filtersz'
+    bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
+    exp = imgnet_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
+    return exp
+
+def imgnet_random_experiment_intermediaten1(experiment_id):
+    dbname = 'imgnet_predictions_random_experiment_intermediaten1'
+    host = 'localhost'
+    port = 6667
+    bandit = 'imgnet_prediction_bandit_intermediaten1'
+    bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
+    exp = imgnet_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
+    return exp
 
 def imgnet_random_experiment_intermediate0(experiment_id):
     dbname = 'imgnet_predictions_random_experiment_intermediate0'
@@ -121,6 +161,30 @@ bandit_exceptions = [
         ]
 
 @hyperopt.base.as_bandit(exceptions=bandit_exceptions)
+def imgnet_prediction_bandit_intermediaten1_filtersz_normparams(argdict):
+    template = imgnet_params_intermediaten1_filtersz_normparams.template_func(argdict['param_args'])
+    interpreted_template = scope.config_interpret_intermediaten1_filtersz_normparams(template)
+    return scope.imgnet_prediction_bandit_evaluate2(interpreted_template, argdict)
+
+@hyperopt.base.as_bandit(exceptions=bandit_exceptions)
+def imgnet_prediction_bandit_intermediaten1_filtersz_poolnormsz(argdict):
+    template = imgnet_params_intermediaten1_filtersz_poolnormsz.template_func(argdict['param_args'])
+    interpreted_template = scope.config_interpret_intermediaten1_filtersz_poolnormsz(template)
+    return scope.imgnet_prediction_bandit_evaluate2(interpreted_template, argdict)
+
+@hyperopt.base.as_bandit(exceptions=bandit_exceptions)
+def imgnet_prediction_bandit_intermediaten1_filtersz(argdict):
+    template = imgnet_params_intermediaten1_filtersz.template_func(argdict['param_args'])
+    interpreted_template = scope.config_interpret_intermediaten1_filtersz(template)
+    return scope.imgnet_prediction_bandit_evaluate2(interpreted_template, argdict)
+
+@hyperopt.base.as_bandit(exceptions=bandit_exceptions)
+def imgnet_prediction_bandit_intermediaten1(argdict):
+    template = imgnet_params_intermediaten1.template_func(argdict['param_args'])
+    interpreted_template = scope.config_interpret_intermediaten1(template)
+    return scope.imgnet_prediction_bandit_evaluate2(interpreted_template, argdict)
+
+@hyperopt.base.as_bandit(exceptions=bandit_exceptions)
 def imgnet_prediction_bandit_intermediate0(argdict):
     template = imgnet_params_intermediate0.template_func(argdict['param_args'])
     interpreted_template = scope.config_interpret_intermediate0(template)
@@ -144,6 +208,30 @@ def imgnet_prediction_bandit_intermediate3(argdict):
     interpreted_template = scope.config_interpret_intermediate3(template)
     return scope.imgnet_prediction_bandit_evaluate2(interpreted_template, argdict)
 
+
+@scope.define
+def config_interpret_intermediaten1_filtersz_poolnormsz(config):
+    config = copy.deepcopy(config)
+    config['layer_def'] = imgnet_params_intermediaten1_filtersz_poolnormsz.config_interpretation(config['layer_def'])
+    return config
+
+@scope.define
+def config_interpret_intermediaten1_filtersz_normparams(config):
+    config = copy.deepcopy(config)
+    config['layer_def'] = imgnet_params_intermediaten1_filtersz_normparams.config_interpretation(config['layer_def'])
+    return config
+
+@scope.define
+def config_interpret_intermediaten1_filtersz(config):
+    config = copy.deepcopy(config)
+    config['layer_def'] = imgnet_params_intermediaten1_filtersz.config_interpretation(config['layer_def'])
+    return config
+
+@scope.define
+def config_interpret_intermediaten1(config):
+    config = copy.deepcopy(config)
+    config['layer_def'] = imgnet_params_intermediaten1.config_interpretation(config['layer_def'])
+    return config
 
 @scope.define
 def config_interpret_intermediate3(config):
