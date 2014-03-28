@@ -19,6 +19,7 @@ from ..convnet.convnet import ConvNet
 from ..convnet.api import odict_to_config
 from ..convnet.layer import LayerParsingError
 
+from . import imgnet_params_expanded
 from . import imgnet_params_intermediaten1_filtersz_comb
 from . import imgnet_params_intermediaten1_filtersz_avgpool
 from . import imgnet_params_intermediaten1_filtersz_poolnormsz
@@ -30,6 +31,15 @@ from . import imgnet_params_intermediate1
 from . import imgnet_params_intermediate2
 from . import imgnet_params_intermediate3
 from .hyperopt_helpers import suggest_multiple_from_name
+
+def imgnet_random_experiment_expanded(experiment_id):
+    dbname = 'imgnet_predictions_random_experiment_expanded'
+    host = 'localhost'
+    port = 6667
+    bandit = 'imgnet_prediction_bandit_expanded'
+    bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
+    exp = imgnet_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
+    return exp
 
 def imgnet_random_experiment_intermediaten1_filtersz_comb(experiment_id):
     dbname = 'imgnet_predictions_random_experiment_comb'
@@ -181,6 +191,12 @@ bandit_exceptions = [
         ]
 
 @hyperopt.base.as_bandit(exceptions=bandit_exceptions)
+def imgnet_prediction_bandit_expanded(argdict):
+    template = imgnet_params_expanded.template_func(argdict['param_args'])
+    interpreted_template = scope.config_interpret_expanded(template)
+    return scope.imgnet_prediction_bandit_evaluate2(interpreted_template, argdict)
+
+@hyperopt.base.as_bandit(exceptions=bandit_exceptions)
 def imgnet_prediction_bandit_intermediaten1_filtersz_comb(argdict):
     template = imgnet_params_intermediaten1_filtersz_comb.template_func(argdict['param_args'])
     interpreted_template = scope.config_interpret_intermediaten1_filtersz_comb(template)
@@ -239,6 +255,12 @@ def imgnet_prediction_bandit_intermediate3(argdict):
     template = imgnet_params_intermediate3.template_func(argdict['param_args'])
     interpreted_template = scope.config_interpret_intermediate3(template)
     return scope.imgnet_prediction_bandit_evaluate2(interpreted_template, argdict)
+
+@scope.define
+def config_interpret_expanded(config):
+    config = copy.deepcopy(config)
+    config['layer_def'] = imgnet_params_expanded.config_interpretation(config['layer_def'])
+    return config
 
 @scope.define
 def config_interpret_intermediaten1_filtersz_comb(config):
