@@ -211,12 +211,12 @@ def compute_performance_online_batches_challenge_set(lname, bdir, train_batches,
     return compute_performance_online_batches(lnames, bdir, dname, train_batches, test_batches, mname, normalize=normalize, ctype=ctype, num_feats=num_feats)
 
 
-def compute_performance_online_batches(lnames, bdir, dname, train_batches, test_batches, mname, normalize=True, ctype='MCC', num_feats=2000):
-    train_batches = [[os.path.join(mname + '_' + dname + '_' + lname, 'data_batch_%d' % tb) for tb in train_batches] for lname in lnames]
-    test_batches = [[os.path.join(mname + '_' + dname + '_' + lname, 'data_batch_%d' % tb) for tb in test_batches] for lname in lnames]
+def compute_performance_online_batches(lnames, bdir, dname, train_batches, test_batches, mname, normalize=True, ctype='MCC', num_feats=2000, alpha=1e-4):
+    train_batches = [[os.path.join(bdir, mname + '_' + dname + '_' + lname, 'data_batch_%d' % tb) for tb in train_batches] for lname in lnames]
+    test_batches = [[os.path.join(bdir, mname + '_' + dname + '_' + lname, 'data_batch_%d' % tb) for tb in test_batches] for lname in lnames]
 
     metas = [cPickle.loads(open(os.path.join(bdir, mname + '_' + dname + '_' + lname, 'batches.meta')).read()) for lname in lnames]
-    assert all([_m['label_names'] == metas[0]['label_names'] for _m in metas])
+    assert all([(_m['label_names'] == metas[0]['label_names']).all() for _m in metas])
 
     label_names = metas[0]['label_names']
     labelset = np.arange(len(label_names))
@@ -224,7 +224,7 @@ def compute_performance_online_batches(lnames, bdir, dname, train_batches, test_
         cls = classifier.MaximumCorrelationClassifier2(labelset, num_feats)
         cls.initialize()
     elif ctype == 'SGD':
-        cls = sklinear_model.SGDClassifier()
+        cls = sklinear_model.SGDClassifier(alpha=alpha)
 
     N_a = num_feats/len(lnames)
     if normalize:
@@ -255,6 +255,7 @@ def compute_performance_online_batches(lnames, bdir, dname, train_batches, test_
 
     for flist in zip(*train_batches):
         F = []
+        print(flist)
         for f in flist:
             A = cPickle.loads(open(f).read())
             A['data'] = A['data'][:, np.random.RandomState(0).permutation(A['data'].shape[1])[:N_a]]
@@ -266,10 +267,6 @@ def compute_performance_online_batches(lnames, bdir, dname, train_batches, test_
             cls.partial_fit(F, A['labels'][0], labelcheck=False)
         else:
             cls.partial_fit(F, A['labels'][0], classes=labelset)
-
-
-    test_abatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'a', 'data_batch_%d' % tb) for tb in test_batches]
-    test_bbatches = [os.path.join(bdir, mname + '_ChallengeSynsets2013_offline_' + lname + 'b', 'data_batch_%d' % tb) for tb in test_batches]
 
     prediction = []
     actual = []
