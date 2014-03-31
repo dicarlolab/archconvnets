@@ -35,7 +35,7 @@ from .hyperopt_helpers import suggest_multiple_from_name
 def imgnet_random_experiment_expanded(experiment_id):
     dbname = 'imgnet_predictions_random_experiment_expanded'
     host = 'localhost'
-    port = 6667
+    port = 22334
     bandit = 'imgnet_prediction_bandit_expanded'
     bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id}
     exp = imgnet_random_experiment(dbname, host, port, bandit, bandit_kwargdict)
@@ -353,7 +353,7 @@ def imgnet_prediction_bandit_evaluate2(config, kwargs, features=None):
                ('--layer-def', layer_fname),
                ('--conserve-mem', '1'),
                ('--layer-params', layer_param_fname),
-               ('--checkpoint-fs-port', '6666'),
+               ('--checkpoint-fs-port', '22334'),
                ('--data-provider', 'general-cropped'),
                ('--data-path', '/storage/imgnet_256batchsz_138px'),
                ('--dp-params', '{"perm_type": "random", "perm_seed": 0, "preproc": {"normalize": false, "dtype": "float32", "resize_to": [138, 138], "mode": "RGB", "crop": null, "mask": null}, "batch_size": 256, "meta_attribute": "synset", "dataset_name": ["imagenet.dldatasets", "ChallengeSynsets2013_offline"]}'),
