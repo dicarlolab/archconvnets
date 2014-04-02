@@ -359,7 +359,7 @@ def imgnet_prediction_bandit_evaluate2(config, kwargs, features=None):
                ('--dp-params', '{"perm_type": "random", "perm_seed": 0, "preproc": {"normalize": false, "dtype": "float32", "resize_to": [138, 138], "mode": "RGB", "crop": null, "mask": null}, "batch_size": 256, "meta_attribute": "synset", "dataset_name": ["imagenet.dldatasets", "ChallengeSynsets2013_offline"]}'),
                ('--test-freq', kwargs.get('test_freq', 100)),
                ('--saving-freq', '100'),
-               ('--epochs', kwargs.get('epochs_round0', 10)),
+               ('--epochs', kwargs.get('epochs_round0', 5)),
                ('--img-size', '138'),
                ('--experiment-data', exp_str),
                ('--checkpoint-db-name', 'imgnet_prediction'),
@@ -378,7 +378,7 @@ def imgnet_prediction_bandit_evaluate2(config, kwargs, features=None):
             raise e
             
     model.scale_learningRate(0.1)
-    model.num_epochs = kwargs.get('epochs_round1', 15)
+    model.num_epochs = kwargs.get('epochs_round1', 7)
     try:
         model.start()
     except SystemExit, e:
