@@ -388,7 +388,7 @@ def imgnet_prediction_bandit_evaluate2(config, kwargs, features=None):
 
     print exp_id
     print config_id
-    cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=6666, checkpoint_db_name='imgnet_prediction', checkpoint_fs_name=fs_name, only_rec=True)
+    cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=22334, checkpoint_db_name='imgnet_prediction', checkpoint_fs_name=fs_name, only_rec=True)
     rec = cpt['rec']
     rec['kwargs'] = kwargs
     rec['loss'] = rec['test_outputs'][0]['logprob'][0]
