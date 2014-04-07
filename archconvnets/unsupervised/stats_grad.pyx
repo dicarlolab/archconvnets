@@ -28,14 +28,13 @@ def threestats_flat(np.ndarray[np.float32_t, ndim=2] X):
 	for i in range(in_dims):
 		for m in range(i+1, in_dims):
 			for n in range(m+1, in_dims):
-				numer[ind] = (x_no_mean[i] * w[m,n]).sum()
+				numer[ind] = (x_no_mean[i] * w[m,n]).sum() # will change back to mean once I can reproduce our prior results
 				denom[ind] = x_std[i] * w_std[m,n]
 				ind = ind + 1
 	stat_mat = numer / denom
 	loss = np.sum(np.abs(target - stat_mat))
 	
-	denom2 = denom ** 2
-	numer = numer / denom2
+	numer = numer / (denom ** 2)
 	denom = 1 / denom # = denom / denom2
 	
 	###################### up until this point the code is equivilant in computation time to stats.threestats_flat()
