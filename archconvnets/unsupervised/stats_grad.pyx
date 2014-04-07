@@ -36,18 +36,16 @@ def threestats_flat(np.ndarray[np.float32_t, ndim=2] X):
 	
 	numer = numer / (denom ** 2)
 	denom = 1 / denom # = denom / denom2
-	
+	sign_mat = 1 - 2*(stat_mat < target)
+
 	###################### up until this point the code is equivilant in computation time to stats.threestats_flat()
-	ind -= 1 # debug... this should be determined from indices: r,m,n
+	ind = 0 # debug... this should be determined from indices: r,m,n
+	prev_order = 0; changed = 1
 	cdef np.ndarray grad = np.zeros((in_dims, N), np.float32)
 	for r in range(in_dims):
 		for m in range(in_dims):
 			if m != r:
 				for n in range(m+1, in_dims):
 					if n != r:
-						sign = 1
-						if stat_mat[ind] < target[ind]:
-							sign = -1
-						grad_denom = w_std[m,n]*x_no_mean_div_std_N[r]
-						grad[r] += sign*(w_no_mean[m,n]*denom[ind] - numer[ind]*grad_denom)
+						grad[r] += sign_mat[ind]*(w_no_mean[m,n]*denom[ind] - numer[ind]*w_std[m,n]*x_no_mean_div_std_N[r])
 	return stat_mat
