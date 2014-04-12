@@ -152,6 +152,7 @@ class DataProvider:
     def get_num_batches(srcdir):
         return len(DataProvider.get_batch_nums(srcdir))
 
+
 class DummyDataProvider(DataProvider):
     def __init__(self, data_dim):
         #self.data_dim = data_dim
