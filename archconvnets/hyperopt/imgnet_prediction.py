@@ -361,7 +361,7 @@ def imgnet_prediction_bandit_evaluate2(config, kwargs, features=None):
     oppdict = [('--save-db', '1'),
                ('--save-recent-filters', '0'),
                ('--crop-border', '9'),
-               ('--train-range', '0-500'),#'0-4'),
+               ('--train-range', '0-1250'),#'0-4'),
                ('--test-range', '4351-4550'),#'5'),
                ('--layer-def', layer_fname),
                ('--conserve-mem', '1'),
