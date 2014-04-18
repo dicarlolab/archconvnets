@@ -32,6 +32,19 @@ from . import imgnet_params_intermediate2
 from . import imgnet_params_intermediate3
 from .hyperopt_helpers import suggest_multiple_from_name
 
+def imgnet_tpe_experiment_expanded(experiment_id):
+    dbname = 'imgnet_predictions_tpe_experiment_expanded'
+    host = 'localhost'
+    port = 6666
+    bandit = 'imgnet_prediction_bandit_expanded'
+    bandit_kwargdict = {'param_args': {}, 'experiment_id': experiment_id,
+                        'epochs_round0': 1, 'epochs_round1': 1}
+    exp = imgnet_tpe_experiment(dbname, host, port, bandit, bandit_kwargdict,
+                              num=1,
+                              gamma=0.25,
+                              n_startup_jobs=200)
+    return exp
+
 def imgnet_random_experiment_expanded(experiment_id):
     dbname = 'imgnet_predictions_random_experiment_expanded'
     host = 'localhost'
@@ -348,12 +361,12 @@ def imgnet_prediction_bandit_evaluate2(config, kwargs, features=None):
     oppdict = [('--save-db', '1'),
                ('--save-recent-filters', '0'),
                ('--crop-border', '9'),
-               ('--train-range', '0-4350'),#'0-4'),
+               ('--train-range', '0-500'),#'0-4'),
                ('--test-range', '4351-4550'),#'5'),
                ('--layer-def', layer_fname),
                ('--conserve-mem', '1'),
                ('--layer-params', layer_param_fname),
-               ('--checkpoint-fs-port', '22334'),
+               ('--checkpoint-fs-port', '6666'),
                ('--data-provider', 'general-cropped'),
                ('--data-path', '/storage/imgnet_256batchsz_138px'),
                ('--dp-params', '{"perm_type": "random", "perm_seed": 0, "preproc": {"normalize": false, "dtype": "float32", "resize_to": [138, 138], "mode": "RGB", "crop": null, "mask": null}, "batch_size": 256, "meta_attribute": "synset", "dataset_name": ["imagenet.dldatasets", "ChallengeSynsets2013_offline"]}'),
@@ -388,7 +401,7 @@ def imgnet_prediction_bandit_evaluate2(config, kwargs, features=None):
 
     print exp_id
     print config_id
-    cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=22334, checkpoint_db_name='imgnet_prediction', checkpoint_fs_name=fs_name, only_rec=True)
+    cpt = IGPUModel.load_checkpoint_from_db({"experiment_data.experiment_id":exp_id, "experiment_data.config_id": config_id}, checkpoint_fs_host='localhost', checkpoint_fs_port=6666, checkpoint_db_name='imgnet_prediction', checkpoint_fs_name=fs_name, only_rec=True)
     rec = cpt['rec']
     rec['kwargs'] = kwargs
     rec['loss'] = rec['test_outputs'][0]['logprob'][0]
