@@ -9,11 +9,11 @@ from scipy.spatial.distance import pdist
 from scipy.io import loadmat
 from scipy.io import savemat
 from scipy.stats.mstats import zscore
-from archconvnets.unsupervised.opt_grad_third_order_reduced_second_order import test_grad
+from archconvnets.unsupervised.opt_grad_third_order_reduced_second_order_diag import test_grad
 import math
 
 global filename
-if True: #False:
+if False:
 	n_channels_in = 64
 	filter_sz = 5
 
@@ -34,18 +34,19 @@ in_dims = n_channels_in*(filter_sz**2)
 #################
 N = n_channels_find
 n_triplets = math.factorial(in_dims)/(math.factorial(in_dims-3)*6)
-n_points = 65000#2775 #n_triplets #60000
+n_tuples = math.factorial(in_dims)/(math.factorial(in_dims-2)*2)
+n_points = n_tuples + n_triplets #2775 #n_triplets #60000
 filename = 'opt_' + filters_name + '_thirdorder_grad_npoints' + str(n_points) + '_nonrandom.mat'
 inds_flat_eval = np.round(np.random.random(n_points) * n_triplets)
 inds_flat_eval = inds_flat_eval[:n_points]
 inds_flat_eval = np.sort(inds_flat_eval)
-target = np.zeros(n_triplets) #n_points)
+target = np.zeros(n_points) #n_points)
 #inds_i = np.int32(np.round(np.random.random(n_points)*(in_dims-1))) #np.zeros(n_points,dtype='int32')
 #inds_m = np.int32(np.round(np.random.random(n_points)*(in_dims-1))) #np.zeros(n_points,dtype='int32')
 #inds_n = np.int32(np.round(np.random.random(n_points)*(in_dims-1))) #np.zeros(n_points,dtype='int32')
-inds_i = np.zeros(n_triplets,dtype='int32')
-inds_m = np.zeros(n_triplets,dtype='int32')
-inds_n = np.zeros(n_triplets,dtype='int32')
+inds_i = np.zeros(n_points,dtype='int32')
+inds_m = np.zeros(n_points,dtype='int32')
+inds_n = np.zeros(n_points,dtype='int32')
 
 filters = loadmat(filters_name + '.mat')['filters']
 in_dims = n_channels_in*(filter_sz**2)
@@ -77,10 +78,21 @@ for i in range(in_dims):
         target[ind] = numer / denom
         inds_i[ind] = i; inds_m[ind] = m; inds_n[ind] = n
         ind += 1
+for i in range(in_dims):
+	for m in range(i+1, in_dims):
+		n = m
+		numer = np.sum(x_no_mean[i]*w[m,n])
+	        denom = x_std[i]*x_std[m]*x_std[n]
+	        target[ind] = numer / denom
+	        inds_i[ind] = i; inds_m[ind] = m; inds_n[ind] = n
+	        ind += 1
+reorder = range(n_points)
 reorder = np.argsort(-np.abs(target))
+
 #inds = np.arange(len(reorder))
 #random.shuffle(inds)
 #reorder = reorder[inds]
+
 target = target[reorder][:n_points]
 inds_i = inds_i[reorder][:n_points]
 inds_m = inds_m[reorder][:n_points]
@@ -125,7 +137,7 @@ print norm_second_order
 
 t_start = time.time()
 time_save = time.time()
-arg_list = (target, filename, inds_i, inds_m, inds_n, target_corr_mat, norm_second_order*0)
+arg_list = (target, filename, inds_i, inds_m, inds_n, target_corr_mat, norm_second_order, N)
 print filename
 #print test_grad(x0, target, filename, inds_flat_eval)[0]#, target, filename)[0]
 print 'starting...'
