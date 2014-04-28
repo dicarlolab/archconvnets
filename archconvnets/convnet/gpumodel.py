@@ -25,6 +25,7 @@
 import datetime
 import numpy as n
 import os
+import collections
 from time import time, asctime, localtime, strftime
 from numpy.random import randn, rand
 from numpy import s_, dot, tile, zeros, ones, zeros_like, array, ones_like
@@ -54,10 +55,38 @@ def get_checkpoint_fs(host, port, db_name, fs_name):
         raise(pm.errors.ConnectionFailure(e))
     else:
         return gridfs.GridFS(checkpoint_db, fs_name)
+        
+        
+def get_recent_checkpoint_fs(host, port, db_name, fs_name):
+    return get_checkpoint_fs(host, port, db_name + "__RECENT", fs_name)
+
+
+def cleanup_checkpoint_db(host, port, db_name, fs_name, keep_recents=True):
+
+    rfs = get_recent_checkpoint_fs(host, port, db_name, fs_name)
+
+    if keep_recents:
+        fs = get_checkpoint_fs(host, port, db_name, fs_name)
+        rcoll = rfs._GridFS__files
+        edatas = rcoll.distinct('experiment_data')
+        for ed in edatas:
+            rec = rcoll.find({'experiment_data': ed},
+                             as_class=collections.OrderedDict).sort([('timestamp', -1)])[0]
+            blob = rfs.get_last_version(_id=rec['_id'])
+            idval = fs.put(blob, **rec)    
+            print('saved record with filters to id %s' % repr(idval))
+        
+    conn = pm.Connection(host=host, port=port)
+    conn.drop_database(rfs._GridFS__database)
 
 
 class ModelStateException(Exception):
     pass
+
+
+class NoMatchingCheckpointError(Exception):
+    pass
+    
 
 # GPU Model interface
 class IGPUModel:
@@ -82,14 +111,14 @@ class IGPUModel:
             if not "experiment_data" in self.options or not self.options["experiment_data"].value_given:
                 self.experiment_data = load_dic["rec"]["experiment_data"]
         else:
-            self.model_state = {}
+            self.model_state = collections.OrderedDict()
             self.model_state["train_outputs"] = []
             self.model_state["test_outputs"] = []
             self.model_state["epoch"] = 1
             self.model_state["batchnum"] = self.train_batch_range[0]
             if not self.options["experiment_data"].value_given:
                 idval = model_name + "_" + '_'.join(['%s_%s' % (char, self.options[opt].get_str_value()) for opt, char in filename_options]) + '_' + strftime('%Y-%m-%d_%H.%M.%S')
-                self.experiment_data = {'experiment_id': idval}
+                self.experiment_data = collections.OrderedDict([('experiment_id', idval)])
 
         self.init_data_providers()
         if load_dic:
@@ -117,7 +146,7 @@ class IGPUModel:
 
     def init_data_providers(self):
         self.dp_params['convnet'] = self
-	print self.dp_params
+        print(self.test_batch_range, self.train_batch_range)
         try:
             self.test_data_provider = DataProvider.get_instance(
                     self.data_path,
@@ -354,27 +383,35 @@ class IGPUModel:
                                               self.checkpoint_fs_port,
                                               self.checkpoint_db_name,
                                               self.checkpoint_fs_name)
-            dic = {"model_state": self.model_state,
-                       "op": self.op}
-            val_dict['saved_filters'] = True
-            if (self.saving_freq > 0) and (((self.get_num_batches_done() / self.testing_freq) % self.saving_freq) == 0):
-                val_dict['__save_protected__'] = True
+            
+            
+            if self.save_filters and (self.saving_freq > 0) and (((self.get_num_batches_done() / self.testing_freq) % self.saving_freq) == 0):
+                val_dict['saved_filters'] = True
+                dic = collections.OrderedDict([("model_state", self.model_state),
+                               ("op", self.op)])
+                msg = 'Saved (with filters) to id %s'
+                save_recent = False
             else:
-                val_dict['__save_protected__'] = False
+                val_dict['saved_filters'] = False
+                msg = 'Saved (without filters) to id %s'
+                dic = collections.OrderedDict()
+                save_recent = self.save_filters and self.save_recent_filters
             blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
             idval = checkpoint_fs.put(blob, **val_dict)
-            print('Saved (with filters) to id %s' % str(idval))
-            to_remove_filters = list(checkpoint_fs._GridFS__files.find({'experiment_data': self.experiment_data, 
-                                                'saved_filters': True,
-                                                '__save_protected__': False}).sort('timestamp'))
-            for trf in to_remove_filters:
-                if trf['_id'] != idval:
-                    print('Removing filters saved to id %s' % str(trf['_id']))
-                    checkpoint_fs.delete(trf['_id'])
-                    blob = cPickle.dumps({}, protocol=cPickle.HIGHEST_PROTOCOL)
-                    trf['saved_filters'] = False
-                    checkpoint_fs.put(blob, **trf)
-                                      
+            print(msg % str(idval))
+            
+            if save_recent:
+                checkpoint_recent_fs = get_recent_checkpoint_fs(self.checkpoint_fs_host,
+                                              self.checkpoint_fs_port,
+                                              self.checkpoint_db_name,
+                                              self.checkpoint_fs_name)
+                dic = collections.OrderedDict([("model_state", self.model_state),
+                               ("op", self.op)])
+                val_dict['saved_filters'] = True
+                blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
+                idval = checkpoint_recent_fs.put(blob, **val_dict)
+                msg = 'Saved recent (with filters) to id %s'
+                print(msg % str(idval))
 
     @staticmethod
     def load_checkpoint(load_dir):
@@ -388,10 +425,37 @@ class IGPUModel:
                                           checkpoint_fs_port,
                                           checkpoint_db_name,
                                           checkpoint_fs_name)
+        
         query['saved_filters'] = True
-        rec = checkpoint_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
+        count = checkpoint_fs._GridFS__files.find(query).count()
+        fs_to_use = checkpoint_fs
+        rec = None
+        loading_from = 0
+        if count > 0:
+            rec = checkpoint_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
+
+        checkpoint_recent_fs = get_recent_checkpoint_fs(checkpoint_fs_host,
+                                          checkpoint_fs_port,
+                                          checkpoint_db_name,
+                                          checkpoint_fs_name)
+        count_recent = checkpoint_recent_fs._GridFS__files.find(query).count()
+        if count_recent > 0:
+            rec_r = checkpoint_recent_fs._GridFS__files.find(query, sort=[('timestamp', -1)])[0]
+            if rec is None or rec_r['timestamp'] > rec['timestamp']:
+                loading_from = 1
+                rec = rec_r
+                fs_to_use = checkpoint_recent_fs
+                    
+        if (count + count_recent) == 0:
+            raise NoMatchingCheckpointError('No Matching Checkpoint for query %s in db %s, %s, %s, %s' % (repr(query), checkpoint_fs_host, checkpoint_fs_port, checkpoint_db_name, checkpoint_fs_name))
+       
+        if loading_from == 0:
+            print('Loading checkpoint from regular storage.')
+        else:
+            print('Loading checkpoint from "recent" storage.')
+ 
         if not only_rec:
-            load_dic = cPickle.loads(checkpoint_fs.get_last_version(_id=rec['_id']).read())
+            load_dic = cPickle.loads(fs_to_use.get_last_version(_id=rec['_id']).read())
         else:
             load_dic = {}
         load_dic['rec'] = rec
@@ -421,6 +485,8 @@ class IGPUModel:
               default=False )
         ####### db configs #######
         op.add_option("save-db", "save_db", BooleanOptionParser, "Save checkpoints to mongo database?", default=0)
+        op.add_option("save-filters", "save_filters", BooleanOptionParser, "Save filters to database?", default=1)
+        op.add_option("save-recent-filters", 'save_recent_filters', BooleanOptionParser, "Save recent filters to database?", default=1)
         op.add_option("saving-freq", "saving_freq", IntegerOptionParser, 
                       "Frequency for saving filters to db filesystem, as a multiple of testing-freq", 
                       default=1)
@@ -456,7 +522,7 @@ class IGPUModel:
             if options["load_file"].value_given:
                 load_dic = IGPUModel.load_checkpoint(options["load_file"].value)
             if options["load_query"].value_given:
-                print "loadin from db"
+                print "Loading checkpoint from database."
                 load_dic = IGPUModel.load_checkpoint_from_db(options["load_query"].value,
                                                              options["checkpoint_fs_host"].value,
                                                              options["checkpoint_fs_port"].value,
@@ -489,7 +555,7 @@ def get_convenient_mongodb_representation(self):
 
 
 def get_convenient_mongodb_representation_base(op, model_state):
-    val_dict = dict([(_o.name, _o.value) for _o in op.get_options_list()])
+    val_dict = collections.OrderedDict([(_o.name, _o.value) for _o in op.get_options_list()])
     def make_mongo_safe(_d):
         for _k in _d:
             if '.' in _k:
@@ -506,7 +572,7 @@ def get_convenient_mongodb_representation_base(op, model_state):
                 for _bk in bad_keys:
                     if _bk in _l:
                         _l.pop(_bk)
-            layers = dict([(_l['name'], _l) for _l in layers])
+            layers = collections.OrderedDict([(_l['name'], _l) for _l in layers])
             val_dict[k] = layers
         elif k == 'train_outputs':
             tfreq = val_dict['testing_freq']

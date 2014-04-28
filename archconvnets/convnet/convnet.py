@@ -22,6 +22,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import collections
 import numpy as n
 import numpy.random as nr
 from util import *
@@ -32,6 +33,7 @@ import sys
 import math as m
 import layer as lay
 from convdata import *
+from data import LabeledDataProvider
 from os import linesep as NL
 #import pylab as pl
 
@@ -65,7 +67,7 @@ class ConvNet(IGPUModel):
             ms['layers'] = lay.LayerParser.parse_layers(self.layer_def, self.layer_params, self, ms['layers'])
         else:
             ms['layers'] = lay.LayerParser.parse_layers(self.layer_def, self.layer_params, self)
-        self.layers_dic = dict(zip([l['name'] for l in ms['layers']], ms['layers']))
+        self.layers_dic = collections.OrderedDict(zip([l['name'] for l in ms['layers']], ms['layers']))
 
         logreg_name = self.op.get_value('logreg_name')
         if logreg_name:
@@ -200,6 +202,8 @@ class ConvNet(IGPUModel):
         op.options['dp_type'].default = None
 
         # dummy provider
+        DataProvider.register_data_provider('labeled-data', 'Labeled Data', LabeledDataProvider)
+        DataProvider.register_data_provider('labeled-data-trans', 'Labeled Data Trans', LabeledDataProviderTrans)
         DataProvider.register_data_provider('dummy-cn-n', 'Dummy ConvNet', DummyConvNetDataProvider)
         # cifar data provider
         DataProvider.register_data_provider('cifar-rand', 'CIFAR Random', CIFARDataRandomProvider)

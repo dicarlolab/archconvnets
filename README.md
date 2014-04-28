@@ -19,6 +19,8 @@ wget http://www.cs.toronto.edu/~kriz/cifar-10-py-colmajor.tar.gz
 export CIFAR10_PATH=~/.skdata/cifar-10-py-colmajor
 ```
 
+Install CUDA: http://sn0v.wordpress.com/2012/12/07/installing-cuda-5-on-ubuntu-12-04/
+
 If you're on a machine other than honeybadger (or one that is similarly configured)
 modify archconvnets/convnet/build.sh to match your machine's setup (cuda, python, and numpy locations must be specified)
 

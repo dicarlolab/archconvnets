@@ -117,8 +117,10 @@ class ExtractConvNet(ConvNet):
                     break
             if self.op.get_value('write_disk'):
                 pickle(os.path.join(ldir, 'batches.meta'), {'source_model': self.load_file,
-                                                                         'source_model_query': self.load_query,
-                                                                         'num_vis': num_ftrs})
+                                                            'source_model_query': self.load_query,
+                                                            'num_vis': num_ftrs,
+                                                            'num_cases_per_batch': ftrs.shape[0],
+                                                            'label_names': self.train_data_provider.labels_unique})
             if self.op.get_value('write_db'):  # log the extraction
                 record = {'dataset_name': op.get_value('dp_params')['dataset_name'],
                           'feature_layer': lname,
