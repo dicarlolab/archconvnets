@@ -468,7 +468,7 @@ class DLDataProvider(LabeledDataProvider):
         mlen = len(meta)
         #format relevant metadata column into integer list if needed
         metacol = meta[self.dp_params['meta_attribute']][:]
-        if meta['contained'].dtype == 'bool':
+        if meta[self.dp_params['meta_attribute']].dtype == 'bool':
             labels_unique = self.labels_unique = n.unique(metacol)
             labels = n.zeros((mlen, ), dtype='int')
             for label in range(len(labels_unique)):
