@@ -475,8 +475,8 @@ class DLDataProvider(LabeledDataProvider):
                 labels[metacol == labels_unique[label]] = label
             metacol = labels
         try:
-            metacol + 1
-            labels_unique = None
+            _ = metacol + 1
+            self.labels_unique = None
         except TypeError:
             labels_unique = self.labels_unique = n.unique(metacol)
             labels = n.zeros((mlen, ), dtype='int')
