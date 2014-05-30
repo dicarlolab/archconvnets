@@ -2,7 +2,8 @@
 import os
 
 def do_extract():
-    cmd_tmpl  = """python extractnet.py --gpu=2 --test-range=%s --train-range=0 --data-provider=general-cropped --feature-layer=%s --write-disk=1 --feature-path=/export/storage/yamins_skdata/features/%s_%s --data-path=/export/storage/yamins_skdata/%s --load-query='%s' --checkpoint-fs-port=%d --checkpoint-db-name=%s --checkpoint-fs-name=%s --dp-params='{"perm_type": "random", "perm_seed": 0, "preproc": {"normalize": false, "dtype": "float32", "resize_to": %s, "mode": "RGB", "crop": null, "mask": null}, "batch_size": 256, "meta_attribute": "%s", "dataset_name": ["%s", "%s"]}'"""
+    n_gpu = os.environ.get('EXTRACTION_NGPU', 0)
+    cmd_tmpl  = """python extractnet.py --gpu=%d --test-range=%s --train-range=0 --data-provider=general-cropped --feature-layer=%s --write-disk=1 --feature-path=/export/storage/yamins_skdata/features/%s_%s --data-path=/export/storage/yamins_skdata/%s --load-query='%s' --checkpoint-fs-port=%d --checkpoint-db-name=%s --checkpoint-fs-name=%s --dp-params='{"perm_type": "random", "perm_seed": 0, "preproc": {"normalize": false, "dtype": "float32", "resize_to": %s, "mode": "RGB", "crop": null, "mask": null}, "batch_size": 256, "meta_attribute": "%s", "dataset_name": ["%s", "%s"]}'"""
 
     layer_names = [
                    'data',
@@ -49,7 +50,7 @@ def do_extract():
 
     for val in vals[:]:
         print('VAL', val)
-        cmd = cmd_tmpl % val
+        cmd = cmd_tmpl % ((int(n_gpu), ) + val)
         os.system(cmd)
         print(cmd)
 
