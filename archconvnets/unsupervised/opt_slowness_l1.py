@@ -124,19 +124,19 @@ def test_grad_grad(x):
 		savemat('slowness_filters.mat', {'filters':filters})
 	else:
 		print 'nan, not saved'
-	print loss, loss_diffs, loss_t, loss_l2, np.sum(x**2), time.time() - t_start
+	print loss, loss_diffs, loss_t, loss_l2, time.time() - t_start
 	return np.double(loss), np.double(grad)
 	#return loss_t, grad_t
 
 #################
 # load images
 padding = 2
-n_batches_load = 2#32#16
+n_batches_load = 3#32#16
 img_sz = 138
 n_imgs = n_batches_load * 128
 in_channels = 1
 imgs = np.zeros((in_channels, img_sz+padding*2, img_sz+padding*2, n_batches_load*128),dtype='float32')
-frame_step = 1
+frame_step = 2
 frames_per_movie = 150 / frame_step
 base_batch = 20000+20
 
