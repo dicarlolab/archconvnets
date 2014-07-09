@@ -92,6 +92,10 @@ def test_grad_grad(x):
 	######## l2
 	x = x_back
 	x = x.ravel()
+	
+	#loss_l2 = np.sum(x**4)
+	#grad_l2 = 4*(x**3)
+	
 	loss_l2 = np.sum(x**2)
 	grad_l2 = 2*x
 	
@@ -99,29 +103,29 @@ def test_grad_grad(x):
 	#	loss_l2 = 2500
 	#	grad_l2 = 0
 	
-	'''loss_l2 = np.sum(np.abs(x))
-	grad_l2 = 1 - 2*(x < 0)
+	#loss_l2 = np.sum(np.abs(x))
+	#grad_l2 = 1 - 2*(x < 0)
 	
-	if loss_l2 > 700:
+	'''if loss_l2 > 700:
 		loss_l2 = 700;
 		grad_l2 = 0'''
 	
 	if transpose_norm == np.inf:
-		#transpose_norm = 0.01*(loss_diffs / loss_l2) / loss_t
-		transpose_norm = 0.0001 * loss_diffs / loss_t
+		transpose_norm = 0.1 * (loss_diffs / loss_l2) / loss_t
+		#transpose_norm = loss_diffs / loss_t #0.0001
 	if l2_norm == np.inf:
-		l2_norm = 0.001* loss_diffs / loss_l2
-	#grad = (grad_diffs*loss_l2 - loss_diffs*grad_l2)/(loss_l2**2) + transpose_norm*grad_t
-	#loss = (loss_diffs / loss_l2) + transpose_norm*loss_t
+		l2_norm = 1000 * loss_diffs / loss_l2 #0.001
+	grad = (grad_diffs*loss_l2 - loss_diffs*grad_l2)/(loss_l2**2) + transpose_norm*grad_t
+	loss = (loss_diffs / loss_l2) + transpose_norm*loss_t
 	
 	#grad = grad_diffs - l2_norm*grad_l2 + transpose_norm*grad_t
 	#loss = loss_diffs - l2_norm*loss_l2 + transpose_norm*loss_t
 	
-	grad = grad_diffs - l2_norm*grad_l2*(1/(loss_l2**2)) + transpose_norm*grad_t
-	loss = loss_diffs + l2_norm*(1/loss_l2) + transpose_norm*loss_t
+	#grad = grad_diffs - l2_norm*grad_l2*(1/(loss_l2**2)) + transpose_norm*grad_t
+	#loss = loss_diffs + l2_norm*(1/loss_l2) + transpose_norm*loss_t
 	
 	if np.isnan(loss) == False:
-		savemat('slowness_filters.mat', {'filters':filters})
+		savemat('slowness_filters_more_imgs5.mat', {'filters':filters})
 	else:
 		print 'nan, not saved'
 	print loss, loss_diffs, loss_t, loss_l2, time.time() - t_start
@@ -131,12 +135,12 @@ def test_grad_grad(x):
 #################
 # load images
 padding = 2
-n_batches_load = 3#32#16
+n_batches_load = 6#16
 img_sz = 138
-n_imgs = n_batches_load * 128
+n_imgs = 7#n_batches_load * 128
 in_channels = 1
 imgs = np.zeros((in_channels, img_sz+padding*2, img_sz+padding*2, n_batches_load*128),dtype='float32')
-frame_step = 2
+frame_step = 30
 frames_per_movie = 150 / frame_step
 base_batch = 20000+20
 
@@ -181,7 +185,7 @@ else:
 x0 = np.random.random((in_channels*filter_sz*filter_sz*n_filters,1))
 x0 -= np.mean(x0)
 #x0 *= 10000
-#x0 /= np.sum(np.abs(x0))
+x0 /= np.sum(x0**2)
 transpose_norm = np.inf
 l2_norm = np.inf
 
