@@ -115,17 +115,17 @@ def test_grad_grad(x):
 	
 	if transpose_norm == np.inf:
 		#transpose_norm = 0.01*(loss_diffs / loss_l2) / loss_t
-		transpose_norm = 0.0001 * loss_diffs / loss_t
+		transpose_norm = 0.1 * loss_diffs / loss_t
 	if l2_norm == np.inf:
 		l2_norm = 0.001* loss_diffs / loss_l2
-	#grad = (grad_diffs*loss_l2 - loss_diffs*grad_l2)/(loss_l2**2) + transpose_norm*grad_t
-	#loss = (loss_diffs / loss_l2) + transpose_norm*loss_t
+	grad = (grad_diffs*loss_l2 - loss_diffs*grad_l2)/(loss_l2**2) + transpose_norm*grad_t
+	loss = (loss_diffs / loss_l2) + transpose_norm*loss_t
 	
 	#grad = grad_diffs - l2_norm*grad_l2 + transpose_norm*grad_t
 	#loss = loss_diffs - l2_norm*loss_l2 + transpose_norm*loss_t
 	
-	grad = grad_diffs - l2_norm*grad_l2*(1/(loss_l2**2)) + transpose_norm*grad_t
-	loss = loss_diffs + l2_norm*(1/loss_l2) + transpose_norm*loss_t
+	#grad = grad_diffs - l2_norm*grad_l2*(1/(loss_l2**2)) + transpose_norm*grad_t
+	#loss = loss_diffs + l2_norm*(1/loss_l2) + transpose_norm*loss_t
 	
 	if np.isnan(loss) == False:
 		savemat('slowness_filters_l3.mat', {'filters':filters})
@@ -138,14 +138,14 @@ def test_grad_grad(x):
 #################
 # load images
 padding = 2
-n_batches_load = 6#32#16
+n_batches_load = 11#32#16
 img_sz = 138
 n_imgs = n_batches_load * 128
 in_channels = 1
 imgs = np.zeros((in_channels, img_sz+padding*2, img_sz+padding*2, n_batches_load*128),dtype='float32')
-frame_step = 2
+frame_step = 30
 frames_per_movie = 150 / frame_step
-base_batch = 20000+20+7
+base_batch = 20000+20+8+5
 
 data_mean = loadmat('movie_mean.mat')['data_mean']
 for batch in range(base_batch, base_batch+n_batches_load):
@@ -163,7 +163,7 @@ pool_window_sz = 3
 pool_stride = 2
 
 print n_imgs
-n_imgs = 2*32
+#n_imgs = 2*32
 print n_imgs
 imgs = imgs[:,:,:,:n_imgs]
 
@@ -171,7 +171,7 @@ output_sz = len(range(0, img_sz + padding*2 - filter_sz + 1, stride))
 output_sz2 = len(range(0, output_sz - pool_window_sz + 1, pool_stride))
 
 
-filters = zscore(loadmat('slowness_filters.mat')['filters'], axis=None)
+filters = zscore(loadmat('slowness_filters_more_imgs5_prelim.mat')['filters'], axis=None)
 conv_out = np.single(conv_block(np.double(filters), np.double(imgs), stride))
 output = max_pool_locs(conv_out, crop_derivs=False)
 img_sz = output.shape[1]
@@ -190,7 +190,7 @@ output_sz = len(range(0, img_sz + padding*2 - filter_sz + 1, stride))
 output_sz2 = len(range(0, output_sz - pool_window_sz + 1, pool_stride))
 
 
-filters = zscore(loadmat('slowness_filters_l2.mat')['filters'], axis=None)
+filters = zscore(loadmat('slowness_filters_l2_prelim.mat')['filters'], axis=None)
 conv_out = np.single(conv_block(np.double(filters), np.double(imgs), stride))
 output = max_pool_locs(conv_out, crop_derivs=False)
 img_sz = output.shape[1]
@@ -227,7 +227,7 @@ else:
 x0 = np.random.random((in_channels*filter_sz*filter_sz*n_filters,1))
 x0 -= np.mean(x0)
 #x0 *= 10000
-#x0 /= np.sum(np.abs(x0))
+x0 /= np.sum(x0**2)
 transpose_norm = np.inf
 l2_norm = np.inf
 
