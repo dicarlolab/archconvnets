@@ -68,60 +68,42 @@ def test_grad_grad(x):
 	corrs_r = np.zeros((n_filters, n_imgs-1))
 	corrs_loss = 0
 	corrs_l = np.zeros((n_filters,n_imgs-1))
-	grad_g = np.zeros((in_channels, filter_sz, filter_sz, n_filters))
-	grad_gd = np.zeros((in_channels, filter_sz, filter_sz, n_filters))
-	grad_gdt = np.zeros((in_channels, filter_sz, filter_sz, n_filters))
-	grad_l = np.zeros((in_channels, filter_sz, filter_sz, n_filters))
-	grad_ldt = np.zeros((in_channels, filter_sz, filter_sz, n_filters))
+	grad_ldt = np.zeros((in_channels, filter_sz**2, n_filters))
 	corrs_frames = np.zeros(n_imgs-1)
 	corrs_frames_ind = np.zeros((n_filters, n_imgs-1))
 	for batch in base_batches:
 		print batch
 		c = np.load('/tmp/features/data_batch_' + str(batch))
-		conv_out = c['data'].reshape((n_imgs, n_filters, output_sz, output_sz)).transpose((1,2,3,0))
-		# conv_out: n_filters, output_sz, output_sz, n_imgs
-		output_deriv = loadmat('conv_derivs_' + str(batch) + '.mat')['output_deriv'] # in_channels, filter_sz, filter_sz, output_sz, output_sz, n_imgs
-		output_deriv = output_deriv.reshape((in_channels, filter_sz, filter_sz, 1, output_sz, output_sz, n_imgs))
+		conv_out = c['data'].reshape((n_imgs, n_filters, output_sz**2)).transpose((1,2,0))
+		# conv_out: n_filters, output_sz**2, n_imgs
+		output_deriv = loadmat('conv_derivs_' + str(batch) + '.mat')['output_deriv']
+		# output_deriv: in_channels, filter_sz**2, output_sz**2, n_imgs
+		output_deriv = output_deriv.reshape((in_channels, filter_sz**2, 1, output_sz**2, n_imgs))
 		
-		conv_out_nmean = conv_out.reshape((n_filters*(output_sz**2), n_imgs))
-		conv_out_nmean -= conv_out_nmean.mean(0)
-		conv_out_nmean = conv_out_nmean.reshape((1, 1, 1, n_filters, output_sz, output_sz, n_imgs))
+		conv_out_nmean = conv_out.reshape((n_filters, output_sz**2, n_imgs))
+		conv_out_nmean -= conv_out_nmean.mean(1)[:,np.newaxis]
+		conv_out_nmean_std = np.sqrt(np.sum(conv_out_nmean**2,axis=1))
+		conv_out_nmean_std_pad = conv_out_nmean_std.reshape((1, 1, n_filters, n_imgs))
+		conv_out_nmean_pad = conv_out_nmean.reshape((1, 1, n_filters, output_sz**2, n_imgs))
 		
-		# output_deriv*conv_out_nmean: in_channels, filter_sz, filter_sz, n_filters, output_sz, output_sz, n_imgs
+		grad_ld1 = (output_deriv*conv_out_nmean_pad).sum(3)
+		# output_deriv*conv_out_nmean: in_channels, filter_sz**2, n_filters, output_sz**2, n_imgs
 		for img in range(0, n_imgs-1):
 			if (((img-2) % frames_per_movie) != 0) and (((img+2) % frames_per_movie) != 0) and (((img+1) % frames_per_movie) != 0) and (((img) % frames_per_movie) != 0) and (((img-1) % frames_per_movie) != 0): # skip movie boundaries
-				corrs_frames[img] += pearsonr(conv_out[:,:,:,img].ravel(), conv_out[:,:,:,img+1].ravel())[0]
+				std_pair = conv_out_nmean_std[:,img]*conv_out_nmean_std[:,img+1]
+				corrs_l = np.sum(conv_out_nmean[:,:,img]*conv_out_nmean[:,:,img+1],axis=1)
+
+				corrs_loss += np.sum(corrs_l / std_pair)
+				grad_l = (output_deriv[:,:,:,:,img]*conv_out_nmean_pad[:,:,:,:,img+1]).sum(3)
+				grad_l += (output_deriv[:,:,:,:,img+1]*conv_out_nmean_pad[:,:,:,:,img]).sum(3)
 				
-				corrs_g = np.sum((conv_out_nmean[:,:,:,:,:,:,img]*conv_out_nmean[:,:,:,:,:,:,img+1]).ravel())
-				corrs_gd = np.sqrt(np.sum(conv_out_nmean[:,:,:,:,:,:,img].ravel()**2))*np.sqrt(np.sum(conv_out_nmean[:,:,:,:,:,:,img+1].ravel()**2))
-				#corrs_loss += corrs_g / corrs_gd
-				grad_g = (output_deriv[:,:,:,:,:,:,img]*conv_out_nmean[:,:,:,:,:,:,img+1]).sum(4).sum(4) # sum over spatial dims
-				grad_g += (output_deriv[:,:,:,:,:,:,img+1]*conv_out_nmean[:,:,:,:,:,:,img]).sum(4).sum(4)
+				grad_ld = grad_ld1[:,:,:,img]*conv_out_nmean_std_pad[:,:,:,img+1]/conv_out_nmean_std_pad[:,:,:,img]
+				grad_ld += grad_ld1[:,:,:,img+1]*conv_out_nmean_std_pad[:,:,:,img]/conv_out_nmean_std_pad[:,:,:,img+1]
 				
-				grad_gd = (output_deriv[:,:,:,:,:,:,img]*conv_out_nmean[:,:,:,:,:,:,img]).sum(4).sum(4)*np.sqrt((conv_out_nmean[:,:,:,:,:,:,img+1]**2).sum(4).sum(4))/np.sqrt((conv_out_nmean[:,:,:,:,:,:,img]**2).sum(4).sum(4))
-				grad_gd += (output_deriv[:,:,:,:,:,:,img+1]*conv_out_nmean[:,:,:,:,:,:,img+1]).sum(4).sum(4)*np.sqrt((conv_out_nmean[:,:,:,:,:,:,img]**2).sum(4).sum(4))/np.sqrt((conv_out_nmean[:,:,:,:,:,:,img+1]**2).sum(4).sum(4))
-				grad_gdt += (corrs_g*grad_gd - grad_g*corrs_gd)/(corrs_gd**2)
+				grad_ldt += (corrs_l*grad_ld - grad_l*std_pair)/(std_pair**2)
 				for filter in range(n_filters):
-					corrs_frames_ind[filter,img] += pearsonr(conv_out[filter,:,:,img].ravel(), conv_out[filter,:,:,img+1].ravel())[0]
-					corrs_l = np.sum((conv_out_nmean[:,:,:,filter,:,:,img]*conv_out_nmean[:,:,:,filter,:,:,img+1]).ravel())
-					corrs_ld = np.sqrt(np.sum(conv_out_nmean[:,:,:,filter,:,:,img].ravel()**2))*np.sqrt(np.sum(conv_out_nmean[:,:,:,filter,:,:,img+1].ravel()**2))
-					corrs_loss += corrs_l / corrs_ld
-					grad_l = (output_deriv[:,:,:,0,:,:,img]*conv_out_nmean[:,:,:,filter,:,:,img+1]).sum(3).sum(3)
-	                                grad_l += (output_deriv[:,:,:,0,:,:,img+1]*conv_out_nmean[:,:,:,filter,:,:,img]).sum(3).sum(3)
-								# ^ summing over spatial dims
-					
-					grad_ld = (output_deriv[:,:,:,0,:,:,img]*conv_out_nmean[:,:,:,filter,:,:,img]).sum(3).sum(3)*np.sqrt((conv_out_nmean[:,:,:,filter,:,:,img+1]**2).sum(3).sum(3))/np.sqrt((conv_out_nmean[:,:,:,filter,:,:,img]**2).sum(3).sum(3))
-					grad_ld += (output_deriv[:,:,:,0,:,:,img+1]*conv_out_nmean[:,:,:,filter,:,:,img+1]).sum(3).sum(3)*np.sqrt((conv_out_nmean[:,:,:,filter,:,:,img]**2).sum(3).sum(3))/np.sqrt((conv_out_nmean[:,:,:,filter,:,:,img+1]**2).sum(3).sum(3))
-	                                #print corrs_l.shape, grad_ld.shape, grad_l.shape, corrs_ld.shape
-					grad_ldt[:,:,:,filter] += (corrs_l*grad_ld - grad_l*corrs_ld)/(corrs_ld**2)
-					corrs_loss += corrs_l / corrs_ld
-	#grad_g = -((N-1)/N)*grad_g.ravel()
-	#grad_gd = -((N-1)/N)*grad_gd.ravel()
-	#loss_g = -np.sum(corrs_g)
+					corrs_frames_ind[filter,img] += pearsonr(conv_out[filter,:,img], conv_out[filter,:,img+1])[0]
 	corrs_frames_ind /= len(base_batches)
-	corrs_frames /= len(base_batches)
-	corrs_l /= len(base_batches)
-	#grad_g /= len(base_batches)
 	x_back = copy.deepcopy(x)
 	########## transpose
 	x_in = copy.deepcopy(x)
@@ -161,33 +143,11 @@ def test_grad_grad(x):
 	
 	if transpose_norm == np.inf:
 		transpose_norm = 0.1 * (corrs_loss) / loss_t
-	#	transpose_norm = 1e8*((loss_g/loss_l2) / loss_t) #0*1e8*loss_diffs / loss_t
-	#if l2_norm == np.inf:
-	#	l2_norm = 0.01 * loss_diffs / loss_t
-	
-	#grad = (grad_diffs*loss_l2 - loss_diffs*grad_l2)/(loss_l2**2) #+ transpose_norm*grad_t
-	#loss = (loss_diffs / loss_l2) #+ transpose_norm*loss_t
-	
-	#grad = grad_diffs - (1/l2_norm)*grad_l2/(loss_l2**2)  + transpose_norm*grad_t
-	#loss = loss_diffs + 1/(l2_norm*loss_l2) + transpose_norm*loss_t
-	
-	#grad = grad_diffs - l2_norm*grad_l2 + transpose_norm*grad_t
-	#loss = loss_diffs - l2_norm*loss_l2 + transpose_norm*loss_t
-	
-	#loss = loss_diffs - 0.1*loss_l2/loss_diffs + 0.1*loss_t/loss_diffs
-	#grad = grad_diffs - 0.1*(grad_l2*loss_diffs - loss_l2*grad_diffs)/(grad_diffs**2) + 0.1*(grad_t*loss_diffs - loss_t*grad_diffs)/(grad_diffs**2)
-	
-	#loss = loss_diffs + transpose_norm*loss_t#/loss_diffs
-	grad = grad_ldt.ravel() + transpose_norm*grad_t#dt.ravel()#(grad_g*loss_l2 - loss_g*grad_l2)/(loss_l2**2) + transpose_norm*grad_t #10*(grad_t*loss_diffs - loss_t*grad_diffs)/(grad_diffs**2)
+	grad = grad_ldt.ravel() + transpose_norm*grad_t
 	
 	loss = -corrs_loss + transpose_norm*loss_t
 	
-	#if np.isnan(loss) == False:
-	#	savemat('slowness_filters_more_imgs5.mat', {'filters':filters})
-	#else:
-	#	print 'nan, not saved'
-	#print loss, loss_diffs/loss_l2, loss_diffs, loss_l2, loss_t/len(corrs), time.time() - t_start, t_conv, np.mean(corrs), np.median(corrs), np.mean(corrs_g), np.median(corrs_g)
-	print loss, np.mean(corrs_frames), time.time() - t_start, np.mean(np.abs(corrs)), np.mean(corrs_frames_ind)#np.mean(corrs_l)
+	print loss, np.mean(corrs_frames), time.time() - t_start, np.mean(np.abs(corrs)), np.mean(corrs_frames_ind)
 	return np.double(loss), np.double(grad)
 
 #################
@@ -196,9 +156,7 @@ img_sz = 138
 n_imgs = 128 # imgs in a batch
 in_channels = 1
 frames_per_movie = 128#16
-base_batches = [80000,80001]#,90002,90003]
-#base_batches = [90000,90001]
-base_batches = np.arange(80000, 80000+3)#[80000,80001,80002,80003]
+base_batches = np.arange(80000, 80001)#[80000,80001,80002,80003]
 
 layer_name = 'conv1_1a'
 weight_ind = 2
