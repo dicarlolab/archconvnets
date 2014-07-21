@@ -2,7 +2,6 @@ import random
 import pickle as pk
 import time
 from scipy.io import savemat
-from scipy.stats.mstats import zscore
 import numpy as n
 import os
 from time import time, asctime, localtime, strftime
@@ -50,27 +49,21 @@ def conv_block(filters, base_batch):
 def test_grad_grad(x):
 	global transpose_norm, l2_norm
 	x_shape = x.shape
-	x = x.reshape((in_channels*(filter_sz**2), n_filters))
+	x = np.float32(x.reshape((in_channels*(filter_sz**2), n_filters)))
 	x = zscore(x,axis=0)
 	x = x.reshape(x_shape)
-	x = np.float32(x)
+	
 	t_start = time.time()
 	filters = x.reshape((in_channels, filter_sz, filter_sz, n_filters))
 	N = in_channels*filter_sz*filter_sz
+	
 	t_conv = time.time()
 	conv_block(filters, base_batches)
 	t_conv = time.time() - t_conv
 
-	loss_gd = 0	
-	loss_diffs = 0
-	grad_diffs = np.zeros(x.shape)
-	
-	corrs_r = np.zeros((n_filters, n_imgs-1))
 	corrs_loss = 0
-	corrs_l = np.zeros((n_filters,n_imgs-1))
 	grad_ldt = np.zeros((in_channels, filter_sz**2, n_filters))
-	corrs_frames = np.zeros(n_imgs-1)
-	corrs_frames_ind = np.zeros((n_filters, n_imgs-1))
+	n_corrs = 0
 	for batch in base_batches:
 		print batch
 		c = np.load('/tmp/features/data_batch_' + str(batch))
@@ -83,10 +76,10 @@ def test_grad_grad(x):
 		conv_out_nmean = conv_out.reshape((n_filters, output_sz**2, n_imgs))
 		conv_out_nmean -= conv_out_nmean.mean(1)[:,np.newaxis]
 		conv_out_nmean_std = np.sqrt(np.sum(conv_out_nmean**2,axis=1))
-		conv_out_nmean_std_pad = conv_out_nmean_std.reshape((1, 1, n_filters, n_imgs))
-		conv_out_nmean_pad = conv_out_nmean.reshape((1, 1, n_filters, output_sz**2, n_imgs))
+		conv_out_nmean_std_pad = conv_out_nmean_std[np.newaxis, np.newaxis]
+		conv_out_nmean_pad = conv_out_nmean[np.newaxis, np.newaxis]
 		
-		grad_ld1 = (output_deriv*conv_out_nmean_pad).sum(3)
+		grad_ld1 = (output_deriv*conv_out_nmean_pad).sum(3) / conv_out_nmean_std_pad
 		# output_deriv*conv_out_nmean: in_channels, filter_sz**2, n_filters, output_sz**2, n_imgs
 		for img in range(0, n_imgs-1):
 			if (((img-2) % frames_per_movie) != 0) and (((img+2) % frames_per_movie) != 0) and (((img+1) % frames_per_movie) != 0) and (((img) % frames_per_movie) != 0) and (((img-1) % frames_per_movie) != 0): # skip movie boundaries
@@ -97,16 +90,12 @@ def test_grad_grad(x):
 				grad_l = (output_deriv[:,:,:,:,img]*conv_out_nmean_pad[:,:,:,:,img+1]).sum(3)
 				grad_l += (output_deriv[:,:,:,:,img+1]*conv_out_nmean_pad[:,:,:,:,img]).sum(3)
 				
-				grad_ld = grad_ld1[:,:,:,img]*conv_out_nmean_std_pad[:,:,:,img+1]/conv_out_nmean_std_pad[:,:,:,img]
-				grad_ld += grad_ld1[:,:,:,img+1]*conv_out_nmean_std_pad[:,:,:,img]/conv_out_nmean_std_pad[:,:,:,img+1]
+				grad_ld = grad_ld1[:,:,:,img]*conv_out_nmean_std_pad[:,:,:,img+1]
+				grad_ld += grad_ld1[:,:,:,img+1]*conv_out_nmean_std_pad[:,:,:,img]
 				
 				grad_ldt += (corrs_l*grad_ld - grad_l*std_pair)/(std_pair**2)
-				for filter in range(n_filters):
-					corrs_frames_ind[filter,img] += pearsonr(conv_out[filter,:,img], conv_out[filter,:,img+1])[0]
-	corrs_frames_ind /= len(base_batches)
-	x_back = copy.deepcopy(x)
+				n_corrs += n_filters
 	########## transpose
-	x_in = copy.deepcopy(x)
 	x = np.reshape(x, (in_channels*(filter_sz**2), n_filters)).T
 	
 	corrs = (1-pdist(x,'correlation'))
@@ -131,23 +120,13 @@ def test_grad_grad(x):
 				grad_t[i] += sign_mat[i,j]*(d_minus_sum_n[j]*d2_sum_sqrt[i] - d_dot_dT[i,j]*d_minus_sum_n_div[i])/(d2_sum_sqrt[j]*d2_sum_sqrt2[i])             
 	grad_t = grad_t.T.ravel()
 	
-	######## l2
-	x = x_back
-	x = x.ravel()
-	
-	loss_l2 = np.sum(np.abs(x))
-	grad_l2 = 1 - 2*(x < 0)
-	
-	loss_l2 = np.sum(x**2)
-	grad_l2 = 2*x
-	
 	if transpose_norm == np.inf:
 		transpose_norm = 0.1 * (corrs_loss) / loss_t
 	grad = grad_ldt.ravel() + transpose_norm*grad_t
 	
 	loss = -corrs_loss + transpose_norm*loss_t
 	
-	print loss, np.mean(corrs_frames), time.time() - t_start, np.mean(np.abs(corrs)), np.mean(corrs_frames_ind)
+	print loss, time.time() - t_start, t_conv, np.mean(np.abs(corrs)), corrs_loss/n_corrs
 	return np.double(loss), np.double(grad)
 
 #################
@@ -156,7 +135,7 @@ img_sz = 138
 n_imgs = 128 # imgs in a batch
 in_channels = 1
 frames_per_movie = 128#16
-base_batches = np.arange(80000, 80001)#[80000,80001,80002,80003]
+base_batches = np.arange(80000, 80000+3)#[80000,80001,80002,80003]
 
 layer_name = 'conv1_1a'
 weight_ind = 2
