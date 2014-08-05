@@ -141,7 +141,8 @@ def test_grad_slowness(x):
 	loss = -corrs_loss
 	
 	print loss, time.time() - t_start, t_conv, corrs_loss/n_corrs, np.max(x_in)
-	return np.double(loss), np.double(grad)
+	return corrs_loss/n_corrs, np.double(grad)
+	#return np.double(loss), np.double(grad)
 	
 def test_grad_fourier(x):
 	x_in = copy.deepcopy(x)
@@ -226,7 +227,7 @@ img_sz = 138
 n_imgs = 128 # imgs in a batch
 in_channels = 1
 frames_per_movie = 128#16
-base_batches = np.arange(80000, 80000+30)#[80000,80001,80002,80003]
+base_batches = np.arange(80000, 80000+15)#[80000,80001,80002,80003]
 
 layer_name = 'conv1_1a'
 weight_ind = 2
@@ -271,7 +272,7 @@ t = loadmat('/home/darren/fourier_target.mat')['t'].ravel()
 t_start = time.time()
 x0 = x0.T
 step_sz_slowness = 1e3
-step_sz_fourier = 5
+step_sz_fourier = 1e1
 step_sz_transpose = 1e3
 
 loss_slow = np.zeros(0)
@@ -301,8 +302,8 @@ for step_g in range(500):
                 loss, grad = test_grad_fourier(x0)
                 x0 -= step_sz_fourier*grad
         loss, grad = test_grad_fourier(x0)
-        print loss
-	loss
+	print loss
+	loss_fourier = np.append(loss_fourier, loss)
 
 	loss, grad = test_grad_transpose(x0)
         print 'transpose: ', loss/2016
