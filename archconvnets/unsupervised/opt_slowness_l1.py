@@ -172,8 +172,8 @@ def test_grad_transpose(x):
 img_sz = 138
 n_imgs = 128 # imgs in a batch
 in_channels = 1
-frames_per_movie = 128#16
-base_batches = np.arange(80000, 80000+8)
+frames_per_movie = 128
+base_batches = np.arange(80000, 80000+8)#*2)
 
 layer_name = 'conv1_1a'
 weight_ind = 2
@@ -218,8 +218,8 @@ t = loadmat('/home/darren/fourier_target.mat')['t'].ravel()
 t_start = time.time()
 x0 = x0.T
 step_sz_slowness = 1e-6
-step_sz_fourier = 1e1
-step_sz_transpose = 1e-5
+step_sz_fourier = 0#1e1
+step_sz_transpose = 1e-3 #1e-3 #5e-5
 
 loss_slow = np.zeros(0)
 loss_transpose = np.zeros(0)
@@ -264,6 +264,7 @@ for step_g in range(500):
                 grad += results.sum(0)
 
 	x0 -= step_sz_slowness*grad
+	x0 = zscore(x0.reshape((in_channels*(filter_sz**2), n_filters)), axis=0).reshape((1,in_channels*(filter_sz**2)*n_filters))
 	rdm_x = 1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)), 'correlation')
 	print 'imgnet corrs:',  pearsonr(rdm_x, rdm_imgnetr)[0]
 	
@@ -278,22 +279,28 @@ for step_g in range(500):
 	t_loss = np.mean(np.abs(1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)).T, 'correlation')))
 	print t_loss
 	loss_transpose = np.append(loss_transpose, t_loss)
-	
-	#loss, grad = test_grad_fourier(x0)
-        #print 'fourier:', loss
-        #for step in range(15000):
-        #        loss, grad = test_grad_fourier(x0)
-        #        x0 -= step_sz_fourier*grad
-        #loss, grad = test_grad_fourier(x0)
-	#print loss
-	#loss_fourier = np.append(loss_fourier, loss)
 
-	#loss, grad = test_grad_transpose(x0)
-        #print 'transpose: ', loss/2016
+	rdm_x = 1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)), 'correlation')
+        corr_imgnetr = np.append(corr_imgnetr, pearsonr(rdm_x, rdm_imgnetr)[0])
+        filters_c = np.concatenate((filters_c, x0), axis=0)
+
+        print 'imgnet corrs:', pearsonr(rdm_x, rdm_imgnetr)[0]
+		
+	'''loss, grad = test_grad_fourier(x0)
+        print 'fourier:', loss
+        for step in range(15000):
+                loss, grad = test_grad_fourier(x0)
+                x0 -= step_sz_fourier*grad
+        loss, grad = test_grad_fourier(x0)
+	print loss
+	loss_fourier = np.append(loss_fourier, loss)
+
 	rdm_x = 1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)), 'correlation')
 	corr_imgnetr = np.append(corr_imgnetr, pearsonr(rdm_x, rdm_imgnetr)[0])
 	filters_c = np.concatenate((filters_c, x0), axis=0)
 	
 	print 'imgnet corrs:', pearsonr(rdm_x, rdm_imgnetr)[0]
+	t_loss = np.mean(np.abs(1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)).T, 'correlation')))
+        print 'transpose:', t_loss'''
 	print 'step:', step_g, ' elapsed time:', time.time() - t_start
 
