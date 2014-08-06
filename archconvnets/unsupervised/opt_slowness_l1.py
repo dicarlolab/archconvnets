@@ -1,3 +1,5 @@
+from archconvnets.unsupervised.grad_slowness import test_grad_slowness
+from procs import *
 import random
 import pickle as pk
 import time
@@ -30,7 +32,7 @@ from scipy.stats.mstats import zscore
 import math
 import subprocess
 
-tmp_model = '/home/darren/tmp_l1.model'
+tmp_model = '/export/storage2/tmp_l1.model'
 gpu = '0'
 feature_path = '/tmp/features'
 
@@ -44,13 +46,17 @@ def DFT_matrix_2d(N):
 
 def conv_block(filters, base_batch):
 	global loss_slow, loss_transpose, loss_fourier
-	global tmp_model, gpu, feature_path
+	global tmp_model, gpu, feature_path, filters_c
 	filters = np.single(filters.reshape(weights_shape))
 	model['model_state']['layers'][neuron_ind]['inputLayers'][0]['weights'][0] = copy.deepcopy(filters)
 	model['model_state']['layers'][weight_ind]['weights'][0] = copy.deepcopy(filters)
 	model['loss_slow'] = copy.deepcopy(loss_slow)
 	model['loss_transpose'] = copy.deepcopy(loss_transpose)
 	model['loss_fourier'] = copy.deepcopy(loss_fourier)
+	model['corr_imgnetr'] = copy.deepcopy(corr_imgnetr)
+	model['corr_imgnetg'] = copy.deepcopy(corr_imgnetg)
+	model['corr_imgnetb'] = copy.deepcopy(corr_imgnetb)
+	model['filters'] = copy.deepcopy(filters_c)
 	pickle(tmp_model, model)
 	f = open('/home/darren/j','w')
 	f2 = open('/home/darren/j2','w')
@@ -84,66 +90,6 @@ def conv_block(filters, base_batch):
 	else:
 		return 0
 
-def test_grad_slowness(x):
-	global feature_path
-	x_in = copy.deepcopy(x)
-	x_shape = x.shape
-	x = np.float32(x.reshape((in_channels*(filter_sz**2), n_filters)))
-	x = zscore(x,axis=0)
-	x = x.reshape(x_shape)
-	
-	t_start = time.time()
-	filters = x.reshape((in_channels, filter_sz, filter_sz, n_filters))
-	N = in_channels*filter_sz*filter_sz
-	
-	t_conv = time.time()
-	conv_block(filters, base_batches)
-	t_conv = time.time() - t_conv
-
-	corrs_loss = 0
-	grad_ldt = np.zeros((in_channels, filter_sz**2, n_filters))
-	n_corrs = 0
-	for batch in base_batches:
-		print batch
-		c = np.load(feature_path + '/data_batch_' + str(batch))
-		conv_out = c['data'].reshape((n_imgs, n_filters, output_sz**2)).transpose((1,2,0))
-		# conv_out: n_filters, output_sz**2, n_imgs
-		output_deriv = loadmat('conv_derivs_' + str(batch) + '.mat')['output_deriv']
-		# output_deriv: in_channels, filter_sz**2, output_sz**2, n_imgs
-		output_deriv = output_deriv.reshape((in_channels, filter_sz**2, 1, output_sz**2, n_imgs))
-		
-		conv_out_nmean = conv_out.reshape((n_filters, output_sz**2, n_imgs))
-		conv_out_nmean -= conv_out_nmean.mean(1)[:,np.newaxis]
-		conv_out_nmean_std = np.sqrt(np.sum(conv_out_nmean**2,axis=1))
-		conv_out_nmean_std_pad = conv_out_nmean_std[np.newaxis, np.newaxis]
-		conv_out_nmean_pad = conv_out_nmean[np.newaxis, np.newaxis]
-		
-		grad_ld1 = (output_deriv*conv_out_nmean_pad).sum(3) / conv_out_nmean_std_pad
-		# output_deriv*conv_out_nmean: in_channels, filter_sz**2, n_filters, output_sz**2, n_imgs
-		for img in range(0, n_imgs-1):
-			if (((img-2) % frames_per_movie) != 0) and (((img+2) % frames_per_movie) != 0) and (((img+1) % frames_per_movie) != 0) and (((img) % frames_per_movie) != 0) and (((img-1) % frames_per_movie) != 0): # skip movie boundaries
-				std_pair = conv_out_nmean_std[:,img]*conv_out_nmean_std[:,img+1]
-				corrs_l = np.sum(conv_out_nmean[:,:,img]*conv_out_nmean[:,:,img+1],axis=1)
-
-				corrs_loss += np.sum(corrs_l / std_pair)
-				grad_l = (output_deriv[:,:,:,:,img]*conv_out_nmean_pad[:,:,:,:,img+1]).sum(3)
-				grad_l += (output_deriv[:,:,:,:,img+1]*conv_out_nmean_pad[:,:,:,:,img]).sum(3)
-				
-				grad_ld = grad_ld1[:,:,:,img]*conv_out_nmean_std_pad[:,:,:,img+1]
-				grad_ld += grad_ld1[:,:,:,img+1]*conv_out_nmean_std_pad[:,:,:,img]
-				
-				grad_ldt += (corrs_l*grad_ld - grad_l*std_pair)/(std_pair**2)
-				n_corrs += n_filters
-	
-	
-	grad = grad_ldt.ravel()
-	
-	loss = -corrs_loss
-	
-	print loss, time.time() - t_start, t_conv, corrs_loss/n_corrs, np.max(x_in)
-	return corrs_loss/n_corrs, np.double(grad)
-	#return np.double(loss), np.double(grad)
-	
 def test_grad_fourier(x):
 	x_in = copy.deepcopy(x)
 	x_shape = x.shape
@@ -227,7 +173,7 @@ img_sz = 138
 n_imgs = 128 # imgs in a batch
 in_channels = 1
 frames_per_movie = 128#16
-base_batches = np.arange(80000, 80000+15)#[80000,80001,80002,80003]
+base_batches = np.arange(80000, 80000+15)
 
 layer_name = 'conv1_1a'
 weight_ind = 2
@@ -271,41 +217,81 @@ t = loadmat('/home/darren/fourier_target.mat')['t'].ravel()
 
 t_start = time.time()
 x0 = x0.T
-step_sz_slowness = 1e3
+step_sz_slowness = 1e-6
 step_sz_fourier = 1e1
-step_sz_transpose = 1e3
+step_sz_transpose = 1e2
 
 loss_slow = np.zeros(0)
 loss_transpose = np.zeros(0)
 loss_fourier = np.zeros(0)
+corr_imgnetr = np.zeros(0)
+corr_imgnetg = np.zeros(0)
+corr_imgnetb = np.zeros(0)
 
+x = unpickle('/home/darren/imgnet_3layer_256_final.model')
+rdm_imgnetr = 1-pdist(x['model_state']['layers'][2]['weights'][0][:49],'correlation')
+rdm_imgnetg = 1-pdist(x['model_state']['layers'][2]['weights'][0][49:2*49],'correlation')
+rdm_imgnetb = 1-pdist(x['model_state']['layers'][2]['weights'][0][49*2:49*3],'correlation')
+filters_c = np.zeros((0,x0.shape[1]))
+
+rdm_x = 1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)), 'correlation')
+corr_imgnetr = np.append(corr_imgnetr, pearsonr(rdm_x, rdm_imgnetr)[0])
+corr_imgnetg = np.append(corr_imgnetg, pearsonr(rdm_x, rdm_imgnetg)[0])
+corr_imgnetb = np.append(corr_imgnetb, pearsonr(rdm_x, rdm_imgnetb)[0])
+print 'imgnet corrs:', corr_imgnetr[-1]#, corr_imgnetg[-1], corr_imgnetb[-1]
+
+t_loss = np.mean(np.abs(1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)).T, 'correlation')))
+print 'transpose:', t_loss
+
+n_cpus = 8
 for step_g in range(500):
 	t_start = time.time()
+	conv_block(x0.reshape((in_channels, filter_sz, filter_sz, n_filters)), base_batches)
 	
-	loss, grad = test_grad_slowness(x0)
-	x0 -= step_sz_slowness*grad	
-	print 'slowness:', loss
-	loss_slow = np.append(loss_slow, loss)
+	l = []
+	grad = np.zeros_like(x0)
+	for batch in base_batches:
+		l.append(proc(test_grad_slowness, feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie))
+		if len(l) == n_cpus:
+			print 'computing batch', batch
+			results = call(l)
+			results = np.asarray(tuple(results))
+			grad += results.sum(0)
+			l = []
+	if len(l) != 0:
+		results = call(l)
+                results = np.asarray(tuple(results))
+                grad += results.sum(0)
 
+	x0 -= step_sz_slowness*grad
+
+	####################################### transpose
 	loss, grad = test_grad_transpose(x0)
-	print 'transpose:', loss/2016
+	t_loss = np.mean(np.abs(1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)).T, 'correlation')))
+	print 'transpose:', t_loss
 	for step in range(200):
 		loss, grad = test_grad_transpose(x0)
 		x0 -= step_sz_transpose*grad
 	loss, grad = test_grad_transpose(x0)
-	print loss/2016
-	loss_transpose = np.append(loss_transpose, loss/2016)
+	t_loss = np.mean(np.abs(1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)).T, 'correlation')))
+	print t_loss
+	loss_transpose = np.append(loss_transpose, t_loss)
 	
-	loss, grad = test_grad_fourier(x0)
-        print 'fourier:', loss
-        for step in range(15000):
-                loss, grad = test_grad_fourier(x0)
-                x0 -= step_sz_fourier*grad
-        loss, grad = test_grad_fourier(x0)
-	print loss
-	loss_fourier = np.append(loss_fourier, loss)
+	#loss, grad = test_grad_fourier(x0)
+        #print 'fourier:', loss
+        #for step in range(15000):
+        #        loss, grad = test_grad_fourier(x0)
+        #        x0 -= step_sz_fourier*grad
+        #loss, grad = test_grad_fourier(x0)
+	#print loss
+	#loss_fourier = np.append(loss_fourier, loss)
 
-	loss, grad = test_grad_transpose(x0)
-        print 'transpose: ', loss/2016
+	#loss, grad = test_grad_transpose(x0)
+        #print 'transpose: ', loss/2016
+	rdm_x = 1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)), 'correlation')
+	corr_imgnetr = np.append(corr_imgnetr, pearsonr(rdm_x, rdm_imgnetr)[0])
+	filters_c = np.concatenate((filters_c, x0), axis=0)
+	
+	print 'imgnet corrs:', corr_imgnetr[step_g]
 	print 'step:', step_g, ' elapsed time:', time.time() - t_start
 
