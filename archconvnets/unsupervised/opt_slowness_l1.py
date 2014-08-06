@@ -173,7 +173,7 @@ img_sz = 138
 n_imgs = 128 # imgs in a batch
 in_channels = 1
 frames_per_movie = 128#16
-base_batches = np.arange(80000, 80000+15)
+base_batches = np.arange(80000, 80000+8)
 
 layer_name = 'conv1_1a'
 weight_ind = 2
@@ -219,7 +219,7 @@ t_start = time.time()
 x0 = x0.T
 step_sz_slowness = 1e-6
 step_sz_fourier = 1e1
-step_sz_transpose = 1e2
+step_sz_transpose = 1e-5
 
 loss_slow = np.zeros(0)
 loss_transpose = np.zeros(0)
@@ -264,7 +264,9 @@ for step_g in range(500):
                 grad += results.sum(0)
 
 	x0 -= step_sz_slowness*grad
-
+	rdm_x = 1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)), 'correlation')
+	print 'imgnet corrs:',  pearsonr(rdm_x, rdm_imgnetr)[0]
+	
 	####################################### transpose
 	loss, grad = test_grad_transpose(x0)
 	t_loss = np.mean(np.abs(1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)).T, 'correlation')))
@@ -292,6 +294,6 @@ for step_g in range(500):
 	corr_imgnetr = np.append(corr_imgnetr, pearsonr(rdm_x, rdm_imgnetr)[0])
 	filters_c = np.concatenate((filters_c, x0), axis=0)
 	
-	print 'imgnet corrs:', corr_imgnetr[step_g]
+	print 'imgnet corrs:', pearsonr(rdm_x, rdm_imgnetr)[0]
 	print 'step:', step_g, ' elapsed time:', time.time() - t_start
 
