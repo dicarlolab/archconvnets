@@ -254,9 +254,9 @@ class CroppedGeneralDataProvider(DLDataProvider):
     }
     """
     def __init__(self, data_dir,
-            img_size, num_colors,
-            batch_range=None,
-            init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+                 img_size, num_colors,
+                 batch_range=None,
+                 init_epoch=1, init_batchnum=None, dp_params=None, test=False):
 
         DLDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
         self.num_colors = num_colors
@@ -268,17 +268,16 @@ class CroppedGeneralDataProvider(DLDataProvider):
         self.img_flip = dp_params['img_flip']
         if self.img_flip:
             self.num_views = 5*2
-        else :
-            self.num_views = 5;
+        else:
+            self.num_views = 5
         self.data_mult = self.num_views if self.multiview else 1
-	print self.border_size
-	print self.num_colors
-	print self.img_size
-	print self.inner_size
+
         self.batches_generated = 0
         self.data_mean = self.batch_meta['data_mean'].reshape((self.num_colors, self.img_size,
-                         self.img_size))[:,self.border_size: self.border_size+self.inner_size,
-                                        self.border_size: self.border_size+self.inner_size].reshape((self.get_data_dims(), 1))
+                                                               self.img_size))
+        self.data_mean = self.data_mean[:, self.border_size: self.border_size + self.inner_size,
+                                        self.border_size: self.border_size + self.inner_size]
+        self.data_mean = self.data_mean.reshape((self.get_data_dims(), 1))
 
     def get_num_views(self):
         return self.num_views
