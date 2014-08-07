@@ -33,7 +33,7 @@ import math
 import subprocess
 
 tmp_model = '/export/storage2/tmp_l1.model'
-gpu = '0'
+gpu = '1'
 feature_path = '/tmp/features'
 
 #################
@@ -62,15 +62,38 @@ output_sz = 60
 ######## re-compute conv derivs or not
 print 'starting deriv convs'
 output_deriv = np.zeros((in_channels, filter_sz, filter_sz, output_sz, output_sz, n_imgs),dtype='float32')
+temp_filter = np.zeros((in_channels, filter_sz, filter_sz,n_filters),dtype='float32')
+filter_ind = 0
+channel_inds = np.zeros(n_filters)
+filter_i_inds = np.zeros(n_filters)
+filter_j_inds = np.zeros(n_filters)
 for base_batch in base_batches:
 	t_start = time.time()
 	for filter_i in range(filter_sz):
 		for filter_j in range(filter_sz):
 			print base_batch, filter_i, filter_j
 			for channel in range(in_channels):
-				temp_filter = np.zeros((in_channels, filter_sz, filter_sz,n_filters),dtype='float32')
-				temp_filter[channel,filter_i,filter_j,0] = 1
-				output_deriv[channel,filter_i,filter_j] = conv_block(temp_filter, [base_batch], [], [], [], [], gpu, tmp_model, feature_path, [], weights_shape, model, neuron_ind, weight_ind, layer_name, output_sz, n_imgs, n_filters)[0]
+				temp_filter[channel,filter_i,filter_j,filter_ind] = 1
+				channel_inds[filter_ind] = channel
+				filter_i_inds[filter_ind] = filter_i
+				filter_j_inds[filter_ind] = filter_j
+				filter_ind += 1
+				if filter_ind == n_filters:
+					conv_out = conv_block(temp_filter, [base_batch], [],
+                                                [], [], [], gpu, tmp_model, feature_path, [], weights_shape, model,
+                                                neuron_ind, weight_ind, layer_name, output_sz, n_imgs, n_filters)
+					for i in range(n_filters):
+						output_deriv[channel_inds[i],filter_i_inds[i],filter_j_inds[i]] = conv_out[i]
+					temp_filter = np.zeros((in_channels, filter_sz, filter_sz,n_filters),dtype='float32')
+					filter_ind = 0
+	if filter_ind != 0:
+		conv_out = conv_block(temp_filter, [base_batch], [],
+			[], [], [], gpu, tmp_model, feature_path, [], weights_shape, model,
+			neuron_ind, weight_ind, layer_name, output_sz, n_imgs, n_filters)
+		for i in range(n_filters):
+			output_deriv[channel_inds[i],filter_i_inds[i],filter_j_inds[i]] = conv_out[i]
+		temp_filter = np.zeros((in_channels, filter_sz, filter_sz,n_filters),dtype='float32')
+		filter_ind = 0
 	savemat('conv_derivs_' + str(base_batch) + '.mat', {'output_deriv': output_deriv})
 	print time.time() - t_start
 
