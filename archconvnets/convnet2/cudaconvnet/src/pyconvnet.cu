@@ -47,8 +47,6 @@ static PyMethodDef _ConvNetMethods[] = {{ "initModel",          initModel,      
                                         { "startDataGrad",      startDataGrad,          METH_VARARGS },
                                         { "syncWithHost",       syncWithHost,           METH_VARARGS },
                                         { "decodeJpeg",         decodeJpeg,             METH_VARARGS },
-                                        { "scaleModelEps",       scaleModelEps,       METH_VARARGS },
-                                        { "resetModelMom",       resetModelMom,       METH_VARARGS },
                                         { NULL, NULL }
 };
 
@@ -236,29 +234,6 @@ PyObject* syncWithHost(PyObject *self, PyObject *args) {
     delete res;
     return Py_BuildValue("i", 0);
 }
-
-
-/**
- *  scale model learning rate
- */
-PyObject* scaleModelEps( PyObject *self, PyObject *args) {
-    assert(model != NULL);
-    float scale;
-    if( !PyArg_ParseTuple( args, "f", &scale ) ) 
-        return NULL;
-    model->scaleEps( scale );
-    return Py_BuildValue("i", 0);
-}
-
-/**
- *  reset model mom 
- */
-PyObject* resetModelMom( PyObject *self, PyObject *args) {
-    assert(model != NULL);
-    model->resetMom();
-    return Py_BuildValue("i", 0);
-}
-
 
 PyObject* decodeJpeg(PyObject *self, PyObject *args) {
     PyListObject* pyJpegStrings;

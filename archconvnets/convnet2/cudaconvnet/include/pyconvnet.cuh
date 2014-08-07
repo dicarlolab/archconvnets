@@ -32,7 +32,4 @@ PyObject* startFeatureWriter(PyObject *self, PyObject *args);
 PyObject* startDataGrad(PyObject *self, PyObject *args);
 PyObject* decodeJpeg(PyObject *self, PyObject *args);
 
-// ---- my option ---
-PyObject* scaleModelEps(PyObject *self, PyObject *args);
-
 #endif

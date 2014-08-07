@@ -232,20 +232,8 @@ class IGPUModel:
         if self.force_save:
             self.save_state().join()
         sys.exit(0)
-
-    def scale_learningRate( self, eps ):
-        self.libmodel.scaleModelEps( eps );
-
-    def reset_modelMom( self ):
-        self.libmodel.resetModelMom( );
     
     def train(self):
-        print "============================================"
-        print "learning rate scale     : ", self.scale_rate
-        print "Reset Momentum          : ", self.reset_mom        
-        self.scale_learningRate( self.scale_rate )
-        if self.reset_mom:
-            self.reset_modelMom( )
         print "============================================"
         print "Training %s" % self.model_name
         self.op.print_values()
@@ -471,11 +459,6 @@ class IGPUModel:
         op.add_option("test-one", "test_one", BooleanOptionParser, "Test on one batch at a time?", default=1)
         op.add_option("force-save", "force_save", BooleanOptionParser, "Force save before quitting", default=0)
         op.add_option("gpu", "gpu", ListOptionParser(IntegerOptionParser), "GPU override")
-        
-        ###### additional opts ######
-        op.add_option("scale-rate", "scale_rate", FloatOptionParser, "Learning Rate Scale Factor", default=1 )
-        op.add_option("reset-mom", "reset_mom", BooleanOptionParser, "Reset layer momentum",
-              default=False )        
         
         ####### db configs #######
         op.add_option("save-db", "save_db", BooleanOptionParser, "Save checkpoints to mongo database?", default=0)
