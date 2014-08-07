@@ -2,7 +2,6 @@ from archconvnets.unsupervised.conv_block_call import conv_block
 from archconvnets.unsupervised.DFT import DFT_matrix_2d
 from archconvnets.unsupervised.grad_transpose import test_grad_transpose
 from archconvnets.unsupervised.grad_slowness import test_grad_slowness
-from archconvnets.unsupervised.grad_transpose import test_grad_transpose
 from procs import *
 import random
 import pickle as pk
@@ -142,7 +141,6 @@ for step_g in range(3):
 	print 'imgnet corrs:',  pearsonr(rdm_x, rdm_imgnetr)[0]
 	
 	####################################### transpose
-	loss, grad = test_grad_transpose(x0)
 	t_loss = np.mean(np.abs(1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)).T, 'correlation')))
 	print 'transpose:', t_loss
 	for step in range(200):
