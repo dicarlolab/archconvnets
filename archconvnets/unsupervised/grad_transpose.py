@@ -1,3 +1,6 @@
+from scipy.spatial.distance import squareform
+from scipy.spatial.distance import pdist
+from scipy.stats.mstats import zscore
 import time
 import numpy as np
 import copy

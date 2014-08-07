@@ -1,5 +1,6 @@
 from archconvnets.unsupervised.conv_block_call import conv_block
 from archconvnets.unsupervised.DFT import DFT_matrix_2d
+from archconvnets.unsupervised.grad_fourier import test_grad_fourier
 from archconvnets.unsupervised.grad_transpose import test_grad_transpose
 from archconvnets.unsupervised.grad_slowness import test_grad_slowness
 from procs import *
@@ -157,14 +158,14 @@ for step_g in range(3):
         print 'imgnet corrs:', pearsonr(rdm_x, rdm_imgnetr)[0]
 		
 	################################# fourier
-	loss, grad = test_grad_fourier(x0)
+	'''loss, grad = test_grad_fourier(x0, in_channels, filter_sz, n_filters, t, X)
         print 'fourier:', loss
         for step in range(15000):
-                loss, grad = test_grad_fourier(x0, in_channels, filter_sz, n_filters)
+                loss, grad = test_grad_fourier(x0, in_channels, filter_sz, n_filters, t, X)
                 x0 -= step_sz_fourier*grad
-        loss, grad = test_grad_fourier(x0, in_channels, filter_sz, n_filters)
+        loss, grad = test_grad_fourier(x0, in_channels, filter_sz, n_filters, t, X)
 	print loss
-	loss_fourier = np.append(loss_fourier, loss)
+	loss_fourier = np.append(loss_fourier, loss)'''
 	##################
 
 	rdm_x = 1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)), 'correlation')

@@ -1,9 +1,11 @@
 import numpy as np
 from scipy.stats.mstats import zscore
 import time
+import copy
 
-def test_grad_fourier(x, in_channels, filter_sz, n_filters, t):
-        x_in = copy.deepcopy(x)
+def test_grad_fourier(x, in_channels, filter_sz, n_filters, t, X):
+        sz2 = filter_sz**2
+	x_in = copy.deepcopy(x)
         x_shape = x.shape
         x = np.float32(x.reshape((in_channels*(filter_sz**2), n_filters)))
         x = zscore(x,axis=0)
