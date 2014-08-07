@@ -46,7 +46,7 @@ img_sz = 138
 n_imgs = 128 # imgs in a batch
 in_channels = 1
 frames_per_movie = 128
-base_batches = np.arange(80000, 80000+2)
+base_batches = np.arange(80000, 80000+8*4)
 
 layer_name = 'conv1_1a'
 weight_ind = 2
@@ -70,22 +70,6 @@ corr_imgnetr = np.zeros(0)
 corr_imgnetg = np.zeros(0)
 corr_imgnetb = np.zeros(0)
 
-######## re-compute conv derivs or not
-if False:
-	print 'starting deriv convs'
-	output_deriv = np.zeros((in_channels, filter_sz, filter_sz, output_sz, output_sz, n_imgs),dtype='float32')
-	for base_batch in base_batches:
-		t_start = time.time()
-		for filter_i in range(filter_sz):
-			for filter_j in range(filter_sz):
-				print base_batch, filter_i, filter_j
-				for channel in range(in_channels):
-					temp_filter = np.zeros((in_channels, filter_sz, filter_sz,n_filters),dtype='float32')
-					temp_filter[channel,filter_i,filter_j,0] = 1
-					output_deriv[channel,filter_i,filter_j] = conv_block(temp_filter, [base_batch], loss_slow, loss_transpose, loss_fourier, corr_imgnetr, gpu, tmp_model, feature_path, filters_c, weights_shape, model, neuron_ind, weight_ind, layer_name)[0]
-		savemat('conv_derivs_' + str(base_batch) + '.mat', {'output_deriv': output_deriv})
-		print time.time() - t_start
-	print 'finished'
 ###
 x0 = np.random.random((in_channels*filter_sz*filter_sz*n_filters,1))
 x0 -= np.mean(x0)
@@ -119,7 +103,7 @@ print 'transpose:', t_loss
 n_cpus = 8
 for step_g in range(3):
 	t_start = time.time()
-	conv_block(x0.reshape((in_channels, filter_sz, filter_sz, n_filters)), base_batches, loss_slow, loss_transpose, loss_fourier, corr_imgnetr, gpu, tmp_model, feature_path, filters_c, weights_shape, model, neuron_ind, weight_ind, layer_name)
+	conv_block(x0.reshape((in_channels, filter_sz, filter_sz, n_filters)), base_batches, loss_slow, loss_transpose, loss_fourier, corr_imgnetr, gpu, tmp_model, feature_path, filters_c, weights_shape, model, neuron_ind, weight_ind, layer_name, output_sz, n_imgs, n_filters)
 	
 	l = []
 	grad = np.zeros_like(x0)
