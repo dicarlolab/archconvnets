@@ -43,7 +43,7 @@ feature_path = '/tmp/features'
 n_imgs = 128 # imgs in a batch
 in_channels = 1
 frames_per_movie = 128
-base_batches = np.arange(80000, 80000+8*4)
+base_batches = np.arange(80000, 80000+7)
 
 layer_name = 'conv1_1a'
 weight_ind = 2
@@ -78,8 +78,8 @@ t = loadmat('/home/darren/fourier_target.mat')['t'].ravel()
 t_start = time.time()
 x0 = x0.T
 step_sz_slowness = 1e-6
-step_sz_fourier = 0#1e1
-step_sz_transpose = 1e-3 #1e-3 #5e-5
+step_sz_fourier = 1e0
+step_sz_transpose = 1 #1e-3 #5e-5
 
 x = unpickle('/home/darren/imgnet_3layer_256_final.model')
 rdm_imgnetr = 1-pdist(x['model_state']['layers'][2]['weights'][0][:49],'correlation')
