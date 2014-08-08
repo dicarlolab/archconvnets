@@ -36,8 +36,6 @@ tmp_model = '/export/storage2/tmp_l1.model'
 gpu = '1'
 feature_path = '/tmp/features'
 
-#################
-# load images
 n_imgs = 128 # imgs in a batch
 in_channels = 1
 frames_per_movie = 128

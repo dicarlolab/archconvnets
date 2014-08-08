@@ -40,8 +40,6 @@ tmp_model = '/export/storage2/tmp_l1.model'
 gpu = '0'
 feature_path = '/tmp/features'
 
-#################
-# load images
 n_imgs = 128 # imgs in a batch
 in_channels = 1
 frames_per_movie = 128
@@ -74,7 +72,7 @@ x0 -= np.mean(x0)
 x0 /= np.sum(x0**2)#*(10**10)
 
 ####### fourier
-X = np.real(DFT_matrix_2d(sz))
+X = np.real(DFT_matrix_2d(filter_sz))
 t = loadmat('/home/darren/fourier_target.mat')['t'].ravel()
 
 t_start = time.time()
@@ -106,7 +104,7 @@ for step_g in range(3):
 	l = []
 	grad = np.zeros_like(x0)
 	for batch in base_batches:
-		l.append(proc(test_grad_slowness, feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie))
+		l.append(proc(test_grad_slowness, feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie, 'conv_derivs_'))
 		if len(l) == n_cpus:
 			print 'computing batch', batch
 			results = call(l)
