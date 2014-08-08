@@ -38,7 +38,6 @@ feature_path = '/tmp/features'
 
 #################
 # load images
-img_sz = 138
 n_imgs = 128 # imgs in a batch
 in_channels = 1
 frames_per_movie = 128
@@ -55,7 +54,6 @@ weights_shape = weights.shape
 ##########
 n_filters = 64
 filter_sz = 7
-sz = filter_sz; sz2 = filter_sz**2
 
 output_sz = 60
 
