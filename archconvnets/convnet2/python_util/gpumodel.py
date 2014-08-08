@@ -26,6 +26,7 @@ import platform
 from os import linesep as NL
 from threading import Thread
 import tempfile as tf
+import datetime
 
 import copy
 import collections
@@ -81,10 +82,12 @@ class CheckpointWriter(Thread):
                        checkpoint_db_name,
                        checkpoint_fs_name,
                        save_filters,
+                       save_recent_filters,
                        saving_freq,
-                       test_freq,
+                       testing_freq,
                        epoch,
                        batchnum,
+                       num_batches_done,
                        experiment_data):
         Thread.__init__(self)
         self.dic = dic
@@ -93,10 +96,12 @@ class CheckpointWriter(Thread):
         self.checkpoint_db_name = checkpoint_db_name
         self.checkpoint_fs_name = checkpoint_fs_name
         self.save_filters = save_filters
+        self.save_recent_filters = save_recent_filters 
         self.saving_freq = saving_freq
-        self.test_freq = test_freq
+        self.testing_freq = testing_freq
         self.epoch = epoch
         self.batchnum = batchnum
+        self.num_batches_done = num_batches_done
         self.experiment_data = experiment_data
         
     def run(self):
@@ -116,18 +121,17 @@ class CheckpointWriter(Thread):
                                           self.checkpoint_fs_name)
         
         
-        if self.save_filters and (self.saving_freq > 0) and (((self.get_num_batches_done() / self.testing_freq) % self.saving_freq) == 0):
+        if self.save_filters and (self.saving_freq > 0) and (((self.num_batches_done / self.testing_freq) % self.saving_freq) == 0):
             val_dict['saved_filters'] = True
-            dic = collections.OrderedDict([("model_state", dic['model_state']),
-                           ("op", dic['op'])])
+            save_dic = dic
             msg = 'Saved (with filters) to id %s'
             save_recent = False
         else:
             val_dict['saved_filters'] = False
             msg = 'Saved (without filters) to id %s'
-            dic = collections.OrderedDict()
+            save_dic = collections.OrderedDict()
             save_recent = self.save_filters and self.save_recent_filters
-        blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
+        blob = cPickle.dumps(save_dic, protocol=cPickle.HIGHEST_PROTOCOL)
         idval = checkpoint_fs.put(blob, **val_dict)
         print(msg % str(idval))
         
@@ -136,8 +140,6 @@ class CheckpointWriter(Thread):
                                           self.checkpoint_fs_port,
                                           self.checkpoint_db_name,
                                           self.checkpoint_fs_name)
-            dic = collections.OrderedDict([("model_state", dic['model_state']),
-                           ("op", dic['op'])])
             val_dict['saved_filters'] = True
             blob = cPickle.dumps(dic, protocol=cPickle.HIGHEST_PROTOCOL)
             idval = checkpoint_recent_fs.put(blob, **val_dict)
@@ -154,7 +156,6 @@ class IGPUModel:
         self.options = op.options
         self.load_dic = load_dic
         self.filename_options = filename_options
-        self.dp_params = dp_params
         self.device_ids = self.op.get_value('gpu')
         self.fill_excused_options()
         self.checkpoint_writer = None
@@ -162,6 +163,8 @@ class IGPUModel:
         
         for o in op.get_options_list():
             setattr(self, o.name, o.value)
+
+        self.dp_params = dp_params
         self.loaded_from_checkpoint = load_dic is not None
         # these are things that the model must remember but they're not input parameters
         if self.loaded_from_checkpoint:
@@ -177,7 +180,6 @@ class IGPUModel:
             if not self.options["experiment_data"].value_given:
                 idval = model_name + "_" + '_'.join(['%s_%s' % (char, self.options[opt].get_str_value()) for opt, char in filename_options]) + '_' + strftime('%Y-%m-%d_%H.%M.%S')
                 self.experiment_data = collections.OrderedDict([('experiment_id', idval)])
-
 
         self.init_data_providers()
         if load_dic: 
@@ -369,8 +371,8 @@ class IGPUModel:
             if hasattr(self, att):
                 self.model_state[att] = getattr(self, att)
         
-        dic = {"model_state": self.model_state,
-               "op": self.op}
+        dic = collections.OrderedDict([("model_state", self.model_state),
+                           ("op", self.op)])
             
         assert self.checkpoint_writer is None
         self.checkpoint_writer = CheckpointWriter(dic,
@@ -379,16 +381,15 @@ class IGPUModel:
                                                   self.checkpoint_db_name,
                                                   self.checkpoint_fs_name,
                                                   self.save_filters,
+                                                  self.save_recent_filters,
                                                   self.saving_freq,
-                                                  self.test_freq,
+                                                  self.testing_freq,
                                                   self.epoch,
                                                   self.batchnum,
+                                                  self.get_num_batches_done(),
                                                   self.experiment_data
                                                   )
         self.checkpoint_writer.start()
-        print "-------------------------------------------------------"
-        print "Saved checkpoint to %s" % self.save_file
-        print "=======================================================",
         return self.checkpoint_writer
         
     def get_progress(self):
@@ -474,7 +475,7 @@ class IGPUModel:
         op.add_option("checkpoint-fs-name", "checkpoint_fs_name", StringOptionParser,
                 "Name for gridfs FS for saved checkpoints", default="convnet_checkpoint_fs")
         op.add_option("experiment-data", "experiment_data", JSONOptionParser, "Data for grouping results in database", default="")
-        op.add_option("load-query", "load_query", JSONOptionParser, "Query for loading checkpoint from database", default="", excuses=OptionsParser.EXCLUDE_ALL)        
+        op.add_option("load-query", "load_query", JSONOptionParser, "Query for loading checkpoint from database", default="", excuses=OptionsParser.EXCUSE_ALL)        
         
         return op
 
@@ -486,7 +487,7 @@ class IGPUModel:
             
 
     @staticmethod
-    def parse_options(op):
+    def parse_options(op, input_opts=None, ignore_argv=False):
         try:
             load_dic = None
             options = op.parse(input_opts=input_opts, ignore_argv=ignore_argv)
@@ -527,6 +528,10 @@ def get_convenient_mongodb_representation_base(op, model_state):
     if 'load_query' in val_dict:
         val_dict['load_query'] = make_mongo_safe(val_dict['load_query'])
 
+    #import cPickle
+    #with open('testdump.pkl', 'wb') as _f:
+    #    cPickle.dump(model_state, _f)
+
     for k in model_state:
         if k == 'layers':
             bad_keys = ['weights', 'inputLayers', 'biasesInc',
@@ -534,9 +539,10 @@ def get_convenient_mongodb_representation_base(op, model_state):
             layers = copy.deepcopy(model_state[k])
             for _l in layers:
                 for _bk in bad_keys:
-                    if _bk in _l:
-                        _l.pop(_bk)
-            layers = collections.OrderedDict([(_l['name'], _l) for _l in layers])
+                    if _bk in layers[_l]:
+                        layers[_l].pop(_bk)
+            node_order = get_node_order(layers)
+            layers = collections.OrderedDict([(_l, layers[_l]) for _l in node_order])
             val_dict[k] = layers
         elif k == 'train_outputs':
             tfreq = val_dict['testing_freq']
@@ -549,3 +555,12 @@ def get_convenient_mongodb_representation_base(op, model_state):
     return SONify(val_dict)
 
 
+import networkx as nx
+import itertools
+def get_node_order(layers):
+    G = nx.DiGraph()
+    nodes = [x['name'] for x in layers.values()]
+    edges = list(itertools.chain(*[[(y['name'], x['name']) for y in x.get('inputLayers', [])] for x in layers.values()]))
+    G.add_nodes_from(nodes)
+    G.add_edges_from(edges)
+    return nx.topological_sort(G)

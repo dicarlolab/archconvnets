@@ -43,16 +43,16 @@ export NUMPY_INCLUDE_PATH=/om/user/yamins/usr/local/lib/python2.7/site-packages/
 export OPENCV_INCLUDE_PATH=/om/user/yamins/usr/local/include
 
 # ATLAS library directory. This should contain the file libcblas.so, among others.
-export ATLAS_LIB_PATH=/usr/lib/atlas-base
+export ATLAS_LIB_PATH=/om/user/yamins/usr/local/lib/atlas
 
 # You don't have to change these:
 export LD_LIBRARY_PATH=$CUDA_INSTALL_PATH/lib64:$LD_LIBRARY_PATH
 export CUDA_SDK_PATH=$CUDA_INSTALL_PATH/samples
 export PATH=$PATH:$CUDA_INSTALL_PATH/bin
 
-cd util && make numpy=1 -j $* && cd ..
+cd util && make clean && make numpy=1 -j $* && cd ..
 cd nvmatrix && make -j $* && cd ..
 cd cudaconv3 && make -j $* && cd ..
-cd cudaconvnet && make -j $* && cd ..
-cd make-data/pyext && make -j $* && cd ../..
+cd cudaconvnet && make -j $* && cd ../..
+cd /om/user/yamins/src/archconvnets/archconvnets/convnet2/make-data/pyext && make -j $* && cd ../..
 
