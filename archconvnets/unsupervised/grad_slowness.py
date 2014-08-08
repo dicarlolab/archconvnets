@@ -31,7 +31,7 @@ from scipy.stats.mstats import zscore
 import math
 import subprocess
 
-def test_grad_slowness(feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie):
+def test_grad_slowness(feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie, deriv_prefix_name):
         model = unpickle(tmp_model)
         x = copy.deepcopy(model['model_state']['layers'][neuron_ind]['inputLayers'][0]['weights'][0])
 
@@ -47,7 +47,7 @@ def test_grad_slowness(feature_path, batch, tmp_model, neuron_ind, in_channels, 
         c = np.load(feature_path + '/data_batch_' + str(batch))
         conv_out = c['data'].reshape((n_imgs, n_filters, output_sz**2)).transpose((1,2,0))
         # conv_out: n_filters, output_sz**2, n_imgs
-        output_deriv = loadmat('conv_derivs_' + str(batch) + '.mat')['output_deriv']
+        output_deriv = loadmat(deriv_prefix_name + str(batch) + '.mat')['output_deriv']
         # output_deriv: in_channels, filter_sz**2, output_sz**2, n_imgs
         output_deriv = output_deriv.reshape((in_channels, filter_sz**2, 1, output_sz**2, n_imgs))
 
