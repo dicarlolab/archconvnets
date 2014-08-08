@@ -22,7 +22,8 @@ from python_util.gpumodel import *
 import sys
 import math as m
 import layer as lay
-from convdata import ImageDataProvider, CIFARDataProvider, DummyConvNetLogRegDataProvider
+from convdata import (ImageDataProvider, CIFARDataProvider, DummyConvNetLogRegDataProvider, 
+                      CroppedGeneralDataProvider, CroppedGeneralDataRandomProvider, CroppedImageAndVectorProvider)
 from os import linesep as NL
 import copy as cp
 import os
@@ -113,8 +114,9 @@ class ConvNet(IGPUModel):
         filename_options = []
         if op.options["dp_params"].value_given:
             dp_params.update(op.options["dp_params"].value)        
-        for v in ('crop_border', 'color_noise', 'multiview_test', 'inner_size', 'scalar_mean', 'minibatch_size'):
+        for v in ('crop_border', 'img_flip', 'color_noise', 'multiview_test', 'inner_size', 'scalar_mean', 'minibatch_size'):
             dp_params[v] = op.get_value(v)
+        print('b0', dp_params['crop_border'])
 
         IGPUModel.__init__(self, "ConvNet", op, load_dic, filename_options, dp_params=dp_params)
 
@@ -288,6 +290,9 @@ class ConvNet(IGPUModel):
         op.add_option("feature-path", "feature_path", StringOptionParser,
               "Write features to this path (to be used with --write-disk)", default="")
 
+        op.add_option("img-flip", "img_flip", BooleanOptionParser,
+                "Whether filp training image", default=True )
+
         op.delete_option('max_test_err')
         op.options["testing_freq"].default = 57
         op.options["num_epochs"].default = 50000
@@ -307,8 +312,8 @@ class ConvNet(IGPUModel):
         return op
 
 if __name__ == "__main__":
-    nr.seed(op.options['random_seed'].value)
     op = ConvNet.get_options_parser()
     op, load_dic = IGPUModel.parse_options(op)
+    nr.seed(op.options['random_seed'].value)
     model = ConvNet(op, load_dic)
     model.start()

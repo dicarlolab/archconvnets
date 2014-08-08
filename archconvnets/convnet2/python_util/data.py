@@ -25,12 +25,18 @@ import hashlib
 BATCH_META_FILE = "batches.meta"
 
 class DataLoaderThread(Thread):
-    def __init__(self, path, tgt):
+    def __init__(self, path, tgt, mode='pickle'):
         Thread.__init__(self)
         self.path = path
+        if mode == 'numpy': 
+            self.path = self.path + '.npy'
         self.tgt = tgt
+        self.mode = mode
     def run(self):
-        self.tgt += [unpickle(self.path)]
+        if mode == 'pickle':
+            self.tgt += [unpickle(self.path)]
+        elif mode == 'numpy':
+            self.tgt += [np.load(self.path)]
         
 class DataProvider:
     BATCH_REGEX = re.compile('^data_batch_(\d+)(\.\d+)?$')
@@ -58,21 +64,25 @@ class DataProvider:
 
         return epoch, batchnum, self.data_dic
             
-    def get_batch(self, batch_num):
-        fname = self.get_data_file_name(batch_num)
+    def get_batch(self, batch_num, mode='pickle'):
+        fname = self.get_data_file_name(batch_num) 
+        if mode == 'numpy':
+            fname += '.npy'
         if os.path.isdir(fname): # batch in sub-batches
             sub_batches = sorted(os.listdir(fname), key=alphanum_key)
             #print sub_batches
             num_sub_batches = len(sub_batches)
             tgts = [[] for i in xrange(num_sub_batches)]
-            threads = [DataLoaderThread(os.path.join(fname, s), tgt) for (s, tgt) in zip(sub_batches, tgts)]
+            threads = [DataLoaderThread(os.path.join(fname, s), tgt, mode=mode) for (s, tgt) in zip(sub_batches, tgts)]
             for thread in threads:
                 thread.start()
             for thread in threads:
                 thread.join()
-            
             return [t[0] for t in tgts]
-        return unpickle(self.get_data_file_name(batch_num))
+        if mode == 'pickle':
+            return unpickle(fname)
+        elif mode == 'numpy':
+            return np.load(fname)
     
     def get_data_dims(self,idx=0):
         return self.batch_meta['num_vis'] if idx == 0 else 1
@@ -380,8 +390,7 @@ class DLDataProvider(LabeledDataProvider):
                            'ids': d['ids']
                            }
                 outpath = os.path.join(data_dir, 'data_batch_%d' % bnum)
-                with open(outpath, 'w') as _f:
-                    cPickle.dump(outdict, _f)
+                np.save(outpath, outdict)
 
             #write out batches.meta
             existing_batches += needed_batches
@@ -413,7 +422,7 @@ class DLDataProvider(LabeledDataProvider):
         return epoch, batchnum, d
 
     def get_batch(self, batch_num):
-        dic = LabeledDataProvider.get_batch(self, batch_num)
+        dic = LabeledDataProvider.get_batch(self, batch_num, mode='numpy')
         if self.replace_label:
             metacol = self.metacol
             indset = self.indset
