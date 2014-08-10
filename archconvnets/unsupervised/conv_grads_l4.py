@@ -38,20 +38,21 @@ feature_path = '/tmp/features_l4'
 deriv_prefix = 'conv_derivs_l4_'
 
 n_imgs = 128 # imgs in a batch
-in_channels = 64
+in_channels = 128
 frames_per_movie = 128
-base_batches = np.arange(80000+8*4+8*1+8*1, 80000+8*4+8*1+8*1+8*1)
+#base_batches = np.arange(80000+8*4+8*1+8*4, 80000+8*4+8*1+8*4+8)
+base_batches = np.arange(90000+10, 90000+10+7)
 
 layer_name = 'conv4_8a'
 weight_ind = 11
 neuron_ind = 12
 
-model = unpickle('/export/storage2/tmp_l5_3template.model')
+model = unpickle('/export/storage2/tmp_l3_test.model')
 weights = copy.deepcopy(model['model_state']['layers'][neuron_ind]['inputLayers'][0]['weights'][0])
 weights_shape = weights.shape
 
 ##########
-n_filters = 64
+n_filters = 128
 filter_sz = 3
 
 output_sz = 10

@@ -46,10 +46,10 @@ def conv_block(filters, base_batch, loss_slow, loss_transpose, loss_fourier, cor
         subprocess.call(['rm', '-r', feature_path])
         cmd = ['python', '/home/darren/archconvnets_write/archconvnets_write/convnet/shownet.py', '-f', tmp_model, '--test-range=' + str(np.min(base_batch)) + '-' + str(np.max(base_batch)), '--train-range=0', '--write-features=' + layer_name, '--feature-path=' + feature_path, '--gpu=' + gpu]
 	subprocess.call(cmd, stdout=f, stderr=f2)
-        if len(base_batch) == 1:
+	if len(base_batch) == 1:
                 try:
-                        x = np.load(feature_path + '/data_batch_' + str(base_batch[0]))
-                        output = x['data'].reshape((n_imgs, n_filters, output_sz, output_sz)).transpose((1,2,3,0))
+			x = np.load(feature_path + '/data_batch_' + str(base_batch[0]))
+			output = x['data'].reshape((n_imgs, n_filters, output_sz, output_sz)).transpose((1,2,3,0))
                 except:
                         try:
                                 print 'failed1'

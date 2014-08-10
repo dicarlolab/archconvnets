@@ -37,9 +37,10 @@ gpu = '1'
 feature_path = '/tmp/features_l3'
 
 n_imgs = 128 # imgs in a batch
-in_channels = 64
+in_channels = 128
 frames_per_movie = 128
-base_batches = np.arange(80000+8*4+8*1, 80000+8*4+8*1+8*1)
+#base_batches = np.arange(80000+8*4+8*1, 80000+8*4+8*1+8*1)
+base_batches = np.arange(90000,90000+7)
 
 layer_name = 'conv3_7a'
 weight_ind = 8
@@ -50,7 +51,7 @@ weights = copy.deepcopy(model['model_state']['layers'][neuron_ind]['inputLayers'
 weights_shape = weights.shape
 
 ##########
-n_filters = 64
+n_filters = 128
 filter_sz = 3
 
 output_sz = 17
