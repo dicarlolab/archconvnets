@@ -41,9 +41,9 @@ gpu = '0'
 feature_path = '/tmp/features_l2'
 
 n_imgs = 128 # imgs in a batch
-in_channels = 64
+in_channels = 128
 frames_per_movie = 128
-base_batches = np.arange(80000+8*4, 80000+8*4+8*1)
+base_batches = np.arange(90000+8*4, 90000+8*4+4)
 
 layer_name = 'conv2_4a'
 weight_ind = 5
@@ -54,7 +54,7 @@ weights = copy.deepcopy(model['model_state']['layers'][neuron_ind]['inputLayers'
 weights_shape = weights.shape
 
 ##########
-n_filters = 64
+n_filters = 128
 filter_sz = 5
 
 output_sz = 30 

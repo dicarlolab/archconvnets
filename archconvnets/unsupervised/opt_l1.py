@@ -37,24 +37,24 @@ import math
 import subprocess
 
 tmp_model = '/export/storage2/tmp_l1.model'
-gpu = '0'
+gpu = '1'
 feature_path = '/tmp/features'
 
 n_imgs = 128 # imgs in a batch
 in_channels = 1
 frames_per_movie = 128
-base_batches = np.arange(80000, 80000+8*4)
+base_batches = np.arange(90000, 90000+32)
 
 layer_name = 'conv1_1a'
 weight_ind = 2
 neuron_ind = 3
 
-model = unpickle('/home/darren/movie_64_gray/ConvNet__2014-07-11_19.27.59/30.229')
+model = unpickle('/home/darren/movie_128_gray_5layer/ConvNet__2014-08-08_18.34.10/1.80')
 weights = copy.deepcopy(model['model_state']['layers'][neuron_ind]['inputLayers'][0]['weights'][0])
 weights_shape = weights.shape
 
 ##########
-n_filters = 64
+n_filters = 128
 filter_sz = 7
 
 output_sz = 60 
@@ -78,8 +78,8 @@ t = loadmat('/home/darren/fourier_target.mat')['t'].ravel()
 t_start = time.time()
 x0 = x0.T
 step_sz_slowness = 1e-6
-step_sz_fourier = 0#1e1
-step_sz_transpose = 1e-3 #1e-3 #5e-5
+step_sz_fourier = 1e0
+step_sz_transpose = 1 #1e-3 #5e-5
 
 x = unpickle('/home/darren/imgnet_3layer_256_final.model')
 rdm_imgnetr = 1-pdist(x['model_state']['layers'][2]['weights'][0][:49],'correlation')

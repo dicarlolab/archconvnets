@@ -32,28 +32,29 @@ from scipy.stats.mstats import zscore
 import math
 import subprocess
 
-tmp_model = '/export/storage2/tmp_l1.model'
+tmp_model = '/export/storage2/tmp_l5.model'
 gpu = '1'
-feature_path = '/tmp/features'
+feature_path = '/tmp/features_l5'
+deriv_prefix = 'conv_derivs_l5_'
 
 n_imgs = 128 # imgs in a batch
-in_channels = 1
+in_channels = 64
 frames_per_movie = 128
-base_batches = np.arange(90000, 90000+8*4)
+base_batches = np.arange(80000+8*4+8*1+8*5, 80000+8*4+8*1+8*5+8)
 
-layer_name = 'conv1_1a'
-weight_ind = 2
-neuron_ind = 3
+layer_name = 'conv5_9a'
+weight_ind = 14
+neuron_ind = 15
 
-model = unpickle('/home/darren/movie_128_gray_5layer/ConvNet__2014-08-08_18.34.10/1.80')
+model = unpickle('/export/storage2/tmp_l4_test.model')
 weights = copy.deepcopy(model['model_state']['layers'][neuron_ind]['inputLayers'][0]['weights'][0])
 weights_shape = weights.shape
 
 ##########
-n_filters = 128
-filter_sz = 7
+n_filters = 64
+filter_sz = 3
 
-output_sz = 60
+output_sz = 7
 
 ######## re-compute conv derivs or not
 print 'starting deriv convs'
@@ -90,6 +91,6 @@ for base_batch in base_batches:
 			output_deriv[channel_inds[i],filter_i_inds[i],filter_j_inds[i]] = conv_out[i]
 		temp_filter = np.zeros((in_channels, filter_sz, filter_sz,n_filters),dtype='float32')
 		filter_ind = 0
-	savemat('conv_derivs_' + str(base_batch) + '.mat', {'output_deriv': output_deriv})
+	savemat(deriv_prefix + str(base_batch) + '.mat', {'output_deriv': output_deriv})
 	print time.time() - t_start
 
