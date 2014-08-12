@@ -1,0 +1,4 @@
+TODOS:
+
+Put in dropout stuff
+Addition pooling neurons
