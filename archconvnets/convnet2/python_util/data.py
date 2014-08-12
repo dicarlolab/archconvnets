@@ -36,7 +36,7 @@ class DataLoaderThread(Thread):
         if mode == 'pickle':
             self.tgt += [unpickle(self.path)]
         elif mode == 'numpy':
-            self.tgt += [np.load(self.path)]
+            self.tgt += [n.load(self.path).reshape((1, ))[0]]
         
 class DataProvider:
     BATCH_REGEX = re.compile('^data_batch_(\d+)(\.\d+)?$')
@@ -82,7 +82,7 @@ class DataProvider:
         if mode == 'pickle':
             return unpickle(fname)
         elif mode == 'numpy':
-            return np.load(fname)
+            return n.load(fname).reshape((1, ))[0]
     
     def get_data_dims(self,idx=0):
         return self.batch_meta['num_vis'] if idx == 0 else 1
@@ -341,7 +341,7 @@ class DLDataProvider(LabeledDataProvider):
                     assert dataset_data == bmeta['dataset_data'], (dataset_data, bmeta['dataset_data'])
             else:
                 ebatches = []
-            assert existing_batches == ebatches, ('Expected batches', ebatches, 'found batches', existing_batches)
+            #assert existing_batches == ebatches, ('Expected batches', ebatches, 'found batches', existing_batches)
             needed_batches = [_b for _b in batch_range if _b not in existing_batches]
             if existing_batches:
                 print('Found batches: ', existing_batches)
@@ -390,7 +390,7 @@ class DLDataProvider(LabeledDataProvider):
                            'ids': d['ids']
                            }
                 outpath = os.path.join(data_dir, 'data_batch_%d' % bnum)
-                np.save(outpath, outdict)
+                n.save(outpath, outdict)
 
             #write out batches.meta
             existing_batches += needed_batches
