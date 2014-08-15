@@ -280,9 +280,12 @@ def dldata_to_convnet_reformatting(stims, lbls):
         new_s = (nc * (img_sz**2), batch_size)
         stims = stims.transpose([3, 1, 2, 0]).reshape(new_s)
 
-    assert lbls.ndim == 1
-    labels = lbls.reshape((1, lbls.shape[0]))
-    return {'data': stims, 'labels': labels}
+    if lbls is not None:
+        assert lbls.ndim == 1
+        labels = lbls.reshape((1, lbls.shape[0]))
+        return {'data': stims, 'labels': labels}
+    else:
+        return {'data': stims}
 
 
 class DLDataProvider(LabeledDataProvider):
@@ -490,6 +493,102 @@ class DLDataProvider(LabeledDataProvider):
             indset = [slice(batch_size * bidx, batch_size * (bidx + 1))
                        for bidx in range(num_batches)]
         return indset
+
+
+class DLDataProvider2(DLDataProvider):
+
+    def __init__(self, data_dir, batch_range, init_epoch=1,
+                        init_batchnum=None, dp_params=None, test=False):
+
+        #load dataset and meta
+        modulename, attrname = dp_params['dataset_name']
+        module = importlib.import_module(modulename)
+        dataset_obj = getattr(module, attrname)
+        dataset_data = dp_params.get('dataset_data', None)
+        if dataset_data is not None:
+            dset = dataset_obj(data=dataset_data)
+        else:
+            dset = dataset_obj()
+        meta = self.meta = dset.meta
+        mlen = len(meta)
+        self.dp_params = dp_params
+
+        #compute number of batches
+        mlen = len(meta)
+        batch_size = dp_params['batch_size']
+        num_batches = self.num_batches = int(math.ceil(mlen / float(batch_size)))
+        num_batches_for_meta = self.num_batches_for_meta = dp['num_batches_for_meta']
+        
+        self.stimarray = dset.get_images(preproc=dp_params['preproc'])
+        self.metacol = self.get_metacol()        
+        self.indset = self.get_indset()          
+          
+        #default data location
+        if data_dir == '':
+            pstring = hashlib.sha1(repr(dp_params['preproc'])).hexdigest() + '_%d' % dp_params['batch_size']
+            data_dir = dset.home('convnet_batches', pstring)
+        if not os.path.exists(data_dir):
+            print('data_dir %s does not exist, creating' % data_dir)
+            os.makedirs(data_dir)
+        
+        metafile = os.path.join(data_dir, 'batches.meta')
+        if os.path.exists(metafile):
+            bmeta = cPickle.load(open(metafile))
+            #assertions checking that the things that need to be the same
+            #for these batches to make sense are in fact the same
+            assert dp_params['batch_size'] == bmeta['num_cases_per_batch'], (dp_params['batch_size'], bmeta['num_cases_per_batch'])
+            if 'dataset_name' in bmeta:
+                assert dp_params['dataset_name'] == bmeta['dataset_name'], (dp_params['dataset_name'], bmeta['dataset_name'])
+            if 'preproc' in bmeta:
+                assert dp_params['preproc'] == bmeta['preproc'], (dp_params['preproc'], bmeta['preproc'])
+                #pass
+            if 'dataset_data' in bmeta:
+                assert dataset_data == bmeta['dataset_data'], (dataset_data, bmeta['dataset_data'])
+        else:
+            imgs_mean = None
+            isf = 0
+            indset = self.indset[: num_batches_for_meta]
+            for bnum, inds in enumerate(indset):
+                #get stimuli and put in the required format
+                stims = n.asarray(self.stimarray[inds])
+                if 'float' in repr(stims.dtype):
+                    stims = n.uint8(n.round(255 * stims))
+                d = dldata_to_convnet_reformatting(stims, None)
+                #add to the mean
+                if imgs_mean is None:
+                    imgs_mean = n.zeros((d['data'].shape[0],))
+                dlen = d['data'].shape[0]
+                fr = isf / (isf + float(dlen))
+                imgs_mean *= fr
+                imgs_mean += (1 - fr) * d['data'].mean(axis=1)
+                isf += dlen
+
+            #write out batches.meta
+            outdict = {'num_cases_per_batch': batch_size,
+                       'label_names': self.labels_unique,
+                       'num_vis': d['data'].shape[0],
+                       'data_mean': imgs_mean,
+                       'dataset_name': dp_params['dataset_name'],
+                       'dataset_data': dataset_data,
+                       'preproc': dp_params['preproc']}
+            with open(metafile, 'wb') as _f:
+                cPickle.dump(outdict, _f)
+                
+        self.batch_meta = cPickle.load(open(metafile, 'rb'))
+
+        LabeledDataProvider.__init__(self, data_dir, batch_range,
+                                 init_epoch, init_batchnum, dp_params, test)
+
+        self.labels_unique = self.batch_meta['label_names']
+
+    def get_batch(self, batch_num):
+        inds = self.indset[batch_num]
+        stims = n.asarray(self.stimarray[inds])
+        if 'float' in repr(stims.dtype):
+            stims = n.uint8(n.round(255 * stims))
+        lbls = self.metacol[inds]
+        d = dldata_to_convnet_reformatting(stims, lbls)
+        return d
 
     
 dp_types = {"dummy-n": "Dummy data provider for n-dimensional data",
