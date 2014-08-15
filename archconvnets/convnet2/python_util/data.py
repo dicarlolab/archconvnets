@@ -517,7 +517,7 @@ class DLDataProvider2(DLDataProvider):
         mlen = len(meta)
         batch_size = dp_params['batch_size']
         num_batches = self.num_batches = int(math.ceil(mlen / float(batch_size)))
-        num_batches_for_meta = self.num_batches_for_meta = dp['num_batches_for_meta']
+        num_batches_for_meta = self.num_batches_for_meta = dp_params['num_batches_for_mean']
         
         self.stimarray = dset.get_images(preproc=dp_params['preproc'])
         self.metacol = self.get_metacol()        
