@@ -522,8 +522,7 @@ class DLDataProvider2(DLDataProvider):
         perm_type = dp_params.get('perm_type')
         if perm_type is not None:
             images = dset.get_images(preproc=dp_params['preproc'])
-            orig_path = set.get_images_location(dp_params['preproc'])
-            base_dir, orig_name = os.path.split(orig_path)
+            base_dir, orig_name = os.path.split(images.dirname)
             new_name = orig_name + '_' + perm_id
             perm, perm_id = self.get_perm()
             lmap = larray.lmap(lambda x: images[x], perm, f_map=reorder)
