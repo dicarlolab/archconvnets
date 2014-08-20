@@ -164,12 +164,14 @@ class DummyDataProvider(DataProvider):
         data = rand(512, self.get_data_dims()).astype(n.single)
         return self.curr_epoch, self.curr_batchnum, {'data':data}
 
+
 class LabeledDataProvider(DataProvider):
     def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
         DataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
 
     def get_num_classes(self):
         return len(self.batch_meta['label_names'])
+
 
 class LabeledDataProviderTrans(LabeledDataProvider):
 
@@ -523,18 +525,22 @@ class DLDataProvider2(DLDataProvider):
         perm_type = dp_params.get('perm_type')
         if perm_type is not None:
             images = dset.get_images(preproc=dp_params['preproc'])
-            base_dir, orig_name = os.path.split(images.dirname)
+            if hasattr(images, 'dirname'):
+                base_dir, orig_name = os.path.split(images.dirname)
+            else:
+                base_dir = dset.home('cache')
+                orig_name = 'images_cache_' + get_id(dp_params['preproc'])
             perm, perm_id = self.get_perm()
             new_name = orig_name + '_' + perm_id
-            reorder = Reorder(images, perm)
+            reorder = Reorder(images)
             lmap = larray.lmap(reorder, perm, f_map = reorder)
             print('Getting stimuli from cache memmap at %s/%s ' % (base_dir, new_name))
-            self.stimuli = larray.cache_memmap(lmap,
+            self.stimarray = larray.cache_memmap(lmap,
                                       name=new_name,
                                       basedir=base_dir)
-            self.metacol = self.get_metacol[perm]
+            self.metacol = self.get_metacol()[perm]
         else:
-            self.stimuli = dset.get_images(preproc=dp_params['preproc'])
+            self.stimarray = dset.get_images(preproc=dp_params['preproc'])
             self.metacol = self.get_metacol()
 
         #default data location
@@ -651,3 +657,7 @@ class Reorder(object):
             return self.X.shape[1:]
         else:
             return getattr(self.X, attr)
+
+
+def get_id(l):
+    return hashlib.sha1(repr(l)).hexdigest()
