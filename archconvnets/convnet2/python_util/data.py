@@ -524,10 +524,11 @@ class DLDataProvider2(DLDataProvider):
         if perm_type is not None:
             images = dset.get_images(preproc=dp_params['preproc'])
             base_dir, orig_name = os.path.split(images.dirname)
-            new_name = orig_name + '_' + perm_id
             perm, perm_id = self.get_perm()
-            lmap = larray.lmap(lambda x: images[x], perm, f_map=reorder)
-            print('Getting stimuli from cache memmap at %s/%s ' % (base_dir, new_name)
+            new_name = orig_name + '_' + perm_id
+            reorder = Reorder(images, perm)
+            lmap = larray.lmap(reorder, perm, f_map = reorder)
+            print('Getting stimuli from cache memmap at %s/%s ' % (base_dir, new_name))
             self.stimuli = larray.cache_memmap(lmap,
                                       name=new_name,
                                       basedir=base_dir)
@@ -601,10 +602,9 @@ class DLDataProvider2(DLDataProvider):
         if perm_type == 'random':
             perm_seed = dp_params.get('perm_seed', 0)
             rng = n.random.RandomState(seed=perm_seed)
-            perm = rng.permutation(mlen), perm_type + '_' + str(perm_seed)
+            return rng.permutation(mlen), perm_type + '_' + str(perm_seed)
         else:
             raise ValueError, 'Unknown permutation type.'
-
 
     def get_batch(self, batch_num):
         batch_size = self.batch_size
@@ -635,6 +635,19 @@ def get_lambda_from_query_config(q):
         return lambda x:  all([x[k] in v for k, v in q.items()])
 
 
-
 class DataProviderException(Exception):
     pass
+
+
+class Reorder(object):
+    def __init__(self, X):
+        self.X = X
+
+    def __call__(self, inds):
+        return self.X[inds]
+
+    def rval_getattr(self, attr, objs=None):
+        if attr == 'shape':
+            return self.X.shape[1:]
+        else:
+            return getattr(self.X, attr)
