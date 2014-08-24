@@ -305,32 +305,35 @@ class LayerParser:
     @staticmethod
     def parse_layers(layer_cfg_path, param_cfg_path, model, layers={}):
         try:
-            if not os.path.exists(layer_cfg_path):
+            if (not model.loaded_from_checkpoint) and (not os.path.exists(layer_cfg_path)):
                 raise LayerParsingError("Layer definition file '%s' does not exist" % layer_cfg_path)
-            if not os.path.exists(param_cfg_path):
-                raise LayerParsingError("Layer parameter file '%s' does not exist" % param_cfg_path)
-            if len(layers) == 0:
+     
+            if os.path.exists(layer_cfg_path):
                 mcp = MyConfigParser(dict_type=OrderedDict)
                 mcp.readfp(open(layer_cfg_path))
                 for name in mcp.sections():
-                    if not mcp.has_option(name, 'type'):
-                        raise LayerParsingError("Layer '%s': no type given" % name)
-                    ltype = mcp.safe_get(name, 'type')
-                    if ltype not in layer_parsers:
-                        raise LayerParsingError("Layer '%s': Unknown layer type: '%s'" % (name, ltype))
-                    layers[name] = layer_parsers[ltype]().parse(name, mcp, layers, model)
-                
+                    if name not in layers:
+                        if not mcp.has_option(name, 'type'):
+                            raise LayerParsingError("Layer '%s': no type given" % name)
+                        ltype = mcp.safe_get(name, 'type')
+                        if ltype not in layer_parsers:
+                            raise LayerParsingError("Layer '%s': Unknown layer type: '%s'" % (name, ltype))
+                        layers[name] = layer_parsers[ltype]().parse(name, mcp, layers, model)
+            
                 LayerParser.detach_neuron_layers(layers)
                 for l in layers.values():
                     l['parser'].optimize(layers)
                     del l['parser']
-                    
+                
                 for name,l in layers.items():
                     if not l['type'].startswith('cost.'):
                         found = max(name in l2['inputs'] for l2 in layers.values() if 'inputs' in l2)
                         if not found:
                             raise LayerParsingError("Layer '%s' of type '%s' is unused" % (name, l['type']))
-            
+        
+            if not os.path.exists(param_cfg_path):
+                raise LayerParsingError("Layer parameter file '%s' does not exist" % param_cfg_path)        
+        
             mcp = MyConfigParser(dict_type=OrderedDict)
             mcp.readfp(open(param_cfg_path))
 #            mcp.convnet = model
@@ -341,7 +344,7 @@ class LayerParser:
                 lp.add_params(mcp)
         except LayerParsingError, e:
             print e
-            sys.exit(1)
+            raise LayerParsingError(e)
         return layers
         
     @staticmethod
