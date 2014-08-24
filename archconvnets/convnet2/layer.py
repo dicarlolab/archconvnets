@@ -322,8 +322,9 @@ class LayerParser:
             
                 LayerParser.detach_neuron_layers(layers)
                 for l in layers.values():
-                    l['parser'].optimize(layers)
-                    del l['parser']
+                    if 'parser' in l:
+                        l['parser'].optimize(layers)
+                        del l['parser']
                 
                 for name,l in layers.items():
                     if not l['type'].startswith('cost.'):

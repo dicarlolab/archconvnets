@@ -244,6 +244,11 @@ class IGPUModel:
         print "Running on CUDA device(s) %s" % ", ".join("%d" % d for d in self.device_ids)
         print "Current time: %s" % asctime(localtime())
         print "========================="
+
+        if self.save_initial and self.get_num_batches_done() == 1:
+            self.test_outputs += [self.get_test_error()]
+            self.conditional_save()
+
         next_data = self.get_next_batch()
         while self.epoch <= self.num_epochs:
             data = next_data
@@ -255,8 +260,13 @@ class IGPUModel:
             self.start_batch(data)
             
             # load the next batch while the current one is computing
+            t0 = time()
             next_data = self.get_next_batch()
+            t1 = time()
+            print('T1-T0', t1 - t0)
             batch_output = self.finish_batch()
+            t2 = time()
+            print('T2-T1', t2 - t1)
             self.train_outputs += [batch_output]
             self.print_train_results()
 
@@ -457,9 +467,9 @@ class IGPUModel:
         op.add_option("max-test-err", "max_test_err", FloatOptionParser, "Maximum test error for saving")
         op.add_option("test-only", "test_only", BooleanOptionParser, "Test and quit?", default=0)
         op.add_option("test-one", "test_one", BooleanOptionParser, "Test on one batch at a time?", default=1)
+        op.add_option("save-initial", "save_initial", BooleanOptionParser, "Save initial state as checkpoint before training?", default=0)
         op.add_option("force-save", "force_save", BooleanOptionParser, "Force save before quitting", default=0)
         op.add_option("gpu", "gpu", ListOptionParser(IntegerOptionParser), "GPU override")
-        
         ####### db configs #######
         op.add_option("save-db", "save_db", BooleanOptionParser, "Save checkpoints to mongo database?", default=0)
         op.add_option("save-filters", "save_filters", BooleanOptionParser, "Save filters to database?", default=1)
