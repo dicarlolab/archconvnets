@@ -31,7 +31,7 @@ from scipy.stats.mstats import zscore
 import math
 import subprocess
 
-def test_grad_slowness(feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie):
+def test_grad_slowness(feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie, deriv_prefix_name):
         model = unpickle(tmp_model)
         x = copy.deepcopy(model['model_state']['layers'][neuron_ind]['inputLayers'][0]['weights'][0])
 
@@ -47,7 +47,7 @@ def test_grad_slowness(feature_path, batch, tmp_model, neuron_ind, in_channels, 
         c = np.load(feature_path + '/data_batch_' + str(batch))
         conv_out = c['data'].reshape((n_imgs, n_filters, output_sz**2)).transpose((1,2,0))
         # conv_out: n_filters, output_sz**2, n_imgs
-        output_deriv = loadmat('conv_derivs_' + str(batch) + '.mat')['output_deriv']
+        output_deriv = loadmat(deriv_prefix_name + str(batch) + '.mat')['output_deriv']
         # output_deriv: in_channels, filter_sz**2, output_sz**2, n_imgs
         output_deriv = output_deriv.reshape((in_channels, filter_sz**2, 1, output_sz**2, n_imgs))
 
@@ -59,12 +59,14 @@ def test_grad_slowness(feature_path, batch, tmp_model, neuron_ind, in_channels, 
 
         # we want to do this, but it takes too much memory, so we need to slice through:
         #grad_ld1 = (output_deriv*conv_out_nmean_pad).sum(3) / conv_out_nmean_std_pad
-        grad_ld1 = np.zeros((in_channels, filter_sz**2, n_filters, n_imgs),dtype='float32')
+        print 'starting grad_ld1 computation'
+	grad_ld1 = np.zeros((in_channels, filter_sz**2, n_filters, n_imgs),dtype='float32')
         for img in range(n_imgs):
+		print '1 ', img
 		grad_ld1[:,:,:,img] = (output_deriv[:,:,:,:,img]*conv_out_nmean_pad[:,:,:,:,img]).sum(3) / conv_out_nmean_std_pad[:,:,:,img]
-	
 	# output_deriv*conv_out_nmean: in_channels, filter_sz**2, n_filters, output_sz**2, n_imgs
         for img in range(0, n_imgs-1):
+		print '2 ', img
                 if (((img-2) % frames_per_movie) != 0) and (((img+2) % frames_per_movie) != 0) and (((img+1) % frames_per_movie) != 0) and (((img) % frames_per_movie) != 0) and (((img-1) % frames_per_movie) != 0): # skip movie boundaries
                         std_pair = conv_out_nmean_std[:,img]*conv_out_nmean_std[:,img+1]
                         corrs_l = np.sum(conv_out_nmean[:,:,img]*conv_out_nmean[:,:,img+1],axis=1)

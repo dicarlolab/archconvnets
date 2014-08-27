@@ -36,21 +36,21 @@ from scipy.stats.mstats import zscore
 import math
 import subprocess
 
-tmp_model = '/export/storage2/tmp_l3.model'
+tmp_model = '/export/storage2/tmp_l4.model'
 gpu = '0'
-feature_path = '/tmp/features_l3'
+feature_path = '/tmp/features_l4'
 
 n_imgs = 128 # imgs in a batch
 in_channels = 128
 frames_per_movie = 128
-#base_batches = np.arange(80000+8*4+8*1, 80000+8*4+8*1+8*1)
-base_batches = np.arange(90000,90000+7)
+#base_batches = np.arange(80000+8*4+8*1+8*4, 80000+8*4+8*1+8*4+8)
+base_batches = np.arange(90000+10, 90000+10+2)
 
-layer_name = 'conv3_7a'
-weight_ind = 8
-neuron_ind = 9
+layer_name = 'conv4_8a'
+weight_ind = 11
+neuron_ind = 12
 
-model = unpickle('/export/storage2/tmp_l2_test.model')
+model = unpickle('/export/storage2/tmp_l3_test.model')
 weights = copy.deepcopy(model['model_state']['layers'][neuron_ind]['inputLayers'][0]['weights'][0])
 weights_shape = weights.shape
 
@@ -58,7 +58,8 @@ weights_shape = weights.shape
 n_filters = 128
 filter_sz = 3
 
-output_sz = 17 
+output_sz = 10
+deriv_prefix = 'conv_derivs_l4_'
 
 loss_slow = np.zeros(0)
 loss_transpose = np.zeros(0)
@@ -95,7 +96,7 @@ for step_g in range(3):
 	l = []
 	grad = np.zeros_like(x0)
 	for batch in base_batches:
-		l.append(proc(test_grad_slowness, feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie, 'conv_derivs_l3_'))
+		l.append(proc(test_grad_slowness, feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie, deriv_prefix))
 		if len(l) == n_cpus:
 			print 'computing batch', batch
 			results = call(l)

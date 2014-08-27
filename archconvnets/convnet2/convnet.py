@@ -22,7 +22,8 @@ from python_util.gpumodel import *
 import sys
 import math as m
 import layer as lay
-from convdata import ImageDataProvider, CIFARDataProvider, DummyConvNetLogRegDataProvider
+from convdata import (ImageDataProvider, CIFARDataProvider, DummyConvNetLogRegDataProvider, 
+                      CroppedGeneralDataProvider, CroppedGeneralDataRandomProvider, CroppedImageAndVectorProvider)
 from os import linesep as NL
 import copy as cp
 import os
@@ -83,14 +84,13 @@ class FeatureWriterDriver(Driver):
         
         self.batchnum, self.data = batch_data[1], batch_data[2]
         
-        self.feature_paths = [self.convnet.feature_path + '_' + lname in self.convnet.write_features]
+        self.feature_paths = [self.convnet.feature_path + '_' + lname for lname in self.convnet.write_features]
         for dirname in self.feature_paths:
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
         
         self.num_ftr_list = [self.convnet.layers[lname]['outputs'] for lname in self.convnet.write_features]
         self.ftr_list = [n.zeros((self.data[0].shape[1], nftrs), dtype=n.single) for nftrs in self.num_ftr_list]
-        
         self.convnet.libmodel.startFeatureWriter(self.data, self.ftr_list, self.convnet.write_features)
     
     def on_finish_batch(self):
@@ -103,7 +103,7 @@ class FeatureWriterDriver(Driver):
                 pickle(os.path.join(fp, 'batches.meta'), {'source_model': self.convnet.load_file, 
                                                           'source_model_query': self.convnet.load_query,
                                                           'num_vis': nftrs,
-                                                          'batch_size': self.convnet.test_data_provider.batch_meta['batch_size'],
+                                                          'num_cases_per_batch': self.convnet.test_data_provider.batch_meta['num_cases_per_batch'],
                                                           'label_names': self.convnet.train_data_provider.labels_unique})
 
 class ConvNet(IGPUModel):
@@ -113,7 +113,7 @@ class ConvNet(IGPUModel):
         filename_options = []
         if op.options["dp_params"].value_given:
             dp_params.update(op.options["dp_params"].value)        
-        for v in ('crop_border', 'color_noise', 'multiview_test', 'inner_size', 'scalar_mean', 'minibatch_size'):
+        for v in ('crop_border', 'img_flip', 'color_noise', 'multiview_test', 'inner_size', 'scalar_mean', 'minibatch_size'):
             dp_params[v] = op.get_value(v)
 
         IGPUModel.__init__(self, "ConvNet", op, load_dic, filename_options, dp_params=dp_params)
@@ -125,6 +125,7 @@ class ConvNet(IGPUModel):
         self.libmodel = __import__(lib_name,fromlist=['_ConvNet'])
         
     def init_model_lib(self):
+        print('device IDS', self.device_ids)
         self.libmodel.initModel(self.layers,
                                 self.device_ids,
                                 self.minibatch_size,
@@ -286,7 +287,10 @@ class ConvNet(IGPUModel):
         op.add_option("write-features", "write_features", ListOptionParser(StringOptionParser),
               "Write features from given layer(s)", default="", requires=['feature-path'])                    
         op.add_option("feature-path", "feature_path", StringOptionParser,
-              "Write features to this path (to be used with --write-disk)", default="")
+              "Write features to this path (to be used with --write-features)", default="")
+
+        op.add_option("img-flip", "img_flip", BooleanOptionParser,
+                "Whether filp training image", default=True )
 
         op.delete_option('max_test_err')
         op.options["testing_freq"].default = 57
@@ -307,8 +311,8 @@ class ConvNet(IGPUModel):
         return op
 
 if __name__ == "__main__":
-    nr.seed(op.options['random_seed'].value)
     op = ConvNet.get_options_parser()
     op, load_dic = IGPUModel.parse_options(op)
+    nr.seed(op.options['random_seed'].value)
     model = ConvNet(op, load_dic)
     model.start()

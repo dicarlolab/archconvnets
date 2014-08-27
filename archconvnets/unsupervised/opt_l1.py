@@ -37,29 +37,25 @@ import math
 import subprocess
 
 tmp_model = '/export/storage2/tmp_l1.model'
-gpu = '0'
+gpu = '1'
 feature_path = '/tmp/features'
 
-#################
-# load images
-img_sz = 138
 n_imgs = 128 # imgs in a batch
 in_channels = 1
 frames_per_movie = 128
-base_batches = np.arange(80000, 80000+2)
+base_batches = np.arange(90000, 90000+32)
 
 layer_name = 'conv1_1a'
 weight_ind = 2
 neuron_ind = 3
 
-model = unpickle('/home/darren/movie_64_gray/ConvNet__2014-07-11_19.27.59/30.229')
+model = unpickle('/home/darren/movie_128_gray_5layer/ConvNet__2014-08-08_18.34.10/1.80')
 weights = copy.deepcopy(model['model_state']['layers'][neuron_ind]['inputLayers'][0]['weights'][0])
 weights_shape = weights.shape
 
 ##########
-n_filters = 64
+n_filters = 128
 filter_sz = 7
-sz = filter_sz; sz2 = filter_sz**2
 
 output_sz = 60 
 
@@ -70,36 +66,20 @@ corr_imgnetr = np.zeros(0)
 corr_imgnetg = np.zeros(0)
 corr_imgnetb = np.zeros(0)
 
-######## re-compute conv derivs or not
-if False:
-	print 'starting deriv convs'
-	output_deriv = np.zeros((in_channels, filter_sz, filter_sz, output_sz, output_sz, n_imgs),dtype='float32')
-	for base_batch in base_batches:
-		t_start = time.time()
-		for filter_i in range(filter_sz):
-			for filter_j in range(filter_sz):
-				print base_batch, filter_i, filter_j
-				for channel in range(in_channels):
-					temp_filter = np.zeros((in_channels, filter_sz, filter_sz,n_filters),dtype='float32')
-					temp_filter[channel,filter_i,filter_j,0] = 1
-					output_deriv[channel,filter_i,filter_j] = conv_block(temp_filter, [base_batch], loss_slow, loss_transpose, loss_fourier, corr_imgnetr, gpu, tmp_model, feature_path, filters_c, weights_shape, model, neuron_ind, weight_ind, layer_name)[0]
-		savemat('conv_derivs_' + str(base_batch) + '.mat', {'output_deriv': output_deriv})
-		print time.time() - t_start
-	print 'finished'
 ###
 x0 = np.random.random((in_channels*filter_sz*filter_sz*n_filters,1))
 x0 -= np.mean(x0)
 x0 /= np.sum(x0**2)#*(10**10)
 
 ####### fourier
-X = np.real(DFT_matrix_2d(sz))
+X = np.real(DFT_matrix_2d(filter_sz))
 t = loadmat('/home/darren/fourier_target.mat')['t'].ravel()
 
 t_start = time.time()
 x0 = x0.T
 step_sz_slowness = 1e-6
-step_sz_fourier = 0#1e1
-step_sz_transpose = 1e-3 #1e-3 #5e-5
+step_sz_fourier = 1e0
+step_sz_transpose = 1 #1e-3 #5e-5
 
 x = unpickle('/home/darren/imgnet_3layer_256_final.model')
 rdm_imgnetr = 1-pdist(x['model_state']['layers'][2]['weights'][0][:49],'correlation')
@@ -119,12 +99,12 @@ print 'transpose:', t_loss
 n_cpus = 8
 for step_g in range(3):
 	t_start = time.time()
-	conv_block(x0.reshape((in_channels, filter_sz, filter_sz, n_filters)), base_batches, loss_slow, loss_transpose, loss_fourier, corr_imgnetr, gpu, tmp_model, feature_path, filters_c, weights_shape, model, neuron_ind, weight_ind, layer_name)
+	conv_block(x0.reshape((in_channels, filter_sz, filter_sz, n_filters)), base_batches, loss_slow, loss_transpose, loss_fourier, corr_imgnetr, gpu, tmp_model, feature_path, filters_c, weights_shape, model, neuron_ind, weight_ind, layer_name, output_sz, n_imgs, n_filters)
 	
 	l = []
 	grad = np.zeros_like(x0)
 	for batch in base_batches:
-		l.append(proc(test_grad_slowness, feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie))
+		l.append(proc(test_grad_slowness, feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie, 'conv_derivs_'))
 		if len(l) == n_cpus:
 			print 'computing batch', batch
 			results = call(l)

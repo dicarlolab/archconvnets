@@ -31,7 +31,7 @@ from scipy.stats.mstats import zscore
 import math
 import subprocess
 
-def conv_block(filters, base_batch, loss_slow, loss_transpose, loss_fourier, corr_imgnetr, gpu, tmp_model, feature_path, filters_c, weights_shape, model, neuron_ind, weight_ind, layer_name):
+def conv_block(filters, base_batch, loss_slow, loss_transpose, loss_fourier, corr_imgnetr, gpu, tmp_model, feature_path, filters_c, weights_shape, model, neuron_ind, weight_ind, layer_name, output_sz, n_imgs, n_filters):
         filters = np.single(filters.reshape(weights_shape))
         model['model_state']['layers'][neuron_ind]['inputLayers'][0]['weights'][0] = copy.deepcopy(filters)
         model['model_state']['layers'][weight_ind]['weights'][0] = copy.deepcopy(filters)
@@ -44,19 +44,20 @@ def conv_block(filters, base_batch, loss_slow, loss_transpose, loss_fourier, cor
         f = open('/home/darren/j','w')
         f2 = open('/home/darren/j2','w')
         subprocess.call(['rm', '-r', feature_path])
-        subprocess.call(['python', '/home/darren/archconvnets_write/archconvnets_write/convnet/shownet.py', '-f', tmp_model, '--test-range=' + str(np.min(base_batch)) + '-' + str(np.max(base_batch)), '--train-range=0', '--write-features=' + layer_name, '--feature-path=' + feature_path, '--gpu=' + gpu], stdout=f, stderr=f2)
-        if len(base_batch) == 1:
+        cmd = ['python', '/home/darren/archconvnets_write/archconvnets_write/convnet/shownet.py', '-f', tmp_model, '--test-range=' + str(np.min(base_batch)) + '-' + str(np.max(base_batch)), '--train-range=0', '--write-features=' + layer_name, '--feature-path=' + feature_path, '--gpu=' + gpu]
+	subprocess.call(cmd, stdout=f, stderr=f2)
+	if len(base_batch) == 1:
                 try:
-                        x = np.load(feature_path + '/data_batch_' + str(base_batch[0]))
-                        output = x['data'].reshape((n_imgs, n_filters, output_sz, output_sz)).transpose((1,2,3,0))
+			x = np.load(feature_path + '/data_batch_' + str(base_batch[0]))
+			output = x['data'].reshape((n_imgs, n_filters, output_sz, output_sz)).transpose((1,2,3,0))
                 except:
                         try:
                                 print 'failed1'
                                 f = open('/home/darren/j','w')
                                 f2 = open('/home/darren/j2','w')
                                 subprocess.call(['rm', '-r', feature_path])
-                                subprocess.call(['python', '/home/darren/archconvnets_write/archconvnets_write/convnet/shownet.py', '-f', tmp_model, '--test-range=' + str(np.min(base_batch)) + '-' + str(np.max(base_batch)), '--train-range=0', '--write-features=' + layer_name, '--feature-path=' + feature_path, '--gpu=' + gpu], stdout=f, stderr=f2)
-                                x = np.load(feature_path + '/data_batch_' + str(base_batch[0]))
+                                subprocess.call(cmd, stdout=f, stderr=f2)
+				x = np.load(feature_path + '/data_batch_' + str(base_batch[0]))
                                 output = x['data'].reshape((n_imgs, n_filters, output_sz, output_sz)).transpose((1,2,3,0))
                         except:
                                 try:
@@ -64,8 +65,8 @@ def conv_block(filters, base_batch, loss_slow, loss_transpose, loss_fourier, cor
                                         f = open('/home/darren/j','w')
                                         f2 = open('/home/darren/j2','w')
                                         subprocess.call(['rm', '-r', feature_path])
-                                        subprocess.call(['python', '/home/darren/archconvnets_write/archconvnets_write/convnet/shownet.py', '-f', tmp_model, '--test-range=' + str(np.min(base_batch)) + '-' + str(np.max(base_batch)), '--train-range=0', '--write-features=' + layer_name, '--feature-path=' + feature_path, '--gpu=' + gpu], stdout=f, stderr=f2)
-                                        x = np.load(feature_path + '/data_batch_' + str(base_batch[0]))
+                                        subprocess.call(cmd, stdout=f, stderr=f2)
+					x = np.load(feature_path + '/data_batch_' + str(base_batch[0]))
                                         output = x['data'].reshape((n_imgs, n_filters, output_sz, output_sz)).transpose((1,2,3,0))
                                 except:
                                         print 'failed3'
