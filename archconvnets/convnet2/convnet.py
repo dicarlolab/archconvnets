@@ -256,8 +256,11 @@ class ConvNet(IGPUModel):
         num_cases = sum(t[1] for t in test_outputs)
         for i in xrange(1 ,len(test_outputs)):
             for k,v in test_outputs[i][0].items():
-                for j in xrange(len(v)):
+                if k not in test_outputs[0][0]:
+                    test_outputs[0][0][k] = 0.0
+                for j in xrange(len(v)):                    
                     test_outputs[0][0][k][j] += test_outputs[i][0][k][j]
+                    
         
         return (test_outputs[0][0], num_cases)
     

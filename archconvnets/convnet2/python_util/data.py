@@ -273,16 +273,19 @@ class LabeledDummyDataProvider(DummyDataProvider):
 
 
 def dldata_to_convnet_reformatting(stims, lbls):
-    img_sz = stims.shape[1]
-    batch_size = stims.shape[0]
-    if stims.ndim == 3:
-        new_s = (batch_size, img_sz**2)
-        stims = stims.reshape(new_s).T
+    if stims.ndim > 2:
+        img_sz = stims.shape[1]
+        batch_size = stims.shape[0]
+        if stims.ndim == 3:
+            new_s = (batch_size, img_sz**2)
+            stims = stims.reshape(new_s).T
+        else:
+            assert stims.ndim == 4
+            nc = stims.shape[3]
+            new_s = (nc * (img_sz**2), batch_size)
+            stims = stims.transpose([3, 1, 2, 0]).reshape(new_s)
     else:
-        assert stims.ndim == 4
-        nc = stims.shape[3]
-        new_s = (nc * (img_sz**2), batch_size)
-        stims = stims.transpose([3, 1, 2, 0]).reshape(new_s)
+        stims = stims.T
 
     if lbls is not None:
         assert lbls.ndim == 1
@@ -423,9 +426,14 @@ class DLDataProvider(LabeledDataProvider):
             self.labels_unique = self.batch_meta['label_names']
 
     def get_next_batch(self):
+        t0 = systime.time()
         epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
-        d['data'] = n.require(d['data'], requirements='C')
+        t1 = systime.time()
+        d['data'] = n.require(d['data'].copy(order='A'), requirements='C')
+        t2 = systime.time()
         d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
+        t3 = systime.time()
+        print('timing: nextbatch %.4f order %.4f labels %.4f' % (t1 - t0, t2 - t1, t3 -  t2))
         return epoch, batchnum, d
 
     def get_batch(self, batch_num):
@@ -531,7 +539,7 @@ class DLDataProvider2(DLDataProvider):
                 base_dir = dset.home('cache')
                 orig_name = 'images_cache_' + get_id(dp_params['preproc'])
             perm, perm_id = self.get_perm()
-            new_name = orig_name + '_' + perm_id
+            new_name = orig_name + '_' + perm_id + '_transpose'
             reorder = Reorder(images)
             lmap = larray.lmap(reorder, perm, f_map = reorder)
             print('Getting stimuli from cache memmap at %s/%s ' % (base_dir, new_name))
@@ -613,13 +621,19 @@ class DLDataProvider2(DLDataProvider):
             raise ValueError, 'Unknown permutation type.'
 
     def get_batch(self, batch_num):
+        print('bn', batch_num)
         batch_size = self.batch_size
         inds = slice(batch_num * batch_size, (batch_num + 1) * batch_size)
+        print('got slice')
         stims = n.asarray(self.stimarray[inds])
+        print('got stims')
         if 'float' in repr(stims.dtype):
             stims = n.uint8(n.round(255 * stims))
+        print('to uint8')
         lbls = self.metacol[inds]
+        print('got meta')
         d = dldata_to_convnet_reformatting(stims, lbls)
+        print('done')
         return d
 
 
@@ -650,11 +664,19 @@ class Reorder(object):
         self.X = X
 
     def __call__(self, inds):
-        return self.X[inds]
+        mat = self.X[inds]
+        if 'float' in repr(mat.dtype):
+            mat = n.uint8(n.round(255 * mat))
+        return dldata_to_convnet_reformatting(mat, None)['data'].T
 
     def rval_getattr(self, attr, objs=None):
         if attr == 'shape':
-            return self.X.shape[1:]
+            xs = self.X.shape
+            print('xs', xs)
+            print(n.prod(xs[1:]))
+            return (n.prod(xs[1:]), )
+        elif attr == 'dtype': 
+            return 'uint8'
         else:
             return getattr(self.X, attr)
 

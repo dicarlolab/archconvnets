@@ -107,7 +107,7 @@ class CheckpointWriter(Thread):
     def run(self):
     
         dic = self.dic
-
+        print('Running checkpoint writer')
         val_dict = get_convenient_mongodb_representation_base(dic['op'], dic['model_state'])
         val_dict['epoch'] = self.epoch
         val_dict['batch_num'] = self.batchnum
@@ -120,7 +120,7 @@ class CheckpointWriter(Thread):
                                           self.checkpoint_db_name,
                                           self.checkpoint_fs_name)
         
-        
+        print('got checkpoint fs')
         if self.save_filters and (self.saving_freq > 0) and (((self.num_batches_done / self.testing_freq) % self.saving_freq) == 0):
             val_dict['saved_filters'] = True
             save_dic = dic
@@ -131,7 +131,9 @@ class CheckpointWriter(Thread):
             msg = 'Saved (without filters) to id %s'
             save_dic = collections.OrderedDict()
             save_recent = self.save_filters and self.save_recent_filters
+        print("getting checkpoint blob")
         blob = cPickle.dumps(save_dic, protocol=cPickle.HIGHEST_PROTOCOL)
+        print("About to dump")
         idval = checkpoint_fs.put(blob, **val_dict)
         print(msg % str(idval))
         
@@ -263,10 +265,9 @@ class IGPUModel:
             t0 = time()
             next_data = self.get_next_batch()
             t1 = time()
-            print('T1-T0', t1 - t0)
             batch_output = self.finish_batch()
             t2 = time()
-            print('T2-T1', t2 - t1)
+            print('timing next batch %.4f compute %.4f' % (t1 - t0, t2 - t1))
             self.train_outputs += [batch_output]
             self.print_train_results()
 
@@ -384,6 +385,7 @@ class IGPUModel:
                            ("op", self.op)])
             
         assert self.checkpoint_writer is None
+        print('Creating Checkpoint Writer')
         self.checkpoint_writer = CheckpointWriter(dic,
                                                   self.checkpoint_fs_host,
                                                   self.checkpoint_fs_port,
@@ -398,6 +400,7 @@ class IGPUModel:
                                                   self.get_num_batches_done(),
                                                   self.experiment_data
                                                   )
+        print('About to start checkpoint writer')
         self.checkpoint_writer.start()
         return self.checkpoint_writer
         
@@ -528,14 +531,24 @@ class IGPUModel:
         sys.exit()
 
 
-def get_convenient_mongodb_representation_base(op, model_state):
+def get_convenient_mongodb_representation_base(op, model_state, dump=False):
+    if dump:
+        dfile = '/om/user/yamins/bork_state.pkl'
+        with open(dfile, 'wb') as _f:
+            print('dumping to %s' % dfile)
+            cPickle.dump([op, model_state], _f)
     val_dict = collections.OrderedDict([(_o.name, _o.value) for _o in op.get_options_list()])
     def make_mongo_safe(_d):
-        for _k in _d:
+        klist = _d.keys()[:]
+        for _k in klist:
+            if hasattr(_d[_k], 'keys'):
+                print(_k)
+                make_mongo_safe(_d[_k])
             if '.' in _k:
                 _d[_k.replace('.', '___')] = _d.pop(_k)
-    if 'load_query' in val_dict:
-        val_dict['load_query'] = make_mongo_safe(val_dict['load_query'])
+    #if 'load_query' in val_dict:
+    #    val_dict['load_query'] = make_mongo_safe(val_dict['load_query'])
+    
 
     #import cPickle
     #with open('testdump.pkl', 'wb') as _f:
@@ -561,6 +574,7 @@ def get_convenient_mongodb_representation_base(op, model_state):
         else:
             val_dict[k] = model_state[k]
 
+    make_mongo_safe(val_dict)
     return SONify(val_dict)
 
 
