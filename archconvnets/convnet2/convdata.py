@@ -292,7 +292,7 @@ class DummyConvNetLogRegDataProvider(LabeledDummyDataProvider):
         
         
 #+++++++++++++++++++++++
-class CroppedGeneralDataProvider(DLDataProvider):
+class CroppedGeneralDataProvider(DLDataProvider2):
     """
     This is the data provider that should generally be used. Several parameters should be passed in a dictionary called
     dp_params when calling ConvNet:
@@ -318,7 +318,7 @@ class CroppedGeneralDataProvider(DLDataProvider):
             batch_range=None,
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
 
-        DLDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
+        DLDataProvider2.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
 
         self.num_colors = 1 if dp_params['preproc']['mode'] == 'L' else 3
         self.img_size = dp_params['preproc']['resize_to'][0]
@@ -346,7 +346,7 @@ class CroppedGeneralDataProvider(DLDataProvider):
         return self.num_views
 
     def get_next_batch(self):
-        epoch, batchnum, datadic = DLDataProvider.get_next_batch(self)
+        epoch, batchnum, datadic = DLDataProvider2.get_next_batch(self)
         datadic['labels'] = n.require(n.tile(datadic['labels'].reshape((1,
                                                     datadic['data'].shape[1])),
                                                     (1, self.data_mult)),

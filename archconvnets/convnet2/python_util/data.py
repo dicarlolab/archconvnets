@@ -1,11 +1,11 @@
 # Copyright 2014 Google Inc. All rights reserved.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #    http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,9 +18,11 @@ import os
 from threading import Thread
 from util import *
 
+import time as systime
 import math
 import importlib
 import hashlib
+from skdata import larray
 
 BATCH_META_FILE = "batches.meta"
 
@@ -28,7 +30,7 @@ class DataLoaderThread(Thread):
     def __init__(self, path, tgt, mode='pickle'):
         Thread.__init__(self)
         self.path = path
-        if mode == 'numpy': 
+        if mode == 'numpy':
             self.path = self.path + '.npy'
         self.tgt = tgt
         self.mode = mode
@@ -37,7 +39,7 @@ class DataLoaderThread(Thread):
             self.tgt += [unpickle(self.path)]
         elif mode == 'numpy':
             self.tgt += [n.load(self.path).reshape((1, ))[0]]
-        
+
 class DataProvider:
     BATCH_REGEX = re.compile('^data_batch_(\d+)(\.\d+)?$')
     def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
@@ -63,9 +65,9 @@ class DataProvider:
         self.advance_batch()
 
         return epoch, batchnum, self.data_dic
-            
+
     def get_batch(self, batch_num, mode='pickle'):
-        fname = self.get_data_file_name(batch_num) 
+        fname = self.get_data_file_name(batch_num)
         if mode == 'numpy':
             fname += '.npy'
         if os.path.isdir(fname): # batch in sub-batches
@@ -83,28 +85,28 @@ class DataProvider:
             return unpickle(fname)
         elif mode == 'numpy':
             return n.load(fname).reshape((1, ))[0]
-    
+
     def get_data_dims(self,idx=0):
         return self.batch_meta['num_vis'] if idx == 0 else 1
-    
+
     def advance_batch(self):
         self.batch_idx = self.get_next_batch_idx()
         self.curr_batchnum = self.batch_range[self.batch_idx]
         if self.batch_idx == 0: # we wrapped
             self.curr_epoch += 1
-            
+
     def get_next_batch_idx(self):
         return (self.batch_idx + 1) % len(self.batch_range)
-    
+
     def get_next_batch_num(self):
         return self.batch_range[self.get_next_batch_idx()]
-    
+
     # get filename of current batch
     def get_data_file_name(self, batchnum=None):
         if batchnum is None:
             batchnum = self.curr_batchnum
         return os.path.join(self.data_dir, 'data_batch_%d' % batchnum)
-    
+
     @classmethod
     def get_instance(cls, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, type="default", dp_params={}, test=False):
         # why the fuck can't i reference DataProvider in the original definition?
@@ -120,33 +122,33 @@ class DataProvider:
         elif type in dp_types:
             _class = dp_classes[type]
             return _class(data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
-        
+
         raise DataProviderException("No such data provider: %s" % type)
-    
+
     @classmethod
     def register_data_provider(cls, name, desc, _class):
         if name in dp_types:
             raise DataProviderException("Data provider %s already registered" % name)
         dp_types[name] = desc
         dp_classes[name] = _class
-        
+
     @staticmethod
     def get_batch_meta(data_dir):
         return unpickle(os.path.join(data_dir, BATCH_META_FILE))
-    
+
     @staticmethod
     def get_batch_filenames(srcdir):
         return sorted([f for f in os.listdir(srcdir) if DataProvider.BATCH_REGEX.match(f)], key=alphanum_key)
-    
+
     @staticmethod
     def get_batch_nums(srcdir):
         names = DataProvider.get_batch_filenames(srcdir)
         return sorted(list(set(int(DataProvider.BATCH_REGEX.match(n).group(1)) for n in names)))
-        
+
     @staticmethod
     def get_num_batches(srcdir):
         return len(DataProvider.get_batch_nums(srcdir))
-    
+
 class DummyDataProvider(DataProvider):
     def __init__(self, data_dim):
         #self.data_dim = data_dim
@@ -155,20 +157,22 @@ class DummyDataProvider(DataProvider):
         self.curr_epoch = 1
         self.curr_batchnum = 1
         self.batch_idx = 0
-        
+
     def get_next_batch(self):
         epoch,  batchnum = self.curr_epoch, self.curr_batchnum
         self.advance_batch()
         data = rand(512, self.get_data_dims()).astype(n.single)
         return self.curr_epoch, self.curr_batchnum, {'data':data}
 
-class LabeledDataProvider(DataProvider):   
+
+class LabeledDataProvider(DataProvider):
     def __init__(self, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, dp_params={}, test=False):
         DataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
-        
+
     def get_num_classes(self):
         return len(self.batch_meta['label_names'])
-        
+
+
 class LabeledDataProviderTrans(LabeledDataProvider):
 
     def __init__(self, data_dir,
@@ -237,7 +241,7 @@ class LabeledDataProviderTrans(LabeledDataProvider):
         else:
             return DataProvider.get_batch_nums(srcdir)
 
-        
+
 class LabeledDummyDataProvider(DummyDataProvider):
     def __init__(self, data_dim, num_classes=10, num_cases=7):
         #self.data_dim = data_dim
@@ -251,10 +255,10 @@ class LabeledDummyDataProvider(DummyDataProvider):
         self.curr_batchnum = 1
         self.batch_idx=0
         self.data = None
-        
+
     def get_num_classes(self):
         return self.num_classes
-    
+
     def get_next_batch(self):
         epoch,  batchnum = self.curr_epoch, self.curr_batchnum
         self.advance_batch()
@@ -280,9 +284,12 @@ def dldata_to_convnet_reformatting(stims, lbls):
         new_s = (nc * (img_sz**2), batch_size)
         stims = stims.transpose([3, 1, 2, 0]).reshape(new_s)
 
-    assert lbls.ndim == 1
-    labels = lbls.reshape((1, lbls.shape[0]))
-    return {'data': stims, 'labels': labels}
+    if lbls is not None:
+        assert lbls.ndim == 1
+        labels = lbls.reshape((1, lbls.shape[0]))
+        return {'data': stims, 'labels': labels}
+    else:
+        return {'data': stims}
 
 
 class DLDataProvider(LabeledDataProvider):
@@ -451,7 +458,6 @@ class DLDataProvider(LabeledDataProvider):
     def get_indset(self):
         dp_params = self.dp_params
         perm_type = dp_params.get('perm_type')
-        perm_type = dp_params.get('perm_type')
         num_batches = self.num_batches
         batch_size = dp_params['batch_size']
         meta = self.meta
@@ -491,7 +497,132 @@ class DLDataProvider(LabeledDataProvider):
                        for bidx in range(num_batches)]
         return indset
 
-    
+
+class DLDataProvider2(DLDataProvider):
+
+    def __init__(self, data_dir, batch_range, init_epoch=1,
+                        init_batchnum=None, dp_params=None, test=False):
+
+        #load dataset and meta
+        modulename, attrname = dp_params['dataset_name']
+        module = importlib.import_module(modulename)
+        dataset_obj = getattr(module, attrname)
+        dataset_data = dp_params.get('dataset_data', None)
+        if dataset_data is not None:
+            dset = dataset_obj(data=dataset_data)
+        else:
+            dset = dataset_obj()
+        meta = self.meta = dset.meta
+        mlen = len(meta)
+        self.dp_params = dp_params
+
+        #compute number of batches
+        mlen = len(meta)
+        batch_size = self.batch_size = dp_params['batch_size']
+        num_batches = self.num_batches = int(math.ceil(mlen / float(batch_size)))
+        num_batches_for_meta = self.num_batches_for_meta = dp_params['num_batches_for_mean']
+
+        perm_type = dp_params.get('perm_type')
+        if perm_type is not None:
+            images = dset.get_images(preproc=dp_params['preproc'])
+            if hasattr(images, 'dirname'):
+                base_dir, orig_name = os.path.split(images.dirname)
+            else:
+                base_dir = dset.home('cache')
+                orig_name = 'images_cache_' + get_id(dp_params['preproc'])
+            perm, perm_id = self.get_perm()
+            new_name = orig_name + '_' + perm_id
+            reorder = Reorder(images)
+            lmap = larray.lmap(reorder, perm, f_map = reorder)
+            print('Getting stimuli from cache memmap at %s/%s ' % (base_dir, new_name))
+            self.stimarray = larray.cache_memmap(lmap,
+                                      name=new_name,
+                                      basedir=base_dir)
+            self.metacol = self.get_metacol()[perm]
+        else:
+            self.stimarray = dset.get_images(preproc=dp_params['preproc'])
+            self.metacol = self.get_metacol()
+
+        #default data location
+        if data_dir == '':
+            pstring = hashlib.sha1(repr(dp_params['preproc'])).hexdigest() + '_%d' % dp_params['batch_size']
+            data_dir = dset.home('convnet_batches', pstring)
+        if not os.path.exists(data_dir):
+            print('data_dir %s does not exist, creating' % data_dir)
+            os.makedirs(data_dir)
+
+        metafile = os.path.join(data_dir, 'batches.meta')
+        if os.path.exists(metafile):
+            bmeta = cPickle.load(open(metafile))
+            #assertions checking that the things that need to be the same
+            #for these batches to make sense are in fact the same
+            assert dp_params['batch_size'] == bmeta['num_cases_per_batch'], (dp_params['batch_size'], bmeta['num_cases_per_batch'])
+            if 'dataset_name' in bmeta:
+                assert dp_params['dataset_name'] == bmeta['dataset_name'], (dp_params['dataset_name'], bmeta['dataset_name'])
+            if 'preproc' in bmeta:
+                assert dp_params['preproc'] == bmeta['preproc'], (dp_params['preproc'], bmeta['preproc'])
+                #pass
+            if 'dataset_data' in bmeta:
+                assert dataset_data == bmeta['dataset_data'], (dataset_data, bmeta['dataset_data'])
+        else:
+            imgs_mean = None
+            isf = 0
+            for bn in range(num_batches_for_meta):
+                #get stimuli and put in the required format
+                stims = n.asarray(self.stimarray[bn * batch_size :(bn + 1) * batch_size])
+                if 'float' in repr(stims.dtype):
+                    stims = n.uint8(n.round(255 * stims))
+                d = dldata_to_convnet_reformatting(stims, None)
+                #add to the mean
+                if imgs_mean is None:
+                    imgs_mean = n.zeros((d['data'].shape[0],))
+                dlen = d['data'].shape[0]
+                fr = isf / (isf + float(dlen))
+                imgs_mean *= fr
+                imgs_mean += (1 - fr) * d['data'].mean(axis=1)
+                isf += dlen
+
+            #write out batches.meta
+            outdict = {'num_cases_per_batch': batch_size,
+                       'label_names': self.labels_unique,
+                       'num_vis': d['data'].shape[0],
+                       'data_mean': imgs_mean,
+                       'dataset_name': dp_params['dataset_name'],
+                       'dataset_data': dataset_data,
+                       'preproc': dp_params['preproc']}
+            with open(metafile, 'wb') as _f:
+                cPickle.dump(outdict, _f)
+
+        self.batch_meta = cPickle.load(open(metafile, 'rb'))
+
+        LabeledDataProvider.__init__(self, data_dir, batch_range,
+                                 init_epoch, init_batchnum, dp_params, test)
+
+        self.labels_unique = self.batch_meta['label_names']
+
+    def get_perm(self):
+        dp_params = self.dp_params
+        perm_type = dp_params.get('perm_type')
+        meta = self.meta
+        mlen = len(self.meta)
+        if perm_type == 'random':
+            perm_seed = dp_params.get('perm_seed', 0)
+            rng = n.random.RandomState(seed=perm_seed)
+            return rng.permutation(mlen), perm_type + '_' + str(perm_seed)
+        else:
+            raise ValueError, 'Unknown permutation type.'
+
+    def get_batch(self, batch_num):
+        batch_size = self.batch_size
+        inds = slice(batch_num * batch_size, (batch_num + 1) * batch_size)
+        stims = n.asarray(self.stimarray[inds])
+        if 'float' in repr(stims.dtype):
+            stims = n.uint8(n.round(255 * stims))
+        lbls = self.metacol[inds]
+        d = dldata_to_convnet_reformatting(stims, lbls)
+        return d
+
+
 dp_types = {"dummy-n": "Dummy data provider for n-dimensional data",
             "dummy-labeled-n": "Labeled dummy data provider for n-dimensional data"}
 dp_classes = {"dummy-n": DummyDataProvider,
@@ -510,6 +641,23 @@ def get_lambda_from_query_config(q):
         return lambda x:  all([x[k] in v for k, v in q.items()])
 
 
-    
 class DataProviderException(Exception):
     pass
+
+
+class Reorder(object):
+    def __init__(self, X):
+        self.X = X
+
+    def __call__(self, inds):
+        return self.X[inds]
+
+    def rval_getattr(self, attr, objs=None):
+        if attr == 'shape':
+            return self.X.shape[1:]
+        else:
+            return getattr(self.X, attr)
+
+
+def get_id(l):
+    return hashlib.sha1(repr(l)).hexdigest()

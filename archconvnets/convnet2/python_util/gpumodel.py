@@ -256,7 +256,6 @@ class IGPUModel:
             
             # load the next batch while the current one is computing
             next_data = self.get_next_batch()
-            
             batch_output = self.finish_batch()
             self.train_outputs += [batch_output]
             self.print_train_results()
