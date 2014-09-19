@@ -283,6 +283,7 @@ def dldata_to_convnet_reformatting(stims, lbls):
             assert stims.ndim == 4
             nc = stims.shape[3]
             new_s = (nc * (img_sz**2), batch_size)
+            print(stims.shape)
             stims = stims.transpose([3, 1, 2, 0]).reshape(new_s)
     else:
         stims = stims.T
@@ -429,7 +430,8 @@ class DLDataProvider(LabeledDataProvider):
         t0 = systime.time()
         epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
         t1 = systime.time()
-        d['data'] = n.require(d['data'].copy(order='A'), requirements='C')
+        #d['data'] = n.require(d['data'].copy(order='A'), requirements='C')
+        d['data'] = n.require(d['data'], requirements='C')
         t2 = systime.time()
         d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
         t3 = systime.time()
@@ -509,7 +511,8 @@ class DLDataProvider(LabeledDataProvider):
 class DLDataProvider2(DLDataProvider):
 
     def __init__(self, data_dir, batch_range, init_epoch=1,
-                        init_batchnum=None, dp_params=None, test=False):
+                       init_batchnum=None, dp_params=None, test=False,
+                       read_mode='r', cache_type='memmap'):
 
         #load dataset and meta
         modulename, attrname = dp_params['dataset_name']
@@ -531,25 +534,30 @@ class DLDataProvider2(DLDataProvider):
         num_batches_for_meta = self.num_batches_for_meta = dp_params['num_batches_for_mean']
 
         perm_type = dp_params.get('perm_type')
-        if perm_type is not None:
-            images = dset.get_images(preproc=dp_params['preproc'])
-            if hasattr(images, 'dirname'):
-                base_dir, orig_name = os.path.split(images.dirname)
-            else:
-                base_dir = dset.home('cache')
-                orig_name = 'images_cache_' + get_id(dp_params['preproc'])
-            perm, perm_id = self.get_perm()
-            new_name = orig_name + '_' + perm_id + '_transpose'
-            reorder = Reorder(images)
-            lmap = larray.lmap(reorder, perm, f_map = reorder)
+
+        images = dset.get_images(preproc=dp_params['preproc'])
+        if hasattr(images, 'dirname'):
+            base_dir, orig_name = os.path.split(images.dirname)
+        else:
+            base_dir = dset.home('cache')
+            orig_name = 'images_cache_' + get_id(dp_params['preproc'])
+        perm, perm_id = self.get_perm()
+        reorder = Reorder(images)
+        lmap = larray.lmap(reorder, perm, f_map = reorder)
+        if cache_type == 'hdf5':
+            new_name = orig_name + '_' + perm_id + '_hdf5'
+            print('Getting stimuli from cache hdf5 at %s/%s ' % (base_dir, new_name))
+            self.stimarray = larray.cache_hdf5(lmap,
+                                  name=new_name,
+                                  basedir=base_dir, 
+                                  mode=read_mode)
+        elif cache_type == 'memmap':
+            new_name = orig_name + '_' + perm_id + '_memmap'
             print('Getting stimuli from cache memmap at %s/%s ' % (base_dir, new_name))
             self.stimarray = larray.cache_memmap(lmap,
-                                      name=new_name,
-                                      basedir=base_dir)
-            self.metacol = self.get_metacol()[perm]
-        else:
-            self.stimarray = dset.get_images(preproc=dp_params['preproc'])
-            self.metacol = self.get_metacol()
+                                  name=new_name,
+                                  basedir=base_dir)
+        self.metacol = self.get_metacol()[perm]
 
         #default data location
         if data_dir == '':
@@ -561,6 +569,7 @@ class DLDataProvider2(DLDataProvider):
 
         metafile = os.path.join(data_dir, 'batches.meta')
         if os.path.exists(metafile):
+            print('Meta file at %s exists, loading' % metafile)
             bmeta = cPickle.load(open(metafile))
             #assertions checking that the things that need to be the same
             #for these batches to make sense are in fact the same
@@ -573,13 +582,20 @@ class DLDataProvider2(DLDataProvider):
             if 'dataset_data' in bmeta:
                 assert dataset_data == bmeta['dataset_data'], (dataset_data, bmeta['dataset_data'])
         else:
+            print('Making batches.meta at %s ...' % metafile)
             imgs_mean = None
             isf = 0
             for bn in range(num_batches_for_meta):
+                print('Meta batch %d' % bn)
                 #get stimuli and put in the required format
-                stims = n.asarray(self.stimarray[bn * batch_size :(bn + 1) * batch_size])
+                print(self.stimarray.shape, batch_size)
+                stims = self.stimarray[bn * batch_size: (bn + 1) * batch_size]
+                print("Shape", stims.shape)
+                stims = n.asarray(stims)
+                print('Got stims', stims.shape, stims.nbytes)
                 if 'float' in repr(stims.dtype):
                     stims = n.uint8(n.round(255 * stims))
+                print('Converted to uint8', stims.nbytes)
                 d = dldata_to_convnet_reformatting(stims, None)
                 #add to the mean
                 if imgs_mean is None:
@@ -667,13 +683,13 @@ class Reorder(object):
         mat = self.X[inds]
         if 'float' in repr(mat.dtype):
             mat = n.uint8(n.round(255 * mat))
+        if mat.ndim == 3:
+            mat = mat.reshape((1, ) + mat.shape)
         return dldata_to_convnet_reformatting(mat, None)['data'].T
 
     def rval_getattr(self, attr, objs=None):
         if attr == 'shape':
             xs = self.X.shape
-            print('xs', xs)
-            print(n.prod(xs[1:]))
             return (n.prod(xs[1:]), )
         elif attr == 'dtype': 
             return 'uint8'

@@ -293,7 +293,7 @@ class ConvNet(IGPUModel):
               "Write features to this path (to be used with --write-features)", default="")
 
         op.add_option("img-flip", "img_flip", BooleanOptionParser,
-                "Whether filp training image", default=True )
+                "Whether flip training image", default=True )
 
         op.delete_option('max_test_err')
         op.options["testing_freq"].default = 57

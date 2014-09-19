@@ -295,7 +295,14 @@ class IGPUModel:
         dp = self.train_data_provider
         if not train:
             dp = self.test_data_provider
-        return self.parse_batch_data(dp.get_next_batch(), train=train)
+        t0 = time()
+        nbatch = dp.get_next_batch()
+        t1 = time()
+        print('call next batch', t1 - t0)
+        res = self.parse_batch_data(nbatch, train=train)
+        t2 = time()
+        print('IGPUmodel parse batch', t2 - t1)
+        return res
     
     def parse_batch_data(self, batch_data, train=True):
         return batch_data[0], batch_data[1], batch_data[2]['data']
