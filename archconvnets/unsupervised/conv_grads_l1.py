@@ -33,24 +33,30 @@ import math
 import subprocess
 
 tmp_model = '/export/storage2/tmp_l1.model'
-gpu = '1'
+gpu = '0'
 feature_path = '/tmp/features'
 
 n_imgs = 128 # imgs in a batch
-in_channels = 1
+in_channels = 3
 frames_per_movie = 128
-base_batches = np.arange(90000, 90000+8*4)
+batches_per_speed = 6
+#base_batches = np.arange(66650000, 66650000+batches_per_speed)
+#base_batches = np.arange(666140000, 666140000+batches_per_speed)
+#base_batches = np.concatenate((np.arange(66650000, 66650000+batches_per_speed),np.arange(666100000, 666100000+batches_per_speed), np.arange(666140000, 666140000+batches_per_speed)))
+base_batches = np.arange(80000,80000+16)#np.aran#[999009] #[90000]#[888009]
 
 layer_name = 'conv1_1a'
 weight_ind = 2
 neuron_ind = 3
 
-model = unpickle('/home/darren/movie_128_gray_5layer/ConvNet__2014-08-08_18.34.10/1.80')
+model = unpickle('/home/darren/imgnet_3layer_48_linear.model')
+#model = unpickle('/home/darren/movie_128_gray_5layer/ConvNet__2014-08-08_18.34.10/1.80')
+#model = unpickle('/home/darren/movie_128_5layer/model')
 weights = copy.deepcopy(model['model_state']['layers'][neuron_ind]['inputLayers'][0]['weights'][0])
 weights_shape = weights.shape
 
 ##########
-n_filters = 128
+n_filters = 48
 filter_sz = 7
 
 output_sz = 60
