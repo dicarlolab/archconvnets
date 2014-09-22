@@ -318,7 +318,7 @@ class CroppedGeneralDataProvider(DLDataProvider2):
             batch_range=None,
             init_epoch=1, init_batchnum=None, dp_params=None, test=False):
 
-        DLDataProvider2.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
+        DLDataProvider2.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test, cache_type='hdf5', read_mode='r')
 
         self.num_colors = 1 if dp_params['preproc']['mode'] == 'L' else 3
         self.img_size = dp_params['preproc']['resize_to'][0]
@@ -346,20 +346,25 @@ class CroppedGeneralDataProvider(DLDataProvider2):
         return self.num_views
 
     def get_next_batch(self):
+        t0 = time()
         epoch, batchnum, datadic = DLDataProvider2.get_next_batch(self)
+        t1 = time()
         datadic['labels'] = n.require(n.tile(datadic['labels'].reshape((1,
                                                     datadic['data'].shape[1])),
                                                     (1, self.data_mult)),
                                       requirements='C')
-
+        t2 = time()
         # correct for cropped_data size
         cropped = n.zeros((self.get_data_dims(),
                      datadic['data'].shape[1]*self.data_mult), dtype=n.single)
-
+        t3 = time()
         self.__trim_borders(datadic['data'], cropped)
-        cropped -= self.data_mean
+        t4 = time()
+        #cropped -= self.data_mean
+        t5 = time()
         self.batches_generated += 1
         #assert( cropped.shape[1] == datadic['labels'].shape[1] )
+        print('convnet gnb times', t1 - t0, t2 - t1, t3 - t2, t4 - t3, t5 - t4)
         return epoch, batchnum, [cropped, datadic['labels']]
 
     def get_data_dims(self, idx=0):
@@ -380,6 +385,13 @@ class CroppedGeneralDataProvider(DLDataProvider2):
 
     def __trim_borders(self, x, target):
         #y = x.reshape(3, 32, 32, x.shape[1])
+        if (not self.multiview) and (self.border_size == 0) and (not self.img_flip):
+            t0 = time()
+            target = x.copy()
+            t1 = time()
+            print('copying time', t1 - t0)
+            return 
+
         y = x.reshape(self.num_colors, self.img_size, self.img_size, x.shape[1])
 
         if self.test: # don't need to loop over cases
@@ -404,13 +416,27 @@ class CroppedGeneralDataProvider(DLDataProvider2):
                 pic = y[:,self.border_size:self.border_size+self.inner_size,self.border_size:self.border_size+self.inner_size, :] # just take the center for now
                 target[:,:] = pic.reshape((self.get_data_dims(), x.shape[1]))
         else:
+            timer1 = 0
+            timer2 = 0
+            timer3 = 0
+            timer4 = 0
             for c in xrange(x.shape[1]): # loop over cases
+                t0 = time()
                 startY, startX = nr.randint(0,self.border_size*2 + 1), nr.randint(0,self.border_size*2 + 1)
                 endY, endX = startY + self.inner_size, startX + self.inner_size
+                t1 = time()
                 pic = y[:,startY:endY,startX:endX, c]
+                t2 = time()
                 if self.img_flip and nr.randint(2) == 0: # also flip the image with 50% probability
                     pic = pic[:,:,::-1]
+                t3 = time()
                 target[:,c] = pic.reshape((self.get_data_dims(),))
+                t4 = time()
+                timer1 += (t1 - t0)
+                timer2 += (t2 - t1)
+                timer3 += (t3 - t2)
+                timer4 += (t4 - t3)
+            print('inner loop timing', timer1, timer2, timer3, timer4)
 
 
 class CroppedImageAndVectorProvider(CroppedGeneralDataProvider):
