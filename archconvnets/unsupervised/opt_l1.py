@@ -4,6 +4,7 @@ from archconvnets.unsupervised.DFT import DFT_matrix_2d
 from archconvnets.unsupervised.grad_fourier import test_grad_fourier
 from archconvnets.unsupervised.grad_transpose import test_grad_transpose
 from archconvnets.unsupervised.grad_slowness import test_grad_slowness
+from archconvnets.unsupervised.grad_channel_corr import test_grad_channel_corr
 from procs import *
 import random
 import pickle as pk
@@ -45,7 +46,7 @@ n_imgs = 128 # imgs in a batch
 in_channels = 3
 frames_per_movie = 128
 #base_batches = [888009] #np.arange(90000, 90000+1)
-base_batches = np.arange(80000,80000+8)#16)
+base_batches = np.arange(80000,80000+1) #np.arange(80000,80000+1)#16)
 
 layer_name = 'conv1_1a'
 weight_ind = 2
@@ -81,10 +82,11 @@ t = loadmat('/home/darren/fourier_target_cifar.mat')['t'].ravel()
 
 t_start = time.time()
 x0 = x0.T
-step_sz_slowness = 1e-8
-step_sz_fourier_l1 = 1e-1 #0#1e-2
+step_sz_slowness = 1e5#1e-3#4* 2.5e-8 / len(base_batches) #1e-8
+step_sz_fourier_l1 = 0#1e-1 #0#1e-2
 step_sz_fourier = 1e0
-step_sz_transpose = 1 #1e-3 #5e-5
+step_sz_transpose = 0#1 #1e-3 #5e-5
+step_sz_channel_corr = 0#5e1
 
 x = unpickle('/home/darren/imgnet_3layer_256_final.model')
 
@@ -106,6 +108,7 @@ print 'imgnet corrs:', corr_imgnetr[-1]#, corr_imgnetg[-1], corr_imgnetb[-1]
 t_loss = np.mean(np.abs(1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)).T, 'correlation')))
 print 'transpose:', t_loss
 
+parallel = False
 n_cpus = 8
 for step_g in range(1000):
 	t_start = time.time()
@@ -113,19 +116,23 @@ for step_g in range(1000):
 	
 	l = []
 	grad = np.zeros_like(x0)
-	for batch in base_batches:
-		l.append(proc(test_grad_slowness, feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie, 'conv_derivs_'))
-		if len(l) == n_cpus:
-			print 'computing batch', batch
+	if parallel == True:
+		for batch in base_batches:
+			l.append(proc(test_grad_slowness, feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie, 'conv_derivs_'))
+			if len(l) == n_cpus:
+				print 'computing batch', batch
+				results = call(l)
+				results = np.asarray(tuple(results))
+				grad += results.sum(0)
+				l = []
+		if len(l) != 0:
 			results = call(l)
 			results = np.asarray(tuple(results))
 			grad += results.sum(0)
-			l = []
-	if len(l) != 0:
-		results = call(l)
-                results = np.asarray(tuple(results))
-                grad += results.sum(0)
-
+	else:
+		for batch in base_batches:
+			grad += test_grad_slowness(feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie, 'conv_derivs_')
+	
 	x0 -= step_sz_slowness*grad
 	x0 = zscore(x0.reshape((in_channels*(filter_sz**2), n_filters)), axis=0).reshape((1,in_channels*(filter_sz**2)*n_filters))
 	rdm_x = 1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)), 'correlation')
@@ -134,7 +141,7 @@ for step_g in range(1000):
 	####################################### transpose
 	t_loss = np.mean(np.abs(1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)).T, 'correlation')))
 	print 'transpose:', t_loss
-	'''for step in range(200):
+	for step in range(200):
 		loss, grad = test_grad_transpose(x0, in_channels, filter_sz, n_filters)
 		x0 -= step_sz_transpose*grad
 	t_loss = np.mean(np.abs(1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)).T, 'correlation')))
@@ -146,17 +153,26 @@ for step_g in range(1000):
         filters_c = np.concatenate((filters_c, x0), axis=0)
 
         print 'imgnet corrs:', pearsonr(rdm_x, rdm_imgnetr)[0]
-	'''	
+		
 	################################## fourier L1
 	loss, grad = test_grad_fourier_l1(x0, in_channels, filter_sz, n_filters, X, X2)
 	print 'fourier l1:', loss
-	for step in range(10):
-		loss, grad = test_grad_fourier_l1(x0, in_channels, filter_sz, n_filters, X)
+	for step in range(1):
+		loss, grad = test_grad_fourier_l1(x0, in_channels, filter_sz, n_filters, X, X2)
 		x0 -= step_sz_fourier_l1*grad
-	loss, grad = test_grad_fourier_l1(x0, in_channels, filter_sz, n_filters, X)
+	loss, grad = test_grad_fourier_l1(x0, in_channels, filter_sz, n_filters, X, X2)
         print 'fourier l1:', loss
 	
-	
+
+	################################# channel corr
+	loss, grad = test_grad_channel_corr(x0, in_channels, filter_sz, n_filters)
+	print 'channel corr:', loss
+	for step in range(1):
+		loss, grad = test_grad_channel_corr(x0, in_channels, filter_sz, n_filters)
+		x0 -= step_sz_channel_corr*grad
+	loss, grad = test_grad_channel_corr(x0, in_channels, filter_sz, n_filters)
+	print 'channel corr:', loss
+		
 	################################# fourier
 	'''loss, grad = test_grad_fourier(x0, in_channels, filter_sz, n_filters, t, X)
         print 'fourier:', loss

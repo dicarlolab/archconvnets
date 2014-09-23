@@ -67,7 +67,7 @@ def test_grad_slowness(feature_path, batch, tmp_model, neuron_ind, in_channels, 
 	# output_deriv*conv_out_nmean: in_channels*filter_sz**2, n_filters, output_sz**2, n_imgs
         for img in range(0, n_imgs-1):
 		#print '2 ', img
-                if (img % 2) == 0: #if (((img-2) % frames_per_movie) != 0) and (((img+2) % frames_per_movie) != 0) and (((img+1) % frames_per_movie) != 0) and (((img) % frames_per_movie) != 0) and (((img-1) % frames_per_movie) != 0): # skip movie boundaries
+                if (img % 8) == 0:#2) == 0: #if (((img-2) % frames_per_movie) != 0) and (((img+2) % frames_per_movie) != 0) and (((img+1) % frames_per_movie) != 0) and (((img) % frames_per_movie) != 0) and (((img-1) % frames_per_movie) != 0): # skip movie boundaries
                         std_pair = conv_out_nmean_std[:,img]*conv_out_nmean_std[:,img+1]
                         corrs_l = np.sum(conv_out_nmean[:,:,img]*conv_out_nmean[:,:,img+1],axis=1)
 
