@@ -272,28 +272,37 @@ class LabeledDummyDataProvider(DummyDataProvider):
         return self.curr_epoch, self.curr_batchnum, [data.T, labels.T ]
 
 
-def dldata_to_convnet_reformatting(stims, lbls):
-    if stims.ndim > 2:
-        img_sz = stims.shape[1]
-        batch_size = stims.shape[0]
-        if stims.ndim == 3:
+def reformat_array(arr):
+    if array.ndim > 2:
+        img_sz = array.shape[1]
+        batch_size = array.shape[0]
+        if array.ndim == 3:
             new_s = (batch_size, img_sz**2)
-            stims = stims.reshape(new_s).T
+            array = array.reshape(new_s).T
         else:
-            assert stims.ndim == 4
-            nc = stims.shape[3]
+            assert array.ndim == 4
+            nc = array.shape[3]
             new_s = (nc * (img_sz**2), batch_size)
-            print(stims.shape)
-            stims = stims.transpose([3, 1, 2, 0]).reshape(new_s)
+            print(array.shape)
+            stims = array.transpose([3, 1, 2, 0]).reshape(new_s)
     else:
-        stims = stims.T
+        array = array.T
+    return array
 
+def dldata_to_convnet_reformatting(stims, lbls, maps=None):
+
+    stims = reformat_array(stims)
     if lbls is not None:
         assert lbls.ndim == 1
         labels = lbls.reshape((1, lbls.shape[0]))
-        return {'data': stims, 'labels': labels}
+        rval = {'data': stims, 'labels': labels}
     else:
-        return {'data': stims}
+        rval = {'data': stims}
+    if maps is not None:
+        maps = reformat_array(maps)
+        rval['maps'] = maps
+    return rval
+
 
 
 class DLDataProvider(LabeledDataProvider):
@@ -524,7 +533,6 @@ class DLDataProvider2(DLDataProvider):
         else:
             dset = dataset_obj()
         meta = self.meta = dset.meta
-        mlen = len(meta)
         self.dp_params = dp_params
 
         #compute number of batches
