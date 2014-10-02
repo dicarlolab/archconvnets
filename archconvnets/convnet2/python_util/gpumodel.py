@@ -107,7 +107,7 @@ class CheckpointWriter(Thread):
     def run(self):
     
         dic = self.dic
-
+        print('Running checkpoint writer')
         val_dict = get_convenient_mongodb_representation_base(dic['op'], dic['model_state'])
         val_dict['epoch'] = self.epoch
         val_dict['batch_num'] = self.batchnum
@@ -120,7 +120,7 @@ class CheckpointWriter(Thread):
                                           self.checkpoint_db_name,
                                           self.checkpoint_fs_name)
         
-        
+        print('got checkpoint fs')
         if self.save_filters and (self.saving_freq > 0) and (((self.num_batches_done / self.testing_freq) % self.saving_freq) == 0):
             val_dict['saved_filters'] = True
             save_dic = dic
@@ -131,7 +131,9 @@ class CheckpointWriter(Thread):
             msg = 'Saved (without filters) to id %s'
             save_dic = collections.OrderedDict()
             save_recent = self.save_filters and self.save_recent_filters
+        print("getting checkpoint blob")
         blob = cPickle.dumps(save_dic, protocol=cPickle.HIGHEST_PROTOCOL)
+        print("About to dump")
         idval = checkpoint_fs.put(blob, **val_dict)
         print(msg % str(idval))
         
@@ -244,6 +246,11 @@ class IGPUModel:
         print "Running on CUDA device(s) %s" % ", ".join("%d" % d for d in self.device_ids)
         print "Current time: %s" % asctime(localtime())
         print "========================="
+
+        if self.save_initial and self.get_num_batches_done() == 1:
+            self.test_outputs += [self.get_test_error()]
+            self.conditional_save()
+
         next_data = self.get_next_batch()
         while self.epoch <= self.num_epochs:
             data = next_data
@@ -255,8 +262,12 @@ class IGPUModel:
             self.start_batch(data)
             
             # load the next batch while the current one is computing
+            t0 = time()
             next_data = self.get_next_batch()
+            t1 = time()
             batch_output = self.finish_batch()
+            t2 = time()
+            print('timing next batch %.4f compute %.4f' % (t1 - t0, t2 - t1))
             self.train_outputs += [batch_output]
             self.print_train_results()
 
@@ -284,7 +295,14 @@ class IGPUModel:
         dp = self.train_data_provider
         if not train:
             dp = self.test_data_provider
-        return self.parse_batch_data(dp.get_next_batch(), train=train)
+        t0 = time()
+        nbatch = dp.get_next_batch()
+        t1 = time()
+        print('call next batch', t1 - t0)
+        res = self.parse_batch_data(nbatch, train=train)
+        t2 = time()
+        print('IGPUmodel parse batch', t2 - t1)
+        return res
     
     def parse_batch_data(self, batch_data, train=True):
         return batch_data[0], batch_data[1], batch_data[2]['data']
@@ -374,6 +392,7 @@ class IGPUModel:
                            ("op", self.op)])
             
         assert self.checkpoint_writer is None
+        print('Creating Checkpoint Writer')
         self.checkpoint_writer = CheckpointWriter(dic,
                                                   self.checkpoint_fs_host,
                                                   self.checkpoint_fs_port,
@@ -388,6 +407,7 @@ class IGPUModel:
                                                   self.get_num_batches_done(),
                                                   self.experiment_data
                                                   )
+        print('About to start checkpoint writer')
         self.checkpoint_writer.start()
         return self.checkpoint_writer
         
@@ -457,9 +477,9 @@ class IGPUModel:
         op.add_option("max-test-err", "max_test_err", FloatOptionParser, "Maximum test error for saving")
         op.add_option("test-only", "test_only", BooleanOptionParser, "Test and quit?", default=0)
         op.add_option("test-one", "test_one", BooleanOptionParser, "Test on one batch at a time?", default=1)
+        op.add_option("save-initial", "save_initial", BooleanOptionParser, "Save initial state as checkpoint before training?", default=0)
         op.add_option("force-save", "force_save", BooleanOptionParser, "Force save before quitting", default=0)
         op.add_option("gpu", "gpu", ListOptionParser(IntegerOptionParser), "GPU override")
-        
         ####### db configs #######
         op.add_option("save-db", "save_db", BooleanOptionParser, "Save checkpoints to mongo database?", default=0)
         op.add_option("save-filters", "save_filters", BooleanOptionParser, "Save filters to database?", default=1)
@@ -518,14 +538,24 @@ class IGPUModel:
         sys.exit()
 
 
-def get_convenient_mongodb_representation_base(op, model_state):
+def get_convenient_mongodb_representation_base(op, model_state, dump=False):
+    if dump:
+        dfile = '/om/user/yamins/bork_state.pkl'
+        with open(dfile, 'wb') as _f:
+            print('dumping to %s' % dfile)
+            cPickle.dump([op, model_state], _f)
     val_dict = collections.OrderedDict([(_o.name, _o.value) for _o in op.get_options_list()])
     def make_mongo_safe(_d):
-        for _k in _d:
+        klist = _d.keys()[:]
+        for _k in klist:
+            if hasattr(_d[_k], 'keys'):
+                print(_k)
+                make_mongo_safe(_d[_k])
             if '.' in _k:
                 _d[_k.replace('.', '___')] = _d.pop(_k)
-    if 'load_query' in val_dict:
-        val_dict['load_query'] = make_mongo_safe(val_dict['load_query'])
+    #if 'load_query' in val_dict:
+    #    val_dict['load_query'] = make_mongo_safe(val_dict['load_query'])
+    
 
     #import cPickle
     #with open('testdump.pkl', 'wb') as _f:
@@ -551,6 +581,7 @@ def get_convenient_mongodb_representation_base(op, model_state):
         else:
             val_dict[k] = model_state[k]
 
+    make_mongo_safe(val_dict)
     return SONify(val_dict)
 
 
