@@ -1,8 +1,10 @@
+from archconvnets.unsupervised.grad_fourier_l1 import test_grad_fourier_l1
 from archconvnets.unsupervised.conv_block_call import conv_block
 from archconvnets.unsupervised.DFT import DFT_matrix_2d
 from archconvnets.unsupervised.grad_fourier import test_grad_fourier
 from archconvnets.unsupervised.grad_transpose import test_grad_transpose
 from archconvnets.unsupervised.grad_slowness import test_grad_slowness
+from archconvnets.unsupervised.grad_channel_corr import test_grad_channel_corr
 from procs import *
 import random
 import pickle as pk
@@ -36,25 +38,27 @@ from scipy.stats.mstats import zscore
 import math
 import subprocess
 
-tmp_model = '/export/storage2/tmp_l1.model'
-gpu = '1'
+tmp_model = '/export/storage2/tmp_l1_color.model'
+gpu = '2'
 feature_path = '/tmp/features'
 
 n_imgs = 128 # imgs in a batch
-in_channels = 1
+in_channels = 3
 frames_per_movie = 128
-base_batches = np.arange(90000, 90000+32)
+#base_batches = [888009] #np.arange(90000, 90000+1)
+base_batches = np.arange(80000,80000+1) #np.arange(80000,80000+1)#16)
 
 layer_name = 'conv1_1a'
 weight_ind = 2
 neuron_ind = 3
 
-model = unpickle('/home/darren/movie_128_gray_5layer/ConvNet__2014-08-08_18.34.10/1.80')
+#model = unpickle('/home/darren/movie_128_gray_5layer/ConvNet__2014-08-08_18.34.10/1.80')
+model = unpickle('/home/darren/imgnet_3layer_48_linear.model')
 weights = copy.deepcopy(model['model_state']['layers'][neuron_ind]['inputLayers'][0]['weights'][0])
 weights_shape = weights.shape
 
 ##########
-n_filters = 128
+n_filters = 48#128
 filter_sz = 7
 
 output_sz = 60 
@@ -73,18 +77,26 @@ x0 /= np.sum(x0**2)#*(10**10)
 
 ####### fourier
 X = np.real(DFT_matrix_2d(filter_sz))
-t = loadmat('/home/darren/fourier_target.mat')['t'].ravel()
+X2 = np.imag(DFT_matrix_2d(filter_sz))
+t = loadmat('/home/darren/fourier_target_cifar.mat')['t'].ravel()
 
 t_start = time.time()
 x0 = x0.T
-step_sz_slowness = 1e-6
+step_sz_slowness = 1e5#1e-3#4* 2.5e-8 / len(base_batches) #1e-8
+step_sz_fourier_l1 = 0#1e-1 #0#1e-2
 step_sz_fourier = 1e0
-step_sz_transpose = 1 #1e-3 #5e-5
+step_sz_transpose = 0#1 #1e-3 #5e-5
+step_sz_channel_corr = 0#5e1
 
 x = unpickle('/home/darren/imgnet_3layer_256_final.model')
-rdm_imgnetr = 1-pdist(x['model_state']['layers'][2]['weights'][0][:49],'correlation')
-rdm_imgnetg = 1-pdist(x['model_state']['layers'][2]['weights'][0][49:2*49],'correlation')
-rdm_imgnetb = 1-pdist(x['model_state']['layers'][2]['weights'][0][49*2:49*3],'correlation')
+
+rdm_imgnetr = 1-pdist(x['model_state']['layers'][2]['weights'][0],'correlation')
+rdm_imgnetg = 1-pdist(x['model_state']['layers'][2]['weights'][0],'correlation')
+rdm_imgnetb = 1-pdist(x['model_state']['layers'][2]['weights'][0],'correlation')
+
+#rdm_imgnetr = 1-pdist(x['model_state']['layers'][2]['weights'][0][:49],'correlation')
+#rdm_imgnetg = 1-pdist(x['model_state']['layers'][2]['weights'][0][49:2*49],'correlation')
+#rdm_imgnetb = 1-pdist(x['model_state']['layers'][2]['weights'][0][49*2:49*3],'correlation')
 filters_c = np.zeros((0,x0.shape[1]))
 
 rdm_x = 1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)), 'correlation')
@@ -96,26 +108,31 @@ print 'imgnet corrs:', corr_imgnetr[-1]#, corr_imgnetg[-1], corr_imgnetb[-1]
 t_loss = np.mean(np.abs(1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)).T, 'correlation')))
 print 'transpose:', t_loss
 
+parallel = False
 n_cpus = 8
-for step_g in range(3):
+for step_g in range(1000):
 	t_start = time.time()
 	conv_block(x0.reshape((in_channels, filter_sz, filter_sz, n_filters)), base_batches, loss_slow, loss_transpose, loss_fourier, corr_imgnetr, gpu, tmp_model, feature_path, filters_c, weights_shape, model, neuron_ind, weight_ind, layer_name, output_sz, n_imgs, n_filters)
 	
 	l = []
 	grad = np.zeros_like(x0)
-	for batch in base_batches:
-		l.append(proc(test_grad_slowness, feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie, 'conv_derivs_'))
-		if len(l) == n_cpus:
-			print 'computing batch', batch
+	if parallel == True:
+		for batch in base_batches:
+			l.append(proc(test_grad_slowness, feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie, 'conv_derivs_'))
+			if len(l) == n_cpus:
+				print 'computing batch', batch
+				results = call(l)
+				results = np.asarray(tuple(results))
+				grad += results.sum(0)
+				l = []
+		if len(l) != 0:
 			results = call(l)
 			results = np.asarray(tuple(results))
 			grad += results.sum(0)
-			l = []
-	if len(l) != 0:
-		results = call(l)
-                results = np.asarray(tuple(results))
-                grad += results.sum(0)
-
+	else:
+		for batch in base_batches:
+			grad += test_grad_slowness(feature_path, batch, tmp_model, neuron_ind, in_channels, filter_sz, n_filters, n_imgs, output_sz, frames_per_movie, 'conv_derivs_')
+	
 	x0 -= step_sz_slowness*grad
 	x0 = zscore(x0.reshape((in_channels*(filter_sz**2), n_filters)), axis=0).reshape((1,in_channels*(filter_sz**2)*n_filters))
 	rdm_x = 1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)), 'correlation')
@@ -137,6 +154,25 @@ for step_g in range(3):
 
         print 'imgnet corrs:', pearsonr(rdm_x, rdm_imgnetr)[0]
 		
+	################################## fourier L1
+	loss, grad = test_grad_fourier_l1(x0, in_channels, filter_sz, n_filters, X, X2)
+	print 'fourier l1:', loss
+	for step in range(1):
+		loss, grad = test_grad_fourier_l1(x0, in_channels, filter_sz, n_filters, X, X2)
+		x0 -= step_sz_fourier_l1*grad
+	loss, grad = test_grad_fourier_l1(x0, in_channels, filter_sz, n_filters, X, X2)
+        print 'fourier l1:', loss
+	
+
+	################################# channel corr
+	loss, grad = test_grad_channel_corr(x0, in_channels, filter_sz, n_filters)
+	print 'channel corr:', loss
+	for step in range(1):
+		loss, grad = test_grad_channel_corr(x0, in_channels, filter_sz, n_filters)
+		x0 -= step_sz_channel_corr*grad
+	loss, grad = test_grad_channel_corr(x0, in_channels, filter_sz, n_filters)
+	print 'channel corr:', loss
+		
 	################################# fourier
 	'''loss, grad = test_grad_fourier(x0, in_channels, filter_sz, n_filters, t, X)
         print 'fourier:', loss
@@ -156,4 +192,5 @@ for step_g in range(3):
 	t_loss = np.mean(np.abs(1-pdist(x0.reshape((in_channels*(filter_sz**2), n_filters)).T, 'correlation')))
         print 'transpose:', t_loss
 	print 'step:', step_g, ' elapsed time:', time.time() - t_start
+
 

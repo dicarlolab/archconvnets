@@ -45,6 +45,7 @@ def conv_block(filters, base_batch, loss_slow, loss_transpose, loss_fourier, cor
         f2 = open('/home/darren/j2','w')
         subprocess.call(['rm', '-r', feature_path])
         cmd = ['python', '/home/darren/archconvnets_write/archconvnets_write/convnet/shownet.py', '-f', tmp_model, '--test-range=' + str(np.min(base_batch)) + '-' + str(np.max(base_batch)), '--train-range=0', '--write-features=' + layer_name, '--feature-path=' + feature_path, '--gpu=' + gpu]
+	print cmd
 	subprocess.call(cmd, stdout=f, stderr=f2)
 	if len(base_batch) == 1:
                 try:
