@@ -360,7 +360,7 @@ class CroppedGeneralDataProvider(DLDataProvider2):
         t3 = time()
         self.__trim_borders(datadic['data'], cropped)
         t4 = time()
-        #cropped -= self.data_mean
+        cropped -= self.data_mean
         t5 = time()
         self.batches_generated += 1
         #assert( cropped.shape[1] == datadic['labels'].shape[1] )
