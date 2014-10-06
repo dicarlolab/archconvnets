@@ -439,10 +439,60 @@ class CroppedGeneralDataProvider(DLDataProvider2):
             print('inner loop timing', timer1, timer2, timer3, timer4)
 
 
-class CroppedImageAndVectorProvider(CroppedGeneralDataProvider):
+class CroppedImageAndMapProvider(CroppedGeneralDataProvider):
+
+    def __init__(self, data_dir, batch_range, init_epoch=1,
+                       init_batchnum=None, dp_params=None, test=False,
+                       read_mode='r', cache_type='memmap'):
+        super(CroppedImageAndMapProvider, self).__init__(self, data_dir,
+              batch_range=None,
+              init_epoch=1, init_batchnum=None, dp_params=None, test=False)
+        modulename, attrname = self.dp_params['dataset_name']
+        module = importlib.import_module(modulename)
+        dataset_obj = getattr(module, attrname)
+        dataset_data = dp_params.get('dataset_data', None)
+        if dataset_data is not None:
+            dset = dataset_obj(data=dataset_data)
+        else:
+            dset = dataset_obj()
+        meta = self.meta = dset.meta
+        self.dp_params = dp_params
+
+        #compute number of batches
+        mlen = len(meta)
+        batch_size = self.batch_size = dp_params['batch_size']
+        num_batches = self.num_batches = int(math.ceil(mlen / float(batch_size)))
+        num_batches_for_meta = self.num_batches_for_meta = dp_params['num_batches_for_mean']
+
+        perm_type = dp_params.get('perm_type')
+
+        maps = dset.get_pixel_masks(preproc=dp_params['preproc'])
+        if hasattr(images, 'dirname'):
+            base_dir, orig_name = os.path.split(maps.dirname)
+        else:
+            base_dir = dset.home('cache')
+            orig_name = 'maps_cache_' + get_id(dp_params['preproc'])
+        perm, perm_id = self.get_perm()
+        reorder = Reorder(maps)
+        lmap = larray.lmap(reorder, perm, f_map = reorder)
+        if cache_type == 'hdf5':
+            new_name = orig_name + '_' + perm_id + '_hdf5'
+            print('Getting stimuli from cache hdf5 at %s/%s ' % (base_dir, new_name))
+            self.maparray = larray.cache_hdf5(lmap,
+                                  name=new_name,
+                                  basedir=base_dir,
+                                  mode=read_mode)
+        elif cache_type == 'memmap':
+            new_name = orig_name + '_' + perm_id + '_memmap'
+            print('Getting stimuli from cache memmap at %s/%s ' % (base_dir, new_name))
+            self.maparray = larray.cache_memmap(lmap,
+                                  name=new_name,
+                                  basedir=base_dir)
+        #This will have to be set somehow for surface normals. For now it is always 1
+        self.num_map_channels = 1
 
     def get_next_batch(self):
-        epoch, batchnum, datadic = DLDataProvider.get_next_batch(self)
+        epoch, batchnum, datadic = DLDataProvider2.get_next_batch(self)
         datadic['labels'] = n.require(n.tile(datadic['labels'].reshape((1,
                                                     datadic['data'].shape[1])),
                                                     (1, self.data_mult)),
@@ -456,22 +506,44 @@ class CroppedImageAndVectorProvider(CroppedGeneralDataProvider):
         cropped -= self.data_mean
         self.batches_generated += 1
         #assert( cropped.shape[1] == datadic['labels'].shape[1] )
-        vectors = datadic['vectors']  # list of other vecors tha can be
         # fed to data layer (ie neural or behavioral data)
         data_list = [cropped, datadic['labels']]
-        vectors = [n.require(v, requirements='C') for v in datadic['vectors']]
-        data_list.extend([v for v in vectors])
+        maps = n.require(datadic['maps'], requirements='C')
+        cropped_maps = n.zeros((self.get_data_dims(2),
+                       datadic['data'].shape[1]*self.data_mult), dtype=n.single)
+        self._CroppedGeneralDataProvider__trim_borders(datadic['maps'], cropped_maps)
+        data_list.append(maps)
         for data in data_list:
             print data.shape
             print data.dtype
         return epoch, batchnum, data_list
 
+    def get_batch(self, batch_num):
+        print('bn', batch_num)
+        batch_size = self.batch_size
+        inds = slice(batch_num * batch_size, (batch_num + 1) * batch_size)
+        print('got slice')
+        stims = n.asarray(self.stimarray[inds])
+        maps = n.asarray(self.maparray[inds])
+        print('got stims and maps')
+        if 'float' in repr(stims.dtype):
+            stims = n.uint8(n.round(255 * stims))
+        if 'float' in repr(maps.dtype):
+            maps = n.uint8(n.round(255 * maps))
+        print('to uint8')
+        lbls = self.metacol[inds]
+        print('got meta')
+        d = dldata_to_convnet_reformatting(stims, lbls, maps)
+        print('done')
+        return d
+
+
     def get_data_dims(self, idx=0):
         if idx < 2:
             return self.inner_size**2 * self.num_colors if idx == 0 else 1
         else:
-            vector_idx = idx-2
-            return self.batch_meta['vector_dims'][vector_idx]
+            return self.inner_size**2 * self.num_map_channels
+            #return self.batch_meta['vector_dims'][vector_idx]
 
 
 class CroppedGeneralDataRandomProvider( CroppedGeneralDataProvider ):
