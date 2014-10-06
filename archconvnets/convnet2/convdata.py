@@ -480,9 +480,10 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
     """
     def __init__(self, data_dir,
             batch_range=None,
-            init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+            init_epoch=1, init_batchnum=None, dp_params=None, test=False,
+            cache_type='hdf5', read_mode='r'):
             
-        DLDataProviderVector.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test, cache_type='hdf5', read_mode='r')
+        DLDataMapProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test, cache_type=cache_type, read_mode=read_mode)
 
         self.batches_generated = 0
         
@@ -492,7 +493,8 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
             assert isinstance(dp_params['crop_border'], int)
             border_size_list = [dp_params['crop_border']] *  len(self.map_methods)
         
-        self.num_color_list = []
+        self.border_size_list = border_size_list
+        self.num_colors_list = []
         self.img_size_list = []
         self.inner_size_list = []
         self.data_mean_list = []
@@ -501,12 +503,12 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
                     
         for border_size, mname, pp, mshape in zip(border_size_list, self.mnames, self.map_preprocs, self.map_shapes):
             num_colors = mshape[3] if len(mshape) == 4 else 1
-            self.num_color_list.append(num_colors)
+            self.num_colors_list.append(num_colors)
             
             img_size = pp['resize_to'][0]
             self.img_size_list.append(img_size)
 
-            inner_size = img_size - border_size*2
+            inner_size = img_size - 2 * border_size
             self.inner_size_list.append(inner_size) 
 
             if self.img_flip:
@@ -517,10 +519,11 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
             
             data_mean = self.batch_meta_dict[mname]['data_mean']
             nshp0 = (num_colors, img_size, img_size)
-            nshp1 = (num_colors * (img_size ** 2), 1)
+            nshp1 = (num_colors * (inner_size ** 2), 1)
             data_mean = data_mean.reshape(nshp0)[:, 
                             border_size: border_size + inner_size,
-                            border_size: border_size + inner_size].reshape(nshp1)
+                            border_size: border_size + inner_size]
+            data_mean = data_mean.reshape(nshp1)
             self.data_mean_list.append(data_mean)
 
     def get_num_views(self):
@@ -528,13 +531,12 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
 
     def get_next_batch(self):
         epoch, batchnum, datadic = DLDataMapProvider.get_next_batch(self)
-        lshape = datadic['labels'].shape
-        datadic['labels'] = n.require(n.tile(datadic['labels'].reshape((1, lshape[0])),
+        datadic['labels'] = n.require(n.tile(datadic['labels'],
                                       (1, self.data_mult)),
                                       requirements='C')
 
-        map_names = self.map_methods
-        crop_seed = epoch * self.num_batches + batch_num
+        map_names = self.mnames
+        crop_seed = epoch * self.num_batches + batchnum
         for idx, mname in enumerate(map_names):
             ddims = self.get_data_dims(idx if idx == 0 else idx + 1)
             cropped = n.zeros((ddims,
@@ -553,7 +555,7 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
                                 inner_size, 
                                 ddims,
                                 seed=crop_seed)
-            cropped -= self.data_mean
+            cropped -= self.data_mean_list[idx]
             datadic[mname] = cropped
 
         data_list = [datadic[map_names[0]], datadic['labels']] + [datadic[mn] for mn in map_names[1:]]
@@ -614,7 +616,7 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
                 pic = y[:, border_size: border_size + inner_size, border_size: border_size + inner_size, :] # just take the center for now
                 target[:,:] = pic.reshape((ddims, x.shape[1]))
         else:
-            rng = np.random.RandomState(seed=seed)
+            rng = n.random.RandomState(seed=seed)
             for c in xrange(x.shape[1]): # loop over cases
                 t0 = time()
                 startY, startX = nr.randint(0, 2 * border_size + 1), nr.randint(0, 2 * border_size + 1)

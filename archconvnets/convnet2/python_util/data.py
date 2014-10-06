@@ -694,6 +694,20 @@ class DLDataMapProvider(DLDataProvider):
                        init_batchnum=None, dp_params=None, test=False,
                        read_mode='r', cache_type='memmap'):
 
+        if batch_range == None:
+            batch_range = DataProvider.get_batch_nums(data_dir)
+        if init_batchnum is None or init_batchnum not in batch_range:
+            init_batchnum = batch_range[0]
+
+        self.data_dir = data_dir
+        self.batch_range = batch_range
+        self.curr_epoch = init_epoch
+        self.curr_batchnum = init_batchnum
+        self.dp_params = dp_params
+        self.data_dic = None
+        self.test = test
+        self.batch_idx = batch_range.index(init_batchnum)
+
         #load dataset and meta
         modulename, attrname = dp_params['dataset_name']
         module = importlib.import_module(modulename)
@@ -716,7 +730,7 @@ class DLDataMapProvider(DLDataProvider):
         perm, perm_id = self.get_perm()
         self.metacol = self.get_metacol()[perm]
         
-        map_methods = self.map_methods = dp_params['maps']
+        map_methods = self.map_methods = dp_params['map_methods']
         map_preprocs = self.map_preprocs = dp_params['map_preprocs']
         assert hasattr(map_methods, '__iter__') 
         assert hasattr(map_preprocs, '__iter__')
@@ -733,12 +747,22 @@ class DLDataMapProvider(DLDataProvider):
             os.makedirs(data_dir)
 
         self.stimarraylist = []
-        for map, mname, pp in zip(map_list, mnames, map_preprocs):
-            self.stimarraylist.append(get_stimarray(map, mname, perm, cache_type))
-            self.make_batch_meta(mname, self.stimarraylist[-1], pp)
- 
-        LabeledDataProvider.__init__(self, data_dir, batch_range,
-                                 init_epoch, init_batchnum, dp_params, test)
+        basedir = self.dset.home('cache')
+        self.batch_meta_dict = {}
+        for map, mname, pp in zip(map_list, mnames, map_preprocs):            
+            self.stimarraylist.append(get_stimarray(map, mname, perm, perm_id, cache_type, basedir))
+            self.make_batch_meta(mname, self.stimarraylist[-1], pp) 
+
+
+    def get_num_classes(self):
+        return len(self.unique_labels)
+
+    def get_next_batch(self):
+        epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
+        for mn in self.mnames:
+            d[mn] = n.require(d[mn], requirements='C')
+        d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
+        return epoch, batchnum, d
 
     def get_batch(self, batch_num):
         batch_size = self.batch_size
@@ -750,7 +774,10 @@ class DLDataMapProvider(DLDataProvider):
         return return_dict
 
     def make_batch_meta(self, mname, marray, pp):
+        batch_size = self.batch_size
         metafile = os.path.join(self.data_dir, mname + '.meta')
+        dp_params = self.dp_params
+        dataset_data = dp_params.get('dataset_data', None)
         if os.path.exists(metafile):
             print('Meta file at %s exists, loading' % metafile)
             bmeta = cPickle.load(open(metafile))
@@ -772,7 +799,7 @@ class DLDataMapProvider(DLDataProvider):
             for bn in range(self.num_batches_for_meta):
                 print('Meta batch %d' % bn)
                 stims = marray[bn * batch_size: (bn + 1) * batch_size]
-                stims = n.asarray(stims)
+                stims = n.asarray(stims).T
                 #add to the mean
                 if imgs_mean is None:
                     imgs_mean = n.zeros((stims.shape[0],))
@@ -801,7 +828,7 @@ class DLDataMapProvider(DLDataProvider):
         return labels
 
 
-def map_reformatting(self, stims):
+def map_reformatting(stims):
     img_sz = stims.shape[1]
     batch_size = stims.shape[0]
     if stims.ndim == 3:
@@ -840,9 +867,8 @@ class Reorder2(object):
             return getattr(self.X, attr)
 
 
-def get_stimarray(map, mname, perm, cache_type):
-    base_dir = dset.home('cache')
-    reorder = Reorder2(map)
+def get_stimarray(marray, mname, perm, perm_id, cache_type, base_dir):
+    reorder = Reorder2(marray)
     lmap = larray.lmap(reorder, perm, f_map = reorder)
     if cache_type == 'hdf5':
         new_name = mname + '_' + perm_id + '_hdf5'
