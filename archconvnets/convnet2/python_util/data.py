@@ -506,6 +506,18 @@ class DLDataProvider(LabeledDataProvider):
             indset = [slice(batch_size * bidx, batch_size * (bidx + 1))
                        for bidx in range(num_batches)]
         return indset
+        
+    def get_perm(self):
+        dp_params = self.dp_params
+        perm_type = dp_params.get('perm_type')
+        meta = self.meta
+        mlen = len(self.meta)
+        if perm_type == 'random':
+            perm_seed = dp_params.get('perm_seed', 0)
+            rng = n.random.RandomState(seed=perm_seed)
+            return rng.permutation(mlen), perm_type + '_' + str(perm_seed)
+        else:
+            raise ValueError, 'Unknown permutation type.'        
 
 
 class DLDataProvider2(DLDataProvider):
@@ -624,18 +636,6 @@ class DLDataProvider2(DLDataProvider):
 
         self.labels_unique = self.batch_meta['label_names']
 
-    def get_perm(self):
-        dp_params = self.dp_params
-        perm_type = dp_params.get('perm_type')
-        meta = self.meta
-        mlen = len(self.meta)
-        if perm_type == 'random':
-            perm_seed = dp_params.get('perm_seed', 0)
-            rng = n.random.RandomState(seed=perm_seed)
-            return rng.permutation(mlen), perm_type + '_' + str(perm_seed)
-        else:
-            raise ValueError, 'Unknown permutation type.'
-
     def get_batch(self, batch_num):
         print('bn', batch_num)
         batch_size = self.batch_size
@@ -652,6 +652,215 @@ class DLDataProvider2(DLDataProvider):
         print('done')
         return d
 
+
+class Reorder(object):
+    def __init__(self, X):
+        self.X = X
+
+    def __call__(self, inds):
+        mat = self.X[inds]
+        if 'float' in repr(mat.dtype):
+            mat = n.uint8(n.round(255 * mat))
+        if mat.ndim < self.X.ndim:
+            assert mat.ndim == self.X.ndim - 1, (mat.ndim, self.X.ndim)
+            assert mat.shape == self.X.shape[1:], (mat.shape, self.X.shape)
+            mat = mat.reshape((1, ) + mat.shape)
+        return dldata_to_convnet_reformatting(mat, None)['data'].T
+
+    def rval_getattr(self, attr, objs=None):
+        if attr == 'shape':
+            xs = self.X.shape
+            return (n.prod(xs[1:]), )
+        elif attr == 'dtype': 
+            return 'uint8'
+        else:
+            return getattr(self.X, attr)
+            
+
+#########MapProvider
+class DLDataMapProvider(DLDataProvider):
+    """
+       Same interace as DLDataProvider2 but allows an arbitrary number of 
+       image-shaped maps. This is specified by:
+           
+        * dp_params["map_methods"], a list of names of methods for getting maps 
+          from dataset object. This assumes that each of the map-getting 
+           methods take an argument "preproc", just like the standard get_images. 
+            
+        * dp_params["map_preprocs"] = list of preprocs to apply in getting the maps.
+    """
+
+    def __init__(self, data_dir, batch_range, init_epoch=1,
+                       init_batchnum=None, dp_params=None, test=False,
+                       read_mode='r', cache_type='memmap'):
+
+        #load dataset and meta
+        modulename, attrname = dp_params['dataset_name']
+        module = importlib.import_module(modulename)
+        dataset_obj = getattr(module, attrname)
+        dataset_data = dp_params.get('dataset_data', None)
+        if dataset_data is not None:
+            dset = self.dset = dataset_obj(data=dataset_data)
+        else:
+            dset = self.dset = dataset_obj()
+        meta = self.meta = dset.meta
+        mlen = len(meta)
+        self.dp_params = dp_params
+
+        #compute number of batches
+        mlen = len(meta)
+        batch_size = self.batch_size = dp_params['batch_size']
+        self.num_batches = int(math.ceil(mlen / float(batch_size)))
+        self.num_batches_for_meta = dp_params['num_batches_for_mean']
+
+        perm, perm_id = self.get_perm()
+        self.metacol = self.get_metacol()[perm]
+        
+        map_methods = self.map_methods = dp_params['maps']
+        map_preprocs = self.map_preprocs = dp_params['map_preprocs']
+        assert hasattr(map_methods, '__iter__') 
+        assert hasattr(map_preprocs, '__iter__')
+        assert len(map_methods) == len(map_preprocs), (len(map_methods) , len(map_preprocs))
+        map_list = [getattr(dset, mname)(preproc=pp) 
+                        for mname, pp in zip(map_methods, map_preprocs)]
+        self.map_shapes = [m.shape for m in map_list]
+        mnames = self.mnames = [mn + '_' + get_id(pp) for mn, pp in zip(map_methods, map_preprocs)]
+
+        assert data_dir != ''
+        self.data_dir = data_dir
+        if not os.path.exists(data_dir):
+            print('data_dir %s does not exist, creating' % data_dir)
+            os.makedirs(data_dir)
+
+        self.stimarraylist = []
+        for map, mname, pp in zip(map_list, mnames, map_preprocs):
+            self.stimarraylist.append(get_stimarray(map, mname, perm, cache_type))
+            self.make_batch_meta(mname, self.stimarraylist[-1], pp)
+ 
+        LabeledDataProvider.__init__(self, data_dir, batch_range,
+                                 init_epoch, init_batchnum, dp_params, test)
+
+    def get_batch(self, batch_num):
+        batch_size = self.batch_size
+        inds = slice(batch_num * batch_size, (batch_num + 1) * batch_size)
+        lbls = self.label_reformatting(self.metacol[inds])
+        return_dict = {'labels': lbls}
+        for mname, marray in zip(self.mnames, self.stimarraylist):
+            return_dict[mname] = n.asarray(marray[inds]).T
+        return return_dict
+
+    def make_batch_meta(self, mname, marray, pp):
+        metafile = os.path.join(self.data_dir, mname + '.meta')
+        if os.path.exists(metafile):
+            print('Meta file at %s exists, loading' % metafile)
+            bmeta = cPickle.load(open(metafile))
+            #assertions checking that the things that need to be the same
+            #for these batches to make sense are in fact the same
+            assert dp_params['batch_size'] == bmeta['num_cases_per_batch'], (dp_params['batch_size'], bmeta['num_cases_per_batch'])
+            if 'dataset_name' in bmeta:
+                assert dp_params['dataset_name'] == bmeta['dataset_name'], (dp_params['dataset_name'], bmeta['dataset_name'])
+            if 'preproc' in bmeta:
+                assert pp == bmeta['preproc'], (pp, bmeta['preproc'])
+                #pass
+            if 'dataset_data' in bmeta:
+                assert dataset_data == bmeta['dataset_data'], (dataset_data, bmeta['dataset_data'])
+            assert bmeta['mname'] == mname, (bmeta['mname'], mname)
+        else:
+            print('Making %s meta at %s ...' % (mname, metafile))
+            imgs_mean = None
+            isf = 0
+            for bn in range(self.num_batches_for_meta):
+                print('Meta batch %d' % bn)
+                stims = marray[bn * batch_size: (bn + 1) * batch_size]
+                stims = n.asarray(stims)
+                #add to the mean
+                if imgs_mean is None:
+                    imgs_mean = n.zeros((stims.shape[0],))
+                dlen = stims.shape[0]
+                fr = isf / (isf + float(dlen))
+                imgs_mean *= fr
+                imgs_mean += (1 - fr) * stims.mean(axis=1)
+                isf += dlen
+
+            #write out batches.meta
+            outdict = {'num_cases_per_batch': batch_size,
+                       'mname': mname, 
+                       'num_vis': stims.shape[0],
+                       'data_mean': imgs_mean,
+                       'dataset_name': dp_params['dataset_name'],
+                       'dataset_data': dataset_data,
+                       'preproc': pp}
+            with open(metafile, 'wb') as _f:
+                cPickle.dump(outdict, _f)
+
+        self.batch_meta_dict[mname] = cPickle.load(open(metafile, 'rb'))
+
+    def label_reformatting(self, lbls):
+        assert lbls.ndim == 1
+        labels = lbls.reshape((1, lbls.shape[0]))
+        return labels
+
+
+def map_reformatting(self, stims):
+    img_sz = stims.shape[1]
+    batch_size = stims.shape[0]
+    if stims.ndim == 3:
+        new_s = (batch_size, img_sz**2)
+        stims = stims.reshape(new_s).T
+    else:
+        assert stims.ndim == 4
+        nc = stims.shape[3]
+        new_s = (nc * (img_sz**2), batch_size)
+        print(stims.shape)
+        stims = stims.transpose([3, 1, 2, 0]).reshape(new_s)
+    return stims
+
+
+class Reorder2(object):
+    def __init__(self, X):
+        self.X = X
+
+    def __call__(self, inds):
+        mat = self.X[inds]
+        if mat.ndim < self.X.ndim:
+            assert mat.ndim == self.X.ndim - 1, (mat.ndim, self.X.ndim)
+            assert mat.shape == self.X.shape[1:], (mat.shape, self.X.shape)
+            mat = mat.reshape((1, ) + mat.shape)        
+        if 'float' in repr(mat.dtype):
+            mat = n.uint8(n.round(255 * mat))
+        return map_reformatting(mat).T
+
+    def rval_getattr(self, attr, objs=None):
+        if attr == 'shape':
+            xs = self.X.shape
+            return (n.prod(xs[1:]), )
+        elif attr == 'dtype': 
+            return 'uint8'
+        else:
+            return getattr(self.X, attr)
+
+
+def get_stimarray(map, mname, perm, cache_type):
+    base_dir = dset.home('cache')
+    reorder = Reorder2(map)
+    lmap = larray.lmap(reorder, perm, f_map = reorder)
+    if cache_type == 'hdf5':
+        new_name = mname + '_' + perm_id + '_hdf5'
+        print('Getting stimuli from cache hdf5 at %s/%s ' % (base_dir, new_name))
+        return larray.cache_hdf5(lmap,
+                              name=new_name,
+                              basedir=base_dir, 
+                              mode=read_mode)
+    elif cache_type == 'memmap':
+        new_name = mname + '_' + perm_id + '_memmap'
+        print('Getting stimuli from cache memmap at %s/%s ' % (base_dir, new_name))
+        return larray.cache_memmap(lmap,
+                              name=new_name,
+                              basedir=base_dir)
+                              
+        
+        
+####GENERAL Stuff
 
 dp_types = {"dummy-n": "Dummy data provider for n-dimensional data",
             "dummy-labeled-n": "Labeled dummy data provider for n-dimensional data"}
@@ -675,27 +884,6 @@ class DataProviderException(Exception):
     pass
 
 
-class Reorder(object):
-    def __init__(self, X):
-        self.X = X
-
-    def __call__(self, inds):
-        mat = self.X[inds]
-        if 'float' in repr(mat.dtype):
-            mat = n.uint8(n.round(255 * mat))
-        if mat.ndim == 3:
-            mat = mat.reshape((1, ) + mat.shape)
-        return dldata_to_convnet_reformatting(mat, None)['data'].T
-
-    def rval_getattr(self, attr, objs=None):
-        if attr == 'shape':
-            xs = self.X.shape
-            return (n.prod(xs[1:]), )
-        elif attr == 'dtype': 
-            return 'uint8'
-        else:
-            return getattr(self.X, attr)
-
-
 def get_id(l):
     return hashlib.sha1(repr(l)).hexdigest()
+

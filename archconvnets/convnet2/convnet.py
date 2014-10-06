@@ -23,7 +23,7 @@ import sys
 import math as m
 import layer as lay
 from convdata import (ImageDataProvider, CIFARDataProvider, DummyConvNetLogRegDataProvider, 
-                      CroppedGeneralDataProvider, CroppedGeneralDataRandomProvider, CroppedImageAndVectorProvider)
+                      CroppedGeneralDataProvider, CroppedGeneralDataRandomProvider, CroppedGeneralDataMapProvider)
 from os import linesep as NL
 import copy as cp
 import os
@@ -100,11 +100,13 @@ class FeatureWriterDriver(Driver):
             print "Wrote feature file %s" % path_out
         if self.batchnum == self.last_batch:
             for fp, nftrs in zip(self.feature_paths, self.num_ftr_list):
+                labels_unique = getattr(self.convnet.train_data_provider, 'labels_unique', None)
+                num_cases_per_batch = self.convnet.train_data_provider.batch_size
                 pickle(os.path.join(fp, 'batches.meta'), {'source_model': self.convnet.load_file, 
                                                           'source_model_query': self.convnet.load_query,
                                                           'num_vis': nftrs,
-                                                          'num_cases_per_batch': self.convnet.test_data_provider.batch_meta['num_cases_per_batch'],
-                                                          'label_names': self.convnet.train_data_provider.labels_unique})
+                                                          'num_cases_per_batch': num_cases_per_batch,
+                                                          'label_names': labels_unique})
 
 class ConvNet(IGPUModel):
     def __init__(self, op, load_dic, dp_params=None):
