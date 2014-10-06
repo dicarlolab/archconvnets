@@ -23,7 +23,8 @@ import sys
 import math as m
 import layer as lay
 from convdata import (ImageDataProvider, CIFARDataProvider, DummyConvNetLogRegDataProvider, 
-                      CroppedGeneralDataProvider, CroppedGeneralDataRandomProvider, CroppedGeneralDataMapProvider)
+                      CroppedGeneralDataProvider, CroppedGeneralDataRandomProvider, 
+                      CroppedGeneralDataMapProvider, CroppedImageAndVectorProvider)
 from os import linesep as NL
 import copy as cp
 import os

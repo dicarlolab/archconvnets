@@ -387,7 +387,7 @@ class CroppedGeneralDataProvider(DLDataProvider2):
         #y = x.reshape(3, 32, 32, x.shape[1])
         if (not self.multiview) and (self.border_size == 0) and (not self.img_flip):
             t0 = time()
-            target = x.copy()
+            target[:] = x.copy()
             t1 = time()
             print('copying time', t1 - t0)
             return 
@@ -587,7 +587,7 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
                        seed=0):
                        
         if (not self.multiview) and (border_size == 0) and (not self.img_flip):
-            target = x.copy()
+            target[:] = x.copy()
             return 
             
         y = x.reshape(num_colors, img_size, img_size, x.shape[1])
@@ -627,3 +627,5 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
                 target[:,c] = pic.reshape((ddims,))
                 
 
+class CroppedImageAndVectorProvider():
+    pass
