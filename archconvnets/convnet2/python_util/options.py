@@ -19,6 +19,7 @@ import re
 #import types
 
 import json
+from bson import json_util
 import collections
 
 import numpy as n
@@ -362,12 +363,26 @@ class RangeOptionParser(OptionParser):
     def is_type(value):
         return type(value) == list
     
+def opairshook(x):
+    x0 = collections.OrderedDict(x)
+    if hasattr(x, '__iter__'):
+        x1 = json_util.object_hook(collections.OrderedDict(x))
+    else:
+        x1 = json_util.object_hook(x)
+    if hasattr(x1, 'keys'):
+        return x0
+    else:
+        if hasattr(x1, '__iter__'):
+            return collections.OrderedDict(x1)
+        else:
+            return x1
 
 class JSONOptionParser(OptionParser):
     @staticmethod
     def parse(value):
         try: 
-            return json.loads(value, object_pairs_hook=collections.OrderedDict)
+            return json.loads(value, object_pairs_hook=opairshook)
+            #return json.loads(value, object_hook=opairshook)
         except ValueError, e:
             raise OptionException(e)
 
