@@ -39,7 +39,7 @@ import numpy as np
 def pinv(F):
         return np.dot(F.T, np.linalg.inv(np.dot(F,F.T)))
 
-eps = 1e-3
+eps = 1e7#-1
 f = open('/home/darren/j','w')
 f2 = open('/home/darren/j2','w')
 model = unpickle('/home/darren/cifar_checkpoints/color/conv_2layer_linear_max16/ConvNet__2014-11-08_16.59.23/120.5')
@@ -54,7 +54,7 @@ feature_path_conv = '/tmp/cifar_conv2'
 errs_test = []; errs = []
 class_errs_test = []; class_errs = []
 pad = 2
-n_imgs = 2500
+n_imgs = 500
 
 F = np.single(np.random.random((16,5,5,16)))
 #F = np.single( model['model_state']['layers'][weight_ind]['weights'][0]*21000).reshape((16,5,5,16))
@@ -83,12 +83,15 @@ for step in range(1000):
 		pickle(tmp_model, model)
 
 		################### compute pool2, load results
+		f = open('/home/darren/j','w')
+		f2 = open('/home/darren/j2','w')
 		subprocess.call(pool2_cmd, stdout=f, stderr=f2)
 
 		pool2 = np.zeros((16*6*6,0),dtype='single')
 		labels = np.array((),'int')
 		
-		if (step == 0) and (batch_grad == 1):
+		# estimate classifier:
+		if False:#(step == 0) and (batch_grad == 1):
 			for batch in range(1,6):
 		                x = np.load(feature_path_pool + '/data_batch_' + str(batch_grad))
 		                pool2 = np.concatenate((pool2,x['data'].reshape((10000,16*6*6)).T), axis=1)
@@ -123,6 +126,7 @@ for step in range(1000):
 
 		###################### compute conv2, load results
 		conv2_cmd = ['python', '/home/darren/archconvnets_write/archconvnets_write/convnet/shownet.py', '-f', tmp_model, '--test-range='+str(batch_grad), '--train-range='+str(batch_grad), '--write-features=conv2', '--feature-path=' + feature_path_conv,  '--gpu=' + gpu]
+		
 		subprocess.call(conv2_cmd, stdout=f, stderr=f2)
 
 		conv_out = np.zeros((16,12,12,0),dtype='single')
@@ -130,24 +134,43 @@ for step in range(1000):
 		conv2d = np.load(feature_path_conv + '/data_batch_' + str(batch_grad))
 		conv_out = np.concatenate((conv_out,conv2d['data'].reshape((10000,16,12,12)).transpose((1,2,3,0))),axis=3)
 
-		###################### find pool1 outputs to compute gradient
+		###################### find pool1 max locs to compute gradient
 		t_pool = time.time()
+		if (step == 0) and (batch_grad == 1):
+			max_arg_out = np.zeros((16,6,6,n_imgs),dtype='int')
+			x_loc_ind = 0
+			for x_loc in range(0,12,2):
+			    y_loc_ind = 0
+			    for y_loc in range(0,12,2):
+				t = conv_out[:, x_loc:x_loc+3,y_loc:y_loc+3, :n_imgs]
+				t = t.reshape((16,t.shape[1]*t.shape[2],n_imgs))
+				argmax_t = t.argmax(1)
+				max_arg_out[:, x_loc_ind, y_loc_ind] = argmax_t
+				
+				for grad_x in range(5):
+				    for grad_y in range(5):
+					pool1t = x_pad[:, x_loc+grad_x:x_loc+grad_x+3,y_loc+grad_y:y_loc+grad_y+3, (batch_grad-1)*10000:(batch_grad-1)*10000+n_imgs]
+					pool1t = pool1t.reshape((16,pool1t.shape[1]*pool1t.shape[2],n_imgs))
+					for grad_f in range(16):
+						max_pool1_no_conv[:,grad_x,grad_y,grad_f,x_loc_ind,y_loc_ind] = pool1t[:,argmax_t[grad_f],range(n_imgs)]
+				y_loc_ind += 1
+			    x_loc_ind += 1
+
+		############################# find pool2 vals from max_arg_out
 		x_loc_ind = 0
+		max_out = np.zeros((16,6,6,n_imgs))
 		for x_loc in range(0,12,2):
 		    y_loc_ind = 0
 		    for y_loc in range(0,12,2):
 			t = conv_out[:, x_loc:x_loc+3,y_loc:y_loc+3, :n_imgs]
 			t = t.reshape((16,t.shape[1]*t.shape[2],n_imgs))
-			argmax_t = t.argmax(1)
-			
-			for grad_x in range(5):
-			    for grad_y in range(5):
-				pool1t = x_pad[:, x_loc+grad_x:x_loc+grad_x+3,y_loc+grad_y:y_loc+grad_y+3, (batch_grad-1)*10000:(batch_grad-1)*10000+n_imgs]
-				pool1t = pool1t.reshape((16,pool1t.shape[1]*pool1t.shape[2],n_imgs))
-				for grad_f in range(16):
-					max_pool1_no_conv[:,grad_x,grad_y,grad_f,x_loc_ind,y_loc_ind] = pool1t[:,argmax_t[grad_f],range(n_imgs)]
+			for f in range(16):
+				max_out[f,x_loc_ind,y_loc_ind] = t[f,max_arg_out[f, x_loc_ind, y_loc_ind],range(n_imgs)]
+
 			y_loc_ind += 1
 		    x_loc_ind += 1
+		max_out = max_out.reshape((16*6*6,n_imgs))
+
 		t_pool = time.time() - t_pool
 		# F: 16,5,5,16
 		# w: 10,16*6*6
@@ -158,7 +181,7 @@ for step in range(1000):
 		######################################################################
 		# compute F2 grad
 		wt = w.reshape((10,1,1,1,16,6*6,1))
-		pred = np.dot(w,pool2)[:,:n_imgs] # 10, n_imgs
+		pred = np.dot(w,max_out)[:,:n_imgs] # 10, n_imgs
 		sign_mat = np.single(1 - 2*(pred < l[:,:n_imgs])) # 10, n_imgs
 		wt_sign = wt*sign_mat[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
 		max_pool1_no_convt = max_pool1_no_conv.reshape((16,5,5,16,6*6,n_imgs))
@@ -174,5 +197,5 @@ for step in range(1000):
 		class_errs.append(1-np.sum(labels[:n_imgs] == np.argmax(pred,axis=0))/np.single(n_imgs))
 
 		print batch_grad, errs[-1], class_errs[-1],  errs_test[-1], class_errs_test[-1], time.time() - t_start, time.time() - g_start, t_pool
-
+		savemat('/home/darren/backprop_f2_cifar_nfixed.mat',{'errs':errs,'class_errs':class_errs,'errs_test':errs_test,'class_errs_test':class_errs_test})
 
