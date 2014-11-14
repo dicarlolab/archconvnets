@@ -173,16 +173,20 @@ class IGPUModel:
             self.model_state = load_dic["model_state"]
             if not "experiment_data" in self.options or not self.options["experiment_data"].value_given:
                 self.experiment_data = load_dic["rec"]["experiment_data"]
+            if self.options['starting_epoch'].value_given:
+                self.model_state['epoch'] = self.options["starting_epoch"].value
+            if self.options['starting_batch'].value_given:
+                self.model_state["batchnum"] = self.train_batch_range[self.options["starting_batch"].value]
         else:
             self.model_state = collections.OrderedDict()
             self.model_state["train_outputs"] = []
             self.model_state["test_outputs"] = []
-            self.model_state["epoch"] = 1
-            self.model_state["batchnum"] = self.train_batch_range[0]
+            self.model_state["epoch"] = self.options["starting_epoch"].value 
+            self.model_state["batchnum"] = self.train_batch_range[self.options["starting_batch"].value]
             if not self.options["experiment_data"].value_given:
                 idval = model_name + "_" + '_'.join(['%s_%s' % (char, self.options[opt].get_str_value()) for opt, char in filename_options]) + '_' + strftime('%Y-%m-%d_%H.%M.%S')
                 self.experiment_data = collections.OrderedDict([('experiment_id', idval)])
-
+    
         self.init_data_providers()
         if load_dic: 
             self.train_data_provider.advance_batch()
@@ -472,6 +476,8 @@ class IGPUModel:
         op.add_option("data-provider", "dp_type", StringOptionParser, "Data provider", default="default")
         op.add_option("test-freq", "testing_freq", IntegerOptionParser, "Testing frequency", default=25)
         op.add_option("epochs", "num_epochs", IntegerOptionParser, "Number of epochs", default=500)
+        op.add_option("start-epoch", "starting_epoch", IntegerOptionParser, "Epoch to begin with", default=1)
+        op.add_option("start-batch", "starting_batch", IntegerOptionParser, "Batch to begin with", default=0)
         op.add_option("data-path", "data_path", StringOptionParser, "Data path")
         
         op.add_option("max-test-err", "max_test_err", FloatOptionParser, "Maximum test error for saving")

@@ -320,8 +320,9 @@ class CroppedGeneralDataProvider(DLDataProvider2):
 
         DLDataProvider2.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test, cache_type='hdf5', read_mode='r')
 
-        self.num_colors = 1 if dp_params['preproc']['mode'] == 'L' else 3
-        self.img_size = dp_params['preproc']['resize_to'][0]
+        preproc = dp_params['preproc'] if hasattr(dp_params['preproc'], 'keys') else dp_params['preproc'][0]
+        self.num_colors = 1 if preproc['mode'] in ['L', 'L_alpha'] else 3
+        self.img_size = preproc['resize_to'][0]
 
         self.border_size = dp_params['crop_border']
         self.inner_size = self.img_size - self.border_size*2

@@ -331,7 +331,8 @@ class LayerParser:
                         found = max(name in l2['inputs'] for l2 in layers.values() if 'inputs' in l2)
                         if not found:
                             raise LayerParsingError("Layer '%s' of type '%s' is unused" % (name, l['type']))
-        
+            else:
+                print("layer path %s does not exist, ignoring" % layer_cfg_path)
             if not os.path.exists(param_cfg_path):
                 raise LayerParsingError("Layer parameter file '%s' does not exist" % param_cfg_path)        
         

@@ -426,6 +426,9 @@ class DLDataProvider(LabeledDataProvider):
         else:
             self.labels_unique = self.batch_meta['label_names']
 
+    def get_num_classes(self):
+        return len(self.labels_unique)
+
     def get_next_batch(self):
         t0 = systime.time()
         epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
@@ -456,7 +459,7 @@ class DLDataProvider(LabeledDataProvider):
         metacol = meta[self.dp_params['meta_attribute']][:]
         try:
             metacol + 1
-            labels_unique = None
+            labels_unique = self.labels_unique = None
         except TypeError:
             labels_unique = self.labels_unique = n.unique(metacol)
             labels = n.zeros((mlen, ), dtype='int')
@@ -634,7 +637,6 @@ class DLDataProvider2(DLDataProvider):
         LabeledDataProvider.__init__(self, data_dir, batch_range,
                                  init_epoch, init_batchnum, dp_params, test)
 
-        self.labels_unique = self.batch_meta['label_names']
 
     def get_batch(self, batch_num):
         print('bn', batch_num)
@@ -753,9 +755,8 @@ class DLDataMapProvider(DLDataProvider):
             self.stimarraylist.append(get_stimarray(map, mname, perm, perm_id, cache_type, basedir))
             self.make_batch_meta(mname, self.stimarraylist[-1], pp) 
 
-
     def get_num_classes(self):
-        return len(self.unique_labels)
+        return len(self.labels_unique)
 
     def get_next_batch(self):
         epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
