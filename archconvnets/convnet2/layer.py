@@ -341,7 +341,7 @@ class LayerParser:
 #            mcp.convnet = model
             for name,l in layers.items():
                 if not mcp.has_section(name) and l['requiresParams']:
-                    raise LayerParsingError("Layer '%s' of type '%s' requires extra parameters, but none given in file '%s'." % (name, l['type'], param_cfg_path))
+                    raise LayerParsingError("Layer '%s' of type '%s' requires extra parameters, but none given in file '%s', %s." % (name, l['type'], param_cfg_path, str(l['requiresParams'])))
                 lp = layer_parsers[l['type']]().init(l)
                 lp.add_params(mcp)
         except LayerParsingError, e:
@@ -1300,7 +1300,7 @@ class CrossMapPoolLayerParser(LayerWithInputParser):
         dic['imgSize'] = int(n.sqrt(dic['imgPixels']))
         dic['outputs'] = dic['outputChannels'] * dic['imgPixels']
         
-        self.verify_num_range(dic['size'], 'size', 1, dic['channels'])
+        self.verify_num_range(dic['size'], 'size', 1, dic['imgSize'])
         self.verify_num_range(dic['stride'], 'stride', 1, dic['size'])
         self.verify_num_range(dic['outputChannels'], 'outputChannels', 0, None)
         self.verify_num_range(dic['channels'], 'channels', 1, None)
@@ -1509,7 +1509,7 @@ layer_parsers = {'data' :           lambda : DataLayerParser(),
                  'dropout':         lambda : DropoutLayerParser(),
                  'dropout2':        lambda : Dropout2LayerParser(),
                  'cost.logreg':     lambda : LogregCostParser(),
-                 'cost.ce':         lambda : CrossEntCostParser(),
+                 'cost.crossent':   lambda : CrossEntCostParser(),
                  'cost.bce':        lambda : BinomialCrossEntCostParser(),
                  'cost.dce':        lambda : DetectionCrossEntCostParser(),
                  'cost.sum2':       lambda : SumOfSquaresCostParser()}

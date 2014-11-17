@@ -2068,11 +2068,10 @@ void CrossEntCostLayer::fpropActs(int inpIdx, float scaleTargets, PASS_TYPE pass
         NVMatrix& labels = *_inputs[0];
         NVMatrix& probs = *_inputs[1];
         int numCases = labels.getLeadingDim();
-        NVMatrix& trueLabelLogProbs = getActs(), correctProbs;
-        computeCrossEntCost(labels, probs, trueLabelLogProbs, correctProbs);
+        computeCrossEntCost(labels, probs, _trueLabelLogProbs, _correctProbs);
         _costv.clear();
-        _costv.push_back(-trueLabelLogProbs.sum());
-        _costv.push_back(numCases - correctProbs.sum());
+        _costv.push_back(-_trueLabelLogProbs.sum());
+        _costv.push_back(numCases - _correctProbs.sum());
     }
 }
 
@@ -2291,9 +2290,9 @@ SumOfSquaresCostLayer::SumOfSquaresCostLayer(ConvNetThread* convNetThread, PyObj
 }
 
 void SumOfSquaresCostLayer::fpropActs(int inpIdx, float scaleTargets, PASS_TYPE passType, int passIdx) {
-    _inputs[0]->apply(NVMatrixOps::Square(), getActs());
+    _inputs[0]->apply(NVMatrixOps::Square(), _tmp);
     _costv.clear();
-    _costv.push_back(getActs().sum());
+    _costv.push_back(_tmp.sum());
 }
 
 void SumOfSquaresCostLayer::bpropActs(NVMatrix& v, int replicaIdx, int inpIdx, float scaleTargets, PASS_TYPE passType) {
