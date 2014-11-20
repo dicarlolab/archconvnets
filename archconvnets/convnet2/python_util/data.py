@@ -637,7 +637,6 @@ class DLDataProvider2(DLDataProvider):
         LabeledDataProvider.__init__(self, data_dir, batch_range,
                                  init_epoch, init_batchnum, dp_params, test)
 
-
     def get_batch(self, batch_num):
         print('bn', batch_num)
         batch_size = self.batch_size
