@@ -1401,9 +1401,9 @@ class CrossEntCostParser(CostParser):
             raise LayerParsingError("Layer '%s': Dimensionality of first input must be equal to number of labels" % name)
         if dic['inputLayers'][1]['type'] != 'softmax':
             raise LayerParsingError("Layer '%s': Second input must be softmax layer" % name)
-        if dic['numInputs'][1] != model.train_data_provider.get_num_classes():
+        if dic['numInputs'][1] != model.train_data_provider.get_num_classes(name):
             raise LayerParsingError("Layer '%s': Softmax input '%s' must produce %d outputs, because that is the number of classes in the dataset" \
-                                    % (name, dic['inputs'][1], model.train_data_provider.get_num_classes()))
+                                    % (name, dic['inputs'][1], model.train_data_provider.get_num_classes(name)))
         
         print "Initialized cross-entropy cost '%s' on GPUs %s" % (name, dic['gpus'])
         return dic
@@ -1426,9 +1426,9 @@ class LogregCostParser(CostParser):
             raise LayerParsingError("Layer '%s': dimensionality of first input must be 1" % name)
         if dic['inputLayers'][1]['type'] != 'softmax':
             raise LayerParsingError("Layer '%s': second input must be softmax layer" % name)
-        if dic['numInputs'][1] != model.train_data_provider.get_num_classes():
+        if dic['numInputs'][1] != model.train_data_provider.get_num_classes(name):
             raise LayerParsingError("Layer '%s': softmax input '%s' must produce %d outputs, because that is the number of classes in the dataset" \
-                                    % (name, dic['inputs'][1], model.train_data_provider.get_num_classes()))
+                                    % (name, dic['inputs'][1], model.train_data_provider.get_num_classes(name)))
             
         print "Initialized logistic regression cost '%s' on GPUs %s" % (name, dic['gpus'])
         return dic
@@ -1463,7 +1463,7 @@ class DetectionCrossEntCostParser(BinomialCrossEntCostParser):
         
     def parse(self, name, mcp, prev_layers, model):
         dic = BinomialCrossEntCostParser.parse(self, name, mcp, prev_layers, model)
-        if dic['numInputs'][0] != model.train_data_provider.get_num_classes(): # first input must be labels
+        if dic['numInputs'][0] != model.train_data_provider.get_num_classes(name): # first input must be labels
             raise LayerParsingError("Layer '%s': Dimensionality of first input must be equal to number of labels" % name)
         dic['computeSoftmaxErrorRate'] = False
         dic['outputFilter'] = 'lambda costs,num_cases: [c/num_cases for c in costs[:2]] + [(class_cost[2] / class_cost[j] if class_cost[j] > 0 else n.inf) for class_cost in [costs[2:][i*3:(i+1)*3] for i in range(len(costs[2:])/3)] for j in range(2)]'

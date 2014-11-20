@@ -289,8 +289,16 @@ def dldata_to_convnet_reformatting(stims, lbls):
         stims = stims.T
 
     if lbls is not None:
-        assert lbls.ndim == 1
-        labels = lbls.reshape((1, lbls.shape[0]))
+        if hasattr(lbls, 'keys'):
+            labels = OrderedDict([])
+            for k in lbls:
+                lblk = lbls[k]
+                assert lblk.ndim == 1
+                lblk = lblk.reshape((1, lblk.shape[0]))
+                lables[k] = lblk
+        else:
+            assert lbls.ndim == 1
+            labels = lbls.reshape((1, lbls.shape[0]))
         return {'data': stims, 'labels': labels}
     else:
         return {'data': stims}
@@ -426,8 +434,11 @@ class DLDataProvider(LabeledDataProvider):
         else:
             self.labels_unique = self.batch_meta['label_names']
 
-    def get_num_classes(self):
-        return len(self.labels_unique)
+    def get_num_classes(self, name=None):
+        if name is None or not hasattr(self.labels_unique, 'keys'):
+            return len(self.labels_unique)
+        else:
+            return len(self.labels_unique[name])
 
     def get_next_batch(self):
         t0 = systime.time()
@@ -454,19 +465,33 @@ class DLDataProvider(LabeledDataProvider):
 
     def get_metacol(self):
         meta = self.meta
-        mlen = len(meta)
-        #format relevant metadata column into integer list if needed
-        metacol = meta[self.dp_params['meta_attribute']][:]
+        mlen = len(meta) 
+        meta_attr = self.dp_params['meta_attribute']
+        if isinstance(meta_attr, list):
+            metacol = OrderedDict([])
+            self.labels_unique = OrderedDict([])
+            for ma in meta_attr:
+                mcol, lu = self.get_metacol_base(ma)
+                metacol[ma] = mcol
+                self.labels_unique[ma] = lu
+        else:
+            metacol, labels_unique = self.get_metacol_base(meta_attr)
+            self.labels_unique = labels_unique
+        return metacol
+    
+    def get_metacol_base(self, ma):
+        assert isinstance(ma, str)
+        metacol = meta[ma][:]
         try:
             metacol + 1
-            labels_unique = self.labels_unique = None
+            labels_unique = None
         except TypeError:
-            labels_unique = self.labels_unique = n.unique(metacol)
+            labels_unique = n.unique(metacol)
             labels = n.zeros((mlen, ), dtype='int')
             for label in range(len(labels_unique)):
                 labels[metacol == labels_unique[label]] = label
             metacol = labels
-        return metacol
+        return metacol, labels_unique
 
     def get_indset(self):
         dp_params = self.dp_params
@@ -572,7 +597,14 @@ class DLDataProvider2(DLDataProvider):
             self.stimarray = larray.cache_memmap(lmap,
                                   name=new_name,
                                   basedir=base_dir)
-        self.metacol = self.get_metacol()[perm]
+                                  
+        metacol = self.get_metacol()
+        if hasattr(metacol, 'keys'):
+            for k in metacol:
+                metacol[k] = metacol[k][perm]
+            self.metacol = metacol
+        else:
+            self.metacol = metacol[perm]
 
         #default data location
         if data_dir == '':
@@ -647,7 +679,10 @@ class DLDataProvider2(DLDataProvider):
         if 'float' in repr(stims.dtype):
             stims = n.uint8(n.round(255 * stims))
         print('to uint8')
-        lbls = self.metacol[inds]
+        if hasattr(self.metacol, 'keys'):
+            lbls = OrderedDict([(k, self.metcol[k][inds]) for k in self.metacol])
+        else:
+            lbls = self.metacol[inds]
         print('got meta')
         d = dldata_to_convnet_reformatting(stims, lbls)
         print('done')
@@ -754,9 +789,12 @@ class DLDataMapProvider(DLDataProvider):
             self.stimarraylist.append(get_stimarray(map, mname, perm, perm_id, cache_type, basedir))
             self.make_batch_meta(mname, self.stimarraylist[-1], pp) 
 
-    def get_num_classes(self):
-        return len(self.labels_unique)
-
+    def get_num_classes(self, name=None):
+        if name is None or not hasattr(self.labels_unique, 'keys'):
+            return len(self.labels_unique)
+        else:
+            return len(self.labels_unique[name])
+            
     def get_next_batch(self):
         epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
         for mn in self.mnames:
