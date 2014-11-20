@@ -16,6 +16,7 @@ import numpy as n
 from numpy.random import randn, rand, random_integers
 import os
 from threading import Thread
+from collections import OrderedDict
 from util import *
 
 import time as systime
@@ -295,7 +296,7 @@ def dldata_to_convnet_reformatting(stims, lbls):
                 lblk = lbls[k]
                 assert lblk.ndim == 1
                 lblk = lblk.reshape((1, lblk.shape[0]))
-                lables[k] = lblk
+                labels[k] = lblk
         else:
             assert lbls.ndim == 1
             labels = lbls.reshape((1, lbls.shape[0]))
@@ -447,7 +448,11 @@ class DLDataProvider(LabeledDataProvider):
         #d['data'] = n.require(d['data'].copy(order='A'), requirements='C')
         d['data'] = n.require(d['data'], requirements='C')
         t2 = systime.time()
-        d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
+        if hasattr(d['labels'], 'keys'):
+            for k in d['labels']:
+                d['labels'][k] = n.c_[n.require(d['labels'][k], dtype=n.single)]
+        else:
+            d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
         t3 = systime.time()
         print('timing: nextbatch %.4f order %.4f labels %.4f' % (t1 - t0, t2 - t1, t3 -  t2))
         return epoch, batchnum, d
@@ -464,10 +469,9 @@ class DLDataProvider(LabeledDataProvider):
         return dic
 
     def get_metacol(self):
-        meta = self.meta
-        mlen = len(meta)
         meta_attr = self.dp_params['meta_attribute']
         if isinstance(meta_attr, list):
+            meta_attr = map(str, meta_attr)
             metacol = OrderedDict([])
             self.labels_unique = OrderedDict([])
             for ma in meta_attr:
@@ -480,8 +484,9 @@ class DLDataProvider(LabeledDataProvider):
         return metacol
 
     def get_metacol_base(self, ma):
-        assert isinstance(ma, str)
-        metacol = meta[ma][:]
+        assert isinstance(ma, str), ma
+        metacol = self.meta[ma][:]
+        mlen = len(metacol)
         try:
             metacol + 1
             labels_unique = None
