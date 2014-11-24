@@ -48,7 +48,7 @@ from scipy.io import loadmat
 from scipy.io import savemat
 from scipy.stats.mstats import zscore
 
-n_filters = 16#48
+n_filters = 48
 filter_sz = 7
 n_imgs = 128
 img_sz = 128
@@ -56,7 +56,7 @@ in_channels = 3
 stride = 2 #conv
 o1 = 31
 
-np.random.seed(666)
+np.random.seed(6666)
 sigma_31 = loadmat('/home/darren/max_patches.mat')['sigma_31']
 data_mean = np.load('/storage/batch128_img138_full/batches.meta')['data_mean'][:,np.newaxis]
 
@@ -69,6 +69,7 @@ random.shuffle(F1)
 F1 = F1.reshape((in_channels*filter_sz**2,n_filters)).T
 F2 = np.single(np.random.normal(size=(999,n_filters,o1**2)))
 eps_F1 = 1e-12
+eps_F2 = 1e-7
 costs = []
 #.1, .001, 1e-6
 for step in range(100000):
@@ -86,6 +87,7 @@ for step in range(100000):
 		conv_out = conv_block(F1.T.reshape((in_channels,filter_sz,filter_sz,n_filters)), imgs, stride)
 		pool_out, patch_out = pool_block(imgs, conv_out, filter_sz)
 		# pool_out: n_filters, o1, o1, n_imgs
+		pool_out = pool_out.reshape((n_filters, o1**2, n_imgs))
 		# patch_out: in_channels, filter_sz, filter_sz, n_filters, o1, o1, n_imgs
 		X = patch_out.reshape((in_channels*filter_sz**2, n_filters, o1**2, n_imgs))
 
@@ -104,8 +106,18 @@ for step in range(100000):
 			if F % 20 == 0:
 				print time.time() - t_start
 		F1 -= eps_F1 * grad_F1
+		
+		# deriv. F2
+		pred_diff = pred_diff.reshape((999,n_imgs))
+		grad_F2 = np.zeros_like(F2,dtype='single')
+		for C in range(999):
+			grad_F2[C] -= 2*np.mean(pool_out*pred_diff[np.newaxis,np.newaxis,C],axis=-1)
+		F2 -= eps_F2 * grad_F2
+		
 		costs.append(np.sum(pred_diff**2))
-		savemat('f.mat',{'F1':F1,'F2':F2,'eps_F1':eps_F1,'costs':costs})
+		savemat('f.mat',{'F1':F1,'F2':F2,'eps_F1':eps_F1,'eps_F2':eps_F2,'costs':costs})
 		print step, batch, time.time() - t_startt, costs[-1]
+		print 'F1',np.min(F1), np.max(F1), eps_F1*np.min(grad_F1), eps_F1*np.max(grad_F1)
+		print 'F2',np.min(F2), np.max(F2), eps_F2*np.min(grad_F2), eps_F2*np.max(grad_F2)
 	#if step == 2:
 	#	break
