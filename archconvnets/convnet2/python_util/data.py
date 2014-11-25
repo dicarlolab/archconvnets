@@ -479,6 +479,7 @@ class DLDataProvider(LabeledDataProvider):
                 metacol[ma] = mcol
                 self.labels_unique[ma] = lu
         else:
+            meta_attr = str(meta_attr)
             metacol, labels_unique = self.get_metacol_base(meta_attr)
             self.labels_unique = labels_unique
         return metacol
