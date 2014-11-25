@@ -82,15 +82,15 @@ $$\frac{d}{dx}F_i(x) = W_i.$$
 Thus:
 
 \begin{eqnarray*}
-\frac{d \tilde{F}_n}{d W_i} & = W_n \cdot W_{n-1} \ldots W_{i+1} \cdot F_{i-1}( \ldots F_1(X)) \\
-                            & = \left( \prod_{j > i} W_i \right) \cdot \tilde{F}_{i-1}(X).
+\frac{d \tilde{F}_n}{d W_i}(x) & = W_n \cdot W_{n-1} \ldots W_{i+1} \cdot F_{i-1}( \ldots F_1(x)) \\
+                            & = \left( \prod_{j > i} W_i \right) \cdot \tilde{F}_{i-1}(x).
 \end{eqnarray*}                 
                  
 So:                        
 \begin{eqnarray*}
-\frac{d Error}{d W_i} & = \sum_x \left ( -2 \cdot (y(x) - \tilde{F}_n(x)) \cdot \frac{d\tilde{F}(x)}{dW_i} \right ) \\     
+\frac{d\ \mathbf{Error}}{d W_i} & = \sum_x \left ( -2 \cdot (y(x) - \tilde{F}_n(x)) \cdot \frac{d\tilde{F}(x)}{dW_i} \right ) \\     
                       & = \sum_x -2 \cdot y(x) \cdot  \frac{d\tilde{F}(x)}{dW_i} + \text{UNS. term} \\
-                      & = -2 \left(\prod_{j > i} W_i \right) \left(\sum_x y^T(x) \tilde{F}_{i-1}(X) \right) + \text{UNS. term}.
+                      & = -2 \left(\prod_{j > i} W_i \right) \left(\sum_x y^T(x) \tilde{F}_{i-1}(x) \right) + \text{UNS. term}.
 \end{eqnarray*}
 
 So I suggest we focus on approximations to $\Sigma_{i} := \sum_x y^T(x) \tilde{F}_{i-1}(x)$.
