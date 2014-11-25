@@ -65,9 +65,9 @@
 
 The formula for the error is:
 
-$$\textbf{Error} = \sum_{x} \left (y - F_n( \ldots F_1(x) \right)^2$$
+$$\textbf{Error} = \sum_{x} \left (y(x) - F_n( \ldots F_1(x) \right)^2$$
 
-where 
+where $y(x)$ is the label for $x$, and 
 
 $$F_i(X) = max(conv_{W_i}(X))$$
 
@@ -88,12 +88,12 @@ Thus:
                  
 So:                        
 \begin{eqnarray*}
-\frac{d Error}{d W_i} & = \sum_x \left ( -2 \cdot (y - \tilde{F}_n(x)) \cdot \frac{d\tilde{F}(x)}{dW_i} \right ) \\     
-                      & = \sum_x -2 \cdot y \cdot  \frac{d\tilde{F}(x)}{dW_i} + \text{UNS. term} \\
-                      & = -2 \left(\prod_{j > i} W_i \right) \left(\sum_x y^T \tilde{F}_{i-1}(X) \right) + \text{UNS. term}.
+\frac{d Error}{d W_i} & = \sum_x \left ( -2 \cdot (y(x) - \tilde{F}_n(x)) \cdot \frac{d\tilde{F}(x)}{dW_i} \right ) \\     
+                      & = \sum_x -2 \cdot y(x) \cdot  \frac{d\tilde{F}(x)}{dW_i} + \text{UNS. term} \\
+                      & = -2 \left(\prod_{j > i} W_i \right) \left(\sum_x y^T(x) \tilde{F}_{i-1}(X) \right) + \text{UNS. term}.
 \end{eqnarray*}
 
-So I suggest we focus on approximations to $\Sigma_{i} := \sum_x y^T \tilde{F}_{i-1}(X)$.
+So I suggest we focus on approximations to $\Sigma_{i} := \sum_x y^T(x) \tilde{F}_{i-1}(x)$.
 
 \newpage
 
