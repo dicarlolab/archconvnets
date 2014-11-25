@@ -16,6 +16,7 @@ import numpy as n
 from numpy.random import randn, rand, random_integers
 import os
 from threading import Thread
+from collections import OrderedDict
 from util import *
 
 import time as systime
@@ -289,8 +290,16 @@ def dldata_to_convnet_reformatting(stims, lbls):
         stims = stims.T
 
     if lbls is not None:
-        assert lbls.ndim == 1
-        labels = lbls.reshape((1, lbls.shape[0]))
+        if hasattr(lbls, 'keys'):
+            labels = OrderedDict([])
+            for k in lbls:
+                lblk = lbls[k]
+                assert lblk.ndim == 1
+                lblk = lblk.reshape((1, lblk.shape[0]))
+                labels[k] = lblk
+        else:
+            assert lbls.ndim == 1
+            labels = lbls.reshape((1, lbls.shape[0]))
         return {'data': stims, 'labels': labels}
     else:
         return {'data': stims}
@@ -426,8 +435,11 @@ class DLDataProvider(LabeledDataProvider):
         else:
             self.labels_unique = self.batch_meta['label_names']
 
-    def get_num_classes(self):
-        return len(self.labels_unique)
+    def get_num_classes(self, name=None):
+        if name is None or not hasattr(self.labels_unique, 'keys'):
+            return len(self.labels_unique)
+        else:
+            return len(self.labels_unique[name])
 
     def get_next_batch(self):
         t0 = systime.time()
@@ -436,7 +448,11 @@ class DLDataProvider(LabeledDataProvider):
         #d['data'] = n.require(d['data'].copy(order='A'), requirements='C')
         d['data'] = n.require(d['data'], requirements='C')
         t2 = systime.time()
-        d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
+        if hasattr(d['labels'], 'keys'):
+            for k in d['labels']:
+                d['labels'][k] = n.c_[n.require(d['labels'][k], dtype=n.single)]
+        else:
+            d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
         t3 = systime.time()
         print('timing: nextbatch %.4f order %.4f labels %.4f' % (t1 - t0, t2 - t1, t3 -  t2))
         return epoch, batchnum, d
@@ -453,20 +469,35 @@ class DLDataProvider(LabeledDataProvider):
         return dic
 
     def get_metacol(self):
-        meta = self.meta
-        mlen = len(meta)
-        #format relevant metadata column into integer list if needed
-        metacol = meta[self.dp_params['meta_attribute']][:]
+        meta_attr = self.dp_params['meta_attribute']
+        if isinstance(meta_attr, list):
+            meta_attr = map(str, meta_attr)
+            metacol = OrderedDict([])
+            self.labels_unique = OrderedDict([])
+            for ma in meta_attr:
+                mcol, lu = self.get_metacol_base(ma)
+                metacol[ma] = mcol
+                self.labels_unique[ma] = lu
+        else:
+            meta_attr = str(meta_attr)
+            metacol, labels_unique = self.get_metacol_base(meta_attr)
+            self.labels_unique = labels_unique
+        return metacol
+
+    def get_metacol_base(self, ma):
+        assert isinstance(ma, str), ma
+        metacol = self.meta[ma][:]
+        mlen = len(metacol)
         try:
             metacol + 1
-            labels_unique = self.labels_unique = None
+            labels_unique = None
         except TypeError:
-            labels_unique = self.labels_unique = n.unique(metacol)
+            labels_unique = n.unique(metacol)
             labels = n.zeros((mlen, ), dtype='int')
             for label in range(len(labels_unique)):
                 labels[metacol == labels_unique[label]] = label
             metacol = labels
-        return metacol
+        return metacol, labels_unique
 
     def get_indset(self):
         dp_params = self.dp_params
@@ -509,7 +540,7 @@ class DLDataProvider(LabeledDataProvider):
             indset = [slice(batch_size * bidx, batch_size * (bidx + 1))
                        for bidx in range(num_batches)]
         return indset
-        
+
     def get_perm(self):
         dp_params = self.dp_params
         perm_type = dp_params.get('perm_type')
@@ -520,7 +551,7 @@ class DLDataProvider(LabeledDataProvider):
             rng = n.random.RandomState(seed=perm_seed)
             return rng.permutation(mlen), perm_type + '_' + str(perm_seed)
         else:
-            raise ValueError, 'Unknown permutation type.'        
+            raise ValueError, 'Unknown permutation type.'
 
 
 class DLDataProvider2(DLDataProvider):
@@ -564,7 +595,7 @@ class DLDataProvider2(DLDataProvider):
             print('Getting stimuli from cache hdf5 at %s/%s ' % (base_dir, new_name))
             self.stimarray = larray.cache_hdf5(lmap,
                                   name=new_name,
-                                  basedir=base_dir, 
+                                  basedir=base_dir,
                                   mode=read_mode)
         elif cache_type == 'memmap':
             new_name = orig_name + '_' + perm_id + '_memmap'
@@ -572,7 +603,14 @@ class DLDataProvider2(DLDataProvider):
             self.stimarray = larray.cache_memmap(lmap,
                                   name=new_name,
                                   basedir=base_dir)
-        self.metacol = self.get_metacol()[perm]
+
+        metacol = self.get_metacol()
+        if hasattr(metacol, 'keys'):
+            for k in metacol:
+                metacol[k] = metacol[k][perm]
+            self.metacol = metacol
+        else:
+            self.metacol = metacol[perm]
 
         #default data location
         if data_dir == '':
@@ -647,7 +685,10 @@ class DLDataProvider2(DLDataProvider):
         if 'float' in repr(stims.dtype):
             stims = n.uint8(n.round(255 * stims))
         print('to uint8')
-        lbls = self.metacol[inds]
+        if hasattr(self.metacol, 'keys'):
+            lbls = OrderedDict([(k, self.metacol[k][inds]) for k in self.metacol])
+        else:
+            lbls = self.metacol[inds]
         print('got meta')
         d = dldata_to_convnet_reformatting(stims, lbls)
         print('done')
@@ -672,22 +713,22 @@ class Reorder(object):
         if attr == 'shape':
             xs = self.X.shape
             return (n.prod(xs[1:]), )
-        elif attr == 'dtype': 
+        elif attr == 'dtype':
             return 'uint8'
         else:
             return getattr(self.X, attr)
-            
+
 
 #########MapProvider
 class DLDataMapProvider(DLDataProvider):
     """
-       Same interace as DLDataProvider2 but allows an arbitrary number of 
+       Same interace as DLDataProvider2 but allows an arbitrary number of
        image-shaped maps. This is specified by:
-           
-        * dp_params["map_methods"], a list of names of methods for getting maps 
-          from dataset object. This assumes that each of the map-getting 
-           methods take an argument "preproc", just like the standard get_images. 
-            
+
+        * dp_params["map_methods"], a list of names of methods for getting maps
+          from dataset object. This assumes that each of the map-getting
+           methods take an argument "preproc", just like the standard get_images.
+
         * dp_params["map_preprocs"] = list of preprocs to apply in getting the maps.
     """
 
@@ -730,13 +771,13 @@ class DLDataMapProvider(DLDataProvider):
 
         perm, perm_id = self.get_perm()
         self.metacol = self.get_metacol()[perm]
-        
+
         map_methods = self.map_methods = dp_params['map_methods']
         map_preprocs = self.map_preprocs = dp_params['map_preprocs']
-        assert hasattr(map_methods, '__iter__') 
+        assert hasattr(map_methods, '__iter__')
         assert hasattr(map_preprocs, '__iter__')
         assert len(map_methods) == len(map_preprocs), (len(map_methods) , len(map_preprocs))
-        map_list = [getattr(dset, mname)(preproc=pp) 
+        map_list = [getattr(dset, mname)(preproc=pp)
                         for mname, pp in zip(map_methods, map_preprocs)]
         self.map_shapes = [m.shape for m in map_list]
         mnames = self.mnames = [mn + '_' + get_id(pp) for mn, pp in zip(map_methods, map_preprocs)]
@@ -750,12 +791,16 @@ class DLDataMapProvider(DLDataProvider):
         self.stimarraylist = []
         basedir = self.dset.home('cache')
         self.batch_meta_dict = {}
-        for map, mname, pp in zip(map_list, mnames, map_preprocs):            
+        for map, mname, pp in zip(map_list, mnames, map_preprocs):
             self.stimarraylist.append(get_stimarray(map, mname, perm, perm_id, cache_type, basedir))
-            self.make_batch_meta(mname, self.stimarraylist[-1], pp) 
+            self.make_batch_meta(mname, self.stimarraylist[-1], pp)
 
-    def get_num_classes(self):
-        return len(self.labels_unique)
+    def get_num_classes(self, dataIdx=None):
+        if dataIdx is None or not hasattr(self.labels_unique, 'keys'):
+            return len(self.labels_unique)
+        else:
+            name = self.labels_unique.keys()[dataIdx]
+            return len(self.labels_unique[name])
 
     def get_next_batch(self):
         epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
@@ -811,7 +856,7 @@ class DLDataMapProvider(DLDataProvider):
 
             #write out batches.meta
             outdict = {'num_cases_per_batch': batch_size,
-                       'mname': mname, 
+                       'mname': mname,
                        'num_vis': stims.shape[0],
                        'data_mean': imgs_mean,
                        'dataset_name': dp_params['dataset_name'],
@@ -852,7 +897,7 @@ class Reorder2(object):
         if mat.ndim < self.X.ndim:
             assert mat.ndim == self.X.ndim - 1, (mat.ndim, self.X.ndim)
             assert mat.shape == self.X.shape[1:], (mat.shape, self.X.shape)
-            mat = mat.reshape((1, ) + mat.shape)        
+            mat = mat.reshape((1, ) + mat.shape)
         if 'float' in repr(mat.dtype):
             mat = n.uint8(n.round(255 * mat))
         return map_reformatting(mat).T
@@ -861,7 +906,7 @@ class Reorder2(object):
         if attr == 'shape':
             xs = self.X.shape
             return (n.prod(xs[1:]), )
-        elif attr == 'dtype': 
+        elif attr == 'dtype':
             return 'uint8'
         else:
             return getattr(self.X, attr)
@@ -875,7 +920,7 @@ def get_stimarray(marray, mname, perm, perm_id, cache_type, base_dir):
         print('Getting stimuli from cache hdf5 at %s/%s ' % (base_dir, new_name))
         return larray.cache_hdf5(lmap,
                               name=new_name,
-                              basedir=base_dir, 
+                              basedir=base_dir,
                               mode=read_mode)
     elif cache_type == 'memmap':
         new_name = mname + '_' + perm_id + '_memmap'
@@ -883,9 +928,9 @@ def get_stimarray(marray, mname, perm, perm_id, cache_type, base_dir):
         return larray.cache_memmap(lmap,
                               name=new_name,
                               basedir=base_dir)
-                              
-        
-        
+
+
+
 ####GENERAL Stuff
 
 dp_types = {"dummy-n": "Dummy data provider for n-dimensional data",

@@ -350,7 +350,14 @@ class CroppedGeneralDataProvider(DLDataProvider2):
         t0 = time()
         epoch, batchnum, datadic = DLDataProvider2.get_next_batch(self)
         t1 = time()
-        datadic['labels'] = n.require(n.tile(datadic['labels'].reshape((1,
+        if hasattr(datadic['labels'], 'keys'):
+            for k in datadic['labels']:
+                datadic['labels'][k] = n.require(n.tile(datadic['labels'][k].reshape((1,
+                                                    datadic['data'].shape[1])),
+                                                    (1, self.data_mult)),
+                                      requirements='C')
+        else:
+            datadic['labels'] = n.require(n.tile(datadic['labels'].reshape((1,
                                                     datadic['data'].shape[1])),
                                                     (1, self.data_mult)),
                                       requirements='C')
@@ -366,7 +373,13 @@ class CroppedGeneralDataProvider(DLDataProvider2):
         self.batches_generated += 1
         #assert( cropped.shape[1] == datadic['labels'].shape[1] )
         print('convnet gnb times', t1 - t0, t2 - t1, t3 - t2, t4 - t3, t5 - t4)
-        return epoch, batchnum, [cropped, datadic['labels']]
+        
+        if hasattr(datadic['labels'], 'keys'):
+            bdata = [cropped] + datadic['labels'].values()
+        else:
+            bdata = [cropped, datadic['labels']]
+        
+        return epoch, batchnum, bdata
 
     def get_data_dims(self, idx=0):
         return self.inner_size**2 * self.num_colors if idx == 0 else 1
