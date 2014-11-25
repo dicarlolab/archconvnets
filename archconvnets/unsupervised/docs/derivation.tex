@@ -1,0 +1,106 @@
+\documentclass[11pt]{article}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{titling}
+\usepackage{amsmath, amsthm, epsfig, amssymb}
+\usepackage[font={small,sf},labelfont={small,sf,bf}]{caption}
+\usepackage[normalem]{ulem}
+
+\usepackage[utf8]{inputenc}
+\usepackage{cleveref}
+\crefname{section}{§}{§§}
+
+\newcommand{\Th}{\Theta}
+\renewcommand{\th}{\theta}
+
+\usepackage{float}
+
+\let\OLDthebibliography\thebibliography
+\renewcommand\thebibliography[1]{
+  \OLDthebibliography{#1}
+  \setlength{\parskip}{0pt}
+  \setlength{\itemsep}{0pt plus 0.3ex}
+}
+
+
+\topmargin -0.75in
+\oddsidemargin -0.25in
+\textwidth 7in
+\textheight 10.0in
+\footskip 1.0cm
+\headsep 11pt
+
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=-4ex}
+\setlist[itemize]{itemsep=-1ex}
+
+\posttitle{\par\end{center}\vspace{-2em}}
+\postauthor{\end{tabular}\par\end{center}\vspace{-5em}}
+\setlength{\droptitle}{-60pt}
+
+\titleformat{\section}[runin]{\normalfont\bfseries}{\thesection. }{0pt}{}
+
+\pagestyle{fancy}
+\lhead{}
+\chead{}
+\lhead{Yamins and Seibert -- Unsupervised Theory}
+\rhead{\thepage}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+
+\title{}
+
+\author{}
+
+\date{}
+
+\begin{document}
+
+%\baselineskip24pt
+
+\maketitle
+
+\thispagestyle{empty}
+
+The formula for the error is:
+
+$$\textbf{Error} = \sum_{x} \left (y - F_n( \ldots F_1(x) \right)^2$$
+
+where 
+
+$$F_i(X) = max(conv_{W_i}(X))$$
+
+where $W_i$ is the $i$-th layer weight matrix.   For convenience, let $\tilde{F}(X) := F_n \circ \ldots \circ F_1 (x)$. \\
+
+Notice that $F_1$ is the identity map. \\
+
+Now the assumption of not backpropping the switches is expressed mathematically as
+
+$$\frac{d}{dx}F_i(x) = W_i.$$
+
+Thus:
+
+\begin{eqnarray*}
+\frac{d \tilde{F}_n}{d W_i} & = W_n \cdot W_{n-1} \ldots W_{i+1} \cdot F_{i-1}( \ldots F_1(X)) \\
+                            & = \left( \prod_{j > i} W_i \right) \cdot \tilde{F}_{i-1}(X).
+\end{eqnarray*}                 
+                 
+So:                        
+\begin{eqnarray*}
+\frac{d Error}{d W_i} & = \sum_x \left ( -2 \cdot (y - \tilde{F}_n(x)) \cdot \frac{d\tilde{F}(x)}{dW_i} \right ) \\     
+                      & = \sum_x -2 \cdot y \cdot  \frac{d\tilde{F}(x)}{dW_i} + \text{UNS. term} \\
+                      & = -2 \left(\prod_{j > i} W_i \right) \left(\sum_x y^T \tilde{F}_{i-1}(X) \right) + \text{UNS. term}.
+\end{eqnarray*}
+
+So I suggest we focus on approximations to $\Sigma_{i} := \sum_x y^T \tilde{F}_{i-1}(X)$.
+
+\newpage
+
+\footnotesize{
+\bibliographystyle{naturemag}
+\linespread{0.9}
+\bibliography{refs}
+}
+
+\end{document}
