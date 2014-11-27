@@ -11,7 +11,7 @@
 #include <math.h>
 #include <string.h>
 
-#define N_IMGS 64
+#define N_IMGS 32//64
 #define IMG_SZ 128
 #define IMG_SZ2 (IMG_SZ*IMG_SZ)
 
@@ -179,8 +179,9 @@ inline float return_px(int f1, int f2, int f3, int z1, int z2, int a3_x, int a3_
 	a2_y_global = r / (n2*output_sz2);
 	r -= a2_y_global*(n2*output_sz2);
 	a2_x_global = r / n2;
+	#ifdef DEBUG
 	if((r - a2_x_global*n2) != f2) PANIC("indexing problem in return_px(). switch_output2 filter index is incorrect")
-	//printf("%i %i, %i, %i\n", a2_x_global, a2_y_global, (r - a2_x_global*n2), f2);
+	#endif
 		
 	// SW1_IND(...) = pool1 index
 	ind = switch_output1[SW1_IND(f1, a2_x_global + a2_x, a2_y_global + a2_y, img)]; // pool1 -> conv1 index
@@ -239,7 +240,7 @@ int main(){
 	srand(time(NULL));
 	int rand_ind;
 	unsigned t_start = (unsigned)time(NULL); 
-	float output=0;
+	float grad;
 		
 	output_sz1 = floor((IMG_SZ - s1) / STRIDE1);
 	max_output_sz1 = floor((output_sz1 - POOL_SZ) / POOL_STRIDE);
@@ -295,37 +296,43 @@ int main(){
 	int f1_ = 1;
 	//int img = 2;
 	int a1_x_ = 4, a1_y_ = 6, channel_ = 0;
-	float temp_F_prod_all, temp_F32_prod, temp_F3;
+	int temp_ind;
+	float temp_F_prod_all, temp_F32_prod, temp_F32_prod_px, temp_F3;
 	#define F1_IND(A, B, C, D)((A) + (B)*n1 + (C)*n1*3 + (D)*n1*3*s1)
 	#define F2_IND(A, B, C, D)((A) + (B)*n2 + (C)*n2*n1 + (D)*n2*n1*s2)
 	#define F3_IND(A, B, C, D)((A) + (B)*n3 + (C)*n3*n2 + (D)*n3*n2*s3)
 	t_start = (unsigned)time(NULL);
-	for(int img=0; img < N_IMGS; img++){
-	for(int f3=0; f3 < n3; f3++){
-	 for(int z1=0; z1 < max_output_sz3; z1++){
-	  for(int z2=0; z2 < max_output_sz3; z2++){
-	
-	  for(int f2=0; f2 < n2; f2++){
-	   for(int a3_x=0; a3_x < s3; a3_x++){
-	    for(int a3_y=0; a3_y < s3; a3_y++){
+	int f3, f2, a3_x,a3_y, a2_x, a2_y, img, z1, z2, cat;
+	for(f3=0; f3 < n3; f3++){
+	  for(f2=0; f2 < n2; f2++){
+	   for(a3_x=0; a3_x < s3; a3_x++){
+	    for(a3_y=0; a3_y < s3; a3_y++){
 		temp_F3 = F3[F3_IND(f3, f2, a3_x, a3_y)];
-	    for(int a2_x=0; a2_x < s2; a2_x++){ 
-	     for(int a2_y=0; a2_y < s2; a2_y++){
-		temp_F32_prod = temp_F3 * F2[F2_IND(f2, f1_, a2_x, a2_y)] * 
-				return_px(f1_, f2, f3, z1, z2, a3_x, a3_y, a2_x, a2_y, a1_x_, a1_y_, channel_, img); // return_px(): "X" in the derivations
-		for(int cat = 0; cat < N_C; cat++){
-			temp_F_prod_all = FL[FL_IND(cat, f3, z1, z2)] * temp_F32_prod;
-			
-			// supervised term:
-			//... sigma approximations ...
-			output -= temp_F_prod_all * Y[Y_IND(cat, img)];
-			
-			// unsupervised term:
-			output +=  temp_F_prod_all * pred[P_IND(cat, img)];
-	}}}}}}}}}}
-	F1[F1_IND(f1_, channel_, a1_x_, a1_y_)] -= 2*output;
-	printf("%f, cost %f, F1 grad: %i sec\n", output, compute_cost(), (unsigned)time(NULL) - t_start);
+	    	for(a2_x=0; a2_x < s2; a2_x++){ 
+	     	for(a2_y=0; a2_y < s2; a2_y++){
+		for(f1_ = 0; f1_ < 3; f1_++){
+			temp_F32_prod = temp_F3 * F2[F2_IND(f2, f1_, a2_x, a2_y)];
+			grad = 0;
+			for(img=0; img < N_IMGS; img++){
+			for(z1=0; z1 < max_output_sz3; z1++){
+			for(z2=0; z2 < max_output_sz3; z2++){ 
+				temp_F32_prod_px = temp_F32_prod * 
+					return_px(f1_, f2, f3, z1, z2, a3_x, a3_y, a2_x, a2_y, a1_x_, a1_y_, channel_, img); // return_px(): "X" in the derivations
+				for(cat = 0; cat < N_C; cat++){
+					temp_F_prod_all = FL[FL_IND(cat, f3, z1, z2)] * temp_F32_prod_px;
+					temp_ind = Y_IND(cat,img);
+					// supervised term:
+					//... sigma approximations ...
+					grad -= temp_F_prod_all * Y[temp_ind];
+					
+					// unsupervised term:
+					grad +=  temp_F_prod_all * pred[temp_ind];
+			}}}}
+			F1[F1_IND(f1_, channel_, a1_x_, a1_y_)] -= eps_F1*2*grad;
+	}}}}}}}
+	printf("%f, cost %f, F1 grad: %i sec\n", grad, compute_cost(), (unsigned)time(NULL) - t_start);
 	}
 	return 0;
 }
+
 
