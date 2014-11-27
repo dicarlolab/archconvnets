@@ -1,4 +1,7 @@
 // compile with: gcc bp.c -o bp -std=c99 -O3 -lm
+
+#define DEBUG 1 // undefining this removes several index bounds checks, speeding up code execution
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -24,13 +27,13 @@
 #define POOL_STRIDE 2
 
 // number of filters
-#define F 16
-#define n3 F
-#define n2 F
-#define n1 F
+#define NF 16
+#define n3 NF
+#define n2 NF
+#define n1 NF
 
-// spatial output size of pool3
-#define o3_2 225 // 15^2
+// number of categories
+#define N_C 999
 
 #define PANIC(MSG){printf("%s, at line %i\n", MSG, __LINE__); exit(-1);}
 #define MALLOC(A, SZ, SZ2){A = malloc((SZ)*(SZ2)); if (A == NULL){PANIC("mem allocation error");}}
@@ -64,7 +67,7 @@ void conv(float *filters, float *conv_output, int n_filters, int n_channels, int
 	  } // channel
 	 } // filter
 	} // img
-	printf("%f %f %f\n", filters[50],imgs[50177],conv_output[50177]);
+	//printf("%f %f %f\n", filters[50],imgs[50177],conv_output[50177]);
 	return;
 }
 
@@ -75,6 +78,8 @@ void conv(float *filters, float *conv_output, int n_filters, int n_channels, int
 void max_pool(float *conv_output, float *max_output, int *switch_output, int n_filters, int conv_sz, int output_sz){
 	int x_ind, y_ind, temp_max_ind, temp_compare_ind;
 	float temp_max, temp_compare;
+	int dx;
+	int dy;
 	for(int img = 0; img < N_IMGS; img++){
 	 for(int filter = 0; filter < n_filters; filter++){
 	  x_ind = 0;
@@ -89,11 +94,14 @@ void max_pool(float *conv_output, float *max_output, int *switch_output, int n_f
 		if(temp_max < temp_compare){
 			temp_max = temp_compare;
 			temp_max_ind = temp_compare_ind;
+			dx = x + x_loc;
+			dy = y + y_loc;
 		}
 	     } // y_loc
 	    } // x_loc
 	    max_output[M_IND(filter, x_ind, y_ind, img)] = temp_max;
 	    switch_output[M_IND(filter, x_ind, y_ind, img)] = temp_max_ind;
+	    
 	    y_ind ++;
 	   } // y
 	   x_ind ++;
@@ -102,23 +110,105 @@ void max_pool(float *conv_output, float *max_output, int *switch_output, int n_f
 	} // img
 }
 
+float * imgs;
+int output_sz1, output_sz2, output_sz3; // size in px of each conv. output spatial size
+int max_output_sz1, max_output_sz2, max_output_sz3; // size in px of each pooling output spatial size
+int *switch_output1, *switch_output2, *switch_output3;
+
+#define SW3_IND(A, B, C, D)((A) + (B)*(n3) + (C)*(n3*max_output_sz3) + (D)*(n3*max_output_sz3*max_output_sz3))
+#define SW2_IND(A, B, C, D)((A) + (B)*(n2) + (C)*(n2*max_output_sz2) + (D)*(n2*max_output_sz2*max_output_sz2))
+#define SW1_IND(A, B, C, D)((A) + (B)*(n1) + (C)*(n1*max_output_sz1) + (D)*(n1*max_output_sz1*max_output_sz1))
+#define IMG_IND(A, B, C, D)((A) + (B)*3 + (C)*3*IMG_SZ + (D)*3*IMG_SZ2)
+// return pixel based on max switch locations (i.e., unpooling down to a single pixel)
+
+float return_px(int f1, int f2, int f3, int z1, int z2, int a3_x, int a3_y, int a2_x, int a2_y, int a1_x, int a1_y, int channel, int img){
+	#ifdef DEBUG
+	if(f1 >= n1 || f2 >= n2 || f3 >= n3 || z1 >= max_output_sz3 || z2 >= max_output_sz3 || a3_x >= s3 || a3_y >= s3 || 
+			a2_x >= s2 || a2_y >= s2 || a1_x >= s1 || a1_y >= s1){
+		printf("----------------------\n");
+		printf("f1: %i (%i), f2: %i (%i), f3: %i (%i)\n", f1, n1, f2, n2, f3, n3);
+		printf("z1: %i (%i), z2: %i\n", z1, max_output_sz3, z2);
+		printf("a3_x: %i (%i), a3_y: %i\n", a3_x, s3, a3_y);
+		PANIC("return_px() input indices out of bounds");
+	}
+	#endif
+	
+	int a3_x_global, a3_y_global, a2_x_global, a2_y_global, a1_x_global, a1_y_global;
+
+	int ind = switch_output3[SW3_IND(f3, z1, z2, img)]; // pool3 -> conv3 index
+
+	#ifdef DEBUG
+	if((ind / (n3*output_sz3*output_sz3)) != img){
+		printf("%i %i %i %i %i, %i\n",ind, (ind / n3*output_sz3*output_sz3), n3, output_sz3, img, SW3_IND(f3, z1, z2, img));
+		PANIC("indexing problem in return_px(). switch_output3 img index is incorrect")
+	}
+	#endif
+	
+	// unravel conv3 index to get a3_x_global and a3_y_global (spatial location on conv3)
+        // a3_x and a3_y are local positions within the map of pool2 pixels used to compute the value at this location
+	int r = ind - img*n3*output_sz3*output_sz3;
+	a3_y_global = r / (n3*output_sz3);
+	r -= a3_y_global*(n3*output_sz3);
+	a3_x_global = r / n3;
+	if((r - a3_x_global*n3) != f3) PANIC("indexing problem in return_px(). switch_output3 filter index is incorrect")
+	//printf("%i, %i, %i, %i, %i\n", (r - a3_x_global*n3), a3_x_global, a3_y_global, img, ind);
+	//printf("(%i, %i, %i)\n", n3, output_sz3, N_IMGS);
+	
+	// SW2_IND(...) = pool2 index
+	ind = switch_output2[SW2_IND(f2, a3_x_global + a3_x, a3_y_global + a3_y, img)]; // pool2 -> conv2 index
+
+	#ifdef DEBUG
+	if((ind / (n2*output_sz2*output_sz2)) != img)
+                PANIC("indexing problem in return_px(). switch_output2 img index is incorrect")
+	#endif
+	
+	r = ind - img*n2*output_sz2*output_sz2;
+	a2_y_global = r / (n2*output_sz2);
+	r -= a2_y_global*(n2*output_sz2);
+	a2_x_global = r / n2;
+	if((r - a2_x_global*n2) != f2) PANIC("indexing problem in return_px(). switch_output2 filter index is incorrect")
+	//printf("%i %i, %i, %i\n", a2_x_global, a2_y_global, (r - a2_x_global*n2), f2);
+		
+	// SW1_IND(...) = pool1 index
+	ind = switch_output1[SW1_IND(f1, a2_x_global + a2_x, a2_y_global + a2_y, img)]; // pool1 -> conv1 index
+
+	#ifdef DEBUG
+	if((ind / (n1*output_sz1*output_sz1)) != img)
+                PANIC("indexing problem in return_px(). switch_output1 img index is incorrect")
+	#endif
+	
+	r = ind - img*n1*output_sz1*output_sz1;
+	a1_y_global = r / (n1*output_sz1);
+	r -= a1_y_global*(n1*output_sz1);
+	a1_x_global = r / n1;
+	//printf("%i %i, %i, %i\n", a1_x_global, a1_y_global, (r - a1_x_global*n1), f1);
+	#ifdef DEBUG
+	if((r - a1_x_global*n1) != f1) PANIC("indexing problem in return_px(). switch_output1 filter index is incorrect")
+	#endif
+	
+	return imgs[IMG_IND(channel, a1_x_global*STRIDE1 + a1_x, a1_y_global*STRIDE1 + a1_y, img)];
+}
+
 int main(){
 	int rand_ind;
 	unsigned t_start = (unsigned)time(NULL); 
 	float output=0, b=0.5,c=2;
-	float *F1, *F2, *F3, *imgs;
+	float *F1, *F2, *F3, *FL;
 	float *output1, *output2, *output3;
 	float *max_output1, *max_output2, *max_output3;
-	int *switch_output1, *switch_output2, *switch_output3;
+	float *pred; // label predictions
 		
-	int output_sz1 = floor((IMG_SZ - s1) / STRIDE1);
-	int max_output_sz1 = floor((output_sz1 - POOL_SZ) / POOL_STRIDE);
+	output_sz1 = floor((IMG_SZ - s1) / STRIDE1);
+	//max_output_sz1 = output_sz1;
+	max_output_sz1 = floor((output_sz1 - POOL_SZ) / POOL_STRIDE);
 
-	int output_sz2 = floor((max_output_sz1 - s2));
-	int max_output_sz2 = floor((output_sz2 - POOL_SZ) / POOL_STRIDE);
+	output_sz2 = floor((max_output_sz1 - s2));
+	//max_output_sz2 = output_sz2;
+	max_output_sz2 = floor((output_sz2 - POOL_SZ) / POOL_STRIDE);
 	
-	int output_sz3 = floor((output_sz2 - s3));
-	int max_output_sz3 = floor((output_sz3 - POOL_SZ) / POOL_STRIDE);
+	output_sz3 = floor((max_output_sz2 - s3));
+	//max_output_sz3 = output_sz3;
+	max_output_sz3 = floor((output_sz3 - POOL_SZ) / POOL_STRIDE);
 
 	MALLOC(output1, n1 * output_sz1 * output_sz1 * N_IMGS, sizeof(float));
 	MALLOC(max_output1, n1 * max_output_sz1 * max_output_sz1 * N_IMGS, sizeof(float));
@@ -132,11 +222,16 @@ int main(){
 	MALLOC(max_output3, n3 * max_output_sz3 * max_output_sz3 * N_IMGS, sizeof(float));
         MALLOC(switch_output3, n3 * max_output_sz3 * max_output_sz3 * N_IMGS, sizeof(float));
 
+	MALLOC(pred, N_C * N_IMGS, sizeof(float));
+
 	MALLOC_RAND(F1, n1 * 3 * s1_2, sizeof(float));
 	MALLOC_RAND(F2, n2 * n1 * s2_2, sizeof(float));
 	MALLOC_RAND(F3, n3 * n2 * s3_2, sizeof(float));
+	MALLOC_RAND(FL, N_C * n3 * max_output_sz3 * max_output_sz3, sizeof(float));
 	MALLOC_RAND(imgs, 3 * IMG_SZ2 * N_IMGS, sizeof(float));
 
+	printf("%i %i, %i %i, %i %i\n", output_sz1, max_output_sz1, output_sz2, max_output_sz2, output_sz3, max_output_sz3);
+	
 	// conv	
 	conv(F1, output1, n1, 3, s1, IMG_SZ, imgs, STRIDE1, output_sz1);
 	max_pool(output1, max_output1, switch_output1, n1, output_sz1, max_output_sz1);
@@ -144,22 +239,25 @@ int main(){
 	conv(F2, output2, n2, n1, s2, output_sz1, max_output1, 1, output_sz2);
 	max_pool(output2, max_output2, switch_output2, n2, output_sz2, max_output_sz2);
 
-	conv(F3, output3, n3, n2, s3, output_sz2, output2, 1, output_sz3);
+	conv(F3, output3, n3, n2, s3, output_sz2, max_output2, 1, output_sz3);
 	max_pool(output3, max_output3, switch_output3, n3, output_sz3, max_output_sz3);
 
-	printf("%i %i %f,,%i\n", max_output_sz1, switch_output1[4*n1 * max_output_sz1 * max_output_sz1+2], max_output1[4*n1 * max_output_sz1 * max_output_sz1+1],4*n1 * max_output_sz1 * max_output_sz1+1);
-	printf("%f\n", output2[4*n2 * output_sz2 * output_sz2 + 30]);
-	printf("%i %i %f\n", max_output_sz2, switch_output2[4*n2 * max_output_sz2 * max_output_sz2+2], max_output2[4*n2 * max_output_sz2 * max_output_sz2+20]);
-	printf("%i %i %f\n", max_output_sz3, switch_output3[4*n3 * max_output_sz3 * max_output_sz3+2], max_output3[4*n3 * max_output_sz3 * max_output_sz3+5000]);
+	///////////////////////////////////////////////
 	// deriv F1
+	
+	// return_px(f1, f2, f3, z1, z2, a3_x, a3_y, a2_x, a2_y, a1_x, a1_y, channel, img)
+	output =  return_px(14, 13, 1, 0, 1, 2, 1, 1, 2, 3, 4, 1, 100);
+	
 	for(int f3=0; f3 < n3; f3++){
-	 for(int z=0; z < o3_2; z++){
+	 for(int z=0; z < max_output_sz3; z++){
 	
 	  for(int f2=0; f2 < n2; f2++){
 	   for(int a3=0; a3 < s3_2; a3++){
 	
 	    for(int a2=0; a2 < s2_2; a2++){ 
- 		output += b*c;
+		output +=  return_px(14, 13, 1, 0, 1, 2, 1, 1, 2, 3, 4, 1, 100);
+		//x[]
+ 		//output += ; // uns
 	}}}}}
 	printf("%f, %i\n", output, (unsigned)time(NULL) - t_start);
 	return 0;
