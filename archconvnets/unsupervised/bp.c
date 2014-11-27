@@ -1,6 +1,9 @@
 // compile with: gcc bp.c -o bp -std=c99 -O3 -lm
+// derivations in archconvnets/unsupervised/docs/darren_scan.pdf
+// all matrices stored linearly in memory (column-major order);
+// the [X]_IND(A, B, C, D) macros convert subscript indices into the linear index
 
-#define DEBUG 1 // undefining this removes several index bounds checks, speeding up code execution
+//#define DEBUG 1 // undefining this removes several index bounds checks, speeding up code execution
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -38,7 +41,7 @@
 #define PANIC(MSG){printf("%s, at line %i\n", MSG, __LINE__); exit(-1);}
 #define MALLOC(A, SZ, SZ2){A = malloc((SZ)*(SZ2)); if (A == NULL){PANIC("mem allocation error");}}
 #define CALLOC(A, SZ, SZ2){A = calloc((SZ)*(SZ2)); if (A == NULL){PANIC("mem allocation error");}}
-#define MALLOC_RAND(A, SZ, SZ2){ MALLOC(A,SZ,SZ2); for(rand_ind=0; rand_ind < SZ; rand_ind++){A[rand_ind] = (float)rand()/RAND_MAX;}}
+#define MALLOC_RAND(A, SZ, SZ2){ MALLOC(A,SZ,SZ2); for(rand_ind=0; rand_ind < SZ; rand_ind++){A[rand_ind] = (float)rand()/(RAND_MAX);A[rand_ind] -= 0.5;}}
 
 #define O_IND(A, B, C, D)((A) + (B)*(n_filters) + (C)*(n_filters)*(output_sz) + (D)*(n_filters)*(output_sz)*(output_sz))
 #define F_IND(A, B, C, D)((A) + (B)*n_filters + (C)*n_filters*n_channels + (D)*n_filters*n_channels*filter_sz)
@@ -76,10 +79,8 @@ void conv(float *filters, float *conv_output, int n_filters, int n_channels, int
 // conv_sz: size in pixels of convolutional output (conv_output)
 // output_sz: size in pixels of max pooling output (max_output)
 void max_pool(float *conv_output, float *max_output, int *switch_output, int n_filters, int conv_sz, int output_sz){
-	int x_ind, y_ind, temp_max_ind, temp_compare_ind;
+	int x_ind, y_ind, temp_max_ind=0, temp_compare_ind;
 	float temp_max, temp_compare;
-	int dx;
-	int dy;
 	for(int img = 0; img < N_IMGS; img++){
 	 for(int filter = 0; filter < n_filters; filter++){
 	  x_ind = 0;
@@ -94,8 +95,6 @@ void max_pool(float *conv_output, float *max_output, int *switch_output, int n_f
 		if(temp_max < temp_compare){
 			temp_max = temp_compare;
 			temp_max_ind = temp_compare_ind;
-			dx = x + x_loc;
-			dy = y + y_loc;
 		}
 	     } // y_loc
 	    } // x_loc
@@ -111,17 +110,22 @@ void max_pool(float *conv_output, float *max_output, int *switch_output, int n_f
 }
 
 float * imgs;
+float * pred; // label predictions [number categories x N_IMGS]
 int output_sz1, output_sz2, output_sz3; // size in px of each conv. output spatial size
 int max_output_sz1, max_output_sz2, max_output_sz3; // size in px of each pooling output spatial size
-int *switch_output1, *switch_output2, *switch_output3;
+float *F1, *F2, *F3, *FL; // filters
+float *output1, *output2, *output3; // conv outputs
+float *max_output1, *max_output2, *max_output3; // max pooling outputs
+int *switch_output1, *switch_output2, *switch_output3; // max pooling switches (indices into previous conv layer)
+
 
 #define SW3_IND(A, B, C, D)((A) + (B)*(n3) + (C)*(n3*max_output_sz3) + (D)*(n3*max_output_sz3*max_output_sz3))
 #define SW2_IND(A, B, C, D)((A) + (B)*(n2) + (C)*(n2*max_output_sz2) + (D)*(n2*max_output_sz2*max_output_sz2))
 #define SW1_IND(A, B, C, D)((A) + (B)*(n1) + (C)*(n1*max_output_sz1) + (D)*(n1*max_output_sz1*max_output_sz1))
 #define IMG_IND(A, B, C, D)((A) + (B)*3 + (C)*3*IMG_SZ + (D)*3*IMG_SZ2)
 // return pixel based on max switch locations (i.e., unpooling down to a single pixel)
-
-float return_px(int f1, int f2, int f3, int z1, int z2, int a3_x, int a3_y, int a2_x, int a2_y, int a1_x, int a1_y, int channel, int img){
+// this function is called many, many times in gradient computation so needs to be very fast...
+inline float return_px(int f1, int f2, int f3, int z1, int z2, int a3_x, int a3_y, int a2_x, int a2_y, int a1_x, int a1_y, int channel, int img){
 	#ifdef DEBUG
 	if(f1 >= n1 || f2 >= n2 || f3 >= n3 || z1 >= max_output_sz3 || z2 >= max_output_sz3 || a3_x >= s3 || a3_y >= s3 || 
 			a2_x >= s2 || a2_y >= s2 || a1_x >= s1 || a1_y >= s1){
@@ -189,25 +193,39 @@ float return_px(int f1, int f2, int f3, int z1, int z2, int a3_x, int a3_y, int 
 	return imgs[IMG_IND(channel, a1_x_global*STRIDE1 + a1_x, a1_y_global*STRIDE1 + a1_y, img)];
 }
 
+#define P_IND(A, B)(((A) + (B)*N_C))
+#define FL_IND(A, B, C, D)((A) + (B)*N_C + (C)*N_C*n3 + (D)*N_C*n3*max_output_sz3)
+// given max_output3 and FL, compute label predictions for each image
+inline void compute_preds(){
+	memset(pred, 0, N_C * N_IMGS * sizeof(float));
+	for(int cat = 0; cat < N_C; cat++){
+		for(int img = 0; img < N_IMGS; img++){
+			for(int filter = 0; filter < n3; filter++){
+				for(int x = 0; x < max_output_sz3; x++){
+					for(int y = 0; y < max_output_sz3; y++){
+						pred[P_IND(cat, img)] += FL[FL_IND(cat, filter, x, y)] * 
+							max_output3[SW3_IND(filter, x, y, img)];
+					}
+				}
+			}
+		}
+	}
+}
+
 int main(){
+	srand(time(NULL));
 	int rand_ind;
 	unsigned t_start = (unsigned)time(NULL); 
-	float output=0, b=0.5,c=2;
-	float *F1, *F2, *F3, *FL;
-	float *output1, *output2, *output3;
-	float *max_output1, *max_output2, *max_output3;
-	float *pred; // label predictions
+	float output=0;
+	float * y;
 		
 	output_sz1 = floor((IMG_SZ - s1) / STRIDE1);
-	//max_output_sz1 = output_sz1;
 	max_output_sz1 = floor((output_sz1 - POOL_SZ) / POOL_STRIDE);
 
 	output_sz2 = floor((max_output_sz1 - s2));
-	//max_output_sz2 = output_sz2;
 	max_output_sz2 = floor((output_sz2 - POOL_SZ) / POOL_STRIDE);
 	
 	output_sz3 = floor((max_output_sz2 - s3));
-	//max_output_sz3 = output_sz3;
 	max_output_sz3 = floor((output_sz3 - POOL_SZ) / POOL_STRIDE);
 
 	MALLOC(output1, n1 * output_sz1 * output_sz1 * N_IMGS, sizeof(float));
@@ -229,10 +247,12 @@ int main(){
 	MALLOC_RAND(F3, n3 * n2 * s3_2, sizeof(float));
 	MALLOC_RAND(FL, N_C * n3 * max_output_sz3 * max_output_sz3, sizeof(float));
 	MALLOC_RAND(imgs, 3 * IMG_SZ2 * N_IMGS, sizeof(float));
-
-	printf("%i %i, %i %i, %i %i\n", output_sz1, max_output_sz1, output_sz2, max_output_sz2, output_sz3, max_output_sz3);
+	MALLOC_RAND(y, N_C * N_IMGS, sizeof(float));
 	
-	// conv	
+	printf("szs: %i %i, %i %i, %i %i\n", output_sz1, max_output_sz1, output_sz2, max_output_sz2, output_sz3, max_output_sz3);
+	
+	//////////////////////////////////////
+	// compute model outputs with current filters
 	conv(F1, output1, n1, 3, s1, IMG_SZ, imgs, STRIDE1, output_sz1);
 	max_pool(output1, max_output1, switch_output1, n1, output_sz1, max_output_sz1);
 
@@ -242,24 +262,46 @@ int main(){
 	conv(F3, output3, n3, n2, s3, output_sz2, max_output2, 1, output_sz3);
 	max_pool(output3, max_output3, switch_output3, n3, output_sz3, max_output_sz3);
 
+	compute_preds();
+
+	printf("forward pass took: %i sec\n", (unsigned)time(NULL) - t_start);
+	
 	///////////////////////////////////////////////
 	// deriv F1
+
+	t_start = (unsigned)time(NULL);
 	
-	// return_px(f1, f2, f3, z1, z2, a3_x, a3_y, a2_x, a2_y, a1_x, a1_y, channel, img)
-	output =  return_px(14, 13, 1, 0, 1, 2, 1, 1, 2, 3, 4, 1, 100);
-	
+	int f1_ = 1;
+	//int img = 2;
+	int a1_x_ = 4, a1_y_ = 6, channel_ = 0;
+	float temp_F_prod, px;
+	#define F1_IND(A, B, C, D)((A) + (B)*n1 + (C)*n1*3 + (D)*n1*3*s1)
+	#define F2_IND(A, B, C, D)((A) + (B)*n2 + (C)*n2*n1 + (D)*n2*n1*s2)
+	#define F3_IND(A, B, C, D)((A) + (B)*n3 + (C)*n3*n2 + (D)*n3*n2*s3)
+	#define Y_IND(A, B)((A) + (B)*N_C)
+	for(int img=2; img < N_IMGS; img++){
 	for(int f3=0; f3 < n3; f3++){
-	 for(int z=0; z < max_output_sz3; z++){
+	 for(int z1=0; z1 < max_output_sz3; z1++){
+	  for(int z2=0; z2 < max_output_sz3; z2++){
 	
 	  for(int f2=0; f2 < n2; f2++){
-	   for(int a3=0; a3 < s3_2; a3++){
+	   for(int a3_x=0; a3_x < s3; a3_x++){
+	    for(int a3_y=0; a3_y < s3; a3_y++){
 	
-	    for(int a2=0; a2 < s2_2; a2++){ 
-		output +=  return_px(14, 13, 1, 0, 1, 2, 1, 1, 2, 3, 4, 1, 100);
-		//x[]
- 		//output += ; // uns
-	}}}}}
-	printf("%f, %i\n", output, (unsigned)time(NULL) - t_start);
+	    for(int a2_x=0; a2_x < s2; a2_x++){ 
+	     for(int a2_y=0; a2_y < s2; a2_y++){
+		px = return_px(f1_, f2, f3, z1, z2, a3_x, a3_y, a2_x, a2_y, a1_x_, a1_y_, channel_, img); // "X" in the derivations
+		for(int cat = 0; cat < N_C; cat++){
+			temp_F_prod = FL[FL_IND(cat, f3, z1, z2)] * F3[F3_IND(f3, f2, a3_x, a3_y)] * F2[F2_IND(f2, f1_, a2_x, a2_y)];
+			
+			// supervised term:
+			//... sigma approximations ...
+			output += temp_F_prod * y[Y_IND(cat, img)] * px;
+			
+			// unsupervised term:
+			output +=  temp_F_prod * pred[P_IND(cat, img)] * px;
+	}}}}}}}}}}
+	printf("%f, F1 grad: %i sec\n", output, (unsigned)time(NULL) - t_start);
 	return 0;
 }
 
