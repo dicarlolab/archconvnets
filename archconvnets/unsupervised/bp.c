@@ -11,9 +11,12 @@
 #include <math.h>
 #include <string.h>
 
-#define N_IMGS 128
+#define N_IMGS 64
 #define IMG_SZ 128
 #define IMG_SZ2 (IMG_SZ*IMG_SZ)
+
+//gradient step sizes
+#define eps_F1 0.001
 
 // filter sizes
 #define STRIDE1 2
@@ -41,7 +44,7 @@
 #define PANIC(MSG){printf("%s, at line %i\n", MSG, __LINE__); exit(-1);}
 #define MALLOC(A, SZ, SZ2){A = malloc((SZ)*(SZ2)); if (A == NULL){PANIC("mem allocation error");}}
 #define CALLOC(A, SZ, SZ2){A = calloc((SZ)*(SZ2)); if (A == NULL){PANIC("mem allocation error");}}
-#define MALLOC_RAND(A, SZ, SZ2){ MALLOC(A,SZ,SZ2); for(rand_ind=0; rand_ind < SZ; rand_ind++){A[rand_ind] = (float)rand()/(RAND_MAX);A[rand_ind] -= 0.5;}}
+#define MALLOC_RAND(A, SZ, SZ2){ MALLOC(A,SZ,SZ2); for(rand_ind=0; rand_ind < SZ; rand_ind++){A[rand_ind] = -.5 + (float)rand()/(RAND_MAX);A[rand_ind] /= 10;}}
 
 #define O_IND(A, B, C, D)((A) + (B)*(n_filters) + (C)*(n_filters)*(output_sz) + (D)*(n_filters)*(output_sz)*(output_sz))
 #define F_IND(A, B, C, D)((A) + (B)*n_filters + (C)*n_filters*n_channels + (D)*n_filters*n_channels*filter_sz)
@@ -117,7 +120,7 @@ float *F1, *F2, *F3, *FL; // filters
 float *output1, *output2, *output3; // conv outputs
 float *max_output1, *max_output2, *max_output3; // max pooling outputs
 int *switch_output1, *switch_output2, *switch_output3; // max pooling switches (indices into previous conv layer)
-
+float * Y;
 
 #define SW3_IND(A, B, C, D)((A) + (B)*(n3) + (C)*(n3*max_output_sz3) + (D)*(n3*max_output_sz3*max_output_sz3))
 #define SW2_IND(A, B, C, D)((A) + (B)*(n2) + (C)*(n2*max_output_sz2) + (D)*(n2*max_output_sz2*max_output_sz2))
@@ -162,8 +165,14 @@ inline float return_px(int f1, int f2, int f3, int z1, int z2, int a3_x, int a3_
 	ind = switch_output2[SW2_IND(f2, a3_x_global + a3_x, a3_y_global + a3_y, img)]; // pool2 -> conv2 index
 
 	#ifdef DEBUG
-	if((ind / (n2*output_sz2*output_sz2)) != img)
-                PANIC("indexing problem in return_px(). switch_output2 img index is incorrect")
+	int t = (ind / (n2*output_sz2*output_sz2));
+	if(t != img)
+                //printf("ind %i r %i img %i output_sz2 %i n2 %i\n", ind, (ind / (n2*output_sz2*output_sz2)), img, output_sz2, n2);
+		printf("test %i %i\n", t, img);
+		 printf("test %i %i\n", t, img);
+ printf("test %i %i\n", t, img);
+		printf("ind %i r %i img %i output_sz2 %i n2 %i\n", ind, (ind / (n2*output_sz2*output_sz2)), img, output_sz2, n2);
+//		PANIC("indexing problem in return_px(). switch_output2 img index is incorrect")
 	#endif
 	
 	r = ind - img*n2*output_sz2*output_sz2;
@@ -194,6 +203,7 @@ inline float return_px(int f1, int f2, int f3, int z1, int z2, int a3_x, int a3_
 }
 
 #define P_IND(A, B)(((A) + (B)*N_C))
+#define Y_IND(A, B)((A) + (B)*N_C)
 #define FL_IND(A, B, C, D)((A) + (B)*N_C + (C)*N_C*n3 + (D)*N_C*n3*max_output_sz3)
 // given max_output3 and FL, compute label predictions for each image
 inline void compute_preds(){
@@ -212,12 +222,24 @@ inline void compute_preds(){
 	}
 }
 
+//given pred and y, compute sum squarred error
+inline float compute_cost(){
+	float cost = 0;
+	float temp;
+	for(int cat = 0; cat < N_C; cat++){
+		for(int img = 0; img < N_IMGS; img++){
+			temp = (pred[P_IND(cat,img)] - Y[Y_IND(cat,img)]);
+			cost += temp*temp;
+		}
+	}
+	return cost;
+}
+
 int main(){
 	srand(time(NULL));
 	int rand_ind;
 	unsigned t_start = (unsigned)time(NULL); 
 	float output=0;
-	float * y;
 		
 	output_sz1 = floor((IMG_SZ - s1) / STRIDE1);
 	max_output_sz1 = floor((output_sz1 - POOL_SZ) / POOL_STRIDE);
@@ -228,31 +250,32 @@ int main(){
 	output_sz3 = floor((max_output_sz2 - s3));
 	max_output_sz3 = floor((output_sz3 - POOL_SZ) / POOL_STRIDE);
 
-	MALLOC(output1, n1 * output_sz1 * output_sz1 * N_IMGS, sizeof(float));
-	MALLOC(max_output1, n1 * max_output_sz1 * max_output_sz1 * N_IMGS, sizeof(float));
-	MALLOC(switch_output1, n1 * max_output_sz1 * max_output_sz1 * N_IMGS, sizeof(float));
+	MALLOC(output1, n1 * output_sz1 * output_sz1 * N_IMGS * 2, sizeof(float));
+	MALLOC(max_output1, n1 * max_output_sz1 * max_output_sz1 * N_IMGS *2, sizeof(float));
+	MALLOC(switch_output1, n1 * max_output_sz1 * max_output_sz1 * N_IMGS*2, sizeof(float));
 
-	MALLOC(output2, n2 * output_sz2 * output_sz2 * N_IMGS, sizeof(float));
-	MALLOC(max_output2, n2 * max_output_sz2 * max_output_sz2 * N_IMGS, sizeof(float));
-        MALLOC(switch_output2, n2 * max_output_sz2 * max_output_sz2 * N_IMGS, sizeof(float));
+	MALLOC(output2, n2 * output_sz2 * output_sz2 * N_IMGS*2, sizeof(float));
+	MALLOC(max_output2, n2 * max_output_sz2 * max_output_sz2 * N_IMGS*2, sizeof(float));
+        MALLOC(switch_output2, n2 * max_output_sz2 * max_output_sz2 * N_IMGS*2, sizeof(float));
 
-	MALLOC(output3, n3 * output_sz3 * output_sz3 * N_IMGS, sizeof(float))
-	MALLOC(max_output3, n3 * max_output_sz3 * max_output_sz3 * N_IMGS, sizeof(float));
-        MALLOC(switch_output3, n3 * max_output_sz3 * max_output_sz3 * N_IMGS, sizeof(float));
+	MALLOC(output3, n3 * output_sz3 * output_sz3 * N_IMGS*2, sizeof(float))
+	MALLOC(max_output3, n3 * max_output_sz3 * max_output_sz3 * N_IMGS*2, sizeof(float));
+        MALLOC(switch_output3, n3 * max_output_sz3 * max_output_sz3 * N_IMGS*2, sizeof(float));
 
-	MALLOC(pred, N_C * N_IMGS, sizeof(float));
+	MALLOC(pred, N_C * N_IMGS*2, sizeof(float));
 
-	MALLOC_RAND(F1, n1 * 3 * s1_2, sizeof(float));
-	MALLOC_RAND(F2, n2 * n1 * s2_2, sizeof(float));
-	MALLOC_RAND(F3, n3 * n2 * s3_2, sizeof(float));
-	MALLOC_RAND(FL, N_C * n3 * max_output_sz3 * max_output_sz3, sizeof(float));
-	MALLOC_RAND(imgs, 3 * IMG_SZ2 * N_IMGS, sizeof(float));
-	MALLOC_RAND(y, N_C * N_IMGS, sizeof(float));
+	MALLOC_RAND(F1, n1 * 3 * s1_2*2, sizeof(float));
+	MALLOC_RAND(F2, n2 * n1 * s2_2*2, sizeof(float));
+	MALLOC_RAND(F3, n3 * n2 * s3_2*2, sizeof(float));
+	MALLOC_RAND(FL, N_C * n3 * max_output_sz3 * max_output_sz3*2, sizeof(float));
+	MALLOC_RAND(imgs, 3 * IMG_SZ2 * N_IMGS*2, sizeof(float));
+	MALLOC_RAND(Y, N_C * N_IMGS*2, sizeof(float));
 	
 	printf("szs: %i %i, %i %i, %i %i\n", output_sz1, max_output_sz1, output_sz2, max_output_sz2, output_sz3, max_output_sz3);
 	
 	//////////////////////////////////////
 	// compute model outputs with current filters
+	for(int step=0; step < 100; step++){ //gradient steps
 	conv(F1, output1, n1, 3, s1, IMG_SZ, imgs, STRIDE1, output_sz1);
 	max_pool(output1, max_output1, switch_output1, n1, output_sz1, max_output_sz1);
 
@@ -269,17 +292,15 @@ int main(){
 	///////////////////////////////////////////////
 	// deriv F1
 
-	t_start = (unsigned)time(NULL);
-	
 	int f1_ = 1;
 	//int img = 2;
 	int a1_x_ = 4, a1_y_ = 6, channel_ = 0;
-	float temp_F_prod, px;
+	float temp_F_prod_all, temp_F32_prod, temp_F3;
 	#define F1_IND(A, B, C, D)((A) + (B)*n1 + (C)*n1*3 + (D)*n1*3*s1)
 	#define F2_IND(A, B, C, D)((A) + (B)*n2 + (C)*n2*n1 + (D)*n2*n1*s2)
 	#define F3_IND(A, B, C, D)((A) + (B)*n3 + (C)*n3*n2 + (D)*n3*n2*s3)
-	#define Y_IND(A, B)((A) + (B)*N_C)
-	for(int img=2; img < N_IMGS; img++){
+	t_start = (unsigned)time(NULL);
+	for(int img=0; img < N_IMGS; img++){
 	for(int f3=0; f3 < n3; f3++){
 	 for(int z1=0; z1 < max_output_sz3; z1++){
 	  for(int z2=0; z2 < max_output_sz3; z2++){
@@ -287,21 +308,24 @@ int main(){
 	  for(int f2=0; f2 < n2; f2++){
 	   for(int a3_x=0; a3_x < s3; a3_x++){
 	    for(int a3_y=0; a3_y < s3; a3_y++){
-	
+		temp_F3 = F3[F3_IND(f3, f2, a3_x, a3_y)];
 	    for(int a2_x=0; a2_x < s2; a2_x++){ 
 	     for(int a2_y=0; a2_y < s2; a2_y++){
-		px = return_px(f1_, f2, f3, z1, z2, a3_x, a3_y, a2_x, a2_y, a1_x_, a1_y_, channel_, img); // "X" in the derivations
+		temp_F32_prod = temp_F3 * F2[F2_IND(f2, f1_, a2_x, a2_y)] * 
+				return_px(f1_, f2, f3, z1, z2, a3_x, a3_y, a2_x, a2_y, a1_x_, a1_y_, channel_, img); // return_px(): "X" in the derivations
 		for(int cat = 0; cat < N_C; cat++){
-			temp_F_prod = FL[FL_IND(cat, f3, z1, z2)] * F3[F3_IND(f3, f2, a3_x, a3_y)] * F2[F2_IND(f2, f1_, a2_x, a2_y)];
+			temp_F_prod_all = FL[FL_IND(cat, f3, z1, z2)] * temp_F32_prod;
 			
 			// supervised term:
 			//... sigma approximations ...
-			output += temp_F_prod * y[Y_IND(cat, img)] * px;
+			output -= temp_F_prod_all * Y[Y_IND(cat, img)];
 			
 			// unsupervised term:
-			output +=  temp_F_prod * pred[P_IND(cat, img)] * px;
+			output +=  temp_F_prod_all * pred[P_IND(cat, img)];
 	}}}}}}}}}}
-	printf("%f, F1 grad: %i sec\n", output, (unsigned)time(NULL) - t_start);
+	F1[F1_IND(f1_, channel_, a1_x_, a1_y_)] -= 2*output;
+	printf("%f, cost %f, F1 grad: %i sec\n", output, compute_cost(), (unsigned)time(NULL) - t_start);
+	}
 	return 0;
 }
 
