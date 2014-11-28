@@ -85,15 +85,15 @@ int main(){
 	int a1_x, a1_y, a1_x_ = 4, a1_y_ = 6;
 	int channel, channel_ = 0;
 	int temp_ind;
-	float temp_F_prod_all, temp_F31_prod, temp_F32_prod, temp_F321_prod, temp_F32_prod_px, temp_F3;
+	float temp_F_prod_all, temp_F31_prod, temp_F32_prod, temp_F321_prod, temp_F32_prod_px, temp_F3, temp_F2, temp_F21_prod;
 	int z1, z2, z1_ = 0, z2_ = 1;
-	int a3_x,a3_y, a2_x, a2_y, a2_x_, a2_y_, img;
+	int a3_x,a3_y, a3_x_,a3_y_, a2_x, a2_y, a2_x_, a2_y_, img;
 	
 	
 	///////////////////////////////////////////////
 	// deriv F1: wrt f1_, a1_x_, a1_y_, channel_
 	
-	/*t_start = (unsigned)time(NULL);
+	t_start = (unsigned)time(NULL);
 	for(f1_ = 0; f1_ < 3; f1_++){ //todo: loop over a1_x_, a1_y_, channel_
 		grad = 0;
 		for(f3=0; f3 < n3; f3++){
@@ -132,12 +132,12 @@ int main(){
 			
 		F1[F1_IND(f1_, channel_, a1_x_, a1_y_)] -= eps_F1*2*grad;
 	}
-	printf("F1 grad: %i sec\n", (unsigned)time(NULL) - t_start);*/
+	printf("F1 grad: %i sec\n", (unsigned)time(NULL) - t_start);
 	
 	///////////////////////////////////////////////
 	// deriv FL: wrt cat_, f3_, z1_, z2_
 
-	/*t_start = (unsigned)time(NULL);
+	t_start = (unsigned)time(NULL);
 	for(f3_=0; f3_ < 2*6; f3_++){ // todo: for loop over cat_, z1_, z2_
 		grad = 0;
 		for(f1=0; f1 < n1; f1++){  
@@ -179,7 +179,7 @@ int main(){
 		FL_IND_DBG(cat_, f3_, z1_, z2_)
 		FL[FL_IND(cat_, f3_, z1_, z2_)] -= eps_FL*2*grad;
 	}
-	printf("F1 grad: %i sec\n", (unsigned)time(NULL) - t_start);*/
+	printf("F1 grad: %i sec\n", (unsigned)time(NULL) - t_start);
 	
 	
 	///////////////////////////////////////////////
@@ -207,9 +207,9 @@ int main(){
 						temp_F_prod_all = temp_F31_prod *
 									return_px(f1_, f2_, f3, z1, z2, a3_x, a3_y, a2_x_, a2_y_, a1_x, a1_y, channel, img); // return_px(): "X" in the derivations
 						for(cat=0; cat < N_C; cat ++){	
-							Y_IND_DBG(cat_,img);
+							Y_IND_DBG(cat,img);
 						
-							temp_ind = Y_IND(cat_,img);
+							temp_ind = Y_IND(cat,img);
 							// supervised term:
 							//... sigma approximations ...
 							grad -= temp_F_prod_all * Y[temp_ind];
@@ -224,6 +224,49 @@ int main(){
 		F2[F2_IND(f2_, f1_, a2_x_, a2_y_)] -= eps_F2*2*grad;
 	}
 	printf("F2 grad: %i sec\n", (unsigned)time(NULL) - t_start);
+	
+	
+	///////////////////////////////////////////////
+	// deriv F3: wrt f3_, f2_, a3_x_, a3_y_
+	//?
+	t_start = (unsigned)time(NULL);
+	for(f3_=0; f3_ < n3; f3_++){ for(f2_=0; f2_ < 3; f2_++){
+		grad = 0;
+		for(a2_x=0; a2_x < s2; a2_x++){ for(a2_y=0; a2_y < s2; a2_y++){
+		   F2_IND_DBG(f2_, f1, a2_x, a2_y)
+		   
+		   temp_F2 = F2[F2_IND(f2_, f1, a2_x, a2_y)];
+		   
+		   for(a1_x=0; a1_x < s1; a1_x++){ for(a1_y=0; a1_y < s1; a1_y++){
+				
+			for(channel=0; channel < 3; channel++){
+				F1_IND_DBG(f1, channel, a1_x, a1_y)
+					
+				temp_F21_prod = temp_F2 * F1[F1_IND(f1, channel, a1_x, a1_y)];
+						
+				for(img=0; img < N_IMGS; img++){
+					for(z1=0; z1 < max_output_sz3; z1++){ for(z2=0; z2 < max_output_sz3; z2++){ 
+				
+						temp_F_prod_all = temp_F21_prod *
+									return_px(f1, f2_, f3_, z1, z2, a3_x_, a3_y_, a2_x, a2_y, a1_x, a1_y, channel, img); // return_px(): "X" in the derivations
+						for(cat=0; cat < N_C; cat ++){	
+							Y_IND_DBG(cat,img);
+						
+							temp_ind = Y_IND(cat,img);
+							// supervised term:
+							//... sigma approximations ...
+							grad -= temp_F_prod_all * Y[temp_ind];
+		
+							// unsupervised term:
+							grad +=  temp_F_prod_all * pred[temp_ind];
+						}
+					}
+						
+		}}}}}}}
+		F3_IND_DBG(f3_, f2_, a3_x_, a3_y_)
+		F3[F3_IND(f3_, f2_, a3_x_, a3_y_)] -= eps_F3*2*grad;
+	}}
+	printf("F3 grad: %i sec\n", (unsigned)time(NULL) - t_start);
 	
 	printf("%f, cost %f, F1 grad: %i sec\n", grad, compute_cost(), (unsigned)time(NULL) - t_start);
 	} // gradient steps

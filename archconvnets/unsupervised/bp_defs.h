@@ -11,6 +11,7 @@
 //gradient step sizes
 #define eps_F1 0.001
 #define eps_F2 0.01
+#define eps_F3 0.01
 #define eps_FL 100
 
 // filter sizes
