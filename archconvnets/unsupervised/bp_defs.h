@@ -10,7 +10,7 @@
 
 //gradient step sizes
 #define eps_F1 0.001
-#define eps_FL 0.001
+#define eps_FL 100
 
 // filter sizes
 #define STRIDE1 2
@@ -35,7 +35,7 @@
 // number of categories
 #define N_C 999
 
-#define PANIC(MSG){printf("%s, at line %i\n", MSG, __LINE__); exit(-1);}
+#define PANIC(MSG){printf("%s, at line %i in %s\n", MSG, __LINE__, __FILE__); exit(-1);}
 #define MALLOC(A, SZ, SZ2){A = malloc((SZ)*(SZ2)); if (A == NULL){PANIC("mem allocation error");}}
 #define CALLOC(A, SZ, SZ2){A = calloc((SZ)*(SZ2)); if (A == NULL){PANIC("mem allocation error");}}
 #define MALLOC_RAND(A, SZ, SZ2){ MALLOC(A,SZ,SZ2); for(rand_ind=0; rand_ind < SZ; rand_ind++){A[rand_ind] = -.5 + (float)rand()/(RAND_MAX);A[rand_ind] /= 10;}}
