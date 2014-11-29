@@ -4,15 +4,15 @@
 #include <math.h>
 #include <string.h>
 
-#define N_IMGS 32//64
+#define N_IMGS 2//64
 #define IMG_SZ 128
 #define IMG_SZ2 (IMG_SZ*IMG_SZ)
 
 //gradient step sizes
-#define eps_F1 0.001
-#define eps_F2 0.01
-#define eps_F3 0.01
-#define eps_FL 100
+#define eps_F1 0.00000001
+#define eps_F2 0.0000001
+#define eps_F3 0.000001
+#define eps_FL 0.0000001
 
 // filter sizes
 #define STRIDE1 2
@@ -29,18 +29,18 @@
 #define POOL_STRIDE 2
 
 // number of filters
-#define NF 16
+#define NF 2
 #define n3 NF
 #define n2 NF
 #define n1 NF
 
 // number of categories
-#define N_C 999
+#define N_C 2
 
 #define PANIC(MSG){printf("%s, at line %i in %s\n", MSG, __LINE__, __FILE__); exit(-1);}
 #define MALLOC(A, SZ, SZ2){A = malloc((SZ)*(SZ2)); if (A == NULL){PANIC("mem allocation error");}}
 #define CALLOC(A, SZ, SZ2){A = calloc((SZ)*(SZ2)); if (A == NULL){PANIC("mem allocation error");}}
-#define MALLOC_RAND(A, SZ, SZ2){ MALLOC(A,SZ,SZ2); for(rand_ind=0; rand_ind < SZ; rand_ind++){A[rand_ind] = -.5 + (float)rand()/(RAND_MAX);A[rand_ind] /= 10;}}
+#define MALLOC_RAND(A, SZ, SZ2){ MALLOC(A,SZ,SZ2); for(rand_ind=0; rand_ind < SZ; rand_ind++){A[rand_ind] = -.5 + (float)rand()/(RAND_MAX);}}
 
 
 /////////////////// indexing macros:

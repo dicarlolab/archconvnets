@@ -1,7 +1,7 @@
 
 // return pixel based on max switch locations (i.e., unpooling down to a single pixel)
 // this function is called many, many times in gradient computation so needs to be very fast...
-inline float return_px(int f1, int f2, int f3, int z1, int z2, int a3_x, int a3_y, int a2_x, int a2_y, int a1_x, int a1_y, int channel, int img){
+float return_px(int f1, int f2, int f3, int z1, int z2, int a3_x, int a3_y, int a2_x, int a2_y, int a1_x, int a1_y, int channel, int img){
 	#ifdef DEBUG
 	if(f1 >= n1 || f2 >= n2 || f3 >= n3 || z1 >= max_output_sz3 || z2 >= max_output_sz3 || a3_x >= s3 || a3_y >= s3 || 
 			a2_x >= s2 || a2_y >= s2 || a1_x >= s1 || a1_y >= s1){

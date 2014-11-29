@@ -1,5 +1,5 @@
 // given max_output3 and FL, compute label predictions for each image, store in pred[]
-inline void compute_preds(){
+void compute_preds(){
 	memset(pred, 0, N_C * N_IMGS * sizeof(float));
 	for(int cat = 0; cat < N_C; cat++){
 		for(int img = 0; img < N_IMGS; img++){
@@ -20,7 +20,7 @@ inline void compute_preds(){
 }
 
 //given pred and y, compute sum squarred error
-inline float compute_cost(){
+float compute_cost(){
 	float cost = 0;
 	float temp;
 	for(int cat = 0; cat < N_C; cat++){
