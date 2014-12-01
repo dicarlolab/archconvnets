@@ -15,8 +15,8 @@ eps_F1 = 1e-7#1e-12
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1
-N_IMGS = 2
-N_TEST_IMGS = 10
+N_IMGS = 4
+N_TEST_IMGS = 200
 IMG_SZ = 42
 N = 16
 n1 = N
@@ -50,8 +50,10 @@ imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean
 z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_1')
 
 err = []
+class_err = []
 err_test = []
-for step in range(10):
+class_err_test = []
+for step in range(np.int(1e7)):
 	# load imgs
 	x = z['data'] - imgs_mean
 	x = x.reshape((3, 32, 32, 10000))
@@ -79,6 +81,7 @@ for step in range(10):
 
 	pred = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_IMGS)))
 	err.append(np.sum((pred - Y)**2))
+	class_err.append(1-np.float(np.sum(np.argmax(pred,axis=0) == np.argmax(Y,axis=0)))/N_IMGS)
 
 	pred_cat_sum = pred.sum(0) # sum over categories
 
@@ -118,11 +121,12 @@ for step in range(10):
 
 	pred = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_TEST_IMGS)))
 	err_test.append(np.sum((pred - Y)**2))
+	class_err_test.append(1-np.float(np.sum(np.argmax(pred,axis=0) == np.argmax(Y,axis=0)))/N_TEST_IMGS)
 	
 	t_test_forward_start = time.time() - t_test_forward_start
 	#######################################
 	
 	F1 -= eps_F1 * grad
-	savemat('/home/darren/cifar_F1.mat', {'F1': F1, 'step': step, 'eps_F1': eps_F1, 'N_IMGS': N_IMGS, 'N_TEST_IMGS': N_TEST_IMGS})
-	print step, err_test[-1], err[-1], t_test_forward_start, t_forward_start, time.time() - t_grad_start
+	savemat('/home/darren/cifar_F1t.mat', {'F1': F1, 'step': step, 'eps_F1': eps_F1, 'N_IMGS': N_IMGS, 'N_TEST_IMGS': N_TEST_IMGS,'err_test':err_test,'err':err,'class_err':class_err,'class_err_test':class_err_test})
+	print step, err_test[-1], class_err_test[-1], err[-1], class_err[-1], time.time() - t_grad_start
 

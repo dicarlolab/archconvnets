@@ -38,6 +38,8 @@ def L1_grad(npd.ndarray[npd.float64_t, ndim=4] F1, npd.ndarray[npd.float64_t, nd
 	cdef float FL32
 	cdef npd.ndarray[npd.int_t, ndim=4] output_switches3_xt
 	cdef npd.ndarray[npd.int_t, ndim=4] output_switches3_yt
+	#cdef float grad_s
+	#cdef float grad_uns
 		
 	for a3_x in range(s3):
 		output_switches3_xt = output_switches3_x + a3_x
@@ -77,11 +79,14 @@ def L1_grad(npd.ndarray[npd.float64_t, ndim=4] F1, npd.ndarray[npd.float64_t, nd
 															temp_F_prod_all = FL32 * imgs[channel_, a1_x_global, a1_y_global, img]
 															
 															# supervised term:
-															grad[f1_, channel_, a1_x_, a1_y_] -= temp_F_prod_all * Y_cat_sum[img]
+															#grad[f1_, channel_, a1_x_, a1_y_] -= temp_F_prod_all * Y_cat_sum[img]
+															#grad_s += np.abs(temp_F_prod_all * Y_cat_sum[img])
 
 															# unsupervised term:
 															grad[f1_, channel_, a1_x_, a1_y_] +=  temp_F_prod_all * pred_cat_sum[img]
+															#grad_uns += np.abs(temp_F_prod_all * pred_cat_sum[img])
 		
+	#print grad_s, grad_uns
 	return grad
 
 
