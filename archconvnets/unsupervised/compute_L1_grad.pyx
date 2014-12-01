@@ -4,7 +4,7 @@ import numpy as np
 ''' filters: in_channels, filter_sz, filter_sz, n_filters
     imgs: in_channels, img_sz, img_sz, n_imgs
 '''
-def L1_grad(npd.ndarray[npd.float64_t, ndim=4] F1, npd.ndarray[npd.float64_t, ndim=4] F2, npd.ndarray[npd.float64_t, ndim=4] F3, npd.ndarray[npd.float64_t, ndim=4] FL, npd.ndarray[npd.int_t, ndim=4] output_switches3_x, npd.ndarray[npd.int_t, ndim=4] output_switches3_y, npd.ndarray[npd.int_t, ndim=4] output_switches2_x, npd.ndarray[npd.int_t, ndim=4] output_switches2_y, npd.ndarray[npd.int_t, ndim=4] output_switches1_x, npd.ndarray[npd.int_t, ndim=4] output_switches1_y, int s1, int s2, int s3, npd.ndarray[npd.float64_t, ndim=1] pred_cat_sum, npd.ndarray[npd.float64_t, ndim=1] Y_cat_sum, npd.ndarray[npd.float64_t, ndim=4] imgs, int STRIDE1): 
+def L1_grad(npd.ndarray[npd.float64_t, ndim=4] F1, npd.ndarray[npd.float64_t, ndim=4] F2, npd.ndarray[npd.float64_t, ndim=4] F3, npd.ndarray[npd.float64_t, ndim=4] FL, npd.ndarray[npd.int_t, ndim=4] output_switches3_x, npd.ndarray[npd.int_t, ndim=4] output_switches3_y, npd.ndarray[npd.int_t, ndim=4] output_switches2_x, npd.ndarray[npd.int_t, ndim=4] output_switches2_y, npd.ndarray[npd.int_t, ndim=4] output_switches1_x, npd.ndarray[npd.int_t, ndim=4] output_switches1_y, int s1, int s2, int s3, npd.ndarray[npd.float64_t, ndim=1] pred_cat_sum, npd.ndarray[npd.float64_t, ndim=1] Y_cat_sum, npd.ndarray[npd.float64_t, ndim=4] imgs): 
 	cdef int N_C = FL.shape[0]
 	cdef int cat
 	cdef int N_IMGS = imgs.shape[3]
@@ -38,10 +38,7 @@ def L1_grad(npd.ndarray[npd.float64_t, ndim=4] F1, npd.ndarray[npd.float64_t, nd
 	cdef float FL32
 	cdef npd.ndarray[npd.int_t, ndim=4] output_switches3_xt
 	cdef npd.ndarray[npd.int_t, ndim=4] output_switches3_yt
-	
-	output_switches1_x *= STRIDE1
-	output_switches1_y *= STRIDE1
-	
+		
 	for a3_x in range(s3):
 		output_switches3_xt = output_switches3_x + a3_x
 		for a3_y in range(s3):
@@ -74,13 +71,16 @@ def L1_grad(npd.ndarray[npd.float64_t, ndim=4] F1, npd.ndarray[npd.float64_t, nd
 														
 														for channel_ in range(3):
 															# conv1 -> imgs
+															#if a1_y_global >= imgs.shape[2]:
+															#	print a1_y_global, imgs.shape[2]
+															#	print output_switches1_y[f1_, a2_x_global, a2_y_global, img], a1_y_
 															temp_F_prod_all = FL32 * imgs[channel_, a1_x_global, a1_y_global, img]
 															
 															# supervised term:
 															grad[f1_, channel_, a1_x_, a1_y_] -= temp_F_prod_all * Y_cat_sum[img]
 
 															# unsupervised term:
-															grad[f1_, channel_, a1_x_, a1_y_] +=  temp_F_prod_all * pred_cat_sum[img];
+															grad[f1_, channel_, a1_x_, a1_y_] +=  temp_F_prod_all * pred_cat_sum[img]
 		
 	return grad
 
