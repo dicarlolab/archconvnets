@@ -18,7 +18,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.3
 
-EPS = 5e-2#1e-11#e-3#-2#6#7
+EPS = 5e-1#1e-11#e-3#-2#6#7
 #EPS = 1e-3
 eps_F1 = EPS
 eps_F2 = EPS
@@ -81,27 +81,21 @@ imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean
 z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_1')
 
 ######### sigma 31
-'''d = z['data'] - imgs_mean
-avg_imgs = np.zeros((3072,10))
-for cat in range(10):
-    avg_imgs[:,cat] = np.mean(z['data'][:,np.asarray(z['labels']) == cat],axis=1)
-sigma31 = np.zeros((10,3,IMG_SZ,IMG_SZ))
-for cat in range(10):
-    sigma31[cat,:,5:5+32,5:5+32] = avg_imgs[:,cat].reshape((3,32,32))
-'''
 sigma31 = loadmat('/home/darren/sigma31.mat')['sigma31'] / (N_IMGS * 2000)
+#sigma31 = loadmat('/home/darren/sigma31_full_256_16.mat')['sigma31'] / (N_IMGS * 256)
+
 #sigma31 = np.mean(sigma31,axis=-1)
 #sigma31 = np.mean(sigma31,axis=-1)
 #sigma31 = np.mean(sigma31,axis=-1)
 #sigma31 = np.tile(sigma31[:,:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis],(1,1,1,1,1,1,1,1,4,3,3))
 
+'''sigma31 = np.mean(sigma31,axis=-1)
 sigma31 = np.mean(sigma31,axis=-1)
 sigma31 = np.mean(sigma31,axis=-1)
 sigma31 = np.mean(sigma31,axis=-1)
 sigma31 = np.mean(sigma31,axis=-1)
 sigma31 = np.mean(sigma31,axis=-1)
-sigma31 = np.mean(sigma31,axis=-1)
-sigma31 = np.tile(sigma31[:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis],(1,1,1,1,1,4,5,5,4,3,3))
+sigma31 = np.tile(sigma31[:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis],(1,1,1,1,1,4,5,5,4,3,3))'''
 
 
 #sigma31 = np.mean(sigma31,axis=0)
@@ -173,7 +167,7 @@ for step in range(np.int(1e7)):
 
 	# forward pass init filters
 	t_forward_start = time.time()
-	random.shuffle(F1_init)
+	'''random.shuffle(F1_init)
 	random.shuffle(F2_init)
 	random.shuffle(F3_init)
 	random.shuffle(FL_init)
@@ -184,7 +178,7 @@ for step in range(np.int(1e7)):
 	max_output2, output_switches2_x, output_switches2_y = max_pool_locs(conv_output2_init)
 
 	conv_output3_init = conv_block(F3_init.transpose((1,2,3,0)), max_output2)
-	max_output3, output_switches3_x, output_switches3_y = max_pool_locs(conv_output3_init)
+	max_output3, output_switches3_x, output_switches3_y = max_pool_locs(conv_output3_init)'''
 	
 	# forward pass current filters with initial switches
 	'''conv_output1 = conv_block(F1.transpose((1,2,3,0)), imgs_pad, stride=STRIDE1)
@@ -196,7 +190,7 @@ for step in range(np.int(1e7)):
 	conv_output3 = conv_block(F3.transpose((1,2,3,0)), max_output2)
 	max_output3, output_switches3_x, output_switches3_y = max_pool_locs_alt(conv_output3, conv_output3_init)'''
 	
-	conv_output1 = conv_block(F1.transpose((1,2,3,0)), imgs_pad, stride=STRIDE1)
+	'''conv_output1 = conv_block(F1.transpose((1,2,3,0)), imgs_pad, stride=STRIDE1)
 	max_output1, output_switches1_x, output_switches1_y = max_pool_locs(conv_output1)
 
 	conv_output2 = conv_block(F2.transpose((1,2,3,0)), max_output1)
@@ -205,50 +199,42 @@ for step in range(np.int(1e7)):
 	conv_output3 = conv_block(F3.transpose((1,2,3,0)), max_output2)
 	max_output3, output_switches3_x, output_switches3_y = max_pool_locs(conv_output3)
 	
-	random.shuffle(output_switches1_x)
-	random.shuffle(output_switches1_y)
-	random.shuffle(output_switches2_x)
-	random.shuffle(output_switches2_y)
-	random.shuffle(output_switches3_x)
-	random.shuffle(output_switches3_y)
+	pred = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_IMGS)))'''
+	# forward pass current filters with initial switches and summary data
+
+	t_forward_start = time.time() - t_forward_start
 	
-	pred = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_IMGS)))
+	conv1_out = (sigma31*F1.transpose((1,0,2,3)).reshape((1,3,n1,5,5,1,1,1,1,1,1))).sum(1).sum(2).sum(2)
+	conv2_out = (conv1_out*F2.transpose((1,0,2,3)).reshape((1,n1,n2,5,5,1,1,1))).sum(1).sum(2).sum(2)
+	conv3_out = (conv2_out*F3.transpose((1,0,2,3)).reshape((1,n2,n3,3,3))).sum(1).sum(-1).sum(-1)
+	pred = np.dot(np.squeeze(FL), conv3_out[np.nonzero(Y)[0][0]][:,np.newaxis])
+	
+	
 	err.append(np.sum((pred - Y)**2)/N_IMGS)
 	class_err.append(1-np.float(np.sum(np.argmax(pred,axis=0) == np.argmax(Y,axis=0)))/N_IMGS)
 
-	output_switches1_x *= STRIDE1
-	output_switches1_y *= STRIDE1
-	
 	t_forward_start = time.time() - t_forward_start
 	
 	########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
 
 	t_grad_start = time.time()
 	grad = L1_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31)
-	#print np.max(np.abs(grad))
-	F1 -= eps_F1 * grad #/ np.max(grad) #zscore(grad,axis=None)#grad / np.std(grad)
-	#F1 = zscore(F1,axis=None)
+	F1 -= eps_F1 * grad
 	
 	########### F2 deriv wrt f2_, f1_, a2_x_, a2_y_
 
 	grad = L2_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31)
-	#print np.max(np.abs(grad))
-	F2 -= eps_F2 * grad #/ np.max(grad) #* zscore(grad,axis=None)#grad / np.std(grad)
-	#F2 = zscore(F2,axis=None)
+	F2 -= eps_F2 * grad
 	
 	########### F3 deriv wrt f3_, f2_, a3_x_, a3_y_
 
 	grad = L3_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31)
-	#print np.max(np.abs(grad))
-	F3 -= eps_F3 * grad #/ np.max(grad) ##* zscore(grad,axis=None)#grad / np.std(grad)
-	#F3 = zscore(F3,axis=None)
+	F3 -= eps_F3 * grad
 	
 	########### FL deriv wrt cat_, f3_, z1_, z2_
 
-	#grad = FL_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31)
-	#print np.max(np.abs(grad))
-	#FL -= eps_FL * grad #/ np.max(grad) ##* grad / np.std(grad)
-	#FL = zscore(FL,axis=None)
+	grad = FL_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31)
+	FL -= eps_FL * grad
 	
 	#######################################
 	
