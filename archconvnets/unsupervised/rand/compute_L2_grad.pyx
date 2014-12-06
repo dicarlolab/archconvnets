@@ -57,6 +57,7 @@ def L2_grad(npd.ndarray[npd.float64_t, ndim=4] F1, npd.ndarray[npd.float64_t, nd
 														# unsupervised term:
 														for a2_x_ in range(s2):
 															for a2_y_ in range(s2):
+																grad[f2_, f1_, a2_x_, a2_y_] -=  FL31*sigma31[cat, channel, f1_, a1_x, a1_y, f2_, a2_x_, a2_y_, f3, a3_x, a3_y] * Y[cat,img]
 																grad[f2_, f1_, a2_x_, a2_y_] +=  FL31*sigma31[cat, channel, f1_, a1_x, a1_y, f2_, a2_x_, a2_y_, f3, a3_x, a3_y] * pred[cat,img]
 		
 	#print grad_s, grad_uns

@@ -56,6 +56,7 @@ def L3_grad(npd.ndarray[npd.float64_t, ndim=4] F1, npd.ndarray[npd.float64_t, nd
 												for img in range(N_IMGS):
 													for a3_x_ in range(s3):
 														for a3_y_ in range(s3):
+															grad[f3_, f2_, a3_x_, a3_y_] -=  FL21*sigma31[cat, channel, f1, a1_x, a1_y, f2_, a2_x, a2_y, f3_, a3_x_, a3_y_] * Y[cat,img]
 															grad[f3_, f2_, a3_x_, a3_y_] +=  FL21*sigma31[cat, channel, f1, a1_x, a1_y, f2_, a2_x, a2_y, f3_, a3_x_, a3_y_] * pred[cat,img]
 
 	#print grad_s, grad_uns

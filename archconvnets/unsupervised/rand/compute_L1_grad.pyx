@@ -61,8 +61,9 @@ def L1_grad(npd.ndarray[npd.float64_t, ndim=4] F1, npd.ndarray[npd.float64_t, nd
 											FL32 = F32 * FL[cat, f3, z1, z2]
 											for img in range(N_IMGS):
 												for a1_x_ in range(s1):
-													for a1_x_ in range(s1):
+													for a1_y_ in range(s1):
 														for channel_ in range(3):
+															grad[f1_, channel_,a1_x_,a1_y_] -=  FL32 * sigma31[cat, channel_, f1_, a1_x_, a1_y_, f2, a2_x, a2_y, f3, a3_x, a3_y] * Y[cat,img]
 															grad[f1_, channel_,a1_x_,a1_y_] +=  FL32 * sigma31[cat, channel_, f1_, a1_x_, a1_y_, f2, a2_x, a2_y, f3, a3_x, a3_y] * pred[cat,img]
 
 		

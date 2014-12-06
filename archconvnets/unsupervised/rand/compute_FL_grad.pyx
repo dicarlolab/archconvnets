@@ -56,6 +56,7 @@ def FL_grad(npd.ndarray[npd.float64_t, ndim=4] F1, npd.ndarray[npd.float64_t, nd
 												for z2_ in range(max_output_sz3):
 													for img in range(N_IMGS):
 														for cat_ in range(N_C):
+															grad[cat_, f3_, z1_, z2_] -=  F321*sigma31[cat_, channel, f1, a1_x, a1_y, f2, a2_x, a2_y, f3_, a3_x, a3_y]* Y[cat_,img]
 															# unsupervised term:
 															grad[cat_, f3_, z1_, z2_] +=  F321*sigma31[cat_, channel, f1, a1_x, a1_y, f2, a2_x, a2_y, f3_, a3_x, a3_y]* pred[cat_,img]
 
