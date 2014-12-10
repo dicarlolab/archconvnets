@@ -16,13 +16,16 @@ import random
 filename = '/home/darren/cifar_test.mat'
 
 S_SCALE = 1
+N_SIGMA_IMGS = 512
+WD = 5e-3
+MOMENTUM = 0.9
 
 F1_scale = 0.01 # std of init normal distribution
 F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.3
 
-EPS = 1e-4#1e-11#e-3#-2#6#7
+EPS = 5e-5#1e-11#e-3#-2#6#7
 #EPS = 1e-3
 eps_F1 = EPS
 eps_F2 = EPS
@@ -32,11 +35,11 @@ eps_FL = EPS
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 64 # batch size
+N_IMGS = 16 # batch size
 N_TEST_IMGS = 100
-IMG_SZ = 42 # input image size (px)
+IMG_SZ = 64 # input image size (px)
 
-N = 4
+N = 8
 n1 = N # L1 filters
 n2 = N # ...
 n3 = N
@@ -57,7 +60,7 @@ output_sz3 = max_output_sz2 - s3 + 1
 max_output_sz3  = len(range(0, output_sz3-POOL_SZ, POOL_STRIDE))
 
 if False:
-	x = loadmat('/home/darren/cifar_F1t_avg_a12.mat')
+	x = loadmat('/home/darren/cifar_test.mat')
 	F1 = x['F1']
 	F2 = x['F2']
 	F3 = x['F3']
@@ -66,8 +69,14 @@ if False:
 	class_err_test = x['class_err_test'].tolist()
 	err = x['err'].tolist()
 	err_test = x['err_test'].tolist()
-else:
+	
 	np.random.seed(666)
+	F1_init = np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1))
+	F2_init = np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2))
+	F3_init = np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3))
+	FL_init = np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, max_output_sz3))
+else:
+	np.random.seed(63123)
 	F1 = np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1))
 	F1_init = copy.deepcopy(F1)
 	F2 = np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2))
@@ -85,58 +94,61 @@ imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean
 z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_1')
 
 ######### sigma 31
-'''d = z['data'] - imgs_mean
-avg_imgs = np.zeros((3072,10))
-for cat in range(10):
-    avg_imgs[:,cat] = np.mean(z['data'][:,np.asarray(z['labels']) == cat],axis=1)
-sigma31 = np.zeros((10,3,IMG_SZ,IMG_SZ))
-for cat in range(10):
-    sigma31[cat,:,5:5+32,5:5+32] = avg_imgs[:,cat].reshape((3,32,32))
-'''
-sigma31 = loadmat('/home/darren/sigma31.mat')['sigma31'] / (2000)
-#sigma31 = loadmat('/home/darren/sigma31_full_256_16.mat')['sigma31'] / (N_IMGS * 256)
-#sigma31 = sigma31.astype('double')
-#sigma31 = np.random.random((10,3,n1,5,5))
-
-#sigma31 = np.zeros_like(sigma31)
-#sigma31 = np.mean(sigma31,axis=-1)
-#sigma31 = np.mean(sigma31,axis=-1)
-#sigma31 = np.mean(sigma31,axis=-1)
-#sigma31 = np.tile(sigma31[:,:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis],(1,1,1,1,1,1,1,1,4,3,3))
+#sigma31 = loadmat('/home/darren/sigma31.mat')['sigma31'] / (2000)
+'''sigma31 = loadmat('/home/darren/sigma31_full_256_16.mat')['sigma31'] / (256)
+sigma31 = sigma31.astype('double')
 
 sigma31 = np.mean(sigma31,axis=-1)
 sigma31 = np.mean(sigma31,axis=-1)
 sigma31 = np.mean(sigma31,axis=-1)
 sigma31 = np.mean(sigma31,axis=-1)
 sigma31 = np.mean(sigma31,axis=-1)
-sigma31 = np.mean(sigma31,axis=-1)
-#sigma31 = np.tile(sigma31[:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis],(1,1,1,1,1,4,5,5,4,3,3))
+sigma31 = np.mean(sigma31,axis=-1)'''
+
+v_i_L1 = 0
+v_i_L2 = 0
+v_i_L3 = 0
+v_i_FL = 0
 
 
-#sigma31 = np.mean(sigma31,axis=0)
-#sigma31 = np.tile(sigma31[np.newaxis],(10,1,1,1,1,1,1,1,1,1,1))
 
-#sigma31 = np.mean(sigma31,axis=2)
-#sigma31 = np.tile(sigma31[:,:,np.newaxis],(1,1,4,1,1,1,1,1,1,1,1))
+####################
+# sigma31
+t_sigma = time.time()
+x = z['data'] - imgs_mean
+x = x.reshape((3, 32, 32, 10000))
+x = x[:,:,:,:N_SIGMA_IMGS]
 
-#sigma31 = np.mean(sigma31,axis=-1)
-#sigma31 = np.mean(sigma31,axis=-1)
-#sigma31 = np.mean(sigma31,axis=-1)
-#sigma31 = np.mean(sigma31,axis=-1)
-#sigma31 = np.mean(sigma31,axis=-1)
-#sigma31 = np.mean(sigma31,axis=-1)
-#sigma31 = np.mean(sigma31,axis=2)
-#sigma31 = np.tile(sigma31[:,:,np.newaxis,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis],(1,1,4,1,1,4,5,5,4,3,3))
+l = np.zeros((N_SIGMA_IMGS, N_C),dtype='int')
+img_cats = np.asarray(z['labels'])[:N_SIGMA_IMGS].astype(int)
+l[np.arange(N_SIGMA_IMGS),np.asarray(z['labels'])[:N_SIGMA_IMGS].astype(int)] = 1
+Y = np.double(l.T)
 
-#sigma31 = np.zeros_like(sigma31)
+imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, N_SIGMA_IMGS))
+imgs_pad[:,5:5+32,5:5+32] = x
 
-#F1 = zscore(F1,axis=None)
-#F2 = zscore(F2,axis=None)
-#F3 = zscore(F3,axis=None)
-#FL = zscore(FL,axis=None)
+# forward pass
+conv_output1 = conv_block(F1.transpose((1,2,3,0)), imgs_pad, stride=STRIDE1)
+max_output1, output_switches1_x, output_switches1_y = max_pool_locs(conv_output1)
 
-for iter in range(np.int(1e7)):
-	for step in range(np.int((10000-N_TEST_IMGS)/N_IMGS)):
+sigma31 = np.zeros((N_C, 3, n1, s1, s1))
+sigma31_count = np.zeros_like(sigma31)
+for f1 in range(n1):
+	for z1 in range(max_output_sz1):
+		for z2 in range(max_output_sz1):
+			for img in range(N_SIGMA_IMGS):
+				# pool1 -> conv1
+				a1_x_global = output_switches1_x[f1, z1, z2, img]
+				a1_y_global = output_switches1_y[f1, z1, z2, img]
+				# conv1 -> px
+				sigma31[img_cats[img], :, f1] += imgs_pad[:, a1_x_global:a1_x_global+s1, a1_y_global:a1_y_global+s1, img]
+				sigma31_count[img_cats[img], :, f1] += 1
+sigma31 /= sigma31_count
+print 'time to compute sigma31', time.time() - t_sigma, N_SIGMA_IMGS
+
+
+for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
+	for step in range(np.int((10000-N_TEST_IMGS)/N_IMGS)):#18):#np.int((10000-N_TEST_IMGS)/N_IMGS)):
 		########################## compute test err
 		# load imgs
 		x = z['data'] - imgs_mean
@@ -217,9 +229,6 @@ for iter in range(np.int(1e7)):
 		pred_ravel = pred.ravel()
 		err.append(np.sum((pred - Y)**2)/N_IMGS)
 		class_err.append(1-np.float(np.sum(np.argmax(pred,axis=0) == np.argmax(Y,axis=0)))/N_IMGS)
-
-		output_switches1_x *= STRIDE1
-		output_switches1_y *= STRIDE1
 		
 		t_forward_start = time.time() - t_forward_start
 		t_grad_start = time.time()
@@ -253,7 +262,7 @@ for iter in range(np.int(1e7)):
 						pred_deriv = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_IMGS))).ravel()
 						
 						grad[f1_, channel_, a1_x_, a1_y_] = np.dot(pred_deriv, pred_ravel)
-		F1 -= eps_F1 * grad / N_IMGS
+		grad_L1_uns = grad / N_IMGS
 		
 		
 		########## F2 deriv wrt f2_, a2_x_, a2_y_, f1_
@@ -282,7 +291,7 @@ for iter in range(np.int(1e7)):
 						pred_deriv = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_IMGS))).ravel()
 						
 						grad[f2_, f1_, a2_x_, a2_y_] = np.dot(pred_deriv, pred_ravel)
-		F2 -= eps_F2 * grad / N_IMGS
+		grad_L2_uns = grad / N_IMGS
 		
 
 		########## F3 deriv wrt f3_, a3_x_, a3_y_, f2_
@@ -309,43 +318,48 @@ for iter in range(np.int(1e7)):
 						
 						grad[f3_, f2_, a3_x_, a3_y_] = np.dot(pred_deriv, pred_ravel)
 						
-		F3 -= eps_F3 * grad / N_IMGS
+		grad_L3_uns = grad / N_IMGS
 		
 		########## FL deriv wrt cat_, f3_, z1_, z2_
-		grad = np.tile((pred[:,np.newaxis,np.newaxis,np.newaxis]*max_output3[np.newaxis]).sum(0).sum(-1)[np.newaxis], (N_C,1,1,1))
-		FL -= eps_FL * grad / N_IMGS
+		grad_FL_uns = np.tile((pred[:,np.newaxis,np.newaxis,np.newaxis]*max_output3[np.newaxis]).sum(0).sum(-1)[np.newaxis], (N_C,1,1,1)) / N_IMGS
+		
+		####################################################################### supervised:
 		
 		########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
-		grad = L1_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
-		#print np.max(np.abs(grad))
-		F1 -= eps_F1 * grad  * S_SCALE#/ np.max(grad) #zscore(grad,axis=None)#grad / np.std(grad)
-		#F1 = zscore(F1,axis=None)
-		#print 'l1'
+		grad_L1_s = L1_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
+		
 		########### F2 deriv wrt f2_, f1_, a2_x_, a2_y_
 
-		grad = L2_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
-		#print np.max(np.abs(grad))
-		F2 -= eps_F2 * grad  * S_SCALE#/ np.max(grad) #* zscore(grad,axis=None)#grad / np.std(grad)
-		#F2 = zscore(F2,axis=None)
-		#print 'l2'
+		grad_L2_s = L2_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
+		
 		########### F3 deriv wrt f3_, f2_, a3_x_, a3_y_
 
-		grad = L3_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
-		#print np.max(np.abs(grad))
-		F3 -= eps_F3 * grad  * S_SCALE#/ np.max(grad) ##* zscore(grad,axis=None)#grad / np.std(grad)
-		#F3 = zscore(F3,axis=None)
-		#print 'l3'
+		grad_L3_s = L3_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
+
 		########### FL deriv wrt cat_, f3_, z1_, z2_
 
-		grad = FL_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
-		#print np.max(np.abs(grad))
-		FL -= eps_FL * grad  * S_SCALE#/ np.max(grad) ##* grad / np.std(grad)
-		#FL = zscore(FL,axis=None)
-		#print 'fl'
+		grad_FL_s = FL_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
 		
+		##########
+		# weight decay
+		v_i1_L1 = -eps_F1 * (WD * F1 + grad_L1_uns + grad_L1_s * S_SCALE) + MOMENTUM * v_i_L1
+		v_i1_L2 = -eps_F2 * (WD * F2 + grad_L2_uns + grad_L2_s * S_SCALE) + MOMENTUM * v_i_L2
+		v_i1_L3 = -eps_F3 * (WD * F3 + grad_L3_uns + grad_L3_s * S_SCALE) + MOMENTUM * v_i_L3
+		v_i1_FL = -eps_FL * (WD * FL + grad_FL_uns + grad_FL_s * S_SCALE) + MOMENTUM * v_i_FL
+		
+		F1 += v_i1_L1
+		F2 += v_i1_L2
+		F3 += v_i1_L3
+		FL += v_i1_FL
+		
+		v_i_L1 = v_i1_L1
+		v_i_L2 = v_i1_L2
+		v_i_L3 = v_i1_L3
+		v_i_FL = v_i1_FL
 		
 		#######################################
-		
+		d=1
 		savemat(filename, {'F1': F1, 'F2': F2, 'F3':F3, 'FL': FL, 'eps_FL': eps_FL, 'eps_F3': eps_F3, 'eps_F2': eps_F2, 'step': step, 'eps_F1': eps_F1, 'N_IMGS': N_IMGS, 'N_TEST_IMGS': N_TEST_IMGS,'err_test':err_test,'err':err,'class_err':class_err,'class_err_test':class_err_test})
-		print iter, step, err_test[-1], class_err_test[-1], err[-1], class_err[-1], time.time() - t_grad_start, filename, t_forward_start
+		print iter, step, err_test[-1], class_err_test[-1], err[-1], class_err[-1], time.time() - t_grad_start, filename
+		print '                        F1', np.round(np.min(F1),d), np.round(np.max(F1),d), 'F2', np.round(np.min(F2),d), np.round(np.max(F2),d), 'F3', np.round(np.min(F3),d), np.round(np.max(F3),d), 'FL', np.round(np.min(FL),d), np.round(np.max(FL),d)
 
