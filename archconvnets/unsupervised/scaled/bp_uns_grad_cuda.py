@@ -2,16 +2,11 @@ import theano
 import theano.tensor as T
 import time
 import numpy as np
+import numexpr as ne
 from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
-from archconvnets.unsupervised.conv import conv_block
 from archconvnets.unsupervised.pool_inds import max_pool_locs
 from archconvnets.unsupervised.pool_alt_inds_opt import max_pool_locs_alt
-#from archconvnets.unsupervised.scaled.compute_L1_grad import L1_grad
-from archconvnets.unsupervised.scaled.compute_L1_grad_opt import L1_grad
-from archconvnets.unsupervised.scaled.compute_L2_grad import L2_grad
-from archconvnets.unsupervised.scaled.compute_L3_grad import L3_grad
-from archconvnets.unsupervised.scaled.compute_FL_grad import FL_grad
 from archconvnets.unsupervised.pool_inds_patch import max_pool_locs_patches
 from scipy.io import savemat, loadmat
 import copy
@@ -30,7 +25,7 @@ conv_block_cuda = theano.function([filters, input], conv_op(input, filters))
 filename = '/home/darren/cifar_test_small.mat'
 
 S_SCALE = 1
-N_SIGMA_IMGS = 2000
+N_SIGMA_IMGS = 4000
 WD = 5e-2
 MOMENTUM = 0.9
 
@@ -43,13 +38,13 @@ EPS = 1e-4#1e-3#1e-11#e-3#-2#6#7
 #EPS = 1e-3
 eps_F1 = EPS
 eps_F2 = EPS
-eps_F3 = 0.1*EPS
+eps_F3 = EPS
 eps_FL = EPS
 
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 10 # batch size
+N_IMGS = 256 # batch size
 N_TEST_IMGS = 100
 IMG_SZ = 42 # input image size (px)
 
@@ -221,7 +216,7 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 		t_grad_start = time.time()
 		
 		########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
-		'''grad = np.zeros_like(F1)
+		grad = np.zeros_like(F1)
 		for a1_x_ in range(s1):
 			for a1_y_ in range(s1):
 				for channel_ in range(3):
@@ -271,7 +266,7 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 		grad_L3_uns = grad / N_IMGS
 		
 		########## FL deriv wrt cat_, f3_, z1_, z2_
-		grad_FL_uns = np.tile((pred[:,np.newaxis,np.newaxis,np.newaxis]*max_output3[np.newaxis]).sum(0).sum(-1)[np.newaxis], (N_C,1,1,1)) / N_IMGS'''
+		grad_FL_uns = np.tile((pred[:,np.newaxis,np.newaxis,np.newaxis]*max_output3[np.newaxis]).sum(0).sum(-1)[np.newaxis], (N_C,1,1,1)) / N_IMGS
 		
 		t_grad_start = time.time() - t_grad_start
 		
@@ -280,7 +275,7 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 		
 		########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
 		sigma31_FL = (sigma31[:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * FL[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis]).transpose((0,2,1,3,4,5,6,7))
-		'''
+		
 		# sigma31_FL: N_C, n1, 3, s1, s1, n3, z1, z2
 		F32 = F3[:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * F2[np.newaxis,:,np.newaxis,np.newaxis]
 		# F32: n3, n2, s3, s3, n1, s2, s2
@@ -288,7 +283,7 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 		# F32: n1, n3, n2, s3, s3, s2, s2
 		F32t = F32[np.newaxis,:,np.newaxis,np.newaxis,np.newaxis,:,np.newaxis,np.newaxis]
 		sigma31_FLt = sigma31_FL[:,:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
-		grad_L1_s = -(sigma31_FLt * F32t).reshape((N_C,n1,3,s1,s1,n3*(max_output_sz3**2)*n2*(s3**2)*(s2**2))).sum(-1).mean(0)'''
+		grad_L1_s = -(ne.evaluate('sigma31_FLt * F32t')).reshape((N_C,n1,3,s1,s1,n3*(max_output_sz3**2)*n2*(s3**2)*(s2**2))).sum(-1).mean(0)
 		
 		########### F2 deriv wrt f2_, f1_, a2_x_, a2_y_
 		F31 = F3[:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis]*F1[np.newaxis,np.newaxis,np.newaxis,np.newaxis]
@@ -297,18 +292,29 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 		# F31: n1, 3, s1, s1, n3, n2, s3, s3
 		F31t = F31[np.newaxis, :,:,:,:,:,np.newaxis,np.newaxis]
 		sigma31_FLt = sigma31_FL[:,:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis]
-		grad_L2_s = -(sigma31_FLt * F31t).reshape((N_C,n1,3*(s1**2)*n3*(max_output_sz3**2),n2,s3**2)).sum(2).sum(-1).mean(0).T[:,:,np.newaxis,np.newaxis]
-		'''
+		grad_L2_s = -(ne.evaluate('sigma31_FLt * F31t')).reshape((N_C,n1,3*(s1**2)*n3*(max_output_sz3**2),n2,s3**2)).sum(2).sum(-1).mean(0).T[:,:,np.newaxis,np.newaxis]
 		
 		########### F3 deriv wrt f3_, f2_, a3_x_, a3_y_
-
-		grad_L3_s = L3_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats) / N_IMGS
-
-		########### FL deriv wrt cat_, f3_, z1_, z2_
-
-		grad_FL_s = FL_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats) / N_IMGS'''
-		t_grad_s_start = time.time() - t_grad_s_start
+		F21 = F2[:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * F1[np.newaxis,:,np.newaxis,np.newaxis]
+		# F21: n2, n1, s2, s2, 3, s1, s1
+		F21 = F21.transpose((1,4,5,6,0,2,3))
+		# F21: n1, 3, s1, s1, n2, s2, s2
+		F21t = F21[np.newaxis,:,:,:,:,np.newaxis,np.newaxis,np.newaxis]
+		sigma31_FLt = sigma31_FL[:,:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis]
+		grad_L3_s = -(ne.evaluate('sigma31_FLt * F21t')).reshape((N_C,n1*3*(s1**2),n3,(max_output_sz3**2),n2,(s2**2))).sum(1).sum(2).sum(-1).mean(0)[:,:,np.newaxis,np.newaxis]
 		
+		########### FL deriv wrt cat_, f3_, z1_, z2_
+		F3t = F3.transpose((1,0,2,3))
+		# F3t: n2, n3, s3, s3
+		F3t = F3t[np.newaxis,np.newaxis,np.newaxis,np.newaxis,:,np.newaxis,np.newaxis]
+		F21t = F21[:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis]
+		F321 = F3t*F21t
+		# F321: n1, 3, s1, s1, n2, s2, s2, n3, s3, s3
+		sigma31t = sigma31.transpose((0,2,1,3,4))[:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+		F321t = F321[np.newaxis]
+		grad_FL_s = -(ne.evaluate('sigma31t * F321t')).reshape((N_C,n1*3*(s1**2)*n2*(s2**2),n3,(s3**2))).sum(1).sum(-1)[:,:,np.newaxis,np.newaxis]
+		
+		t_grad_s_start = time.time() - t_grad_s_start
 		
 		##########
 		# weight decay
