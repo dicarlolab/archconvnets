@@ -6,16 +6,21 @@ from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
 from archconvnets.unsupervised.conv import conv_block
 from archconvnets.unsupervised.pool_inds import max_pool_locs
-from archconvnets.unsupervised.pool_alt_inds import max_pool_locs_alt
+#from archconvnets.unsupervised.pool_alt_inds import max_pool_locs_alt
+from archconvnets.unsupervised.pool_alt_inds_opt import max_pool_locs_alt
 from archconvnets.unsupervised.scaled.compute_L1_grad import L1_grad
 from archconvnets.unsupervised.scaled.compute_L2_grad import L2_grad
 from archconvnets.unsupervised.scaled.compute_L3_grad import L3_grad
 from archconvnets.unsupervised.scaled.compute_FL_grad import FL_grad
+from archconvnets.unsupervised.pool_inds_patch import max_pool_locs_patches
 from scipy.io import savemat, loadmat
 import copy
 from scipy.stats import zscore
 import random
-
+#kernprof -l bp_uns_grad_cuda.py
+#python -m liner bp_uns_grad_cuda.py.lprof  > p
+#@profile
+#def sf():
 input = gpu_contiguous(T.tensor4('input'))
 filters = gpu_contiguous(T.tensor4('filters'))
 
@@ -44,7 +49,7 @@ eps_FL = EPS
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 2 # batch size
+N_IMGS = 10 # batch size
 N_TEST_IMGS = 100
 IMG_SZ = 64 # input image size (px)
 
@@ -102,23 +107,10 @@ else:
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
 z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_1')
 
-######### sigma 31
-#sigma31 = loadmat('/home/darren/sigma31.mat')['sigma31'] / (2000)
-'''sigma31 = loadmat('/home/darren/sigma31_full_256_16.mat')['sigma31'] / (256)
-sigma31 = sigma31.astype('double')
-
-sigma31 = np.mean(sigma31,axis=-1)
-sigma31 = np.mean(sigma31,axis=-1)
-sigma31 = np.mean(sigma31,axis=-1)
-sigma31 = np.mean(sigma31,axis=-1)
-sigma31 = np.mean(sigma31,axis=-1)
-sigma31 = np.mean(sigma31,axis=-1)'''
-
 v_i_L1 = 0
 v_i_L2 = 0
 v_i_L3 = 0
 v_i_FL = 0
-
 
 
 ####################
@@ -137,28 +129,23 @@ imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, N_SIGMA_IMGS))
 imgs_pad[:,5:5+32,5:5+32] = x
 
 # forward pass
-#conv_output1 = conv_block(F1.transpose((1,2,3,0)), imgs_pad, stride=STRIDE1)
 conv_output1 = np.double(np.asarray(conv_block_cuda(np.single(F1.transpose((1,2,3,0))), np.single(imgs_pad))))
-max_output1, output_switches1_x, output_switches1_y = max_pool_locs(conv_output1)
+max_output1, output_switches1_x, output_switches1_y, pool1_patches = max_pool_locs_patches(conv_output1, imgs_pad, s1)
+pool1_patches = pool1_patches.mean(1).mean(1).transpose((1,2,0,3,4)) # mean across spatial dims. new dims: [imgs x 3 x n1 x s1 x s1]
 
 sigma31 = np.zeros((N_C, 3, n1, s1, s1))
 sigma31_count = np.zeros_like(sigma31)
-for f1 in range(n1):
-	for z1 in range(max_output_sz1):
-		for z2 in range(max_output_sz1):
-			for img in range(N_SIGMA_IMGS):
-				# pool1 -> conv1
-				a1_x_global = output_switches1_x[f1, z1, z2, img]
-				a1_y_global = output_switches1_y[f1, z1, z2, img]
-				# conv1 -> px
-				sigma31[img_cats[img], :, f1] += imgs_pad[:, a1_x_global:a1_x_global+s1, a1_y_global:a1_y_global+s1, img]
-				sigma31_count[img_cats[img], :, f1] += 1
+for img in range(N_SIGMA_IMGS):
+	sigma31[img_cats[img]] += pool1_patches[img]
+	sigma31_count[img_cats[img]] += 1
 sigma31 /= sigma31_count
 print 'time to compute sigma31', time.time() - t_sigma, N_SIGMA_IMGS
 
 
-for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
-	for step in range(np.int((10000-N_TEST_IMGS)/N_IMGS)):#18):#np.int((10000-N_TEST_IMGS)/N_IMGS)):
+#for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
+#	for step in range(np.int((10000-N_TEST_IMGS)/N_IMGS)):#18):#np.int((10000-N_TEST_IMGS)/N_IMGS)):
+for iter in [0]:
+	for step in [0]:
 		t_total = time.time()
 		########################## compute test err
 		# load imgs
@@ -175,15 +162,12 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 
 		# forward pass
 		t_test_forward_start = time.time()
-		#conv_output1 = conv_block(F1.transpose((1,2,3,0)), imgs_pad, stride=STRIDE1)
 		conv_output1 = np.double(np.asarray(conv_block_cuda(np.single(F1.transpose((1,2,3,0))), np.single(imgs_pad))))
 		max_output1, output_switches1_x, output_switches1_y = max_pool_locs(conv_output1)
 
-		#conv_output2 = conv_block(F2.transpose((1,2,3,0)), max_output1)
 		conv_output2 = np.double(np.asarray(conv_block_cuda(np.single(F2.transpose((1,2,3,0))), np.single(max_output1))))
 		max_output2, output_switches2_x, output_switches2_y = max_pool_locs(conv_output2)
 
-		#conv_output3 = conv_block(F3.transpose((1,2,3,0)), max_output2)
 		conv_output3 = np.double(np.asarray(conv_block_cuda(np.single(F3.transpose((1,2,3,0))), np.single(max_output2))))
 		max_output3, output_switches3_x, output_switches3_y = max_pool_locs(conv_output3)
 
@@ -207,40 +191,17 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 		imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, N_IMGS))
 		imgs_pad[:,5:5+32,5:5+32] = x
 
-
-		# forward pass init filters
 		t_forward_start = time.time()
 		
-		'''conv_output1_init = conv_block(F1_init.transpose((1,2,3,0)), imgs_pad, stride=STRIDE1)
-		max_output1, output_switches1_x, output_switches1_y = max_pool_locs(conv_output1_init)
-
-		conv_output2_init = conv_block(F2_init.transpose((1,2,3,0)), max_output1)
-		max_output2, output_switches2_x, output_switches2_y = max_pool_locs(conv_output2_init)
-
-		conv_output3_init = conv_block(F3_init.transpose((1,2,3,0)), max_output2)
-		max_output3, output_switches3_x, output_switches3_y = max_pool_locs(conv_output3_init)'''
-		
-		# forward pass current filters with initial switches
-		'''conv_output1 = conv_block(F1.transpose((1,2,3,0)), imgs_pad, stride=STRIDE1)
-		max_output1, output_switches1_x, output_switches1_y = max_pool_locs_alt(conv_output1, conv_output1_init)
-
-		conv_output2 = conv_block(F2.transpose((1,2,3,0)), max_output1)
-		max_output2, output_switches2_x, output_switches2_y = max_pool_locs_alt(conv_output2, conv_output2_init)
-
-		conv_output3 = conv_block(F3.transpose((1,2,3,0)), max_output2)
-		max_output3, output_switches3_x, output_switches3_y = max_pool_locs_alt(conv_output3, conv_output3_init)'''
-		
-		#conv_output1 = conv_block(F1.transpose((1,2,3,0)), imgs_pad, stride=STRIDE1)
+		# forward pass current filters
 		conv_output1 = np.double(np.asarray(conv_block_cuda(np.single(F1.transpose((1,2,3,0))), np.single(imgs_pad))))
-		max_output1, output_switches1_x, output_switches1_y = max_pool_locs(conv_output1)
+		max_output1, output_switches1_x, output_switches1_y, pool1_patches = max_pool_locs_patches(conv_output1, imgs_pad, s1)
 
-		#conv_output2 = conv_block(F2.transpose((1,2,3,0)), max_output1)
 		conv_output2 = np.double(np.asarray(conv_block_cuda(np.single(F2.transpose((1,2,3,0))), np.single(max_output1))))
-		max_output2, output_switches2_x, output_switches2_y = max_pool_locs(conv_output2)
+		max_output2, output_switches2_x, output_switches2_y, pool2_patches = max_pool_locs_patches(conv_output2, max_output1, s2)
 
-		#conv_output3 = conv_block(F3.transpose((1,2,3,0)), max_output2)
 		conv_output3 = np.double(np.asarray(conv_block_cuda(np.single(F3.transpose((1,2,3,0))), np.single(max_output2))))
-		max_output3, output_switches3_x, output_switches3_y = max_pool_locs(conv_output3)
+		max_output3, output_switches3_x, output_switches3_y, pool3_patches = max_pool_locs_patches(conv_output3, max_output2, s3)
 		
 		pred = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_IMGS)))
 		pred_ravel = pred.ravel()
@@ -251,18 +212,6 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 		t_grad_start = time.time()
 		
 		########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
-		# output_switches2_x.shape = (32,11,11,1)
-		pool1_patches = np.zeros((n1, max_output_sz1, max_output_sz1, N_IMGS, 3,s1,s1))
-		for f1 in range(n1):
-			for z1 in range(max_output_sz1):
-				for z2 in range(max_output_sz1):
-					for img in range(N_IMGS):
-						# pool1 -> conv1
-						a1_x_global = output_switches1_x[f1, z1, z2, img]
-						a1_y_global = output_switches1_y[f1, z1, z2, img]
-						# conv1 -> px
-						pool1_patches[f1, z1, z2, img] = imgs_pad[:, a1_x_global:a1_x_global+s1, a1_y_global:a1_y_global+s1, img]
-		
 		grad = np.zeros_like(F1)
 		for a1_x_ in range(s1):
 			for a1_y_ in range(s1):
@@ -270,13 +219,11 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 					pool1_deriv = pool1_patches[:,:,:,:,channel_,a1_x_,a1_y_]
 					
 					for f1_ in range(n1):
-						#conv_output2_deriv = conv_block(F2.transpose((1,2,3,0))[f1_][np.newaxis], pool1_deriv[f1_][np.newaxis])
 						conv_output2_deriv = np.double(np.asarray(conv_block_cuda(np.single(F2.transpose((1,2,3,0))[f1_][np.newaxis]), np.single(pool1_deriv[f1_][np.newaxis]))))
-						max_output2, output_switches2_x, output_switches2_y = max_pool_locs_alt(conv_output2_deriv, conv_output2)
+						max_output2 = max_pool_locs_alt(conv_output2_deriv, output_switches2_x, output_switches2_y)
 						
-						#conv_output3_deriv = conv_block(F3.transpose((1,2,3,0)), max_output2)
 						conv_output3_deriv = np.double(np.asarray(conv_block_cuda(np.single(F3.transpose((1,2,3,0))), np.single(max_output2))))
-						max_output3, output_switches3_x, output_switches3_y = max_pool_locs_alt(conv_output3_deriv, conv_output3)
+						max_output3 = max_pool_locs_alt(conv_output3_deriv, output_switches3_x, output_switches3_y)
 						
 						pred_deriv = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_IMGS))).ravel()
 						
@@ -285,18 +232,6 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 		
 		
 		########## F2 deriv wrt f2_, a2_x_, a2_y_, f1_
-		# output_switches2_x.shape = (32,11,11,1)
-		pool2_patches = np.zeros((n2, max_output_sz2, max_output_sz2, N_IMGS, n1,s2,s2))
-		for f2 in range(n2):
-			for z1 in range(max_output_sz2):
-				for z2 in range(max_output_sz2):
-					for img in range(N_IMGS):
-						# pool2 -> conv2
-						a2_x_global = output_switches2_x[f2, z1, z2, img]
-						a2_y_global = output_switches2_y[f2, z1, z2, img]
-						# conv2 -> pool1
-						pool2_patches[f2, z1, z2, img] = max_output1[:, a2_x_global:a2_x_global+s2, a2_y_global:a2_y_global+s2, img]
-		
 		grad = np.zeros_like(F2)
 		for a2_x_ in range(s2):
 			for a2_y_ in range(s2):
@@ -304,9 +239,8 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 					pool2_deriv = pool2_patches[:,:,:,:,f1_,a2_x_,a2_y_]
 					
 					for f2_ in range(n2):
-						#conv_output3_deriv = conv_block(F3.transpose((1,2,3,0))[f2_][np.newaxis], pool2_deriv[f2_][np.newaxis])
 						conv_output3_deriv = np.double(np.asarray(conv_block_cuda(np.single(F3.transpose((1,2,3,0))[f2_][np.newaxis]), np.single(pool2_deriv[f2_][np.newaxis]))))
-						max_output3, output_switches3_x, output_switches3_y = max_pool_locs_alt(conv_output3_deriv, conv_output3)
+						max_output3 = max_pool_locs_alt(conv_output3_deriv, output_switches3_x, output_switches3_y)
 						
 						pred_deriv = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_IMGS))).ravel()
 						
@@ -315,19 +249,6 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 		
 
 		########## F3 deriv wrt f3_, a3_x_, a3_y_, f2_
-		# output_switches3_x.shape = (n3,3,3,1)
-		# conv_output2.shape = (n2,25,25,1)
-		pool3_patches = np.zeros((n3, max_output_sz3, max_output_sz3, N_IMGS, n2,s3,s3))
-		for f3 in range(n3):
-			for z1 in range(max_output_sz3):
-				for z2 in range(max_output_sz3):
-					for img in range(N_IMGS):
-						# pool3 -> conv3
-						a3_x_global = output_switches3_x[f3, z1, z2, img]
-						a3_y_global = output_switches3_y[f3, z1, z2, img]
-						# conv3 -> pool2
-						pool3_patches[f3, z1, z2, img] = max_output2[:, a3_x_global:a3_x_global+s3, a3_y_global:a3_y_global+s3, img]
-		
 		grad = np.zeros_like(F3)
 		for a3_x_ in range(s3):
 			for a3_y_ in range(s3):
@@ -345,6 +266,7 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 		
 		t_grad_start = time.time() - t_grad_start
 		
+		t_grad_s_start = time.time()
 		####################################################################### supervised:
 		
 		########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
@@ -361,6 +283,12 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 		########### FL deriv wrt cat_, f3_, z1_, z2_
 
 		grad_FL_s = FL_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
+		t_grad_s_start = time.time() - t_grad_s_start
+		
+		grad_L1_s = 0
+		grad_L2_s = 0
+		grad_L3_s = 0
+		grad_FL_s = 0
 		
 		##########
 		# weight decay
@@ -382,6 +310,7 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 		#######################################
 		d=1
 		savemat(filename, {'F1': F1, 'F2': F2, 'F3':F3, 'FL': FL, 'eps_FL': eps_FL, 'eps_F3': eps_F3, 'eps_F2': eps_F2, 'step': step, 'eps_F1': eps_F1, 'N_IMGS': N_IMGS, 'N_TEST_IMGS': N_TEST_IMGS,'err_test':err_test,'err':err,'class_err':class_err,'class_err_test':class_err_test})
-		print iter, step, err_test[-1], class_err_test[-1], err[-1], class_err[-1], t_grad_start, time.time() - t_total, filename
+		print iter, step, err_test[-1], class_err_test[-1], t_grad_start, t_grad_s_start, time.time() - t_total, filename
 		print '                        F1', np.round(np.min(F1),d), np.round(np.max(F1),d), 'F2', np.round(np.min(F2),d), np.round(np.max(F2),d), 'F3', np.round(np.min(F3),d), np.round(np.max(F3),d), 'FL', np.round(np.min(FL),d), np.round(np.max(FL),d)
 
+#sf()
