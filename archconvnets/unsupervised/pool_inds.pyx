@@ -3,7 +3,7 @@ import numpy as np
 
 ''' conv_output: 
 '''
-def max_pool_locs(npd.ndarray[npd.float64_t, ndim=4] conv_output, int pool_stride=2, int pool_window_sz=3): 
+def max_pool_locs(npd.ndarray[npd.float32_t, ndim=4] conv_output, int pool_stride=2, int pool_window_sz=3): 
 	assert conv_output.shape[1] == conv_output.shape[2]
 	
 	cdef int conv_sz = conv_output.shape[1]
@@ -16,11 +16,11 @@ def max_pool_locs(npd.ndarray[npd.float64_t, ndim=4] conv_output, int pool_strid
 	cdef int n_imgs = conv_output.shape[3]
 	cdef int output_sz = len(range(0,conv_sz-pool_window_sz,pool_stride))
 	
-	cdef npd.ndarray[npd.float64_t, ndim=4] output = np.zeros((n_filters, output_sz, output_sz, n_imgs))
+	cdef npd.ndarray[npd.float32_t, ndim=4] output = np.zeros((n_filters, output_sz, output_sz, n_imgs), dtype='single')
 	cdef npd.ndarray[npd.int_t, ndim=4] output_switches_x = np.zeros((n_filters, output_sz, output_sz, n_imgs),dtype='int')
 	cdef npd.ndarray[npd.int_t, ndim=4] output_switches_y = np.zeros((n_filters, output_sz, output_sz, n_imgs),dtype='int')
-	cdef npd.ndarray[npd.float64_t, ndim=3] output_patch
-	cdef npd.ndarray[npd.float64_t, ndim=2] output_patch_flat
+	cdef npd.ndarray[npd.float32_t, ndim=3] output_patch
+	cdef npd.ndarray[npd.float32_t, ndim=2] output_patch_flat
 	cdef npd.ndarray[npd.int_t, ndim=1] inds
 
 	for x_loc in range(0,conv_sz-pool_window_sz,pool_stride):

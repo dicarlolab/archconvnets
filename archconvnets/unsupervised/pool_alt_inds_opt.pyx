@@ -3,7 +3,7 @@ import numpy as np
 
 ''' conv_output: 
 '''
-def max_pool_locs_alt(npd.ndarray[npd.float64_t, ndim=4] conv_output, npd.ndarray[npd.int_t, ndim=4] output_switches_x, npd.ndarray[npd.int_t, ndim=4] output_switches_y, int pool_stride=2, int pool_window_sz=3): 
+def max_pool_locs_alt(npd.ndarray[npd.float32_t, ndim=4] conv_output, npd.ndarray[npd.int_t, ndim=4] output_switches_x, npd.ndarray[npd.int_t, ndim=4] output_switches_y, int pool_stride=2, int pool_window_sz=3): 
 	assert conv_output.shape[1] == conv_output.shape[2]
 	assert conv_output.shape[0] == output_switches_x.shape[0]
 	assert conv_output.shape[3] == output_switches_x.shape[3]
@@ -22,7 +22,7 @@ def max_pool_locs_alt(npd.ndarray[npd.float64_t, ndim=4] conv_output, npd.ndarra
 	cdef int n_imgs = conv_output.shape[3]
 	cdef int output_sz = output_switches_x.shape[1]
 	
-	cdef npd.ndarray[npd.float64_t, ndim=4] output = np.zeros((n_filters, output_sz, output_sz, n_imgs))
+	cdef npd.ndarray[npd.float32_t, ndim=4] output = np.zeros((n_filters, output_sz, output_sz, n_imgs),dtype='single')
 
 	for filter in range(n_filters):
 		for x in range(output_sz):

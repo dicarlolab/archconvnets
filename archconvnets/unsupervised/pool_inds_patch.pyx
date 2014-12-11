@@ -3,7 +3,8 @@ import numpy as np
 
 ''' conv_output: 
 '''
-def max_pool_locs_patches(npd.ndarray[npd.float64_t, ndim=4] conv_output, npd.ndarray[npd.float64_t, ndim=4] imgs, int s, int pool_stride=2, int pool_window_sz=3): 
+
+def max_pool_locs_patches(npd.ndarray[npd.float32_t, ndim=4] conv_output, npd.ndarray[npd.float32_t, ndim=4] imgs, int s, int pool_stride=2, int pool_window_sz=3): 
 	assert conv_output.shape[1] == conv_output.shape[2]
 	assert imgs.shape[1] == imgs.shape[2]
 	assert imgs.shape[3] == conv_output.shape[3]
@@ -22,13 +23,13 @@ def max_pool_locs_patches(npd.ndarray[npd.float64_t, ndim=4] conv_output, npd.nd
 	cdef int a1_y_global
 	cdef int output_sz = len(range(0,conv_sz-pool_window_sz,pool_stride))
 	
-	cdef npd.ndarray[npd.float64_t, ndim=4] output = np.zeros((n_filters, output_sz, output_sz, n_imgs))
+	cdef npd.ndarray[npd.float32_t, ndim=4] output = np.zeros((n_filters, output_sz, output_sz, n_imgs),dtype='single')
 	cdef npd.ndarray[npd.int_t, ndim=4] output_switches_x = np.zeros((n_filters, output_sz, output_sz, n_imgs),dtype='int')
 	cdef npd.ndarray[npd.int_t, ndim=4] output_switches_y = np.zeros((n_filters, output_sz, output_sz, n_imgs),dtype='int')
-	cdef npd.ndarray[npd.float64_t, ndim=3] output_patch
-	cdef npd.ndarray[npd.float64_t, ndim=2] output_patch_flat
+	cdef npd.ndarray[npd.float32_t, ndim=3] output_patch
+	cdef npd.ndarray[npd.float32_t, ndim=2] output_patch_flat
 	cdef npd.ndarray[npd.int_t, ndim=1] inds
-	cdef npd.ndarray[npd.float64_t, ndim=7] pool_patches = np.zeros((n_filters, output_sz, output_sz, n_imgs, n_channels, s, s))
+	cdef npd.ndarray[npd.float32_t, ndim=7] pool_patches = np.zeros((n_filters, output_sz, output_sz, n_imgs, n_channels, s, s),dtype='single')
 
 	for x_loc in range(0,conv_sz-pool_window_sz,pool_stride):
 		y = 0
