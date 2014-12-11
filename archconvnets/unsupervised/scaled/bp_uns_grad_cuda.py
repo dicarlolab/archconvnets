@@ -6,9 +6,9 @@ from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
 from archconvnets.unsupervised.conv import conv_block
 from archconvnets.unsupervised.pool_inds import max_pool_locs
-#from archconvnets.unsupervised.pool_alt_inds import max_pool_locs_alt
 from archconvnets.unsupervised.pool_alt_inds_opt import max_pool_locs_alt
-from archconvnets.unsupervised.scaled.compute_L1_grad import L1_grad
+#from archconvnets.unsupervised.scaled.compute_L1_grad import L1_grad
+from archconvnets.unsupervised.scaled.compute_L1_grad_opt import L1_grad
 from archconvnets.unsupervised.scaled.compute_L2_grad import L2_grad
 from archconvnets.unsupervised.scaled.compute_L3_grad import L3_grad
 from archconvnets.unsupervised.scaled.compute_FL_grad import FL_grad
@@ -30,8 +30,8 @@ conv_block_cuda = theano.function([filters, input], conv_op(input, filters))
 filename = '/home/darren/cifar_test_small.mat'
 
 S_SCALE = 1
-N_SIGMA_IMGS = 100
-WD = 5
+N_SIGMA_IMGS = 2000
+WD = 5e-2
 MOMENTUM = 0.9
 
 F1_scale = 0.01 # std of init normal distribution
@@ -39,7 +39,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.1
 
-EPS = 5e-5#1e-11#e-3#-2#6#7
+EPS = 1e-4#1e-3#1e-11#e-3#-2#6#7
 #EPS = 1e-3
 eps_F1 = EPS
 eps_F2 = EPS
@@ -51,7 +51,7 @@ POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
 N_IMGS = 10 # batch size
 N_TEST_IMGS = 100
-IMG_SZ = 64 # input image size (px)
+IMG_SZ = 42 # input image size (px)
 
 N = 16
 n1 = N # L1 filters
@@ -74,7 +74,7 @@ output_sz3 = max_output_sz2 - s3 + 1
 max_output_sz3  = len(range(0, output_sz3-POOL_SZ, POOL_STRIDE))
 
 if False:
-	x = loadmat('/home/darren/cifar_test.mat')
+	x = loadmat('/home/darren/cifar_test_small.mat')
 	F1 = x['F1']
 	F2 = x['F2']
 	F3 = x['F3']
@@ -84,13 +84,13 @@ if False:
 	err = x['err'].tolist()
 	err_test = x['err_test'].tolist()
 	
-	np.random.seed(666)
+	np.random.seed(623)
 	F1_init = np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1))
 	F2_init = np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2))
 	F3_init = np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3))
 	FL_init = np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, max_output_sz3))
 else:
-	np.random.seed(623)
+	np.random.seed(111623)
 	F1 = np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1))
 	F1_init = copy.deepcopy(F1)
 	F2 = np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2))
@@ -141,11 +141,20 @@ for img in range(N_SIGMA_IMGS):
 sigma31 /= sigma31_count
 print 'time to compute sigma31', time.time() - t_sigma, N_SIGMA_IMGS
 
+grad_L1_s = 0
+grad_L2_s = 0
+grad_L3_s = 0
+grad_FL_s = 0
 
-#for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
-#	for step in range(np.int((10000-N_TEST_IMGS)/N_IMGS)):#18):#np.int((10000-N_TEST_IMGS)/N_IMGS)):
-for iter in [0]:
-	for step in [0]:
+grad_L1_uns = 0
+grad_L2_uns = 0
+grad_L3_uns = 0
+grad_FL_uns = 0
+
+for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
+	for step in range(np.int((10000-N_TEST_IMGS)/N_IMGS)):#18):#np.int((10000-N_TEST_IMGS)/N_IMGS)):
+		#for iter in [0]:
+		#for step in [0]:
 		t_total = time.time()
 		########################## compute test err
 		# load imgs
@@ -212,7 +221,7 @@ for iter in [0]:
 		t_grad_start = time.time()
 		
 		########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
-		grad = np.zeros_like(F1)
+		'''grad = np.zeros_like(F1)
 		for a1_x_ in range(s1):
 			for a1_y_ in range(s1):
 				for channel_ in range(3):
@@ -262,7 +271,7 @@ for iter in [0]:
 		grad_L3_uns = grad / N_IMGS
 		
 		########## FL deriv wrt cat_, f3_, z1_, z2_
-		grad_FL_uns = np.tile((pred[:,np.newaxis,np.newaxis,np.newaxis]*max_output3[np.newaxis]).sum(0).sum(-1)[np.newaxis], (N_C,1,1,1)) / N_IMGS
+		grad_FL_uns = np.tile((pred[:,np.newaxis,np.newaxis,np.newaxis]*max_output3[np.newaxis]).sum(0).sum(-1)[np.newaxis], (N_C,1,1,1)) / N_IMGS'''
 		
 		t_grad_start = time.time() - t_grad_start
 		
@@ -270,25 +279,36 @@ for iter in [0]:
 		####################################################################### supervised:
 		
 		########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
-		grad_L1_s = L1_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
+		sigma31_FL = (sigma31[:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * FL[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis]).transpose((0,2,1,3,4,5,6,7))
+		'''
+		# sigma31_FL: N_C, n1, 3, s1, s1, n3, z1, z2
+		F32 = F3[:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * F2[np.newaxis,:,np.newaxis,np.newaxis]
+		# F32: n3, n2, s3, s3, n1, s2, s2
+		F32 = F32.transpose((4,0,1,2,3,5,6))
+		# F32: n1, n3, n2, s3, s3, s2, s2
+		F32t = F32[np.newaxis,:,np.newaxis,np.newaxis,np.newaxis,:,np.newaxis,np.newaxis]
+		sigma31_FLt = sigma31_FL[:,:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+		grad_L1_s = -(sigma31_FLt * F32t).reshape((N_C,n1,3,s1,s1,n3*(max_output_sz3**2)*n2*(s3**2)*(s2**2))).sum(-1).mean(0)'''
 		
 		########### F2 deriv wrt f2_, f1_, a2_x_, a2_y_
-
-		grad_L2_s = L2_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
+		F31 = F3[:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis]*F1[np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+		# F31: n3, n2, s3, s3, n1, 3, s1, s1
+		F31 = F31.transpose((4,5,6,7,0,1,2,3))
+		# F31: n1, 3, s1, s1, n3, n2, s3, s3
+		F31t = F31[np.newaxis, :,:,:,:,:,np.newaxis,np.newaxis]
+		sigma31_FLt = sigma31_FL[:,:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis]
+		grad_L2_s = -(sigma31_FLt * F31t).reshape((N_C,n1,3*(s1**2)*n3*(max_output_sz3**2),n2,s3**2)).sum(2).sum(-1).mean(0).T[:,:,np.newaxis,np.newaxis]
+		'''
 		
 		########### F3 deriv wrt f3_, f2_, a3_x_, a3_y_
 
-		grad_L3_s = L3_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
+		grad_L3_s = L3_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats) / N_IMGS
 
 		########### FL deriv wrt cat_, f3_, z1_, z2_
 
-		grad_FL_s = FL_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats)
+		grad_FL_s = FL_grad(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, pred, Y, imgs_pad, sigma31, img_cats) / N_IMGS'''
 		t_grad_s_start = time.time() - t_grad_s_start
 		
-		grad_L1_s = 0
-		grad_L2_s = 0
-		grad_L3_s = 0
-		grad_FL_s = 0
 		
 		##########
 		# weight decay
