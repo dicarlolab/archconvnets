@@ -25,16 +25,16 @@ conv_block_cuda = theano.function([filters, input], conv_op(input, filters))
 filename = '/home/darren/cifar_test_small.mat'
 
 S_SCALE = 1
-N_SIGMA_IMGS = 4000
-WD = 5e-3
-MOMENTUM = 0.9
+N_SIGMA_IMGS = 1000
+WD = 1e-2 #5e-4
+MOMENTUM = 0#0.9
 
 F1_scale = 0.001 # std of init normal distribution
 F2_scale = 0.001
 F3_scale = 0.01
 FL_scale = 0.02
 
-EPS = 1e-5#1e-4#1e-3#1e-11#e-3#-2#6#7
+EPS = 1e-1#1e-4#1e-3#1e-11#e-3#-2#6#7
 #EPS = 1e-3
 eps_F1 = EPS
 eps_F2 = EPS
@@ -44,8 +44,8 @@ eps_FL = EPS
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 1000 # batch size
-N_TEST_IMGS = 2000
+N_IMGS = 128 # batch size
+N_TEST_IMGS = 1000
 IMG_SZ = 50 # input image size (px)
 
 N = 16
@@ -69,7 +69,7 @@ output_sz3 = max_output_sz2 - s3 + 1
 max_output_sz3  = len(range(0, output_sz3-POOL_SZ, POOL_STRIDE))
 
 if False:
-	x = loadmat('/home/darren/cifar_test_small.mat')
+	x = loadmat('/home/darren/cifar_test_smaller.mat')
 	F1 = x['F1']
 	F2 = x['F2']
 	F3 = x['F3']
@@ -80,13 +80,13 @@ if False:
 	err_test = x['err_test'].tolist()
 	epoch_err = x['epoch_err'].tolist()
 	
-	np.random.seed(623)
+	np.random.seed(111623)
 	F1_init = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
 	F2_init = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
 	F3_init = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
 	FL_init = np.single(np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, max_output_sz3)))
 else:
-	np.random.seed(1623)
+	np.random.seed(162)
 	F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
 	F1_init = copy.deepcopy(F1)
 	F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
@@ -346,10 +346,9 @@ for iter in range(np.int(1e7)):#[0]:#range(np.int(1e7)):
 			v_i_FL = v_i1_FL
 			
 			#######################################
-			d=1
 			savemat(filename, {'F1': F1, 'F2': F2, 'F3':F3, 'FL': FL, 'eps_FL': eps_FL, 'eps_F3': eps_F3, 'eps_F2': eps_F2, 'step': step, 'eps_F1': eps_F1, 'N_IMGS': N_IMGS, 'N_TEST_IMGS': N_TEST_IMGS,'err_test':err_test,'err':err,'class_err':class_err,'class_err_test':class_err_test,'epoch_err':epoch_err})
-			print iter, step, err_test[-1], class_err_test[-1], t_grad_start, t_grad_s_start, time.time() - t_total, filename
-			print '                        F1', np.round(np.min(F1),d), np.round(np.max(F1),d), 'F2', np.round(np.min(F2),d), np.round(np.max(F2),d), 'F3', np.round(np.min(F3),d), np.round(np.max(F3),d), 'FL', np.round(np.min(FL),d), np.round(np.max(FL),d)
+			print iter, batch, step, err_test[-1], class_err_test[-1], t_grad_start, t_grad_s_start, time.time() - t_total, filename
+			print '                        F1', np.mean(np.abs(v_i1_L1))/np.mean(np.abs(F1)), 'F2', np.mean(np.abs(v_i1_L2))/np.mean(np.abs(F2)), 'F3', np.mean(np.abs(v_i1_L3))/np.mean(np.abs(F3)), 'FL', np.mean(np.abs(v_i1_FL))/np.mean(np.abs(FL))
 			epoch_err_t += err[-1]
 	epoch_err.append(epoch_err_t)
 	print '------------ epoch err ----------'
