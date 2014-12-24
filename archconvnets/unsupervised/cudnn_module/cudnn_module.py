@@ -85,4 +85,34 @@ def conv_from_buffers(conv_buff_ind):
 	n_filters = n_filters_buffer[conv_filter_ind[conv_buff_ind]]
 	out = _cudnn_module.conv_from_buffers(conv_buff_ind)
 	conv_out_sz = np.sqrt(out.shape[0]/(n_imgs*n_filters))
+	print out.reshape((n_imgs, n_filters, conv_out_sz, conv_out_sz)).flags
+	print out.reshape((n_imgs, n_filters, conv_out_sz, conv_out_sz)).transpose((1,2,3,0)).shape
 	return out.reshape((n_imgs, n_filters, conv_out_sz, conv_out_sz)).transpose((1,2,3,0))
+	
+def max_pool_locs_alt(conv_output, output_switches_x, output_switches_y):
+	assert conv_output.shape[1] == conv_output.shape[2]
+	assert conv_output.shape[0] == output_switches_x.shape[0]
+	assert conv_output.shape[3] == output_switches_x.shape[3]
+	assert output_switches_y.shape[0] == output_switches_x.shape[0]
+	assert output_switches_y.shape[1] == output_switches_x.shape[1]
+	assert output_switches_y.shape[2] == output_switches_x.shape[2]
+	assert output_switches_y.shape[3] == output_switches_x.shape[3]
+	assert conv_output.dtype == np.dtype('float32')
+	'''if not conv_output.flags.contiguous:
+		print 'not contig., conv_output'
+		conv_output = np.ascontiguousarray(conv_output)
+	if not output_switches_x.flags.contiguous:
+		output_switches_x = np.ascontiguousarray(output_switches_x)
+		print 'not contig., x'
+	if not output_switches_y.flags.contiguous:
+		output_switches_y = np.ascontiguousarray(output_switches_y)
+		print 'not contig., y'
+		'''
+	
+	z = _cudnn_module.max_pool_locs_alt(conv_output, output_switches_x, output_switches_y)
+	n_filters = conv_output.shape[0]
+	n_imgs = conv_output.shape[3]
+	n_sets = conv_output.shape[4]
+	output_sz = output_switches_x.shape[1]
+
+	return z.reshape((n_filters, output_sz, output_sz, n_imgs, n_sets))
