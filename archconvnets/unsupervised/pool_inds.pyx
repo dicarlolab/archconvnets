@@ -4,6 +4,7 @@ import numpy as np
 ''' conv_output: 
 '''
 def max_pool_locs(npd.ndarray[npd.float32_t, ndim=4] conv_output, int pool_stride=2, int pool_window_sz=3): 
+	conv_output = conv_output.transpose((1,2,3,0)) # todo: change function to work with this dimension ordering natively
 	assert conv_output.shape[1] == conv_output.shape[2]
 	
 	cdef int conv_sz = conv_output.shape[1]
@@ -38,5 +39,10 @@ def max_pool_locs(npd.ndarray[npd.float32_t, ndim=4] conv_output, int pool_strid
 
 			y += 1
 		x += 1
+		
+	## todo:
+	output = np.ascontiguousarray(output.transpose((3,0,1,2)))
+	output_switches_x = np.ascontiguousarray(output_switches_x.transpose((3,0,1,2)))
+	output_switches_y = np.ascontiguousarray(output_switches_y.transpose((3,0,1,2)))
 	return output, output_switches_x, output_switches_y
 

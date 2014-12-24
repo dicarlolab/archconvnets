@@ -6,7 +6,8 @@
 #include "set_filter_buffer.c"
 #include "set_conv_buffer.c"
 #include "conv_from_buffers.c"
-#include "max_pool_locs_alt.c"
+//#include "max_pool_locs_alt.c"
+#include "max_pool_locs_alt_reo.c"
 
 static PyMethodDef _cudnn_module[] = {
 	{"conv", conv, METH_VARARGS},
@@ -15,7 +16,7 @@ static PyMethodDef _cudnn_module[] = {
 	{"set_filter_buffer", set_filter_buffer, METH_VARARGS},
 	{"set_conv_buffer", set_conv_buffer, METH_VARARGS},
 	{"conv_from_buffers", conv_from_buffers, METH_VARARGS},
-	{"max_pool_locs_alt", max_pool_locs_alt, METH_VARARGS},
+	{"max_pool_locs_alt", max_pool_locs_alt_reo, METH_VARARGS},//{"max_pool_locs_alt", max_pool_locs_alt, METH_VARARGS},
 	{NULL, NULL}
 };
 

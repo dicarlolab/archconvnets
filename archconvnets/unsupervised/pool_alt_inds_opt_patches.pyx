@@ -3,7 +3,13 @@ import numpy as np
 
 ''' conv_output: 
 '''
-def max_pool_locs_alt_patches(npd.ndarray[npd.float32_t, ndim=4] conv_output, npd.ndarray[npd.int_t, ndim=4] output_switches_x, npd.ndarray[npd.int_t, ndim=4] output_switches_y, npd.ndarray[npd.float32_t, ndim=4] imgs, int s, int pool_stride=2, int pool_window_sz=3): 
+def max_pool_locs_alt_patches(npd.ndarray[npd.float32_t, ndim=4] conv_output, npd.ndarray[npd.int_t, ndim=4] output_switches_x, npd.ndarray[npd.int_t, ndim=4] output_switches_y, npd.ndarray[npd.float32_t, ndim=4] imgs, int s): 
+	# todo: change function to work with this dimension ordering natively
+	conv_output = conv_output.transpose((1,2,3,0))
+	output_switches_x = output_switches_x.transpose((1,2,3,0))
+	output_switches_y = output_switches_y.transpose((1,2,3,0))
+	imgs = imgs.transpose((1,2,3,0))
+	
 	assert conv_output.shape[1] == conv_output.shape[2]
 	assert conv_output.shape[0] == output_switches_x.shape[0]
 	assert conv_output.shape[3] == output_switches_x.shape[3]
@@ -38,6 +44,10 @@ def max_pool_locs_alt_patches(npd.ndarray[npd.float32_t, ndim=4] conv_output, np
 					a1_y_global = output_switches_y[filter,x,y,img]
 					
 					pool_patches[filter, x, y, img] = imgs[:, a1_x_global:a1_x_global+s, a1_y_global:a1_y_global+s, img]
+	
+	# todo:
+	output = np.ascontiguousarray(output.transpose((3,0,1,2)))
+	pool_patches = np.ascontiguousarray(pool_patches.transpose((3,4,5,6,0,1,2)))
 	
 	return output, pool_patches
 

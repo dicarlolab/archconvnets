@@ -2,14 +2,13 @@
 // set_filter_buffer(): put filter data on GPU
 // inputs: int filter_buff_ind, 
 //          filters [n_filters, n_channels, filter_sz, filter_sz]
-//			(ints): n_channels, filter_sz, n_filters
 
 static PyObject *set_filter_buffer(PyObject *self, PyObject *args)  {
 	PyArrayObject *filters_in;
 	float *filters;
 	int n_channels, filter_sz, n_filters, filter_buff_ind;
 	
-	if (!PyArg_ParseTuple(args, "iO!iii", &filter_buff_ind, &PyArray_Type, &filters_in, &n_channels, &filter_sz, &n_filters)) 
+	if (!PyArg_ParseTuple(args, "iO!", &filter_buff_ind, &PyArray_Type, &filters_in)) 
 		return NULL;
 	if (NULL == filters)  return NULL;
 	
@@ -17,6 +16,9 @@ static PyObject *set_filter_buffer(PyObject *self, PyObject *args)  {
 		printf("---------------\nrequested filter buffer ind greater than allocation. make sure to run init_buffers() first.\n----------\n", filter_buff_ind, n_filter_buffers);
 		return NULL;
 	}
+	n_filters = PyArray_DIM(filters_in, 0);
+	n_channels = PyArray_DIM(filters_in, 1);
+	filter_sz = PyArray_DIM(filters_in, 2);
 	
 	filters = (float *) filters_in -> data;
 	

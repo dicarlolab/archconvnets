@@ -32,24 +32,17 @@ static PyObject *conv_from_buffers(PyObject *self, PyObject *args)  {
 	//-----------------
 	int i = conv_img_ind[conv_buff_ind];
 	int f = conv_filter_ind[conv_buff_ind];
-	cudnnTensor4dDescriptor_t srcDescL = srcDesc_buffers[i];
-	cudnnFilterDescriptor_t filterDescL = filterDesc_buffers[f];
-	cudnnTensor4dDescriptor_t destDescL = destDesc_buffers[conv_buff_ind];
-	cudnnConvolutionDescriptor_t convDescL = convDesc_buffers[conv_buff_ind];
 	
-	float * srcDataL = srcData_buffers[i];
-	float * filterDataL = filterData_buffers[f];
-	float * destDataL = destData_buffers[conv_buff_ind];
-
 	//--------------------------------------
 	// Convolution
 	//--------------------------------------
-	status = cudnnConvolutionForward(handle, srcDescL, srcDataL, filterDescL, filterDataL, convDescL, destDescL, destDataL, CUDNN_RESULT_NO_ACCUMULATE);  ERR_CHECK
+	status = cudnnConvolutionForward(handle, srcDesc_buffers[i], srcData_buffers[i], filterDesc_buffers[f], filterData_buffers[f], 
+			convDesc_buffers[conv_buff_ind], destDesc_buffers[conv_buff_ind], destData_buffers[conv_buff_ind], CUDNN_RESULT_NO_ACCUMULATE);  ERR_CHECK
 
 	//--------------------------------------
 	// Get output data
 	//------------------------------------------
-	err = (cudaError_t)cudaMemcpy(cout, destDataL, dims[0] * DATA_TYPE_SZ, cudaMemcpyDeviceToHost);  MALLOC_ERR_CHECK
+	err = (cudaError_t)cudaMemcpy(cout, destData_buffers[conv_buff_ind], dims[0] * DATA_TYPE_SZ, cudaMemcpyDeviceToHost);  MALLOC_ERR_CHECK
 
 	return PyArray_Return(vecout);
 }

@@ -2,14 +2,13 @@
 // set_img_buffer(): put image data on GPU
 // inputs: int img_buff_ind, 
 //          imgs [n_imgs, n_channels, img_sz, img_sz]
-//			(ints): n_channels, img_sz, n_imgs
 
 static PyObject *set_img_buffer(PyObject *self, PyObject *args)  {
 	PyArrayObject *imgs_in;
 	float *imgs;
 	int n_channels, img_sz, n_imgs, img_buff_ind;
 	
-	if (!PyArg_ParseTuple(args, "iO!iii", &img_buff_ind, &PyArray_Type, &imgs_in, &n_channels, &img_sz, &n_imgs)) 
+	if (!PyArg_ParseTuple(args, "iO!", &img_buff_ind, &PyArray_Type, &imgs_in)) 
 		return NULL;
 	if (NULL == imgs)  return NULL;
 	
@@ -17,6 +16,10 @@ static PyObject *set_img_buffer(PyObject *self, PyObject *args)  {
 		printf("---------------\nrequested img buffer ind greater than allocation. make sure to run init_buffers() first.\n----------\n", img_buff_ind, n_img_buffers);
 		return NULL;
 	}
+	
+	n_imgs = PyArray_DIM(imgs_in, 0);
+	n_channels = PyArray_DIM(imgs_in, 1);
+	img_sz = PyArray_DIM(imgs_in, 2);
 	
 	imgs = (float *) imgs_in -> data;
 	

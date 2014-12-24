@@ -7,20 +7,28 @@ cudnnTensor4dDescriptor_t destDesc;
 // conv(): perform convolution of inputs
 
 // inputs: np raveled arrays: filters [n_filters, n_channels, filter_sz, filter_sz], imgs [n_imgs, n_channels, img_sz, img_sz]
-//				ints: n_channels, filter_sz, n_filters, img_sz, n_imgs
-// returns: conv_out [n_imgs, n_filters, conv_out_sz, conv_out_sz]
+
 static PyObject *conv(PyObject *self, PyObject *args)  {
+	
 	PyArrayObject *filters_in, *imgs_in, *vecout;
 	float *filters, *imgs, *cout;
 	int i, dims[1];
 	int n_channels, filter_sz, n_filters, img_sz, n_imgs;
 	
-	if (!PyArg_ParseTuple(args, "O!O!iiiii", &PyArray_Type, &filters_in, &PyArray_Type, &imgs_in, &n_channels, &filter_sz, &n_filters, &img_sz, &n_imgs)) 
+	if (!PyArg_ParseTuple(args, "O!O!", &PyArray_Type, &filters_in, &PyArray_Type, &imgs_in)) 
 		return NULL;
-	if (NULL == filters || NULL == imgs)  return NULL;
+	
+	if (NULL == filters_in || NULL == imgs_in)  return NULL;
 	
 	filters = (float *) filters_in -> data;
 	imgs = (float *) imgs_in -> data;
+	
+	n_imgs = PyArray_DIM(imgs_in, 0);
+	n_channels = PyArray_DIM(imgs_in, 1);
+	img_sz = PyArray_DIM(imgs_in, 2);
+	
+	n_filters = PyArray_DIM(filters_in, 0);
+	filter_sz = PyArray_DIM(filters_in, 2);
 	
 	int n_imgs_out;
 	int n_filters_out;
