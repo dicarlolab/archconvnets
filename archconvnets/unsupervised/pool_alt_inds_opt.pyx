@@ -3,7 +3,7 @@ import numpy as np
 
 ''' conv_output: 
 '''
-def max_pool_locs_alt(npd.ndarray[npd.float32_t, ndim=4] conv_output, npd.ndarray[npd.int_t, ndim=4] output_switches_x, npd.ndarray[npd.int_t, ndim=4] output_switches_y, int pool_stride=2, int pool_window_sz=3): 
+def max_pool_locs_alt(npd.ndarray[npd.float32_t, ndim=5] conv_output, npd.ndarray[npd.int_t, ndim=4] output_switches_x, npd.ndarray[npd.int_t, ndim=4] output_switches_y): 
 	assert conv_output.shape[1] == conv_output.shape[2]
 	assert conv_output.shape[0] == output_switches_x.shape[0]
 	assert conv_output.shape[3] == output_switches_x.shape[3]
@@ -21,14 +21,16 @@ def max_pool_locs_alt(npd.ndarray[npd.float32_t, ndim=4] conv_output, npd.ndarra
 	cdef int n_filters = conv_output.shape[0]
 	cdef int n_imgs = conv_output.shape[3]
 	cdef int output_sz = output_switches_x.shape[1]
+	cdef int set
 	
-	cdef npd.ndarray[npd.float32_t, ndim=4] output = np.zeros((n_filters, output_sz, output_sz, n_imgs),dtype='single')
+	cdef npd.ndarray[npd.float32_t, ndim=5] output = np.zeros((n_filters, output_sz, output_sz, n_imgs, conv_output.shape[4]), dtype='single')
 
-	for filter in range(n_filters):
-		for x in range(output_sz):
-			for y in range(output_sz):
-				for img in range(n_imgs):
-					output[filter, x, y, img] = conv_output[filter, output_switches_x[filter, x, y, img], output_switches_y[filter, x, y, img], img]
-	
+	for set in range(conv_output.shape[4]):
+		for filter in range(n_filters):
+			for x in range(output_sz):
+				for y in range(output_sz):
+					for img in range(n_imgs):
+						output[filter, x, y, img, set] = conv_output[filter, output_switches_x[filter, x, y, img], output_switches_y[filter, x, y, img], img, set]
+		
 	return output
 

@@ -10,12 +10,12 @@ from scipy.io import savemat, loadmat
 import copy
 from scipy.stats import zscore
 import random
+import gnumpy as gpu
+
 #kernprof -l bp_cudnn.py
 #python -m line_profiler bp_cudnn.py.lprof  > p
-
 @profile
 def sf():
-
 	FBUFF_F1 = 0
 	FBUFF_F2 = 1
 	FBUFF_F3 = 2
@@ -251,17 +251,17 @@ def sf():
 				# forward pass current filters
 				t_test_forward_start = time.time()
 				conv_output1 = conv_from_buffers(CBUFF_F1_TEST_IMGS)
-				max_output1t = max_pool_locs_alt(conv_output1, output_switches1_x, output_switches1_y)
+				max_output1t = max_pool_locs_alt(conv_output1[:,:,:,:,np.newaxis], output_switches1_x, output_switches1_y)
 				max_output1 = np.zeros((n1, max_output_sz1, max_output_sz1, N_TEST_IMGS),dtype='single')
-				max_output1[:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
+				max_output1[:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = np.squeeze(max_output1t)
 
 				conv_output2 = conv_block_cuda(F2.transpose((1,2,3,0)), max_output1)
-				max_output2t = max_pool_locs_alt(conv_output2, output_switches2_x, output_switches2_y)
+				max_output2t = max_pool_locs_alt(conv_output2[:,:,:,:,np.newaxis], output_switches2_x, output_switches2_y)
 				max_output2 = np.zeros((n2, max_output_sz2, max_output_sz2, N_TEST_IMGS),dtype='single')
-				max_output2[:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
+				max_output2[:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = np.squeeze(max_output2t)
 
 				conv_output3 = conv_block_cuda(F3.transpose((1,2,3,0)), max_output2)
-				max_output3 = max_pool_locs_alt(conv_output3, output_switches3_x, output_switches3_y)
+				max_output3 = max_pool_locs_alt(conv_output3[:,:,:,:,np.newaxis], output_switches3_x, output_switches3_y)
 
 				pred = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_TEST_IMGS)))
 				err_test.append(np.sum((pred - Y)**2)/N_TEST_IMGS)
@@ -319,6 +319,7 @@ def sf():
 
 				conv_output3 = conv_block_cuda(F3.transpose((1,2,3,0)), max_output2)
 				max_output3, pool3_patches = max_pool_locs_alt_patches(conv_output3, output_switches3_x, output_switches3_y, max_output2, s3)
+				max_output3 = np.squeeze(max_output3)
 				
 				pred = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_IMGS)))
 				err.append(np.sum((pred - Y)**2)/N_IMGS)
@@ -331,9 +332,9 @@ def sf():
 				t_forward_start = time.time() - t_forward_start
 				t_grad_start = time.time()
 				
+				FLr = FL.reshape((N_C, n3*max_output_sz3**2))
+				FLrg = gpu.garray(FLr)
 				########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
-				set_img_buffer(IBUFF_POOL2, max_output2);
-				set_conv_buffer(CBUFF_F3_GRAD_F1, FBUFF_F3, IBUFF_POOL2)
 				grad = np.zeros_like(F1)
 				
 				# ravel together all the patches to reduce the needed convolution function calls
@@ -341,29 +342,33 @@ def sf():
 				pool1_deriv = np.zeros((n1, max_output_sz1, max_output_sz1, N_IMGS*3*s1*s1),dtype='single')
 				pool1_deriv[:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = pool1_derivt
 				
+				max_output3t_accum = np.zeros((n3*max_output_sz3**2, N_IMGS, n1, 3, s1, s1),dtype='single')
 				for f1_ in range(n1):
 					set_filter_buffer(FBUFF_F2_GRAD_L1, F2.transpose((1,2,3,0))[f1_][np.newaxis])
 					set_img_buffer(IBUFF_F2_GRAD_L1, pool1_deriv[f1_][np.newaxis])
 					set_conv_buffer(CBUFF_F2_GRAD_L1, FBUFF_F2_GRAD_L1, IBUFF_F2_GRAD_L1)
 					
 					conv_output2_deriv = conv_from_buffers(CBUFF_F2_GRAD_L1)
-					conv_output2_deriv = conv_output2_deriv.reshape((n1, output_sz2, output_sz2, N_IMGS, 3, s1, s1))
-					for a1_x_ in range(s1):
-						for a1_y_ in range(s1):
-							for channel_ in range(3):
-								max_output2t = max_pool_locs_alt(conv_output2_deriv[:,:,:,:,channel_,a1_x_,a1_y_], output_switches2_x, output_switches2_y)
-								max_output2[:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
-								
-								set_img_buffer(IBUFF_POOL2, max_output2);
-								
-								conv_output3_deriv = conv_from_buffers(CBUFF_F3_GRAD_F1)
-								max_output3 = max_pool_locs_alt(conv_output3_deriv, output_switches3_x, output_switches3_y)
-								
-								pred_deriv = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_IMGS))).ravel()
-								
-								grad[f1_, channel_, a1_x_, a1_y_] = np.dot(pred_deriv, pred_ravel)
-				grad_L1_uns = grad / N_IMGS
-				
+					conv_output2_deriv = conv_output2_deriv.reshape((n1, output_sz2, output_sz2, N_IMGS, 3*s1*s1))
+					
+					max_output2t = max_pool_locs_alt(conv_output2_deriv, output_switches2_x, output_switches2_y)
+					max_output2 = np.zeros((n2, max_output_sz2, max_output_sz2, N_IMGS, 3*s1*s1),dtype='single')
+					max_output2[:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
+					max_output2 = max_output2.reshape((n2, max_output_sz2, max_output_sz2, N_IMGS*3*s1*s1))
+					
+					set_img_buffer(IBUFF_POOL2, max_output2);
+					set_conv_buffer(CBUFF_F3_GRAD_F1, FBUFF_F3, IBUFF_POOL2)
+					conv_output3_deriv = conv_from_buffers(CBUFF_F3_GRAD_F1)
+					conv_output3_deriv = conv_output3_deriv.reshape((n2, output_sz3, output_sz3, N_IMGS, 3*s1*s1))
+					
+					max_output3t = max_pool_locs_alt(conv_output3_deriv, output_switches3_x, output_switches3_y)
+					max_output3t_accum[:,:,f1_] = max_output3t.reshape((n3*max_output_sz3**2, N_IMGS, 3, s1, s1))
+					
+				mtg = gpu.garray(max_output3t_accum.transpose((1,2,3,4,0,5)))
+				t=FLrg.dot(mtg).as_numpy_array()
+
+				t = t.reshape((N_C*N_IMGS, n1, 3, s1, s1)).transpose((1,2,3,0,4))
+				grad_L1_uns = np.dot(pred_ravel, t) / N_IMGS
 				
 				########## F2 deriv wrt f2_, a2_x_, a2_y_, f1_
 				grad = np.zeros_like(F2)
@@ -373,23 +378,23 @@ def sf():
 				pool2_deriv = np.zeros((n2, max_output_sz2, max_output_sz2, N_IMGS*n1*s2*s2),dtype='single')
 				pool2_deriv[:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = pool2_derivt
 				
+				max_output3t_accum = np.zeros((n3*max_output_sz3**2, N_IMGS, n2, n1, s2, s2),dtype='single')
 				for f2_ in range(n2):
 					set_filter_buffer(FBUFF_F3_GRAD_L2, F3.transpose((1,2,3,0))[f2_][np.newaxis])
 					set_img_buffer(IBUFF_F3_GRAD_L2, pool2_deriv[f2_][np.newaxis])
 					set_conv_buffer(CBUFF_F3_GRAD_L2, FBUFF_F3_GRAD_L2, IBUFF_F3_GRAD_L2)
 					
 					conv_output3_deriv = conv_from_buffers(CBUFF_F3_GRAD_L2)
-					conv_output3_deriv = conv_output3_deriv.reshape((n2, output_sz3, output_sz3, N_IMGS, n1, s2, s2))
-					for a2_x_ in range(s2):
-						for a2_y_ in range(s2):
-							for f1_ in range(n1):
-								max_output3 = max_pool_locs_alt(conv_output3_deriv[:,:,:,:,f1_,a2_x_,a2_y_], output_switches3_x, output_switches3_y)
-								
-								pred_deriv = np.dot(FL.reshape((N_C, n3*max_output_sz3**2)), max_output3.reshape((n3*max_output_sz3**2, N_IMGS))).ravel()
-								
-								grad[f2_, f1_, a2_x_, a2_y_] = np.dot(pred_deriv, pred_ravel)
-				grad_L2_uns = grad / N_IMGS
+					conv_output3_deriv = conv_output3_deriv.reshape((n2, output_sz3, output_sz3, N_IMGS, n1*s2*s2))
+					
+					max_output3t = max_pool_locs_alt(conv_output3_deriv, output_switches3_x, output_switches3_y)
+					max_output3t_accum[:,:,f2_] = max_output3t.reshape((n3*max_output_sz3*max_output_sz3, N_IMGS, n1, s2, s2))
+					
+				mtg = gpu.garray(max_output3t_accum.transpose((1,2,3,4,0,5)))
+				t=FLrg.dot(mtg).as_numpy_array()
 				
+				t = t.reshape((N_C*N_IMGS, n2, n1, s2, s2)).transpose((1,2,3,0,4))
+				grad_L2_uns = np.dot(pred_ravel, t) / N_IMGS
 
 				########## F3 deriv wrt f3_, a3_x_, a3_y_, f2_
 				grad = np.zeros_like(F3)
@@ -507,5 +512,4 @@ def sf():
 		epoch_err.append(epoch_err_t)
 		print '------------ epoch err ----------'
 		print epoch_err_t
-
 sf()
