@@ -4,7 +4,7 @@ import numpy as np
 import numexpr as ne
 from archconvnets.unsupervised.pool_inds import max_pool_locs
 #from archconvnets.unsupervised.pool_alt_inds_opt import max_pool_locs_alt
-from archconvnets.unsupervised.pool_alt_inds_opt_patches import max_pool_locs_alt_patches
+#from archconvnets.unsupervised.pool_alt_inds_opt_patches import max_pool_locs_alt_patches
 from scipy.io import savemat, loadmat
 import copy
 from scipy.stats import zscore

@@ -107,20 +107,23 @@ def max_pool_locs_alt(conv_output, output_switches_x, output_switches_y):
 	output_sz = output_switches_x.shape[2]
 
 	return np.ascontiguousarray(z.reshape((n_imgs, n_sets, n_filters, output_sz, output_sz)))
-	
-'''def max_pool_locs_alt(conv_output, output_switches_x, output_switches_y):
-	conv_output = conv_output.transpose((2,3,4,0,1))
-	output_switches_x = output_switches_x.transpose((1,2,3,0))
-	output_switches_y = output_switches_y.transpose((1,2,3,0))
-	
-	assert conv_output.shape[1] == conv_output.shape[2]
-	assert conv_output.shape[0] == output_switches_x.shape[0]
-	assert conv_output.shape[3] == output_switches_x.shape[3]
+
+# conv_output: [n_imgs, n_filters, conv_output_sz, conv_output_sz]
+# output_switches_x: [n_imgs, n_filters, output_sz, output_sz]
+# imgs: [n_imgs, n_channels, img_sz, img_sz]
+def max_pool_locs_alt_patches(conv_output, output_switches_x, output_switches_y, imgs, s):
+	assert conv_output.shape[-1] == conv_output.shape[-2]
+	assert conv_output.shape[1] == output_switches_x.shape[1]
+	assert conv_output.shape[0] == output_switches_x.shape[0] == imgs.shape[0]
 	assert output_switches_y.shape[0] == output_switches_x.shape[0]
 	assert output_switches_y.shape[1] == output_switches_x.shape[1]
 	assert output_switches_y.shape[2] == output_switches_x.shape[2]
 	assert output_switches_y.shape[3] == output_switches_x.shape[3]
 	assert conv_output.dtype == np.dtype('float32')
+	assert imgs.dtype == np.dtype('float32')
+	if not imgs.flags.contiguous:
+		#print 'warning: input to max_pool_locs_alt not C-contiguous (imgs)'
+		imgs = np.ascontiguousarray(imgs)
 	if not conv_output.flags.contiguous:
 		#print 'warning: input to max_pool_locs_alt not C-contiguous (conv_output)'
 		conv_output = np.ascontiguousarray(conv_output)
@@ -131,11 +134,12 @@ def max_pool_locs_alt(conv_output, output_switches_x, output_switches_y):
 		#print 'warning: input to max_pool_locs_alt not C-contiguous (output_switches_y)'
 		output_switches_y = np.ascontiguousarray(output_switches_y)
 	
-	z = _cudnn_module.max_pool_locs_alt(conv_output, output_switches_x, output_switches_y)
+	z,y = _cudnn_module.max_pool_locs_alt_patches(conv_output, output_switches_x, output_switches_y, imgs, s)
 
-	n_filters = conv_output.shape[0]
-	n_imgs = conv_output.shape[3]
-	n_sets = conv_output.shape[4]
-	output_sz = output_switches_x.shape[1]
+	n_filters = conv_output.shape[1]
+	n_imgs = conv_output.shape[0]
+	conv_output_sz = conv_output.shape[2]
+	output_sz = output_switches_x.shape[2]
+	n_channels = imgs.shape[1]
 
-	return np.ascontiguousarray(z.reshape((n_filters, output_sz, output_sz, n_imgs, n_sets)).transpose((3,4,0,1,2)))'''
+	return np.ascontiguousarray(z.reshape((n_imgs, n_filters, output_sz, output_sz))), np.ascontiguousarray(y.reshape((n_imgs, n_channels, s, s, n_filters, output_sz, output_sz)))
