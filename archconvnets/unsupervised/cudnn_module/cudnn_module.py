@@ -21,10 +21,10 @@ def conv(filters, imgs):
 	assert filters.dtype == np.dtype('float32') and imgs.dtype == np.dtype('float32')
 	
 	if not imgs.flags.contiguous:
-		#print 'warning: input to conv not C-contiguous'
+		print 'warning: input to conv not C-contiguous (imgs)'
 		imgs=np.ascontiguousarray(imgs)
 	if not filters.flags.contiguous:
-		#print 'warning: input to conv not C-contiguous'
+		print 'warning: input to conv not C-contiguous (filters)'
 		filters=np.ascontiguousarray(filters)
 	
 	out = _cudnn_module.conv(filters, imgs)
@@ -41,7 +41,7 @@ def set_filter_buffer(buff_ind, filters):
 	assert filters.dtype == np.dtype('float32')
 	
 	if not filters.flags.contiguous:
-		#print 'warning: input to set_filter_buffer not C-contiguous'
+		print 'warning: input to set_filter_buffer not C-contiguous (filters)'
 		filters=np.ascontiguousarray(filters)
 	
 	n_filters_buffer[buff_ind] = n_filters
@@ -57,7 +57,7 @@ def set_img_buffer(buff_ind, imgs):
 	assert imgs.dtype == np.dtype('float32')
 	
 	if not imgs.flags.contiguous:
-		#print 'warning: input to set_img_buffer not C-contiguous'
+		print 'warning: input to set_img_buffer not C-contiguous (imgs)'
 		imgs=np.ascontiguousarray(imgs)
 	
 	n_imgs_buffer[buff_ind] = n_imgs
@@ -90,13 +90,13 @@ def max_pool_locs_alt(conv_output, output_switches_x, output_switches_y):
 	assert output_switches_y.shape[3] == output_switches_x.shape[3]
 	assert conv_output.dtype == np.dtype('float32')
 	if not conv_output.flags.contiguous:
-		#print 'warning: input to max_pool_locs_alt not C-contiguous (conv_output)'
+		print 'warning: input to max_pool_locs_alt not C-contiguous (conv_output)'
 		conv_output = np.ascontiguousarray(conv_output)
 	if not output_switches_x.flags.contiguous:
-		#print 'warning: input to max_pool_locs_alt not C-contiguous (output_switches_x)'
+		print 'warning: input to max_pool_locs_alt not C-contiguous (output_switches_x)'
 		output_switches_x = np.ascontiguousarray(output_switches_x)
 	if not output_switches_y.flags.contiguous:
-		#print 'warning: input to max_pool_locs_alt not C-contiguous (output_switches_y)'
+		print 'warning: input to max_pool_locs_alt not C-contiguous (output_switches_y)'
 		output_switches_y = np.ascontiguousarray(output_switches_y)
 	
 	z = _cudnn_module.max_pool_locs_alt(conv_output, output_switches_x, output_switches_y)
@@ -122,16 +122,16 @@ def max_pool_locs_alt_patches(conv_output, output_switches_x, output_switches_y,
 	assert conv_output.dtype == np.dtype('float32')
 	assert imgs.dtype == np.dtype('float32')
 	if not imgs.flags.contiguous:
-		#print 'warning: input to max_pool_locs_alt not C-contiguous (imgs)'
+		print 'warning: input to max_pool_locs_alt_patches not C-contiguous (imgs)'
 		imgs = np.ascontiguousarray(imgs)
 	if not conv_output.flags.contiguous:
-		#print 'warning: input to max_pool_locs_alt not C-contiguous (conv_output)'
+		print 'warning: input to max_pool_locs_alt_patches not C-contiguous (conv_output)'
 		conv_output = np.ascontiguousarray(conv_output)
 	if not output_switches_x.flags.contiguous:
-		#print 'warning: input to max_pool_locs_alt not C-contiguous (output_switches_x)'
+		print 'warning: input to max_pool_locs_alt_patches not C-contiguous (output_switches_x)'
 		output_switches_x = np.ascontiguousarray(output_switches_x)
 	if not output_switches_y.flags.contiguous:
-		#print 'warning: input to max_pool_locs_alt not C-contiguous (output_switches_y)'
+		print 'warning: input to max_pool_locs_alt_patches not C-contiguous (output_switches_y)'
 		output_switches_y = np.ascontiguousarray(output_switches_y)
 	
 	z,y = _cudnn_module.max_pool_locs_alt_patches(conv_output, output_switches_x, output_switches_y, imgs, s)
