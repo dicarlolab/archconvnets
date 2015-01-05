@@ -44,7 +44,7 @@ CBUFF_F2_GRAD_L1 = 7
 
 conv_block_cuda = conv
 
-filename = '/home/darren/cifar_sigma_eps50.mat'
+filename = '/home/darren/cifar_16N.mat'
 
 S_SCALE = 20#1e-2
 WD = 0#1
@@ -55,7 +55,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.3
 
-EPS = 5e1#5e-3
+EPS = 1e0#5e-3
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -156,13 +156,11 @@ sigma11_L2 = sigma31_L2.mean(0)
 sigma31 = sigma31.reshape((10, 3, 8, 5, 5, 8*5*5*8*3*3)).mean(-1)
 sigma11 = sigma31.mean(0)'''
 
-y = loadmat('/home/darren/sigma31_8N_128imgs_c.mat')
+y = loadmat('/home/darren/sigma31_16N_10k_imgs_c.mat')
 sigma31 = y['sigma31_L1']
 sigma31_L2 = y['sigma31_L2']
 sigma31_L3 = y['sigma31_L3']
 sigma31_FL = y['sigma31_FL']#.mean(-1).mean(-1)
-
-sigma11 = y['sigma31_L1'].mean(0)
 
 '''sigma31_FLs = sigma31_FL.shape
 sigma31_L3s = sigma31_L3.shape
@@ -290,13 +288,37 @@ for iter in range(np.int(1e7)):
 			t_grad_s_start = time.time()
 			
 
-			############################################## F1 deriv wrt f1_, a1_x_, a1_y_, channel_ (n1,3,s1,s1)
+			############################################## F1 deriv wrt f1_, a1_x_, a1_y_, channel_ (n1,3,s1,s1) ....................................  c_actual != c_err_term
+			grad_L1_s = 0
+			
 			F32 = F3[:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * F2[np.newaxis,:,np.newaxis,np.newaxis]
 			# F32: n3, n2, s3, s3, n1, s2, s2
 			F32 = F32.transpose((4,0,1,2,3,5,6))
 			# F32: n1, n3, n2, s3, s3, s2, s2
 			F32t = F32[np.newaxis,:,np.newaxis,np.newaxis,np.newaxis,:,np.newaxis,np.newaxis]
 			
+			for c_actual in range(N_C):
+				#print c_actual
+				sigma31_F1 = sigma31[c_actual] * F1.transpose((1,0,2,3))
+				for c_err_term in range(N_C):
+					if c_actual != c_err_term:
+						sigma31_L1_FL = (sigma31[c_actual,:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * FL[c_err_term,np.newaxis,np.newaxis,np.newaxis,np.newaxis]).transpose((1,0,2,3,4,5,6))
+						# sigma31_FL: n1, 3, s1, s1, n3, z1, z2
+
+						sigma31_L1_FLt = sigma31_L1_FL[:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+						derivc = np.einsum(sigma31_L1_FLt, range(12), F32t[0], range(12), [0,1,2,3])
+						
+						sigma31_L1_F1_FL = (sigma31_F1[:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * FL[c_err_term,np.newaxis,np.newaxis,np.newaxis,np.newaxis]).transpose((1,0,2,3,4,5,6))
+						# sigma31_FL: N_C, n1, 3, s1, s1, n3, z1, z2
+						
+						sigma31_L1_F1_FLt = sigma31_L1_F1_FL[:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+						predc = np.einsum(sigma31_L1_F1_FLt, range(12), F32t[0], range(12), [0,1,2,3])
+						grad_L1_s += derivc*predc
+						
+			###################################################################################################################
+			
+			############################################## F1 deriv wrt f1_, a1_x_, a1_y_, channel_ (n1,3,s1,s1) ...................................... c_actual == c_err_term
+
 			################################# supervised:
 			sigma31_L1_FL = (sigma31[:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * FL[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis]).transpose((0,2,1,3,4,5,6,7))
 			# sigma31_FL: N_C, n1, 3, s1, s1, n3, z1, z2
@@ -311,15 +333,44 @@ for iter in range(np.int(1e7)):
 			
 			sigma31_L1_F1_FLt = sigma31_L1_F1_FL[:,:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
 			predc = np.einsum(sigma31_L1_F1_FLt, range(13), F32t, range(13), [0,1,2,3,4])
-			grad_L1_s = -(derivc*(1 - predc)).mean(0)
+			grad_L1_s -= (derivc*(1 - predc)).sum(0)
 			
 			
-			############################################# F2 deriv wrt f2_, f1_, a2_x_, a2_y_ (n1,n2,s2,s2)
+			
+			##########################################################################################################################################################################
+			
+			grad_L2_s = 0
+			############################################# F2 deriv wrt f2_, f1_, a2_x_, a2_y_ (n1,n2,s2,s2) ...................................... c_actual != c_err_term
 			F31 = F3[:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis]*F1[np.newaxis,np.newaxis,np.newaxis,np.newaxis]
 			# F31: n3, n2, s3, s3, n1, 3, s1, s1
 			F31 = F31.transpose((0,1,4,2,3,5,6,7))
 			# F31: n3, n2, n1, s3, s3, 3, s1, s1
 			F31t = F31[np.newaxis,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+			
+			for c_actual in range(N_C):
+				#print c_actual
+				sigma31_L2_F2 = sigma31_L2[c_actual] * F2
+				for c_err_term in range(N_C):
+					if c_actual != c_err_term:
+						sigma31_L2_FL = (sigma31_L2[c_actual,:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * FL[c_err_term,np.newaxis,np.newaxis,np.newaxis,np.newaxis])
+						# sigma31_L2_FL: n1, n2, s2, s2, n3, z1, z2
+						sigma31_L2_FL = sigma31_L2_FL.transpose((4,0,1,2,3,5,6))
+						# sigma31_L2_FL: n3, n2, n1, s2, s2, z1, z2
+						
+						sigma31_L2_FLt = sigma31_L2_FL[:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+						derivc = np.einsum(sigma31_L2_FLt, range(13), F31t[0], range(13), [1,2,3,4])
+						
+						sigma31_L2_F2_FL = (sigma31_L2_F2[:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * FL[c_err_term,np.newaxis,np.newaxis,np.newaxis,np.newaxis])
+						# sigma31_L2_FL: n1, n2, s2, s2, n3, z1, z2
+						sigma31_L2_F2_FL = sigma31_L2_F2_FL.transpose((4,0,1,2,3,5,6))
+						# sigma31_L2_FL: n3, n2, n1, s2, s2, z1, z2
+						
+						sigma31_L2_F2_FLt = sigma31_L2_F2_FL[:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+						predc = np.einsum(sigma31_L2_F2_FLt, range(13), F31t[0], range(13), [1,2,3,4])
+						grad_L2_s += derivc*predc
+			
+			
+			############################################# F2 deriv wrt f2_, f1_, a2_x_, a2_y_ (n1,n2,s2,s2) ...................................... c_actual == c_err_term
 			
 			################################# supervised:
 			sigma31_L2_FL = (sigma31_L2[:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * FL[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis])
@@ -331,15 +382,99 @@ for iter in range(np.int(1e7)):
 			derivc = np.einsum(sigma31_L2_FLt, range(14), F31t, range(14), [0, 2,3,4,5])
 			
 			################################# unsupervised: (approx):
-			sigma31_L2_F1 = sigma31_L2 * F2[np.newaxis]
-			sigma31_L2_F1_FL = (sigma31_L2_F1[:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * FL[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis])
+			sigma31_L2_F2 = sigma31_L2 * F2[np.newaxis]
+			sigma31_L2_F2_FL = (sigma31_L2_F2[:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * FL[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis])
 			# sigma31_L2_FL: N_C, n1, n2, s2, s2, n3, z1, z2
-			sigma31_L2_F1_FL = sigma31_L2_F1_FL.transpose((0,5,1,2,3,4,6,7))
+			sigma31_L2_F2_FL = sigma31_L2_F2_FL.transpose((0,5,1,2,3,4,6,7))
 			# sigma31_L2_FL: N_C, n3, n2, n1, s2, s2, z1, z2
 			
-			sigma31_L2_F1_FLt = sigma31_L2_F1_FL[:,:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
-			predc = np.einsum(sigma31_L2_F1_FLt, range(14), F31t, range(14), [0, 2,3,4,5])
-			grad_L2_s = -(derivc*(1 - predc)).mean(0)
+			sigma31_L2_F2_FLt = sigma31_L2_F2_FL[:,:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+			predc = np.einsum(sigma31_L2_F2_FLt, range(14), F31t, range(14), [0, 2,3,4,5])
+			grad_L2_s -= (derivc*(1 - predc)).sum(0)
+			
+			
+			
+			
+			##########################################################################################################################################################################
+			
+			grad_L3_s = 0
+			############################################## F3 deriv wrt f3_, f2_, a3_x_, a3_y_ (n2,n3,s3,s3) ...................................... c_actual != c_err_term
+			F21 = F2[:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * F1[np.newaxis,:,np.newaxis,np.newaxis]
+			# F21: n2, n1, s2, s2, 3, s1, s1
+			F21t = F21[np.newaxis,np.newaxis,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+			
+			for c_actual in range(N_C):
+				#print c_actual
+				sigma31_L3_F3 = sigma31_L3[c_actual] * F3
+				for c_err_term in range(N_C):
+					if c_actual != c_err_term:
+						sigma31_L3_FL = sigma31_L3[c_actual,:,:,:,:,np.newaxis,np.newaxis] * FL[c_err_term,:,np.newaxis,np.newaxis,np.newaxis]
+						# sigma31_L3_FL: N_C, n3, n2, s3, s3, z1, z2
+						sigma31_L3_FLt = sigma31_L3_FL[:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+						derivc = np.einsum(sigma31_L3_FLt, range(12), F21t[0], range(12), [0,1,2,3])
+						
+						sigma31_L3_F3_FL = (sigma31_L3_F3[:,:,:,:,np.newaxis,np.newaxis] * FL[c_err_term,:,np.newaxis,np.newaxis,np.newaxis])
+
+						
+						sigma31_L3_F3_FLt = sigma31_L3_F3_FL[:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+						predc = np.einsum(sigma31_L3_F3_FLt, range(12), F21t[0], range(12), [0,1,2,3])
+						grad_L3_s += derivc*predc
+			
+			############################################## F3 deriv wrt f3_, f2_, a3_x_, a3_y_ (n2,n3,s3,s3) ...................................... c_actual == c_err_term
+			
+			################################# supervised:
+			sigma31_L3_FL = sigma31_L3[:,:,:,:,:,np.newaxis,np.newaxis] * FL[:,:,np.newaxis,np.newaxis,np.newaxis]
+			# sigma31_L3_FL: N_C, n3, n2, s3, s3, z1, z2
+			
+			sigma31_L3_FLt = sigma31_L3_FL[:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+			derivc = np.einsum(sigma31_L3_FLt, range(13), F21t, range(13), [0, 1,2,3,4])
+			
+			################################# unsupervised: (approx):
+			sigma31_L3_F3 = sigma31_L3 * F3[np.newaxis]
+			sigma31_L3_F3_FL = (sigma31_L3_F3[:,:,:,:,:,np.newaxis,np.newaxis] * FL[:,:,np.newaxis,np.newaxis,np.newaxis])
+
+			
+			sigma31_L3_F3_FLt = sigma31_L3_F3_FL[:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+			predc = np.einsum(sigma31_L3_F3_FLt, range(13), F21t, range(13), [0, 1,2,3,4])
+			grad_L3_s -= (derivc*(1 - predc)).sum(0)
+			
+			#########################################################################################################################################################################
+			
+			grad_FL_s = np.zeros_like(FL)
+			
+			F3t = F3.transpose((1,0,2,3))
+			F3t = F3t[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+			# F3t: n2, n3, s3, s3
+			F21t = F21[:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis]
+			F321 = F3t*F21t
+			# F321: n2, n1, s2, s2, 3, s1, s1, n3, s3, s3
+			F321t = F321.transpose((7,0,1,2,3,4,5,6,8,9))
+			# F321: n3, n2, n1, s2, s2, 3, s1, s1, s3, s3
+			F321t = F321t[np.newaxis,:,np.newaxis,np.newaxis]
+			
+			sigma31_FLt = sigma31_FL[:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+			
+			####################################### FL deriv wrt cat_, f3_, z1_, z2_ (N_C,n3,z1,z2) ...................................... c_actual != c_err_term
+			for c_actual in range(N_C):
+				derivc = np.einsum(sigma31_FLt[c_actual], range(12), F321t[0], range(12), [0,1,2])
+				for c_err_term in range(N_C):
+					if c_actual != c_err_term:
+						sigma31_FL_FL = sigma31_FL[c_actual] * FL[c_err_term]
+						
+						sigma31_FL_FLt = sigma31_FL_FL[:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+						predc = np.einsum(sigma31_FL_FLt, range(12), F321t[0], range(12), [0,1,2])
+						grad_FL_s[c_err_term] += derivc*predc
+			
+			####################################### FL deriv wrt cat_, f3_, z1_, z2_ (N_C,n3,z1,z2) ...................................... c_actual == c_err_term
+			
+			# sigma31_FL: N_C, n3, z1, z2
+			derivc = np.einsum(sigma31_FLt, range(13), F321t, range(13), [0,1,2,3])
+			
+			sigma31_FL_FL = sigma31_FL * FL
+			sigma31_FL_FLt = sigma31_FL_FL[:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+			predc = np.einsum(sigma31_FLt, range(13), F321t, range(13), [0,1,2,3])
+			grad_FL_s -= (derivc*(1 - predc))
+			
 			
 			
 			##########
@@ -356,8 +491,8 @@ for iter in range(np.int(1e7)):
 			
 			F1 += v_i1_L1
 			F2 += v_i1_L2
-			#F3 += v_i1_L3
-			#FL += v_i1_FL
+			F3 += v_i1_L3
+			FL += v_i1_FL
 			
 			v_i_L1 = v_i1_L1
 			v_i_L2 = v_i1_L2
