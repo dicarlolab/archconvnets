@@ -11,8 +11,8 @@ from scipy.stats import zscore
 import random
 import gnumpy as gpu
 
-#kernprof -l bp_cudnn_L1_test.py
-#python -m line_profiler bp_cudnn_L1_test.py.lprof  > p
+#kernprof -l bp_cudnn_full_sigma.py
+#python -m line_profiler bp_cudnn_full_sigma.py.lprof  > p
 #@profile
 #def sf():
 FBUFF_F1 = 0
@@ -55,7 +55,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.3
 
-EPS = 5e8#5e-3
+EPS = 5e7#5e-3
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -64,7 +64,7 @@ eps_FL = EPS
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 1024 # batch size
+N_IMGS = 5000 # batch size
 N_TEST_IMGS = N_IMGS #N_SIGMA_IMGS #128*2
 N_SIGMA_IMGS = N_IMGS
 IMG_SZ_CROP = 28 # input image size (px)
@@ -136,17 +136,27 @@ v_i_L3 = 0
 v_i_FL = 0
 
 
-y = loadmat('/home/darren/sigma31full_8N_1024imgs.mat')
+y = loadmat('/home/darren/sigma31full_8N_5000imgs.mat')
 sigma31 = y['sigma31']
 sigma31 = sigma31.transpose((0,2,1,3,4,5,6,7,8,9,10,11,12))
 
 # 10, n1, 3, s1, s1, n2, s2, s2, n3, s3, s3, sz, sz
 
-sigma31_LF = sigma31.mean(1).mean(1).mean(1).mean(1).mean(1).mean(1).mean(1).mean(2).mean(2)
-sigma31_LF = sigma31_LF.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
+#sigma31_LF = sigma31.mean(1).mean(1).mean(1).mean(1).mean(1).mean(1).mean(1).mean(2).mean(2)
+#sigma31_LF = sigma31_LF.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
+
+#sigma31_LF = sigma31.mean(2).mean(2).mean(2).mean(2).mean(2).mean(2).mean(3).mean(3)
+#sigma31_LF = sigma31_LF.reshape((N_C, n1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
+
+sigma31_LF = sigma31.mean(3).mean(3).mean(3).mean(3).mean(3).mean(4).mean(4)
+sigma31_LF = sigma31_LF.reshape((N_C, n1, 3, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
 
 sigma31_L3 = sigma31.mean(1).mean(1).mean(1).mean(1).mean(2).mean(2).mean(-1).mean(-1)
 sigma31_L3 = sigma31_L3.reshape((N_C, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
+
+#sigma31_L3 = sigma31.mean(3).mean(3).mean(4).mean(4).mean(-1).mean(-1)
+#sigma31_L3 = sigma31_L3.reshape((N_C, n1, 3, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
+
 
 sigma31_L2 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(2).mean(2).mean(2)
 sigma31_L2 = sigma31_L2.reshape((N_C, n1, 1, 1, 1, n2, s2, s2, 1, 1, 1, 1, 1))
@@ -262,9 +272,10 @@ for iter in range(np.int(1e7)):
 			
 			FLt = FL.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
 			
-			############################################## F1 deriv wrt f1_, a1_x_, a1_y_, channel_
-			grad_L1_s = 0
+			sigma_inds = [0,2,3,4,5,6,7,8,9,10,11,12,13]
+			F_inds = [1,2,3,4,5,6,7,8,9,10,11,12,13]
 			
+			'''############################################## F1 deriv wrt f1_, a1_x_, a1_y_, channel_
 			F32 = F2[np.newaxis,:,:,:,:,np.newaxis,np.newaxis] * F3[:,:,np.newaxis,np.newaxis,np.newaxis]
 			# F32: n3, n2, n1, s2,s2, s3,s3
 			F32 = F32.transpose((2,1,3,4,0,5,6))
@@ -274,55 +285,36 @@ for iter in range(np.int(1e7)):
 			
 			sigma31_F1 = sigma31_L1 * F1.reshape((1, n1, 3, s1, s1,  1, 1, 1, 1, 1, 1, 1, 1))
 			
-			for c_actual in range(N_C):
-				for c_err_term in range(N_C):
-					derivc = np.einsum(sigma31_L1[c_actual], range(12), FL32[c_err_term], range(12), [0,1,2,3])
-					
-					predc = np.einsum(sigma31_F1[c_actual], range(12), FL32[c_err_term], range(12), [0,1,2,3])
-					grad_L1_s += derivc*predc
-					
-					if c_actual == c_err_term:
-						grad_L1_s -= derivc
-						
-						
-			############################################# F2 deriv wrt f2_, f1_, a2_x_, a2_y_
-			grad_L2_s = 0
+			derivc = np.einsum(sigma31_L1, sigma_inds, FL32, F_inds, range(6))
+			predc = np.einsum(sigma31_F1, sigma_inds, FL32, F_inds, range(6))
+			grad_L1_s = (predc*derivc).sum(0).sum(0)
+			grad_L1_s -=  np.einsum(derivc,[0,0,2,3,4,5], [2,3,4,5])'''
 			
+			
+			'''############################################# F2 deriv wrt f2_, f1_, a2_x_, a2_y_
 			F31 = np.tensordot(F1, F3, 0)
 			F31 = F31.reshape((1,n1, 3, s1, s1, n2, 1,1, n3, s3, s3, 1, 1))
 			FL31 = FLt * F31
 			
 			sigma31_F2 = sigma31_L2 * F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1, 1, 1, 1))
 			
-			for c_actual in range(N_C):
-				for c_err_term in range(N_C):
-					derivc = np.einsum(sigma31_L2[c_actual], range(12), FL31[c_err_term], range(12), [4,0,5,6])
-					
-					predc = np.einsum(sigma31_F2[c_actual], range(12), FL31[c_err_term], range(12), [4,0,5,6])
-					grad_L2_s += derivc*predc
-					
-					if c_actual == c_err_term:
-						grad_L2_s -= derivc
+			derivc = np.einsum(sigma31_L2, sigma_inds, FL31, F_inds, [0,1,6,2,7,8])
+			predc = np.einsum(sigma31_F2, sigma_inds, FL31, F_inds, [0,1,6,2,7,8])
+			grad_L2_s = (predc*derivc).sum(0).sum(0)
+			grad_L2_s -=  np.einsum(derivc,[0,0,2,3,4,5], [2,3,4,5])'''
 			
 			
 			############################################## F3 deriv wrt f3_, f2_, a3_x_, a3_y_
-			grad_L3_s = 0
-			
 			F21 = F1[:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * F2.transpose((1,0,2,3))[:,np.newaxis,np.newaxis,np.newaxis]
 			F21 = F21.reshape((1, n1, 3, s1, s1, n2, s2, s2, 1, 1, 1, 1, 1))
 			FL21 = FLt * F21
 			
-			sigma31_F3 = sigma31_L3 * F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
+			'''sigma31_F3 = sigma31_L3 * F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
 			
-			for c_actual in range(N_C):
-				for c_err_term in range(N_C):
-					derivc = np.einsum(sigma31_L3[c_actual], range(12), FL21[c_err_term], range(12), [7,4,8,9])
-					
-					predc = np.einsum(sigma31_F3[c_actual], range(12), FL21[c_err_term], range(12), [7,4,8,9])
-					grad_L3_s += derivc*predc
-					
-					if c_actual == c_err_term:
-						grad_L3_s -= derivc
+			derivc = np.einsum(sigma31_L3, sigma_inds, FL21, F_inds, [0,1,9,6,10,11])
+			predc = np.einsum(sigma31_F3, sigma_inds, FL21, F_inds, [0,1,9,6,10,11])
+			grad_L3_s = (predc*derivc).sum(0).sum(0)
+			grad_L3_s -=  np.einsum(derivc,[0,0,2,3,4,5], [2,3,4,5])'''
 			
 			
 			####################################### FL deriv wrt cat_, f3_, z1_, z2_
@@ -332,16 +324,11 @@ for iter in range(np.int(1e7)):
 			
 			sigma31_FL = sigma31_LF * FL.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
 			
-			for c_actual in range(N_C):
-				derivc = np.einsum(sigma31_LF[c_actual], range(12), F321[0], range(12), [7,10,11])
-				for c_err_term in range(N_C):
-					predc = np.einsum(sigma31_FL[c_actual], range(12), F321[0], range(12), [7,10,11])
-					grad_FL_s[c_err_term] += derivc*predc
-					
-					if c_actual == c_err_term:
-						grad_FL_s[c_err_term] -= derivc
+			derivc = np.einsum(sigma31_LF, sigma_inds, F321, F_inds, [0,9,12,13])
+			predc = np.einsum(sigma31_FL, sigma_inds, F321, F_inds, [0,9,12,13])
+			grad_FL_s = derivc*predc - derivc
 			
-			
+
 			
 			##########
 			# weight updates
