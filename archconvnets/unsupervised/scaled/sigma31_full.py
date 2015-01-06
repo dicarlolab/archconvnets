@@ -16,7 +16,7 @@ FL_scale = 0.3
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 1024 # batch size
+N_IMGS = 5000 # batch size
 IMG_SZ_CROP = 28 # input image size (px)
 IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
@@ -108,4 +108,4 @@ output_switches2_y[output_switches2_y >= max_output_sz2] = max_output_sz2-1
 t_start = time.time()
 sigma31 = sigma31_layers.s31_full(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
 print time.time() - t_start
-savemat('/home/darren/sigma31full_8N_1024imgs.mat',{'sigma31':sigma31})
+savemat('/home/darren/sigma31full_8N_5000imgs.mat',{'sigma31':sigma31})

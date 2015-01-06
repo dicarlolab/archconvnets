@@ -55,7 +55,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.3
 
-EPS = 5e11#5e-3
+EPS = 5e8#5e-3
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -139,6 +139,21 @@ v_i_FL = 0
 y = loadmat('/home/darren/sigma31full_8N_1024imgs.mat')
 sigma31 = y['sigma31']
 sigma31 = sigma31.transpose((0,2,1,3,4,5,6,7,8,9,10,11,12))
+
+# 10, n1, 3, s1, s1, n2, s2, s2, n3, s3, s3, sz, sz
+
+sigma31_LF = sigma31.mean(1).mean(1).mean(1).mean(1).mean(1).mean(1).mean(1).mean(2).mean(2)
+sigma31_LF = sigma31_LF.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
+
+sigma31_L3 = sigma31.mean(1).mean(1).mean(1).mean(1).mean(2).mean(2).mean(-1).mean(-1)
+sigma31_L3 = sigma31_L3.reshape((N_C, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
+
+sigma31_L2 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(2).mean(2).mean(2)
+sigma31_L2 = sigma31_L2.reshape((N_C, n1, 1, 1, 1, n2, s2, s2, 1, 1, 1, 1, 1))
+
+sigma31_L1 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1)
+sigma31_L1 = sigma31_L1.reshape((N_C, n1, 3, s1, s1, 1, 1, 1, 1, 1, 1, 1, 1))
+
 print 'sigma loaded'
 
 
@@ -245,7 +260,9 @@ for iter in range(np.int(1e7)):
 			
 			t_grad_s_start = time.time()
 			
-			'''############################################## F1 deriv wrt f1_, a1_x_, a1_y_, channel_
+			FLt = FL.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
+			
+			############################################## F1 deriv wrt f1_, a1_x_, a1_y_, channel_
 			grad_L1_s = 0
 			
 			F32 = F2[np.newaxis,:,:,:,:,np.newaxis,np.newaxis] * F3[:,:,np.newaxis,np.newaxis,np.newaxis]
@@ -253,119 +270,76 @@ for iter in range(np.int(1e7)):
 			F32 = F32.transpose((2,1,3,4,0,5,6))
 			# F32: n1, n2, s2,s2, n3, s3,s3
 			F32 = F32[np.newaxis,:,np.newaxis,np.newaxis,np.newaxis,:,:,:,:,:,:,np.newaxis,np.newaxis]
+			FL32 = FLt * F32
 			
-			sigma31_F1 = sigma31 * F1.reshape((1, n1, 3, s1, s1,  1, 1, 1, 1, 1, 1, 1, 1))
+			sigma31_F1 = sigma31_L1 * F1.reshape((1, n1, 3, s1, s1,  1, 1, 1, 1, 1, 1, 1, 1))
 			
 			for c_actual in range(N_C):
 				for c_err_term in range(N_C):
-					FLt = FL[c_err_term].reshape((1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
-					derivc = np.einsum(sigma31[c_actual] * FLt, range(12), F32[0], range(12), [0,1,2,3])
+					derivc = np.einsum(sigma31_L1[c_actual], range(12), FL32[c_err_term], range(12), [0,1,2,3])
 					
-					predc = np.einsum(sigma31_F1[c_actual] * FLt, range(12), F32[0], range(12), [0,1,2,3])
+					predc = np.einsum(sigma31_F1[c_actual], range(12), FL32[c_err_term], range(12), [0,1,2,3])
 					grad_L1_s += derivc*predc
 					
 					if c_actual == c_err_term:
-						grad_L1_s -= derivc'''
+						grad_L1_s -= derivc
 						
-			
+						
 			############################################# F2 deriv wrt f2_, f1_, a2_x_, a2_y_
 			grad_L2_s = 0
 			
 			F31 = np.tensordot(F1, F3, 0)
 			F31 = F31.reshape((1,n1, 3, s1, s1, n2, 1,1, n3, s3, s3, 1, 1))
+			FL31 = FLt * F31
 			
-			sigma31_F2 = sigma31 * F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1, 1, 1, 1))
+			sigma31_F2 = sigma31_L2 * F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1, 1, 1, 1))
 			
 			for c_actual in range(N_C):
 				for c_err_term in range(N_C):
-					FLt = FL[c_err_term].reshape((1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
-					derivc = np.einsum(sigma31[c_actual] * FLt, range(12), F31[0], range(12), [4,0,5,6])
+					derivc = np.einsum(sigma31_L2[c_actual], range(12), FL31[c_err_term], range(12), [4,0,5,6])
 					
-					predc = np.einsum(sigma31_F2[c_actual] * FLt, range(12), F31[0], range(12), [4,0,5,6])
+					predc = np.einsum(sigma31_F2[c_actual], range(12), FL31[c_err_term], range(12), [4,0,5,6])
 					grad_L2_s += derivc*predc
 					
 					if c_actual == c_err_term:
 						grad_L2_s -= derivc
 			
-			'''##########################################################################################################################################################################
 			
+			############################################## F3 deriv wrt f3_, f2_, a3_x_, a3_y_
 			grad_L3_s = 0
-			############################################## F3 deriv wrt f3_, f2_, a3_x_, a3_y_ (n2,n3,s3,s3) ...................................... c_actual != c_err_term
-			F21 = F2[:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * F1[np.newaxis,:,np.newaxis,np.newaxis]
-			# F21: n2, n1, s2, s2, 3, s1, s1
-			F21t = F21[np.newaxis,np.newaxis,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+			
+			F21 = F1[:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * F2.transpose((1,0,2,3))[:,np.newaxis,np.newaxis,np.newaxis]
+			F21 = F21.reshape((1, n1, 3, s1, s1, n2, s2, s2, 1, 1, 1, 1, 1))
+			FL21 = FLt * F21
+			
+			sigma31_F3 = sigma31_L3 * F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
 			
 			for c_actual in range(N_C):
-				#print c_actual
-				sigma31_L3_F3 = sigma31_L3[c_actual] * F3
 				for c_err_term in range(N_C):
-					if c_actual != c_err_term:
-						sigma31_L3_FL = sigma31_L3[c_actual,:,:,:,:,np.newaxis,np.newaxis] * FL[c_err_term,:,np.newaxis,np.newaxis,np.newaxis]
-						# sigma31_L3_FL: N_C, n3, n2, s3, s3, z1, z2
-						sigma31_L3_FLt = sigma31_L3_FL[:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
-						derivc = np.einsum(sigma31_L3_FLt, range(12), F21t[0], range(12), [0,1,2,3])
-						
-						sigma31_L3_F3_FL = (sigma31_L3_F3[:,:,:,:,np.newaxis,np.newaxis] * FL[c_err_term,:,np.newaxis,np.newaxis,np.newaxis])
-
-						
-						sigma31_L3_F3_FLt = sigma31_L3_F3_FL[:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
-						predc = np.einsum(sigma31_L3_F3_FLt, range(12), F21t[0], range(12), [0,1,2,3])
-						grad_L3_s += derivc*predc
+					derivc = np.einsum(sigma31_L3[c_actual], range(12), FL21[c_err_term], range(12), [7,4,8,9])
+					
+					predc = np.einsum(sigma31_F3[c_actual], range(12), FL21[c_err_term], range(12), [7,4,8,9])
+					grad_L3_s += derivc*predc
+					
+					if c_actual == c_err_term:
+						grad_L3_s -= derivc
 			
-			############################################## F3 deriv wrt f3_, f2_, a3_x_, a3_y_ (n2,n3,s3,s3) ...................................... c_actual == c_err_term
 			
-			################################# supervised:
-			sigma31_L3_FL = sigma31_L3[:,:,:,:,:,np.newaxis,np.newaxis] * FL[:,:,np.newaxis,np.newaxis,np.newaxis]
-			# sigma31_L3_FL: N_C, n3, n2, s3, s3, z1, z2
-			
-			sigma31_L3_FLt = sigma31_L3_FL[:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
-			derivc = np.einsum(sigma31_L3_FLt, range(13), F21t, range(13), [0, 1,2,3,4])
-			
-			################################# unsupervised: (approx):
-			sigma31_L3_F3 = sigma31_L3 * F3[np.newaxis]
-			sigma31_L3_F3_FL = (sigma31_L3_F3[:,:,:,:,:,np.newaxis,np.newaxis] * FL[:,:,np.newaxis,np.newaxis,np.newaxis])
-
-			
-			sigma31_L3_F3_FLt = sigma31_L3_F3_FL[:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
-			predc = np.einsum(sigma31_L3_F3_FLt, range(13), F21t, range(13), [0, 1,2,3,4])
-			grad_L3_s -= (derivc*(1 - predc)).sum(0)
-			
-			#########################################################################################################################################################################
-			
+			####################################### FL deriv wrt cat_, f3_, z1_, z2_
 			grad_FL_s = np.zeros_like(FL)
 			
-			F3t = F3.transpose((1,0,2,3))
-			F3t = F3t[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
-			# F3t: n2, n3, s3, s3
-			F21t = F21[:,:,:,:,:,:,:,np.newaxis,np.newaxis,np.newaxis]
-			F321 = F3t*F21t
-			# F321: n2, n1, s2, s2, 3, s1, s1, n3, s3, s3
-			F321t = F321.transpose((7,0,1,2,3,4,5,6,8,9))
-			# F321: n3, n2, n1, s2, s2, 3, s1, s1, s3, s3
-			F321t = F321t[np.newaxis,:,np.newaxis,np.newaxis]
+			F321 = F21 * F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
 			
-			sigma31_FLt = sigma31_FL[:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
+			sigma31_FL = sigma31_LF * FL.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
 			
-			####################################### FL deriv wrt cat_, f3_, z1_, z2_ (N_C,n3,z1,z2) ...................................... c_actual != c_err_term
 			for c_actual in range(N_C):
-				derivc = np.einsum(sigma31_FLt[c_actual], range(12), F321t[0], range(12), [0,1,2])
+				derivc = np.einsum(sigma31_LF[c_actual], range(12), F321[0], range(12), [7,10,11])
 				for c_err_term in range(N_C):
-					if c_actual != c_err_term:
-						sigma31_FL_FL = sigma31_FL[c_actual] * FL[c_err_term]
-						
-						sigma31_FL_FLt = sigma31_FL_FL[:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
-						predc = np.einsum(sigma31_FL_FLt, range(12), F321t[0], range(12), [0,1,2])
-						grad_FL_s[c_err_term] += derivc*predc
-			
-			####################################### FL deriv wrt cat_, f3_, z1_, z2_ (N_C,n3,z1,z2) ...................................... c_actual == c_err_term
-			
-			# sigma31_FL: N_C, n3, z1, z2
-			derivc = np.einsum(sigma31_FLt, range(13), F321t, range(13), [0,1,2,3])
-			
-			sigma31_FL_FL = sigma31_FL * FL
-			sigma31_FL_FLt = sigma31_FL_FL[:,:,:,:,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis,np.newaxis]
-			predc = np.einsum(sigma31_FLt, range(13), F321t, range(13), [0,1,2,3])
-			grad_FL_s -= (derivc*(1 - predc))'''
+					predc = np.einsum(sigma31_FL[c_actual], range(12), F321[0], range(12), [7,10,11])
+					grad_FL_s[c_err_term] += derivc*predc
+					
+					if c_actual == c_err_term:
+						grad_FL_s[c_err_term] -= derivc
 			
 			
 			
@@ -375,11 +349,6 @@ for iter in range(np.int(1e7)):
 			v_i1_L2 = -eps_F2 * (WD * F2 + grad_L2_uns + grad_L2_s) + MOMENTUM * v_i_L2
 			v_i1_L3 = -eps_F3 * (WD * F3 + grad_L3_uns + grad_L3_s) + MOMENTUM * v_i_L3
 			v_i1_FL = -eps_FL * (WD * FL + grad_FL_uns + grad_FL_s) + MOMENTUM * v_i_FL
-			
-			#v_i1_L1 = -eps_F1 * (WD * F1 +  grad_L1_s) + MOMENTUM * v_i_L1
-			#v_i1_L2 = -eps_F2 * (WD * F2 + grad_L2_s) + MOMENTUM * v_i_L2
-			#v_i1_L3 = -eps_F3 * (WD * F3 + grad_L3_s) + MOMENTUM * v_i_L3
-			#v_i1_FL = -eps_FL * (WD * FL + grad_FL_s) + MOMENTUM * v_i_FL
 			
 			F1 += v_i1_L1
 			F2 += v_i1_L2
@@ -391,17 +360,6 @@ for iter in range(np.int(1e7)):
 			v_i_L3 = v_i1_L3
 			v_i_FL = v_i1_FL
 			
-			################
-			# diagnostics
-			grad_L1_uns *= eps_F1
-			grad_L2_uns *= eps_F2
-			grad_L3_uns *= eps_F3
-			grad_FL_uns *= eps_FL
-			
-			#grad_L1_s *= eps_F1 #* S_SCALE
-			#grad_L2_s *= eps_F2 #* S_SCALE
-			#grad_L3_s *= eps_F3 #* S_SCALE
-			#grad_FL_s *= eps_FL #* S_SCALE
 			
 			#######################################
 			
