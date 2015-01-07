@@ -55,7 +55,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.3
 
-EPS = 5e7#5e-3
+EPS = 5e11#5e8
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -293,8 +293,8 @@ for iter in range(np.int(1e7)):
 			sigma31_F1 = sigma31_L1 * F1.reshape((1, n1, 3, s1, s1,  1, 1, 1, 1, 1, 1, 1, 1))
 			
 			derivc = np.einsum(sigma31_L1, sigma_inds, FL32, F_inds, range(6))
-			predc = np.einsum(sigma31_F1, sigma_inds, FL32, F_inds, range(6))
-			grad_L1_s = (predc*derivc).sum(0).sum(0)
+			predc = np.einsum(sigma31_F1, sigma_inds, FL32, F_inds, [0,1])
+			grad_L1_s = np.tensordot(predc, derivc, ([0,1],[0,1]))
 			grad_L1_s -=  np.einsum(derivc,[0,0,2,3,4,5], [2,3,4,5])
 			
 			
@@ -306,8 +306,8 @@ for iter in range(np.int(1e7)):
 			sigma31_F2 = sigma31_L2 * F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1, 1, 1, 1))
 			
 			derivc = np.einsum(sigma31_L2, sigma_inds, FL31, F_inds, [0,1,6,2,7,8])
-			predc = np.einsum(sigma31_F2, sigma_inds, FL31, F_inds, [0,1,6,2,7,8])
-			grad_L2_s = (predc*derivc).sum(0).sum(0)
+			predc = np.einsum(sigma31_F2, sigma_inds, FL31, F_inds, [0,1])
+			grad_L2_s = np.tensordot(predc, derivc, ([0,1],[0,1]))
 			grad_L2_s -=  np.einsum(derivc,[0,0,2,3,4,5], [2,3,4,5])
 			
 			
@@ -319,8 +319,8 @@ for iter in range(np.int(1e7)):
 			sigma31_F3 = sigma31_L3 * F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
 			
 			derivc = np.einsum(sigma31_L3, sigma_inds, FL21, F_inds, [0,1,9,6,10,11])
-			predc = np.einsum(sigma31_F3, sigma_inds, FL21, F_inds, [0,1,9,6,10,11])
-			grad_L3_s = (predc*derivc).sum(0).sum(0)
+			predc = np.einsum(sigma31_F3, sigma_inds, FL21, F_inds, [0,1])
+			grad_L3_s = np.tensordot(predc, derivc, ([0,1],[0,1]))
 			grad_L3_s -=  np.einsum(derivc,[0,0,2,3,4,5], [2,3,4,5])
 			
 			
@@ -332,7 +332,7 @@ for iter in range(np.int(1e7)):
 			sigma31_FL = sigma31_LF * FL.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
 			
 			derivc = np.einsum(sigma31_LF, sigma_inds, F321, F_inds, [0,9,12,13])
-			predc = np.einsum(sigma31_FL, sigma_inds, F321, F_inds, [0,9,12,13])
+			predc = np.einsum(sigma31_FL, sigma_inds, F321, F_inds, [0]).reshape((N_C, 1, 1, 1))
 			grad_FL_s = derivc*predc - derivc
 			
 
