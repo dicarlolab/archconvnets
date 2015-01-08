@@ -6,7 +6,7 @@ from archconvnets.unsupervised.conv import conv_block
 #from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 #from archconvnets.unsupervised.scaled.compute_sigma31_reduced import s31
 #from archconvnets.unsupervised.scaled.compute_sigma31 import s31
-from archconvnets.unsupervised.scaled.compute_sigma31_L2_py import s31
+from archconvnets.unsupervised.scaled.compute_sigma31_L3_py import s31
 #from archconvnets.unsupervised.scaled.compute_sigma31_L1_py import s31
 #import archconvnets.unsupervised.sigma31_layers.sigma31_layers as sigma31_layers
 from scipy.io import savemat, loadmat
@@ -28,12 +28,14 @@ IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
 PAD = 2
 
-N = 10
+N = 4
 n1 = N # L1 filters
 n2 = N
+n3 = N
 
 s1 = 5
 s2 = 5
+s3 = 3
 
 N_C = 10 # number of categories
 
@@ -46,9 +48,11 @@ max_output_sz2  = len(range(0, output_sz2-POOL_SZ, POOL_STRIDE)) + 2*PAD
 np.random.seed(6666)
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
 F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
+F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
 
 F1 = zscore(F1,axis=None)/500
 F2 = zscore(F2,axis=None)/500
+F3 = zscore(F3,axis=None)/500
 
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
 z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_1')
@@ -79,24 +83,28 @@ max_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
 conv_output2 = conv_block_cuda(np.double(F2.transpose((1,2,3,0))), np.double(max_output1.transpose((1,2,3,0)))).transpose((3,0,1,2))
 max_output2t, output_switches2_x, output_switches2_y = max_pool_locs(np.single(conv_output2), PAD=2)
 
+max_output2 = np.zeros((N_IMGS, n2, max_output_sz2, max_output_sz2),dtype='single')
+max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
+
+conv_output3 = conv_block_cuda(np.double(F3.transpose((1,2,3,0))), np.double(max_output2.transpose((1,2,3,0)))).transpose((3,0,1,2))
+max_output3t, output_switches3_x, output_switches3_y = max_pool_locs(np.single(conv_output3), PAD=2)
+
 output_switches2_x -= PAD
 output_switches2_y -= PAD
 
-sigma31 = s31(output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, labels, imgs_pad, N_C)
-sigma31 = sigma31.transpose((0,2,1,3,4,5,6,7,8,9))
+output_switches3_x -= PAD
+output_switches3_y -= PAD
 
-sigma31_F1 = sigma31*F1.reshape((1, n1, 3, s1, s1,  1, 1, 1, 1, 1))
-sigma31_F2 = sigma31_F1*F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1))
-sigma31_F2 = sigma31_F2[6].sum(0).sum(0).sum(0).sum(0).sum(1).sum(1)[np.newaxis]
+sigma31 = s31(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
+sigma31 = sigma31.transpose((0,2,1,3,4,5,6,7,8,9,10,11,12))
 
-print np.isclose(sigma31_F2, max_output2t).sum()
+sigma31_F1 = sigma31*F1.reshape((1, n1, 3, s1, s1,  1, 1, 1, 1, 1,1,1,1))
+sigma31_F2 = sigma31_F1*F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1,1,1,1))
+sigma31_F3 = sigma31_F2*F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
+
+sigma31_F3 = sigma31_F3[6].reshape((n1*3*(s1**2)*n2*(s2**2), n3, s3**2, 2, 2)).sum(0).sum(1)[np.newaxis]
+
+print np.isclose(sigma31_F3, max_output3t).sum()
 #print np.isclose(max_output1t,sigma31_F1).sum()
 
-'''
-sigma31 = s31(output_switches1_x, output_switches1_y, s1, labels, imgs_pad, N_C)
-sigma31 = sigma31.transpose((0,2,1,3,4,5,6))
 
-sigma31_F1 = (sigma31*F1.reshape((1, n1, 3, s1, s1,  1, 1))).sum(2).sum(2).sum(2)[6][np.newaxis]
-
-print np.isclose(max_output1t,sigma31_F1).sum()
-'''
