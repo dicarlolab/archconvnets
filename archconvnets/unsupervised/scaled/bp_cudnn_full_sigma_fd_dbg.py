@@ -106,13 +106,13 @@ conv_output3 = conv_block_cuda(np.double(F3.transpose((1,2,3,0))), np.double(max
 max_output3, output_switches3_x_init, output_switches3_y_init = max_pool_locs(conv_output3, PAD=2)
 
 
-i_ind = 0
-j_ind = 2
-k_ind = 0
-l_ind = 1
+i_ind = 1
+j_ind = 1
+k_ind = 4
+l_ind = 2
 
 def f(x):
-	F3[i_ind, j_ind, k_ind, l_ind] = x
+	F1[i_ind, j_ind, k_ind, l_ind] = x
 		
 	FLr = FL.reshape((N_C, n3*max_output_sz3**2))
 	
@@ -141,7 +141,7 @@ def f(x):
 	
 
 def g(x):
-	F3[i_ind, j_ind, k_ind, l_ind] = x
+	F1[i_ind, j_ind, k_ind, l_ind] = x
 	
 	Y = np.eye(10)
 	
@@ -156,35 +156,23 @@ def g(x):
 	F_inds = [1,2,3,4,5,6,7,8,9,10,11,12,13]
 	
 	############################################## F1 deriv wrt f1_, a1_x_, a1_y_, channel_
-	'''F32 = F2[np.newaxis,:,:,:,:,np.newaxis,np.newaxis] * F3[:,:,np.newaxis,np.newaxis,np.newaxis]
-	# F32: n3, n2, n1, s2,s2, s3,s3
+	F32 = F2[np.newaxis,:,:,:,:,np.newaxis,np.newaxis] * F3[:,:,np.newaxis,np.newaxis,np.newaxis]
 	F32 = F32.transpose((2,1,3,4,0,5,6))
-	# F32: n1, n2, s2,s2, n3, s3,s3
 	F32 = F32[np.newaxis,:,np.newaxis,np.newaxis,np.newaxis,:,:,:,:,:,:,np.newaxis,np.newaxis]
 	FL32 = FLt * F32
 	
-	sigma31_F1 = sigma31_L1 * F1.reshape((1, n1, 3, s1, s1,  1, 1, 1, 1, 1, 1, 1, 1))
-	
-	derivc = np.einsum(sigma31_L1, sigma_inds, FL32, F_inds, range(6))
-	#grad_L1_s = derivc.sum(0).sum(0)
-	predc = np.einsum(sigma31_F1, sigma_inds, FL32, F_inds, [0,1])
-	grad_L1_s = np.tensordot(predc, derivc, ([0,1],[0,1]))
-	grad_L1_s -= np.einsum(derivc,[0,0,2,3,4,5], [2,3,4,5])'''
-	
+	derivc = np.einsum(sigma31_L1, sigma_inds, FL32, F_inds, [1,0,2,3,4,5])
+	predc = (np.einsum(sigma31_L1, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1, 1)) # (c, img)
+	grad_L1_s = 2*(derivc*predc).sum(0).sum(0)
 	
 	############################################# F2 deriv wrt f2_, f1_, a2_x_, a2_y_
 	F31 = np.tensordot(F1, F3, 0).transpose((0,1,2,3,5,4,6,7))
 	F31 = F31.reshape((1,n1, 3, s1, s1, n2, 1,1, n3, s3, s3, 1, 1))
 	FL31 = FLt * F31
 	
-	
-	#sigma31_F2 = sigma31_L2 * F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1, 1, 1, 1))
-	
-	#derivc = np.einsum(sigma31_L2, sigma_inds, FL31, F_inds, [0,1,6,2,7,8])
-	#predc = np.einsum(sigma31_F2, sigma_inds, FL31, F_inds, [0,1])
-	#grad_L2_s = np.tensordot(predc, derivc, ([0,1],[0,1]))
-	#grad_L2_s -=  np.einsum(derivc,[0,0,2,3,4,5], [2,3,4,5])
-	
+	derivc = np.einsum(sigma31_L2, sigma_inds, FL31, F_inds, [1,0,6,2,7,8])
+	predc = (np.einsum(sigma31_L2, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1, 1)) # (c, img)
+	grad_L2_s = 2*(derivc*predc).sum(0).sum(0)
 	
 	############################################## F3 deriv wrt f3_, f2_, a3_x_, a3_y_
 	FL21 = FLt * F21
@@ -193,19 +181,17 @@ def g(x):
 	predc = (np.einsum(sigma31_L3, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1, 1)) # (c, img)
 	grad_L3_s = 2*(derivc*predc).sum(0).sum(0)
 	
-	return grad_L3_s[i_ind,j_ind,k_ind,l_ind]
-	
 	####################################### FL deriv wrt cat_, f3_, z1_, z2_
-	'''derivc = np.einsum(sigma31_LF, sigma_inds, F321, sigma_inds, [0,9,12,13])[np.newaxis]
+	derivc = np.einsum(sigma31_LF, sigma_inds, F321, sigma_inds, [0,9,12,13])[np.newaxis]
 	predc = (np.einsum(sigma31_LF, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1)) # (c, img)
 	grad_FL_s = 2*(predc*derivc).sum(1)
 	
-	return grad_FL_s[i_ind, j_ind, k_ind, l_ind]'''
+
 
 eps = np.sqrt(np.finfo(np.float).eps)*1e1
-x = 1e-4*FL_init[i_ind,j_ind,k_ind,l_ind]; gt = g(x); gtx = scipy.optimize.approx_fprime(np.ones(1)*x, f, eps); print gt, gtx, gtx/gt
-x = 1e-5*FL_init[i_ind,j_ind,k_ind,l_ind]; gt = g(x); gtx = scipy.optimize.approx_fprime(np.ones(1)*x, f, eps); print gt, gtx, gtx/gt
-x = -1e-4*FL_init[i_ind,j_ind,k_ind,l_ind]; gt = g(x); gtx = scipy.optimize.approx_fprime(np.ones(1)*x, f, eps); print gt, gtx, gtx/gt
+x = 1e-4*F2_init[i_ind,j_ind,k_ind,l_ind]; gt = g(x); gtx = scipy.optimize.approx_fprime(np.ones(1)*x, f, eps); print gt, gtx, gtx/gt
+x = 1e-5*F2_init[i_ind,j_ind,k_ind,l_ind]; gt = g(x); gtx = scipy.optimize.approx_fprime(np.ones(1)*x, f, eps); print gt, gtx, gtx/gt
+x = -1e-4*F2_init[i_ind,j_ind,k_ind,l_ind]; gt = g(x); gtx = scipy.optimize.approx_fprime(np.ones(1)*x, f, eps); print gt, gtx, gtx/gt
 
 #print scipy.optimize.check_grad(f,g,F1_init[i_ind,j_ind,k_ind,l_ind]*np.ones(1)), g(F1_init[i_ind,j_ind,k_ind,l_ind])
 #print scipy.optimize.check_grad(f,g,-F1_init[i_ind,j_ind,k_ind,l_ind]*np.ones(1)), g(-F1_init[i_ind,j_ind,k_ind,l_ind])
