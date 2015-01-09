@@ -5,14 +5,14 @@ from archconvnets.unsupervised.pool_inds_py import max_pool_locs
 from archconvnets.unsupervised.conv import conv_block
 #from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 #from archconvnets.unsupervised.scaled.compute_sigma31_reduced import s31
+
 from archconvnets.unsupervised.scaled.compute_sigma31 import s31
-#from archconvnets.unsupervised.scaled.compute_sigma31_L3_py import s31
-#from archconvnets.unsupervised.scaled.compute_sigma31_L1_py import s31
-#import archconvnets.unsupervised.sigma31_layers.sigma31_layers as sigma31_layers
+
+import archconvnets.unsupervised.sigma31_layers.sigma31_layers as sigma31_layers
+
 from scipy.io import savemat, loadmat
 from scipy.stats import zscore
 
-#conv_block_cuda = conv
 conv_block_cuda = conv_block
 F1_scale = 0.01 # std of init normal distribution
 F2_scale = 0.01
@@ -22,7 +22,7 @@ FL_scale = 0.3
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 1 # batch size
+N_IMGS = 256 # batch size
 IMG_SZ_CROP = 28 # input image size (px)
 IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
@@ -95,7 +95,8 @@ output_switches2_y -= PAD
 output_switches3_x -= PAD
 output_switches3_y -= PAD
 
-sigma31 = s31(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
+#sigma31 = s31(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
+sigma31 = sigma31_layers.s31_full(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
 sigma31 = sigma31.transpose((0,2,1,3,4,5,6,7,8,9,10,11,12))
 
 sigma31_F1 = sigma31*F1.reshape((1, n1, 3, s1, s1,  1, 1, 1, 1, 1,1,1,1))
@@ -104,7 +105,8 @@ sigma31_F3 = sigma31_F2*F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1
 
 sigma31_F3 = sigma31_F3[6].reshape((n1*3*(s1**2)*n2*(s2**2), n3, s3**2, 2, 2)).sum(0).sum(1)[np.newaxis]
 
-print np.isclose(sigma31_F3, max_output3t).sum()
+print np.isclose(sigma31_F3, max_output3t[0][np.newaxis]).sum()
+savemat('/home/darren/sigma31_dbg.mat',{'sigma31':sigma31})
 #print np.isclose(max_output1t,sigma31_F1).sum()
 
 

@@ -2,7 +2,8 @@ import time
 import numpy as np
 from archconvnets.unsupervised.pool_inds import max_pool_locs
 from archconvnets.unsupervised.cudnn_module.cudnn_module import *
-from archconvnets.unsupervised.scaled.compute_sigma31_reduced import s31
+#from archconvnets.unsupervised.scaled.compute_sigma31_reduced import s31
+from archconvnets.unsupervised.scaled.compute_sigma31 import s31
 import archconvnets.unsupervised.sigma31_layers.sigma31_layers as sigma31_layers
 from scipy.io import savemat, loadmat
 from scipy.stats import zscore
@@ -16,13 +17,13 @@ FL_scale = 0.3
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 5000 # batch size
+N_IMGS = 1 # batch size
 IMG_SZ_CROP = 28 # input image size (px)
 IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
 PAD = 2
 
-N = 8
+N = 2
 n1 = N # L1 filters
 n2 = N # ...
 n3 = N
@@ -106,6 +107,7 @@ output_switches2_y[output_switches2_y >= max_output_sz2] = max_output_sz2-1
 
 ##################
 t_start = time.time()
-sigma31 = sigma31_layers.s31_full(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
+#sigma31 = sigma31_layers.s31_full(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
+sigma31 = s31(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
 print time.time() - t_start
-savemat('/home/darren/sigma31full_8N_5000imgs.mat',{'sigma31':sigma31})
+savemat('/home/darren/sigma31full_2N_1imgs.mat',{'sigma31':sigma31})

@@ -119,7 +119,7 @@ def s31_full(output_switches3_x, output_switches3_y, output_switches2_x, output_
 	sigma31 = _sigma31_layers.compute_sigma31_full(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs, N_C)
 	
 
-	sigma31 /= (N_IMGS*(s1**2)*(s2**2)*(s3**2)*(max_output_sz3**2)*n1*n2*n3)
+	#sigma31 /= (N_IMGS*(s1**2)*(s2**2)*(s3**2)*(max_output_sz3**2)*n1*n2*n3)
 	
 	sigma31 = sigma31.reshape((N_C, 3, n1, s1, s1, n2, s2, s2, n3, s3, s3, max_output_sz3, max_output_sz3))
 	return sigma31

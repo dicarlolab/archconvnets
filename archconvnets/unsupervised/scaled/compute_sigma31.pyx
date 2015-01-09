@@ -4,7 +4,7 @@ import numpy as np
 ''' filters: in_channels, filter_sz, filter_sz, n_filters
     imgs: in_channels, img_sz, img_sz, n_imgs
 '''
-def s31(npd.ndarray[npd.int_t, ndim=4] output_switches3_x, npd.ndarray[npd.int_t, ndim=4] output_switches3_y, npd.ndarray[npd.int_t, ndim=4] output_switches2_x, npd.ndarray[npd.int_t, ndim=4] output_switches2_y, npd.ndarray[npd.int_t, ndim=4] output_switches1_x, npd.ndarray[npd.int_t, ndim=4] output_switches1_y, int s1, int s2, int s3, npd.ndarray[npd.float32_t, ndim=2] Y, npd.ndarray[npd.float32_t, ndim=4] imgs, int N_C): 
+def s31(npd.ndarray[npd.int_t, ndim=4] output_switches3_x, npd.ndarray[npd.int_t, ndim=4] output_switches3_y, npd.ndarray[npd.int_t, ndim=4] output_switches2_x, npd.ndarray[npd.int_t, ndim=4] output_switches2_y, npd.ndarray[npd.int_t, ndim=4] output_switches1_x, npd.ndarray[npd.int_t, ndim=4] output_switches1_y, int s1, int s2, int s3, npd.ndarray[npd.int_t, ndim=1] labels, npd.ndarray[npd.float32_t, ndim=4] imgs, int N_C): 
 	
 	cdef int cat
 	cdef int N_IMGS = imgs.shape[0]
@@ -35,7 +35,7 @@ def s31(npd.ndarray[npd.int_t, ndim=4] output_switches3_x, npd.ndarray[npd.int_t
 	cdef npd.ndarray[npd.int_t, ndim=4] output_switches3_xt
 	cdef npd.ndarray[npd.int_t, ndim=4] output_switches3_yt
 	
-	cdef  npd.ndarray[npd.float32_t, ndim=11] sigma31 = np.zeros((N_C, 3, n1, s1, s1, n2, s2, s2, n3, s3, s3),dtype='single')
+	cdef  npd.ndarray[npd.float32_t, ndim=13] sigma31 = np.zeros((N_C, 3, n1, s1, s1, n2, s2, s2, n3, s3, s3, max_output_sz3, max_output_sz3),dtype='single')
 	
 	for a3_x in range(s3):
 		output_switches3_xt = output_switches3_x + a3_x
@@ -50,7 +50,7 @@ def s31(npd.ndarray[npd.int_t, ndim=4] output_switches3_x, npd.ndarray[npd.int_t
 								for z1 in range(max_output_sz3):
 									for z2 in range(max_output_sz3):
 										for img in range(N_IMGS):
-											cat = np.nonzero(Y[:,img])[0][0]
+											cat = labels[img]
 											# pool3 -> conv3
 											a3_x_global = output_switches3_xt[img, f3, z1, z2]
 											a3_y_global = output_switches3_yt[img, f3, z1, z2]
@@ -65,7 +65,7 @@ def s31(npd.ndarray[npd.int_t, ndim=4] output_switches3_x, npd.ndarray[npd.int_t
 												for a1_y in range(s1):
 													# pool1 -> conv1
 													a1_y_global = output_switches1_y[img, f1, a2_x_global, a2_y_global] + a1_y
-													sigma31[cat,:,f1, a1_x, a1_y, f2, a2_x, a2_y, f3, a3_x, a3_y] += imgs[img, :, a1_x_global, a1_y_global]
+													sigma31[cat,:,f1, a1_x, a1_y, f2, a2_x, a2_y, f3, a3_x, a3_y,z1,z2] += imgs[img, :, a1_x_global, a1_y_global]
 
 	return sigma31
 
