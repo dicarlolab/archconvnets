@@ -5,8 +5,8 @@ from archconvnets.unsupervised.pool_inds_py import max_pool_locs
 from archconvnets.unsupervised.conv import conv_block
 #from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 #from archconvnets.unsupervised.scaled.compute_sigma31_reduced import s31
-#from archconvnets.unsupervised.scaled.compute_sigma31 import s31
-from archconvnets.unsupervised.scaled.compute_sigma31_L3_py import s31
+from archconvnets.unsupervised.scaled.compute_sigma31 import s31
+#from archconvnets.unsupervised.scaled.compute_sigma31_L3_py import s31
 #from archconvnets.unsupervised.scaled.compute_sigma31_L1_py import s31
 #import archconvnets.unsupervised.sigma31_layers.sigma31_layers as sigma31_layers
 from scipy.io import savemat, loadmat
