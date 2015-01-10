@@ -26,7 +26,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.3
 
-EPS = 1e-3#5e8
+EPS = 1e-5#5e8
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -91,7 +91,7 @@ sigma31_L2 = sigma31
 sigma31_L3 = sigma31
 sigma31_LF = sigma31
 
-'''sigma31_LF = sigma31.mean(1).mean(1).mean(1).mean(1).mean(1).mean(1).mean(1).mean(2).mean(2)
+sigma31_LF = sigma31.mean(1).mean(1).mean(1).mean(1).mean(1).mean(1).mean(1).mean(2).mean(2)
 sigma31_LF = sigma31_LF.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
 
 #sigma31_LF = sigma31.mean(2).mean(2).mean(2).mean(2).mean(2).mean(2).mean(3).mean(3)
@@ -103,8 +103,8 @@ sigma31_LF = sigma31_LF.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_
 #sigma31_L3 = sigma31.mean(-1).mean(-1).mean(5).mean(5).mean(5)
 #sigma31_L3 = sigma31_L3.reshape((N_C, n1, 3, s1, s1, 1, 1, 1, n3, s3, s3, 1, 1))
 
-sigma31_L3 = sigma31.mean(3).mean(3).mean(4).mean(4).mean(-1).mean(-1)
-sigma31_L3 = sigma31_L3.reshape((N_C, n1, 3, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
+sigma31_L3 = sigma31.mean(1).mean(1).mean(1).mean(1).mean(2).mean(2).mean(-1).mean(-1)
+sigma31_L3 = sigma31_L3.reshape((N_C, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
 
 
 sigma31_L2 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(2).mean(2).mean(2)
@@ -118,7 +118,7 @@ sigma31_L2 = sigma31_L2.reshape((N_C, n1, 1, 1, 1, n2, s2, s2, 1, 1, 1, 1, 1))
 #sigma31_L1 = sigma31_L1.reshape((N_C, n1, 3, s1, s1, n2, s2, s2, 1, 1, 1, 1, 1))
 
 sigma31_L1 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1)
-sigma31_L1 = sigma31_L1.reshape((N_C, n1, 3, s1, s1, 1, 1, 1, 1, 1, 1, 1, 1))'''
+sigma31_L1 = sigma31_L1.reshape((N_C, n1, 3, s1, s1, 1, 1, 1, 1, 1, 1, 1, 1))
 
 
 grad_L1 = 0
@@ -240,7 +240,7 @@ for iter in range(np.int(1e7)):
 			#######################################
 			
 			print iter, batch, step, err_test[-1], class_err_test[-1],  time.time() - t_grad_start, t_test_forward_start, filename
-			print '                        F1', np.mean(np.abs(grad_L1))/np.mean(np.abs(F1)), 'F2', np.mean(np.abs(grad_L2))/np.mean(np.abs(F2)), 'F3', np.mean(np.abs(grad_L3))/np.mean(np.abs(F3)), 'FL', np.mean(np.abs(grad_FL))/np.mean(np.abs(FL))
+			print '                        F1', eps_F1*np.mean(np.abs(grad_L1))/np.mean(np.abs(F1)), 'F2', eps_F2*np.mean(np.abs(grad_L2))/np.mean(np.abs(F2)), 'F3', eps_F3*np.mean(np.abs(grad_L3))/np.mean(np.abs(F3)), 'FL', eps_FL*np.mean(np.abs(grad_FL))/np.mean(np.abs(FL))
 			
 			print '                        F1', np.mean(np.abs(F1)), 'F2', np.mean(np.abs(F2)), 'F3', np.mean(np.abs(F3)), 'FL', np.mean(np.abs(FL)), ' m'
 			savemat(filename, {'F1': F1, 'F2': F2, 'F3':F3, 'FL': FL, 'eps_FL': eps_FL, 'eps_F3': eps_F3, 'eps_F2': eps_F2, 'step': step, 'eps_F1': eps_F1, 'N_IMGS': N_IMGS, 'N_TEST_IMGS': N_TEST_IMGS,'err_test':err_test,'class_err_test':class_err_test})
