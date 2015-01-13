@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cuda_runtime.h>
 
 #define O3_IND(A,B,C,D)((D) + (C)*max_output_sz3 + (B)*max_output_sz3_max_output_sz3 + (A)*max_output_sz3_max_output_sz3_n3)
 #define O2_IND(A,B,C,D)((D) + (C)*max_output_sz2 + (B)*max_output_sz2_max_output_sz2 + (A)*max_output_sz2_max_output_sz2_n2)
@@ -281,18 +282,6 @@ static PyObject *compute_sigma31_full(PyObject *self, PyObject *args){
 	int max_output_sz1_max_output_sz1 = max_output_sz1*max_output_sz1;
 	int max_output_sz1_max_output_sz1_n1 = max_output_sz1*max_output_sz1*n1;
 	
-	int s1_s1 = s1*s1;
-	int s1_s1_n1 = s1*s1*n1;
-	int s1_s1_n1_3 = s1*s1*n1*3;
-	
-	int s2_s2_n1_n2 = s2*s2*n1*n2;
-	int s2_s2_n1 = s2*s2*n1;
-	int s2_s2 = s2*s2;
-	
-	int s3_s3_n2_n3 = s3*s3*n2*n3;
-	int s3_s3_n2 = s3*s3*n2;
-	int s3_s3 = s3*s3;
-	
 	int img_sz_img_sz_3 = img_sz*img_sz*3;
 	int img_sz_img_sz = img_sz*img_sz;
 	
@@ -349,16 +338,24 @@ static PyObject *compute_sigma31_full(PyObject *self, PyObject *args){
 	return PyArray_Return(sigma31_in);
 }
 
+#define MALLOC_ERR_CHECK {if (err != cudaSuccess){printf("malloc err line: %i\n",__LINE__); return NULL;}}
+#define DATA_TYPE_SZ sizeof(float)
+
+#include "einsum_cat_pairs.c"
+#include "einsum_cat_pairs_gpu.cu"
 
 static PyMethodDef _sigma31_layers[] = {
 	{"compute_sigma31_reduced", compute_sigma31_reduced, METH_VARARGS},
 	{"compute_sigma31_full", compute_sigma31_full, METH_VARARGS},
+	{"einsum_cat_pairs", einsum_cat_pairs, METH_VARARGS},
+	{"einsum_cat_pairs_gpu", einsum_cat_pairs_gpu, METH_VARARGS},
 	{NULL, NULL}
 };
 
-void init_sigma31_layers(){
+extern "C" void init_sigma31_layers(){
 	(void) Py_InitModule("_sigma31_layers", _sigma31_layers);
 	import_array();
-
+	
+	
 	return;
 } 

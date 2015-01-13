@@ -28,7 +28,7 @@ IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
 PAD = 2
 
-N = 4
+N = 8
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -106,7 +106,7 @@ sigma31_F3 = sigma31_F2*F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1
 sigma31_F3 = sigma31_F3[6].reshape((n1*3*(s1**2)*n2*(s2**2), n3, s3**2, 2, 2)).sum(0).sum(1)[np.newaxis]
 
 print np.isclose(sigma31_F3, max_output3t[0][np.newaxis]).sum()
-savemat('/home/darren/sigma31_dbg.mat',{'sigma31':sigma31})
+savemat('/home/darren/sigma31_dbg8.mat',{'sigma31':sigma31})
 #print np.isclose(max_output1t,sigma31_F1).sum()
 
 

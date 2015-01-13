@@ -11,12 +11,12 @@ from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 
 conv_block_cuda = conv_block
 
-#kernprof -l bp_cudnn_full_sigma_dbg.py
-#python -m line_profiler bp_cudnn_full_sigma_dbg.py.lprof  > p
+#kernprof -l bp_cudnn_full_sigma.py
+#python -m line_profiler bp_cudnn_full_sigma.py.lprof  > p
 #@profile
 #def sf():
 
-filename = '/home/darren/cifar_test.mat'
+filename = '/home/darren/cifar_test4_epsn5_color.mat'
 
 err_test = []
 class_err_test = []
@@ -26,7 +26,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.3
 
-EPS = 1e-5#5e8
+EPS = 1e-5#1e-5
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -80,6 +80,7 @@ F3 = zscore(F3,axis=None)/500
 FL = zscore(FL,axis=None)/500
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
 
+#y = loadmat('/home/darren/sigma31_dbg8.mat')
 y = loadmat('/home/darren/sigma31_dbg.mat')
 sigma31 = y['sigma31']
 #sigma31 = sigma31.transpose((0,2,1,3,4,5,6,7,8,9,10,11,12))
@@ -91,8 +92,8 @@ sigma31_L2 = sigma31
 sigma31_L3 = sigma31
 sigma31_LF = sigma31
 
-sigma31_LF = sigma31.mean(1).mean(1).mean(1).mean(1).mean(1).mean(1).mean(1).mean(2).mean(2)
-sigma31_LF = sigma31_LF.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
+sigma31_LF = sigma31.mean(1).mean(2).mean(2).mean(2).mean(2).mean(2).mean(3).mean(3)
+sigma31_LF = sigma31_LF.reshape((N_C, 1, 3, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
 
 #sigma31_LF = sigma31.mean(2).mean(2).mean(2).mean(2).mean(2).mean(2).mean(3).mean(3)
 #sigma31_LF = sigma31_LF.reshape((N_C, n1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
@@ -103,12 +104,12 @@ sigma31_LF = sigma31_LF.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_
 #sigma31_L3 = sigma31.mean(-1).mean(-1).mean(5).mean(5).mean(5)
 #sigma31_L3 = sigma31_L3.reshape((N_C, n1, 3, s1, s1, 1, 1, 1, n3, s3, s3, 1, 1))
 
-sigma31_L3 = sigma31.mean(1).mean(1).mean(1).mean(1).mean(2).mean(2).mean(-1).mean(-1)
-sigma31_L3 = sigma31_L3.reshape((N_C, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
+sigma31_L3 = sigma31.mean(1).mean(2).mean(2).mean(3).mean(3).mean(-1).mean(-1)
+sigma31_L3 = sigma31_L3.reshape((N_C, 1, 3, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
 
 
-sigma31_L2 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(2).mean(2).mean(2)
-sigma31_L2 = sigma31_L2.reshape((N_C, n1, 1, 1, 1, n2, s2, s2, 1, 1, 1, 1, 1))
+sigma31_L2 = sigma31.mean(3).mean(3).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1)
+sigma31_L2 = sigma31_L2.reshape((N_C, n1, 3, 1, 1, n2, s2, s2, 1, 1, 1, 1, 1))
 
 #sigma31_L2 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1)
 #sigma31_L2 = sigma31_L2.reshape((N_C, n1, 3, s1, s1, n2, s2, s2, 1, 1, 1, 1, 1))
@@ -117,8 +118,8 @@ sigma31_L2 = sigma31_L2.reshape((N_C, n1, 1, 1, 1, n2, s2, s2, 1, 1, 1, 1, 1))
 #sigma31_L1 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1)
 #sigma31_L1 = sigma31_L1.reshape((N_C, n1, 3, s1, s1, n2, s2, s2, 1, 1, 1, 1, 1))
 
-sigma31_L1 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1)
-sigma31_L1 = sigma31_L1.reshape((N_C, n1, 3, s1, s1, 1, 1, 1, 1, 1, 1, 1, 1))
+sigma31_L1 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1)
+sigma31_L1 = sigma31_L1.reshape((N_C, n1, 3, s1, s1, n2, 1, 1, 1, 1, 1, 1, 1))
 
 
 grad_L1 = 0
