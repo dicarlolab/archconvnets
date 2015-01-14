@@ -8,7 +8,7 @@ from scipy.stats import zscore
 import random
 import scipy
 from archconvnets.unsupervised.cudnn_module.cudnn_module import *
-from archconvnets.unsupervised.sigma31_layers.sigma31_layers import einsum_cat_pairs_mem_gpu
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import einsum_cat_pairs_gpu
 
 conv_block_cuda = conv_block
 
@@ -213,7 +213,7 @@ for iter in range(np.int(1e7)):
 			FL32 = FLt * F32
 			
 			derivc = np.einsum(sigma31_L1, sigma_inds, FL32, F_inds, [1,0,2,3,4,5])
-			predc = (einsum_cat_pairs_mem_gpu(sigma31_L1, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			predc = (einsum_cat_pairs_gpu(sigma31_L1, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 			grad_L1 = 2*(derivc*predc).sum(0).sum(0)
 			
 			############################################# F2 deriv
@@ -222,19 +222,19 @@ for iter in range(np.int(1e7)):
 			FL31 = FLt * F31
 			
 			derivc = np.einsum(sigma31_L2, sigma_inds, FL31, F_inds, [1,0,6,2,7,8])
-			predc = (einsum_cat_pairs_mem_gpu(sigma31_L2, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			predc = (einsum_cat_pairs_gpu(sigma31_L2, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 			grad_L2 = 2*(derivc*predc).sum(0).sum(0)
 			
 			############################################## F3 deriv
 			FL21 = FLt * F21
 			
 			derivc = np.einsum(sigma31_L3, sigma_inds, FL21, F_inds, [1,0,9,6,10,11])
-			predc = (einsum_cat_pairs_mem_gpu(sigma31_L3, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			predc = (einsum_cat_pairs_gpu(sigma31_L3, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 			grad_L3 = 2*(derivc*predc).sum(0).sum(0)
 			
 			####################################### FL deriv
 			derivc = np.einsum(sigma31_LF, sigma_inds, F321, sigma_inds, [0,9,12,13])[np.newaxis]
-			predc = (einsum_cat_pairs_mem_gpu(sigma31_LF, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1))
+			predc = (einsum_cat_pairs_gpu(sigma31_LF, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1))
 			grad_FL = 2*(predc*derivc).sum(1)
 			
 			##########
