@@ -8,6 +8,7 @@ from scipy.stats import zscore
 import random
 import scipy
 from archconvnets.unsupervised.cudnn_module.cudnn_module import *
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import einsum_cat_pairs_mem_gpu
 
 conv_block_cuda = conv_block
 
@@ -16,7 +17,7 @@ conv_block_cuda = conv_block
 #@profile
 #def sf():
 
-filename = '/home/darren/cifar_test4_epsn5_color.mat'
+filename = '/home/darren/cifar_test.mat'
 
 err_test = []
 class_err_test = []
@@ -44,7 +45,7 @@ IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
 PAD = 2
 
-N = 4
+N = 8
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N
@@ -80,8 +81,8 @@ F3 = zscore(F3,axis=None)/500
 FL = zscore(FL,axis=None)/500
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
 
-#y = loadmat('/home/darren/sigma31_dbg8.mat')
-y = loadmat('/home/darren/sigma31_dbg.mat')
+y = loadmat('/home/darren/sigma31_dbg8.mat')
+#y = loadmat('/home/darren/sigma31_dbg.mat')
 sigma31 = y['sigma31']
 #sigma31 = sigma31.transpose((0,2,1,3,4,5,6,7,8,9,10,11,12))
 
@@ -120,6 +121,12 @@ sigma31_L2 = sigma31_L2.reshape((N_C, n1, 3, 1, 1, n2, s2, s2, 1, 1, 1, 1, 1))
 
 sigma31_L1 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1)
 sigma31_L1 = sigma31_L1.reshape((N_C, n1, 3, s1, s1, n2, 1, 1, 1, 1, 1, 1, 1))
+
+
+sigma31_LF = np.ascontiguousarray(np.single(sigma31_LF))
+sigma31_L3 = np.ascontiguousarray(np.single(sigma31_L3))
+sigma31_L2 = np.ascontiguousarray(np.single(sigma31_L2))
+sigma31_L1 = np.ascontiguousarray(np.single(sigma31_L1))
 
 
 grad_L1 = 0
@@ -195,7 +202,6 @@ for iter in range(np.int(1e7)):
 			F21 = F1[:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * F2.transpose((1,0,2,3))[:,np.newaxis,np.newaxis,np.newaxis]
 			F21 = F21.reshape((1, n1, 3, s1, s1, n2, s2, s2, 1, 1, 1, 1, 1))
 			F321 = F21 * F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
-			FL321 = F321 * FL.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
 			
 			sigma_inds = [0,2,3,4,5,6,7,8,9,10,11,12,13]
 			F_inds = [1,2,3,4,5,6,7,8,9,10,11,12,13]
@@ -207,7 +213,7 @@ for iter in range(np.int(1e7)):
 			FL32 = FLt * F32
 			
 			derivc = np.einsum(sigma31_L1, sigma_inds, FL32, F_inds, [1,0,2,3,4,5])
-			predc = (np.einsum(sigma31_L1, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			predc = (einsum_cat_pairs_mem_gpu(sigma31_L1, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 			grad_L1 = 2*(derivc*predc).sum(0).sum(0)
 			
 			############################################# F2 deriv
@@ -216,19 +222,19 @@ for iter in range(np.int(1e7)):
 			FL31 = FLt * F31
 			
 			derivc = np.einsum(sigma31_L2, sigma_inds, FL31, F_inds, [1,0,6,2,7,8])
-			predc = (np.einsum(sigma31_L2, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			predc = (einsum_cat_pairs_mem_gpu(sigma31_L2, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 			grad_L2 = 2*(derivc*predc).sum(0).sum(0)
 			
 			############################################## F3 deriv
 			FL21 = FLt * F21
 			
 			derivc = np.einsum(sigma31_L3, sigma_inds, FL21, F_inds, [1,0,9,6,10,11])
-			predc = (np.einsum(sigma31_L3, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			predc = (einsum_cat_pairs_mem_gpu(sigma31_L3, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 			grad_L3 = 2*(derivc*predc).sum(0).sum(0)
 			
 			####################################### FL deriv
 			derivc = np.einsum(sigma31_LF, sigma_inds, F321, sigma_inds, [0,9,12,13])[np.newaxis]
-			predc = (np.einsum(sigma31_LF, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1))
+			predc = (einsum_cat_pairs_mem_gpu(sigma31_LF, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1))
 			grad_FL = 2*(predc*derivc).sum(1)
 			
 			##########

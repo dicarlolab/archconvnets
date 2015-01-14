@@ -343,12 +343,14 @@ static PyObject *compute_sigma31_full(PyObject *self, PyObject *args){
 
 #include "einsum_cat_pairs.c"
 #include "einsum_cat_pairs_gpu.cu"
+#include "einsum_cat_pairs_mem_gpu.cu"
 
 static PyMethodDef _sigma31_layers[] = {
 	{"compute_sigma31_reduced", compute_sigma31_reduced, METH_VARARGS},
 	{"compute_sigma31_full", compute_sigma31_full, METH_VARARGS},
 	{"einsum_cat_pairs", einsum_cat_pairs, METH_VARARGS},
 	{"einsum_cat_pairs_gpu", einsum_cat_pairs_gpu, METH_VARARGS},
+	{"einsum_cat_pairs_mem_gpu", einsum_cat_pairs_mem_gpu, METH_VARARGS},
 	{NULL, NULL}
 };
 
