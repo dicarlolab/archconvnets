@@ -341,15 +341,11 @@ static PyObject *compute_sigma31_full(PyObject *self, PyObject *args){
 #define MALLOC_ERR_CHECK {if (err != cudaSuccess){printf("malloc err line: %i\n",__LINE__); return NULL;}}
 #define DATA_TYPE_SZ sizeof(float)
 
-#include "einsum_cat_pairs.c"
-#include "einsum_cat_pairs_gpu.cu"
 #include "einsum_deriv_gpu.cu"
 
 static PyMethodDef _sigma31_layers[] = {
 	{"compute_sigma31_reduced", compute_sigma31_reduced, METH_VARARGS},
 	{"compute_sigma31_full", compute_sigma31_full, METH_VARARGS},
-	{"einsum_cat_pairs", einsum_cat_pairs, METH_VARARGS},
-	{"einsum_cat_pairs_gpu", einsum_cat_pairs_gpu, METH_VARARGS},
 	{"einsum_deriv_gpu", einsum_deriv_gpu, METH_VARARGS},
 	{NULL, NULL}
 };

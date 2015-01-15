@@ -8,7 +8,7 @@ from scipy.stats import zscore
 import random
 import scipy
 from archconvnets.unsupervised.cudnn_module.cudnn_module import *
-from archconvnets.unsupervised.sigma31_layers.sigma31_layers import einsum_cat_pairs_gpu
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import einsum_deriv_gpu
 
 conv_block_cuda = conv_block
 
@@ -196,45 +196,24 @@ for iter in range(np.int(1e7)):
 			t_test_forward_start = time.time() - t_test_forward_start
 			t_grad_start = time.time()
 			
-			###############
-			FLt = FL.reshape((N_C, 1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
-			
-			F21 = F1[:,:,:,:,np.newaxis,np.newaxis,np.newaxis] * F2.transpose((1,0,2,3))[:,np.newaxis,np.newaxis,np.newaxis]
-			F21 = F21.reshape((1, n1, 3, s1, s1, n2, s2, s2, 1, 1, 1, 1, 1))
-			F321 = F21 * F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
-			
-			sigma_inds = [0,2,3,4,5,6,7,8,9,10,11,12,13]
-			F_inds = [1,2,3,4,5,6,7,8,9,10,11,12,13]
-			
 			############################################## F1 deriv
-			F32 = F2[np.newaxis,:,:,:,:,np.newaxis,np.newaxis] * F3[:,:,np.newaxis,np.newaxis,np.newaxis]
-			F32 = F32.transpose((2,1,3,4,0,5,6))
-			F32 = F32[np.newaxis,:,np.newaxis,np.newaxis,np.newaxis,:,:,:,:,:,:,np.newaxis,np.newaxis]
-			FL32 = FLt * F32
-			
-			derivc = np.einsum(sigma31_L1, sigma_inds, FL32, F_inds, [1,0,2,3,4,5])
-			predc = (einsum_cat_pairs_gpu(sigma31_L1, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			derivc = einsum_deriv_gpu(sigma31_L1, F1, F2, F3, FL, 1)
+			predc = (einsum_deriv_gpu(sigma31_L1, F1, F2, F3, FL, 0) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 			grad_L1 = 2*(derivc*predc).sum(0).sum(0)
 			
 			############################################# F2 deriv
-			F31 = np.tensordot(F1, F3, 0).transpose((0,1,2,3,5,4,6,7))
-			F31 = F31.reshape((1,n1, 3, s1, s1, n2, 1,1, n3, s3, s3, 1, 1))
-			FL31 = FLt * F31
-			
-			derivc = np.einsum(sigma31_L2, sigma_inds, FL31, F_inds, [1,0,6,2,7,8])
-			predc = (einsum_cat_pairs_gpu(sigma31_L2, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			derivc = einsum_deriv_gpu(sigma31_L2, F1, F2, F3, FL, 2)
+			predc = (einsum_deriv_gpu(sigma31_L2, F1, F2, F3, FL, 0) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 			grad_L2 = 2*(derivc*predc).sum(0).sum(0)
 			
 			############################################## F3 deriv
-			FL21 = FLt * F21
-			
-			derivc = np.einsum(sigma31_L3, sigma_inds, FL21, F_inds, [1,0,9,6,10,11])
-			predc = (einsum_cat_pairs_gpu(sigma31_L3, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			derivc = einsum_deriv_gpu(sigma31_L3, F1, F2, F3, FL, 3)
+			predc = (einsum_deriv_gpu(sigma31_L3, F1, F2, F3, FL, 0) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 			grad_L3 = 2*(derivc*predc).sum(0).sum(0)
 			
 			####################################### FL deriv
-			derivc = np.einsum(sigma31_LF, sigma_inds, F321, sigma_inds, [0,9,12,13])[np.newaxis]
-			predc = (einsum_cat_pairs_gpu(sigma31_LF, F1, F2, F3, FL) - Y).reshape((N_C, N_C, 1, 1, 1))
+			derivc = einsum_deriv_gpu(sigma31_LF, F1, F2, F3, FL, 4)
+			predc = (einsum_deriv_gpu(sigma31_LF, F1, F2, F3, FL, 0) - Y).reshape((N_C, N_C, 1, 1, 1))
 			grad_FL = 2*(predc*derivc).sum(1)
 			
 			##########

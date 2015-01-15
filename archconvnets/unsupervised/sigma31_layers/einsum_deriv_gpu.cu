@@ -63,8 +63,43 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 	int t = threadIdx.x;
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// which indices are raveled across the grid and threads?
 	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// prediction
+	if(deriv_ind == 0){
+		///////////////////////////////////////////// indices that we keep (specify output term)
+		int cat_jc = r;
+		cat_ji = &cat_jc;
+		cat_j_sz = 1;
+		
+		int cat_ic = blockIdx.y;
+		cat_ii = &cat_ic;
+		cat_i_sz = 1;
+	
+		output_ind = cat_jc*N_C + cat_ic;
+		
+		//////////////////////////////////////// indices that are raveled over the threads
+		//int f0c = threadIdx.y;
+		//f0i = &f0c;
+		//f0_sz = 1;
+		
+		int s1xc = t / (s2*s2*s3);
+		s1xi = &s1xc;
+		t = t % (s2*s2*s3);
+		s1x_sz = 1;
+		
+		int s2xc = t / (s2*s3);
+		s2xi = &s2xc;
+		t = t % (s2*s3);
+		s2x_sz = 1;
+		
+		int s2yc = t / s3;
+		s2yi = &s2yc;
+		s2y_sz = 1;
+		
+		int s3xc = t % s3;
+		s3xi = &s3xc;
+		s3x_sz = 1;
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// F1 deriv
-	if(deriv_ind == 1){
+	}else if(deriv_ind == 1){
 		///////////////////////////////////////////// indices that we keep (specify output term)
 		int cat_jc = r / (N_C*s1*s1);
 		cat_ji = &cat_jc;
@@ -213,11 +248,57 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 		int s2yc = t % s2;
 		s2yi = &s2yc;
 		s2y_sz = 1;
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// FL deriv
+	}else if(deriv_ind == 4){
+		///////////////////////////////////////////// indices that we keep (specify output term)
+		int cat_ic = r / max_output_sz3;
+		cat_ii = &cat_ic;
+		cat_i_sz = 1;
+		
+		int z1c = r % max_output_sz3;
+		z1i = &z1c;
+		z1_sz = 1;
+		
+		///////////////////////////////////////
+		int z2c = blockIdx.y;
+		z2i = &z2c;
+		z2_sz = 1;
+		
+		int f3c = blockIdx.z;
+		f3i = &f3c;
+		f3_sz = 1;
+		
+		output_ind = cat_ic*(n3*max_output_sz3*max_output_sz3) + f3c*(max_output_sz3*max_output_sz3) + z1c*max_output_sz3 + z2c;
+		
+		
+		// we want cat_j = cat_i, because we do not need to compute the products sigma31[cat_j] * FL[cat_i] for all cat_i,cat_j (because FL is 1)
+		cat_ji = &cat_ic;
+		cat_j_sz = 1;
+		
+		//////////////////////////////////////// indices that are raveled over the threads
+		
+		
+		int s1xc = t / (s1*s2*s2);
+		s1xi = &s1xc;
+		t = t % (s1*s2*s2);
+		s1x_sz = 1;
+		
+		int s1yc = t / (s2*s2);
+		s1yi = &s1yc;
+		t = t % (s2*s2);
+		s1y_sz = 1;
+		
+		int s2xc = t / s2;
+		s2xi = &s2xc;
+		s2x_sz = 1;
+		
+		int s2yc = t % s2;
+		s2yi = &s2yc;
+		s2y_sz = 1;
 	}
 	
 	float sum_res_local = 0;
 	
-	//N_C * n1 * 3 * s1 * s1 * n2 * s2 * s2 * n3 * s3 * s3 * max_output_sz3 * max_output_sz3
 	for(cat_i = 0; cat_i < cat_i_sz; cat_i++){
 		for(cat_j = 0; cat_j < cat_j_sz; cat_j++){
 			for(f1 = 0; f1 < f1_sz; f1++){
@@ -250,6 +331,7 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 			} // f1
 		} // cat_j
 	} // cat_i
+
 	atomicAdd(&sum_res_shared[0], sum_res_local);
 	
 	__syncthreads();
@@ -323,27 +405,39 @@ static PyObject *einsum_deriv_gpu(PyObject *self, PyObject *args){
 	
 	////////////////////////////////////////////////////////////////////////// which indices do we unravel across threads?
 	int output_sz;
-	int thread_sz;
+	dim3 thread_sz;
 	dim3 grid_sz;
 
-	if(deriv_ind == 1){
-		thread_sz = s2*s2*s3*s3;
+	if(deriv_ind == 0){ // prediction (no deriv)
+		thread_sz.x = s1*s2*s2*s3;
+		//thread_sz.y = n0;
+		output_sz = N_C * N_C;
+		grid_sz.x = N_C;
+		grid_sz.y = N_C;
+	}else if(deriv_ind == 1){ // F1 deriv
+		thread_sz.x = s2*s2*s3*s3;
 		output_sz = N_C * N_C * n1 * n0 * s1 * s1;
 		grid_sz.x = N_C * N_C * s1 * s1;
 		grid_sz.y = n1;
 		grid_sz.z = n0;
-	}else if(deriv_ind == 2){
-		thread_sz = s1*s1*s3*s3;
+	}else if(deriv_ind == 2){ // F2 deriv
+		thread_sz.x = s1*s1*s3*s3;
 		output_sz = N_C * N_C * n2 * n1 * s2 * s2;
 		grid_sz.x = N_C * N_C * s2 * s2;
 		grid_sz.y = n2;
 		grid_sz.z = n1;
-	}else if(deriv_ind == 3){
-		thread_sz = s1*s1*s2*s2;
+	}else if(deriv_ind == 3){ // F3 deriv
+		thread_sz.x = s1*s1*s2*s2;
 		output_sz = N_C * N_C * n3 * n2 * s3 * s3;
 		grid_sz.x = N_C * N_C * s3 * s3;
 		grid_sz.y = n3;
 		grid_sz.z = n2;
+	}else if(deriv_ind == 4){ // FL deriv
+		thread_sz.x = s1*s1*s2*s2;
+		output_sz = N_C * n3 * max_output_sz3 * max_output_sz3;
+		grid_sz.x = N_C * max_output_sz3;
+		grid_sz.y = max_output_sz3;
+		grid_sz.z = n3;
 	}
 	
 	///////////////////////////////// allocate output mem
