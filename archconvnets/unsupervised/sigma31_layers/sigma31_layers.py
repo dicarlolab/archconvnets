@@ -171,7 +171,7 @@ def einsum_cat_pairs_gpu(sigma31, F1, F2, F3, FL):
 	return _sigma31_layers.einsum_cat_pairs_gpu(sigma31, F1, F2, F3, FL).reshape((sigma31.shape[0], sigma31.shape[0]))
 	
 
-def einsum_deriv_gpu(sigma31, F1, F2, F3, FL):
+def einsum_deriv_gpu(sigma31, F1, F2, F3, FL, deriv_ind):
 	assert sigma31.dtype == np.dtype('float32')
 	assert FL.dtype == np.dtype('float32')
 	assert F3.dtype == np.dtype('float32')
@@ -183,6 +183,18 @@ def einsum_deriv_gpu(sigma31, F1, F2, F3, FL):
 	assert F2.shape[-1] == F2.shape[-2]
 	assert F1.shape[-1] == F1.shape[-2]
 	
+	if deriv_ind == 1:
+		F1 = np.ones_like(F1)
+		s = F1.shape
+	elif deriv_ind == 2:
+		F2 = np.ones_like(F2)
+		s = F2.shape
+	elif deriv_ind == 3:
+		F3 = np.ones_like(F3)
+		s = F3.shape
+	elif deriv_ind == 4:
+		FL = np.ones_like(FL)
+		s = FL.shape
 	
 	if not sigma31.flags.contiguous:
 		print 'warning: input not C-contiguous (sigma31)'
@@ -200,4 +212,4 @@ def einsum_deriv_gpu(sigma31, F1, F2, F3, FL):
 		print 'warning: input not C-contiguous (F1)'
 		F1 = np.ascontiguousarray(F1)
 		
-	return _sigma31_layers.einsum_deriv_gpu(sigma31, F1, F2, F3, FL).reshape(np.concatenate(((10,10), F1.shape)))
+	return _sigma31_layers.einsum_deriv_gpu(sigma31, F1, F2, F3, FL, deriv_ind).reshape(np.concatenate(((10,10), s)))
