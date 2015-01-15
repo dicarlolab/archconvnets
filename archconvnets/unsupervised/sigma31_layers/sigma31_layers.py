@@ -200,4 +200,4 @@ def einsum_deriv_gpu(sigma31, F1, F2, F3, FL):
 		print 'warning: input not C-contiguous (F1)'
 		F1 = np.ascontiguousarray(F1)
 		
-	return _sigma31_layers.einsum_deriv_gpu(sigma31, F1, F2, F3, FL).reshape((sigma31.shape[0], sigma31.shape[0]))
+	return _sigma31_layers.einsum_deriv_gpu(sigma31, F1, F2, F3, FL).reshape(np.concatenate(((10,10), F1.shape)))
