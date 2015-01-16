@@ -74,10 +74,9 @@ static PyObject *einsum_return(PyObject *self, PyObject *args){
 	cudaThreadSynchronize();
 	
 
-	// check for error
 	err = cudaGetLastError();
 	if(err != cudaSuccess){
-		printf("CUDA error: %s\n", cudaGetErrorString(err));
+		printf("CUDA error: %s, %s, %i\n", cudaGetErrorString(err),__FILE__,__LINE__);
 		return NULL;
 	}
 	

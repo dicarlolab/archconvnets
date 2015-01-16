@@ -91,9 +91,9 @@ static PyObject *set_sigma_buffer(PyObject *self, PyObject *args){
 	
 	/////////////////////////////////// cuda mem
 
-	err = cudaMalloc((void**) &sigma31s_c[gpu_ind][l], sigma31_sz * DATA_TYPE_SZ); MALLOC_ERR_CHECK
+	err = cudaMalloc((void**) &sigma31s_c[gpu_ind][l], sigma31_sz); MALLOC_ERR_CHECK
 	
-	err = cudaMemcpy(sigma31s_c[gpu_ind][l], sigma31, sigma31_sz * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
+	err = cudaMemcpy(sigma31s_c[gpu_ind][l], sigma31, sigma31_sz, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
 	
 	// check for error
 	err = cudaGetLastError();

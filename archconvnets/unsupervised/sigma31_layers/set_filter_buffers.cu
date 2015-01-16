@@ -37,17 +37,17 @@ static PyObject *set_filter_buffers(PyObject *self, PyObject *args){
 	
 	/////////////////////////////////// allocate cuda mem
 	if(F1s_c[gpu_ind] == 0){
-		err = cudaMalloc((void**) &F1s_c[gpu_ind], F1_sz * DATA_TYPE_SZ); MALLOC_ERR_CHECK
-		err = cudaMalloc((void**) &F2s_c[gpu_ind], F2_sz * DATA_TYPE_SZ); MALLOC_ERR_CHECK
-		err = cudaMalloc((void**) &F3s_c[gpu_ind], F3_sz * DATA_TYPE_SZ); MALLOC_ERR_CHECK
-		err = cudaMalloc((void**) &FLs_c[gpu_ind], FL_sz * DATA_TYPE_SZ); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &F1s_c[gpu_ind], F1_sz); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &F2s_c[gpu_ind], F2_sz); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &F3s_c[gpu_ind], F3_sz); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &FLs_c[gpu_ind], FL_sz); MALLOC_ERR_CHECK
 	}
 	
 	////////////////////////////////// set buffers
-	err = cudaMemcpy(F1s_c[gpu_ind], F1, F1_sz * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
-	err = cudaMemcpy(F2s_c[gpu_ind], F2, F2_sz * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
-	err = cudaMemcpy(F3s_c[gpu_ind], F3, F3_sz * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
-	err = cudaMemcpy(FLs_c[gpu_ind], FL, FL_sz * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
+	err = cudaMemcpy(F1s_c[gpu_ind], F1, F1_sz, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
+	err = cudaMemcpy(F2s_c[gpu_ind], F2, F2_sz, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
+	err = cudaMemcpy(F3s_c[gpu_ind], F3, F3_sz, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
+	err = cudaMemcpy(FLs_c[gpu_ind], FL, FL_sz, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
 	
 	///////////////////////////////// set global dimensions used in the main einsum function
 	N_C = PyArray_DIM(FL_in, 0);

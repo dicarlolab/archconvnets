@@ -57,6 +57,13 @@ static PyObject *einsum_deriv_gpu(PyObject *self, PyObject *args){
 	
 	err = cudaMalloc((void**) &sum_res_c[gpu_ind][l][deriv_flag], output_sz * DATA_TYPE_SZ); MALLOC_ERR_CHECK
 	
+	// check for error
+	err = cudaGetLastError();
+	if(err != cudaSuccess){
+		printf("CUDA error: %s, %s, %i\n", cudaGetErrorString(err),__FILE__,__LINE__);
+		return NULL;
+	}
+	
 	kernel_deriv <<< grid_sz, thread_sz, DATA_TYPE_SZ >>> (sum_res_c[gpu_ind][l][deriv_flag], sigma31s_c[gpu_ind][l], F1s_c[gpu_ind], F2s_c[gpu_ind], F3s_c[gpu_ind], FLs_c[gpu_ind], 
 		max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s[l], max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0s[l],
 		max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1s[l], max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1s[l], max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2s[l],
@@ -64,6 +71,12 @@ static PyObject *einsum_deriv_gpu(PyObject *self, PyObject *args){
 		max_output_sz3_max_output_sz3_s3s[l], max_output_sz3_max_output_sz3s[l], z2b[l], n0, n0s[l], n1, n1s[l], n2, n2s[l], n3, n3s[l],
 		max_output_sz3, max_output_sz3s[l], s1, s1s[l], s2, s2s[l], s3, s3s[l], N_C, deriv_ind);
 	
+	
+	err = cudaGetLastError();
+	if(err != cudaSuccess){
+		printf("CUDA error: %s, %s, %i\n", cudaGetErrorString(err),__FILE__,__LINE__);
+		return NULL;
+	}
 	
 	Py_INCREF(Py_None);
 	return Py_None;
