@@ -8,7 +8,7 @@ from scipy.stats import zscore
 import random
 import scipy
 from archconvnets.unsupervised.cudnn_module.cudnn_module import *
-from archconvnets.unsupervised.sigma31_layers.sigma31_layers import einsum_deriv_gpu
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import *
 
 conv_block_cuda = conv_block
 
@@ -84,7 +84,8 @@ imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean
 y = loadmat('/home/darren/sigma31_dbg8.mat')
 #y = loadmat('/home/darren/sigma31_dbg.mat')
 sigma31 = y['sigma31']
-#sigma31 = sigma31.transpose((0,2,1,3,4,5,6,7,8,9,10,11,12))
+
+#sigma31 = np.single(np.random.random((10,16,3,5,5,16,5,5,16,3,3,2,2)))
 
 # 10, n1, 3, s1, s1, n2, s2, s2, n3, s3, s3, sz, sz
 
@@ -165,11 +166,19 @@ max_output3, output_switches3_x_init, output_switches3_y_init = max_pool_locs(co
 
 Y = np.eye(N_C)
 
+set_sigma_buffer(sigma31_L1, 1, 0)
+set_sigma_buffer(sigma31_L2, 2, 1)
+set_sigma_buffer(sigma31_L3, 3, 2)
+set_sigma_buffer(sigma31_LF, 4, 0)
+
 for iter in range(np.int(1e7)):
 	epoch_err_t = 0
 	for batch in range(1,6):
 		for step in range(np.int((10000)/N_IMGS)):
 			t_total = time.time()
+			
+			for gpu in range(4):
+				set_filter_buffers(F1,F2,F3,FL,gpu)
 			
 			FLr = FL.reshape((N_C, n3*max_output_sz3**2))
 			
@@ -196,25 +205,41 @@ for iter in range(np.int(1e7)):
 			t_test_forward_start = time.time() - t_test_forward_start
 			t_grad_start = time.time()
 			
+			
+			################### launch on gpus
+			einsum_deriv_gpu(1, 1, 0)
+			einsum_deriv_gpu(1, 0, 0)
+			einsum_deriv_gpu(2, 1, 1)
+			einsum_deriv_gpu(2, 0, 1)
+			einsum_deriv_gpu(3, 1, 2)
+			einsum_deriv_gpu(3, 0, 2)
+			einsum_deriv_gpu(4, 1, 0)
+			einsum_deriv_gpu(4, 0, 0)
+			
 			############################################## F1 deriv
-			derivc = einsum_deriv_gpu(sigma31_L1, F1, F2, F3, FL, 1)
-			predc = (einsum_deriv_gpu(sigma31_L1, F1, F2, F3, FL, 0) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			derivc = einsum_return(1, 1, 0)
+			predc = (einsum_return(1, 0, 0) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			
 			grad_L1 = 2*(derivc*predc).sum(0).sum(0)
 			
 			############################################# F2 deriv
-			derivc = einsum_deriv_gpu(sigma31_L2, F1, F2, F3, FL, 2)
-			predc = (einsum_deriv_gpu(sigma31_L2, F1, F2, F3, FL, 0) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			derivc = einsum_return(2, 1, 1)
+			predc = (einsum_return(2, 0, 1) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			
 			grad_L2 = 2*(derivc*predc).sum(0).sum(0)
 			
-			############################################## F3 deriv
-			derivc = einsum_deriv_gpu(sigma31_L3, F1, F2, F3, FL, 3)
-			predc = (einsum_deriv_gpu(sigma31_L3, F1, F2, F3, FL, 0) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			############################################# F3 deriv
+			derivc = einsum_return(3, 1, 2)
+			predc = (einsum_return(3, 0, 2) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+			
 			grad_L3 = 2*(derivc*predc).sum(0).sum(0)
 			
-			####################################### FL deriv
-			derivc = einsum_deriv_gpu(sigma31_LF, F1, F2, F3, FL, 4)
-			predc = (einsum_deriv_gpu(sigma31_LF, F1, F2, F3, FL, 0) - Y).reshape((N_C, N_C, 1, 1, 1))
+			############################################# FL deriv
+			derivc = einsum_return(4, 1, 0)
+			predc = (einsum_return(4, 0, 0) - Y).reshape((N_C, N_C, 1, 1, 1))
+			
 			grad_FL = 2*(predc*derivc).sum(1)
+			
 			
 			##########
 			# weight updates
