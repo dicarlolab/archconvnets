@@ -124,19 +124,19 @@ def s31_full(output_switches3_x, output_switches3_y, output_switches2_x, output_
 	sigma31 = sigma31.reshape((N_C, 3, n1, s1, s1, n2, s2, s2, n3, s3, s3, max_output_sz3, max_output_sz3))
 	return sigma31
 
-def einsum_deriv_gpu(layer_ind, deriv_ind, gpu_ind):
-	assert isinstance(gpu_ind, int)
-	assert isinstance(layer_ind, int)
-	assert isinstance(deriv_ind, int)
+def einsum_deriv_gpu(deriv_layer_ind, sigma_ind, output_ind, gpu_ind):
+	assert isinstance(deriv_layer_ind,int)
+	assert isinstance(gpu_ind,int)
+	assert isinstance(output_ind,int)
+	assert isinstance(sigma_ind,int)
 	
-	return _sigma31_layers.einsum_deriv_gpu(layer_ind, deriv_ind, gpu_ind)
+	return _sigma31_layers.einsum_deriv_gpu(deriv_layer_ind, sigma_ind, output_ind, gpu_ind)
 
-def einsum_return(layer_ind, deriv_ind, gpu_ind):
+def einsum_return(output_ind, gpu_ind):
 	assert isinstance(gpu_ind, int)
-	assert isinstance(layer_ind, int)
-	assert isinstance(deriv_ind, int)
+	assert isinstance(output_ind, int)
 	
-	return _sigma31_layers.einsum_return(layer_ind, deriv_ind, gpu_ind)
+	return _sigma31_layers.einsum_return(output_ind, gpu_ind)
 
 def set_sigma_buffer(sigma31, layer_ind, gpu_ind):
 	assert isinstance(layer_ind,int)

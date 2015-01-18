@@ -19,11 +19,7 @@ static PyObject *set_filter_buffers(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(cudaSetDevice(gpu_ind) != cudaSuccess){
-		err = cudaGetLastError();
-		printf("CUDA error: %s\n", cudaGetErrorString(err));
-		return NULL;
-	}
+	if(cudaSetDevice(gpu_ind) != cudaSuccess) CHECK_CUDA_ERR
 	
 	FL = (float *) FL_in -> data;
 	F3 = (float *) F3_in -> data;
@@ -41,6 +37,24 @@ static PyObject *set_filter_buffers(PyObject *self, PyObject *args){
 		err = cudaMalloc((void**) &F2s_c[gpu_ind], F2_sz); MALLOC_ERR_CHECK
 		err = cudaMalloc((void**) &F3s_c[gpu_ind], F3_sz); MALLOC_ERR_CHECK
 		err = cudaMalloc((void**) &FLs_c[gpu_ind], FL_sz); MALLOC_ERR_CHECK
+		
+		///////////////////////////////// set global dimensions used in the main einsum function
+		N_C = PyArray_DIM(FL_in, 0);
+		n1 = PyArray_DIM(F1_in, 0);
+		n0 = PyArray_DIM(F1_in, 1);
+		s1 = PyArray_DIM(F1_in, 2);
+		n2 = PyArray_DIM(F2_in, 0);
+		s2 = PyArray_DIM(F2_in, 2);
+		n3 = PyArray_DIM(F3_in, 0);
+		s3 = PyArray_DIM(F3_in, 2);
+		max_output_sz3 = PyArray_DIM(FL_in, 2);
+		
+		
+	}else if(N_C != PyArray_DIM(FL_in, 0) || n1 != PyArray_DIM(F1_in, 0) || n0 != PyArray_DIM(F1_in, 1) || 
+			s1 != PyArray_DIM(F1_in, 2) || n2 != PyArray_DIM(F2_in, 0) || s2 != PyArray_DIM(F2_in, 2) ||
+			n3 != PyArray_DIM(F3_in, 0) || s3 != PyArray_DIM(F3_in, 2) || max_output_sz3 != PyArray_DIM(FL_in, 2)){
+				printf("filter dimensions do not match previously stored filter dimensions. they should also be the same across all gpus\n");
+				return NULL;
 	}
 	
 	////////////////////////////////// set buffers
@@ -49,23 +63,8 @@ static PyObject *set_filter_buffers(PyObject *self, PyObject *args){
 	err = cudaMemcpy(F3s_c[gpu_ind], F3, F3_sz, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
 	err = cudaMemcpy(FLs_c[gpu_ind], FL, FL_sz, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
 	
-	///////////////////////////////// set global dimensions used in the main einsum function
-	N_C = PyArray_DIM(FL_in, 0);
-	n1 = PyArray_DIM(F1_in, 0);
-	n0 = PyArray_DIM(F1_in, 1);
-	s1 = PyArray_DIM(F1_in, 2);
-	n2 = PyArray_DIM(F2_in, 0);
-	s2 = PyArray_DIM(F2_in, 2);
-	n3 = PyArray_DIM(F3_in, 0);
-	s3 = PyArray_DIM(F3_in, 2);
-	max_output_sz3 = PyArray_DIM(FL_in, 2);
 	
-	// check for error
-	err = cudaGetLastError();
-	if(err != cudaSuccess){
-		printf("CUDA error: %s\n", cudaGetErrorString(err));
-		return NULL;
-	}
+	CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

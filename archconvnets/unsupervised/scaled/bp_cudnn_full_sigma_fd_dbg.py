@@ -8,6 +8,7 @@ from scipy.stats import zscore
 import random
 import scipy
 from archconvnets.unsupervised.cudnn_module.cudnn_module import *
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import *
 
 conv_block_cuda = conv_block
 
@@ -106,13 +107,13 @@ conv_output3 = conv_block_cuda(np.double(F3.transpose((1,2,3,0))), np.double(max
 max_output3, output_switches3_x_init, output_switches3_y_init = max_pool_locs(conv_output3, PAD=2)
 
 
-i_ind = 6
+i_ind = 0
 j_ind = 1
 k_ind = 1
 l_ind = 1
 
 def f(x):
-	FL[i_ind, j_ind, k_ind, l_ind] = x
+	F1[i_ind, j_ind, k_ind, l_ind] = x
 		
 	FLr = FL.reshape((N_C, n3*max_output_sz3**2))
 	
@@ -139,7 +140,7 @@ def f(x):
 #sigma31_LF = sigma31.mean(2)#.mean(2).mean(2).mean(2).mean(2).mean(2).mean(3).mean(3)
 #sigma31_LF = sigma31_LF.reshape((N_C, n1, 1, s1, s1, n2, s2, s2, n3, s3, s3, sigma31.shape[-1], sigma31.shape[-1]))
 def g(x):
-	FL[i_ind, j_ind, k_ind, l_ind] = x
+	F1[i_ind, j_ind, k_ind, l_ind] = x
 	
 	Y = np.eye(N_C)
 	
@@ -153,7 +154,7 @@ def g(x):
 	sigma_inds = [0,2,3,4,5,6,7,8,9,10,11,12,13]
 	F_inds = [1,2,3,4,5,6,7,8,9,10,11,12,13]
 	
-	'''############################################## F1 deriv wrt f1_, a1_x_, a1_y_, channel_
+	############################################## F1 deriv wrt f1_, a1_x_, a1_y_, channel_
 	F32 = F2[np.newaxis,:,:,:,:,np.newaxis,np.newaxis] * F3[:,:,np.newaxis,np.newaxis,np.newaxis]
 	F32 = F32.transpose((2,1,3,4,0,5,6))
 	F32 = F32[np.newaxis,:,np.newaxis,np.newaxis,np.newaxis,:,:,:,:,:,:,np.newaxis,np.newaxis]
@@ -161,30 +162,54 @@ def g(x):
 	
 	derivc = np.einsum(sigma31_L1, sigma_inds, FL32, F_inds, [1,0,2,3,4,5])
 	predc = (np.einsum(sigma31_L1, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1, 1)) # (c, img)
+	
+	
+	
 	grad_L1_s = 2*(derivc*predc).sum(0).sum(0)
 	
-	############################################# F2 deriv wrt f2_, f1_, a2_x_, a2_y_
+	return grad_L1_s[i_ind,j_ind,k_ind,l_ind]
+	
+	'''############################################# F2 deriv wrt f2_, f1_, a2_x_, a2_y_
 	F31 = np.tensordot(F1, F3, 0).transpose((0,1,2,3,5,4,6,7))
 	F31 = F31.reshape((1,n1, 3, s1, s1, n2, 1,1, n3, s3, s3, 1, 1))
 	FL31 = FLt * F31
 	
-	derivc = np.einsum(sigma31_L2, sigma_inds, FL31, F_inds, [1,0,6,2,7,8])
-	predc = (np.einsum(sigma31_L2, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1, 1)) # (c, img)
+	#derivc = np.einsum(sigma31_L2, sigma_inds, FL31, F_inds, [1,0,6,2,7,8])
+	#predc = (np.einsum(sigma31_L2, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1, 1)) # (c, img)
+	
+	predc = (einsum_deriv_gpu(np.ascontiguousarray(np.single(sigma31_L2)), np.ascontiguousarray(np.single(F1)), np.ascontiguousarray(np.single(F2)), np.ascontiguousarray(np.single(F3)), np.ascontiguousarray(np.single(FL)),0) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+
+	derivc = einsum_deriv_gpu(np.ascontiguousarray(np.single(sigma31_L2)), np.ascontiguousarray(np.single(F1)), np.ascontiguousarray(np.single(np.ones_like(F2))), np.ascontiguousarray(np.single(F3)), np.ascontiguousarray(np.single(FL)),2)
+	
 	grad_L2_s = 2*(derivc*predc).sum(0).sum(0)
 	
-	############################################## F3 deriv wrt f3_, f2_, a3_x_, a3_y_
+	return grad_L2_s[i_ind,j_ind,k_ind,l_ind]'''
+	
+	'''############################################## F3 deriv wrt f3_, f2_, a3_x_, a3_y_
 	FL21 = FLt * F21
 	
-	derivc = np.einsum(sigma31_L3, sigma_inds, FL21, F_inds, [1,0,9,6,10,11])
-	predc = (np.einsum(sigma31_L3, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1, 1)) # (c, img)
-	grad_L3_s = 2*(derivc*predc).sum(0).sum(0)'''
+	#derivc = np.einsum(sigma31_L3, sigma_inds, FL21, F_inds, [1,0,9,6,10,11])
+	#predc = (np.einsum(sigma31_L3, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1, 1)) # (c, img)
 	
-	####################################### FL deriv wrt cat_, f3_, z1_, z2_
-	derivc = np.einsum(sigma31_LF, sigma_inds, F321, sigma_inds, [0,9,12,13])[np.newaxis]
-	predc = (np.einsum(sigma31_LF, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1)) # (c, img)
+	
+	predc = (einsum_deriv_gpu(np.ascontiguousarray(np.single(sigma31_L3)), np.ascontiguousarray(np.single(F1)), np.ascontiguousarray(np.single(F2)), np.ascontiguousarray(np.single(F3)), np.ascontiguousarray(np.single(FL)),0) - Y).reshape((N_C, N_C, 1, 1, 1, 1)) # (c, img)
+
+	derivc = einsum_deriv_gpu(np.ascontiguousarray(np.single(sigma31_L3)), np.ascontiguousarray(np.single(F1)), np.ascontiguousarray(np.single(F2)), np.ascontiguousarray(np.single(np.ones_like(F3))), np.ascontiguousarray(np.single(FL)),3)
+	
+	grad_L3_s = 2*(derivc*predc).sum(0).sum(0)
+	return grad_L3_s[i_ind,j_ind,k_ind,l_ind]'''
+	
+	'''####################################### FL deriv wrt cat_, f3_, z1_, z2_
+	#derivc = np.einsum(sigma31_LF, sigma_inds, F321, sigma_inds, [0,9,12,13])[np.newaxis]
+	#predc = (np.einsum(sigma31_LF, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1)) # (c, img)
+	
+	predc = (einsum_deriv_gpu(np.ascontiguousarray(np.single(sigma31_LF)), np.ascontiguousarray(np.single(F1)), np.ascontiguousarray(np.single(F2)), np.ascontiguousarray(np.single(F3)), np.ascontiguousarray(np.single(FL)),0) - Y).reshape((N_C, N_C, 1, 1, 1))
+
+	derivc = einsum_deriv_gpu(np.ascontiguousarray(np.single(sigma31_LF)), np.ascontiguousarray(np.single(F1)), np.ascontiguousarray(np.single(F2)), np.ascontiguousarray(np.single(F3)), np.ascontiguousarray(np.single(np.ones_like(FL))),4)
+	
 	grad_FL_s = 2*(predc*derivc).sum(1)
 	
-	return grad_FL_s[i_ind,j_ind,k_ind,l_ind]
+	return grad_FL_s[i_ind,j_ind,k_ind,l_ind]'''
 
 
 eps = np.sqrt(np.finfo(np.float).eps)*1e1

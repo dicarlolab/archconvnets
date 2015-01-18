@@ -228,23 +228,23 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 		output_ind = cat_jc*(N_C*n3*n2*s3*s3) + cat_ic*(n3*n2*s3*s3) + f3c*(n2*s3*s3) + f2c*(s3*s3) + s3xc*s3 + s3yc;
 		
 		//////////////////////////////////////// indices that are raveled over the threads
-		int s1xc = t / (s1*s2*s2);
+		int s1xc = t / (s1*s2);
 		s1xi = &s1xc;
-		t = t % (s1*s2*s2);
+		t = t % (s1*s2);
 		s1x_sz = 1;
 		
-		int s1yc = t / (s2*s2);
+		int s1yc = t / (s2);
 		s1yi = &s1yc;
-		t = t % (s2*s2);
+		t = t % (s2);
 		s1y_sz = 1;
 		
-		int s2xc = t / s2;
+		int s2xc = t ;/// s2;
 		s2xi = &s2xc;
 		s2x_sz = 1;
 		
-		int s2yc = t % s2;
+		/*int s2yc = t % s2;
 		s2yi = &s2yc;
-		s2y_sz = 1;
+		s2y_sz = 1;*/
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// FL deriv
 	}else if(deriv_ind == 4){
 		///////////////////////////////////////////// indices that we keep (specify output term)
@@ -275,23 +275,23 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 		//////////////////////////////////////// indices that are raveled over the threads
 		
 		
-		int s1xc = t / (s1*s2*s2);
+		int s1xc = t / (s1*s2);
 		s1xi = &s1xc;
-		t = t % (s1*s2*s2);
+		t = t % (s1*s2);
 		s1x_sz = 1;
 		
-		int s1yc = t / (s2*s2);
+		int s1yc = t / (s2);
 		s1yi = &s1yc;
-		t = t % (s2*s2);
+		t = t % (s2);
 		s1y_sz = 1;
 		
-		int s2xc = t / s2;
+		int s2xc = t ;/// s2;
 		s2xi = &s2xc;
 		s2x_sz = 1;
 		
-		int s2yc = t % s2;
+		/*int s2yc = t % s2;
 		s2yi = &s2yc;
-		s2y_sz = 1;
+		s2y_sz = 1;*/
 	}
 	
 	float sum_res_local = 0;

@@ -45,7 +45,7 @@ IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
 PAD = 2
 
-N = 8#16
+N = 8
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N
@@ -85,7 +85,7 @@ y = loadmat('/home/darren/sigma31_dbg8.mat')
 #y = loadmat('/home/darren/sigma31_dbg.mat')
 sigma31 = y['sigma31']
 
-#sigma31 = np.single(np.random.random((10,16,3,5,5,16,5,5,16,3,3,2,2)))
+#sigma31 = np.single(np.random.random((10,n1,3,5,5,n2,5,5,n3,3,3,2,2)))
 
 # 10, n1, 3, s1, s1, n2, s2, s2, n3, s3, s3, sz, sz
 
@@ -182,9 +182,9 @@ Y = np.eye(N_C)
 set_sigma_buffer(sigma31_L1, 1, 0)
 set_sigma_buffer(sigma31_L2, 2, 1)
 set_sigma_buffer(sigma31_L3, 3, 2)
-set_sigma_buffer(sigma31_LF, 4, 0)
+set_sigma_buffer(sigma31_LF, 4, 3)
 
-for step in range(np.int((10000)/N_IMGS)):
+for step in range(10000000):
 	t_total = time.time()
 	
 	for gpu in range(4):
@@ -216,36 +216,39 @@ for step in range(np.int((10000)/N_IMGS)):
 	t_grad_start = time.time()
 	
 	################### launch on gpus
-	einsum_deriv_gpu(1, 1, 0)
-	einsum_deriv_gpu(1, 0, 0)
-	einsum_deriv_gpu(2, 1, 1)
-	einsum_deriv_gpu(2, 0, 1)
-	einsum_deriv_gpu(3, 1, 2)
-	einsum_deriv_gpu(3, 0, 2)
-	einsum_deriv_gpu(4, 1, 0)
-	einsum_deriv_gpu(4, 0, 0)
+	einsum_deriv_gpu(0,1,0,0) # pred, l1
+	einsum_deriv_gpu(1,1,1,0) # deriv, l1
+
+	einsum_deriv_gpu(0,2,0,1) # pred, l2
+	einsum_deriv_gpu(2,2,1,1) # deriv, l2
+
+	einsum_deriv_gpu(0,3,0,2) # pred, l3
+	einsum_deriv_gpu(3,3,1,2) # deriv, l3
+
+	einsum_deriv_gpu(0,4,0,3) # pred, fl
+	einsum_deriv_gpu(4,4,1,3) # deriv, fl
 	
 	############################################## F1 deriv
-	derivc = einsum_return(1, 1, 0)
-	predc = (einsum_return(1, 0, 0) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+	derivc = einsum_return(1,0)
+	predc = (einsum_return(0,0) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 	
 	grad_L1 = 2*(derivc*predc).sum(0).sum(0)
 	
 	############################################# F2 deriv
-	derivc = einsum_return(2, 1, 1)
-	predc = (einsum_return(2, 0, 1) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+	derivc = einsum_return(1,1)
+	predc = (einsum_return(0,1) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 	
 	grad_L2 = 2*(derivc*predc).sum(0).sum(0)
 	
 	############################################# F3 deriv
-	derivc = einsum_return(3, 1, 2)
-	predc = (einsum_return(3, 0, 2) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+	derivc = einsum_return(1,2)
+	predc = (einsum_return(0,2) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 	
 	grad_L3 = 2*(derivc*predc).sum(0).sum(0)
 	
 	############################################# FL deriv
-	derivc = einsum_return(4, 1, 0)
-	predc = (einsum_return(4, 0, 0) - Y).reshape((N_C, N_C, 1, 1, 1))
+	derivc = einsum_return(1,3)
+	predc = (einsum_return(0,3) - Y).reshape((N_C, N_C, 1, 1, 1))
 	
 	grad_FL = 2*(predc*derivc).sum(1)
 	

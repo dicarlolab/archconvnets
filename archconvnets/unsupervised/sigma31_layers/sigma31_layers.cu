@@ -338,31 +338,38 @@ static PyObject *compute_sigma31_full(PyObject *self, PyObject *args){
 	return PyArray_Return(sigma31_in);
 }
 
-#define N_GPUS 4 // max GPUs supported (for memory allocation)
-#define N_LAYERS 5 // this value shouldn't be changed---many things are hardcoded around the assumption that it's 4 (+1)
+#define CHECK_CUDA_ERR {err = cudaGetLastError();if(err != cudaSuccess){\
+		printf("CUDA error: %s, %s, %i\n",cudaGetErrorString(err),__FILE__,__LINE__);return NULL;}}
 
-// GPU pointers, one for each GPU
-float *F1s_c[N_GPUS], *F2s_c[N_GPUS], *F3s_c[N_GPUS], *FLs_c[N_GPUS];
-float *sigma31s_c[N_GPUS][N_LAYERS]; // second dimension is the layer, generally not all GPUs will have all sigmas.
-
-/////////////////////////////////// dimension inds used in the einsum function
-int N_C, n1, n0, s1, n2, s2, n3, s3, max_output_sz3; // for the filters
-int n1s[N_LAYERS], n0s[N_LAYERS], s1s[N_LAYERS], n2s[N_LAYERS], s2s[N_LAYERS], n3s[N_LAYERS], s3s[N_LAYERS], max_output_sz3s[N_LAYERS]; // for each layer's sigma
-
-int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s[N_LAYERS], max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0s[N_LAYERS], max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1s[N_LAYERS],
-	max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1s[N_LAYERS], max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2s[N_LAYERS], max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2s[N_LAYERS],
-	max_output_sz3_max_output_sz3_s3_s3_n3_s2s[N_LAYERS], max_output_sz3_max_output_sz3_s3_s3_n3s[N_LAYERS], max_output_sz3_max_output_sz3_s3_s3s[N_LAYERS], 
-	max_output_sz3_max_output_sz3_s3s[N_LAYERS], max_output_sz3_max_output_sz3s[N_LAYERS], z2b[N_LAYERS];
-
-float * sum_res_c[N_GPUS][N_LAYERS][2]; // output of summations, last dimension specifies whether this is the derivative or prediction for a given layer
 
 #define MALLOC_ERR_CHECK {if (err != cudaSuccess){printf("malloc err line: %i\n",__LINE__); return NULL;}}
 #define DATA_TYPE_SZ sizeof(float)
 
+#define N_OUTPUTS 10
+#define N_SIGMAS 10
+#define N_LAYERS 4
+#define N_GPUS 4
+
+float * sum_res_c[N_GPUS][N_OUTPUTS];
+int deriv_layer_ind_res[N_GPUS][N_OUTPUTS];
+
+int N_C, n1, n0, s1, n2, s2, n3, s3, max_output_sz3;
+
+// GPU pointers, one for each GPU
+float *F1s_c[N_GPUS], *F2s_c[N_GPUS], *F3s_c[N_GPUS], *FLs_c[N_GPUS];
+float *sigma31s_c[N_GPUS][N_SIGMAS]; // second dimension is the layer, generally not all GPUs will have all sigmas.
+
+int n1s[N_GPUS][N_SIGMAS], n0s[N_GPUS][N_SIGMAS], s1s[N_GPUS][N_SIGMAS], n2s[N_GPUS][N_SIGMAS], s2s[N_GPUS][N_SIGMAS], n3s[N_GPUS][N_SIGMAS], s3s[N_GPUS][N_SIGMAS], max_output_sz3s[N_GPUS][N_SIGMAS];
+
+int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s[N_GPUS][N_SIGMAS], max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0s[N_GPUS][N_SIGMAS], max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1s[N_GPUS][N_SIGMAS],
+	max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1s[N_GPUS][N_SIGMAS], max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2s[N_GPUS][N_SIGMAS], max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2s[N_GPUS][N_SIGMAS],
+	max_output_sz3_max_output_sz3_s3_s3_n3_s2s[N_GPUS][N_SIGMAS], max_output_sz3_max_output_sz3_s3_s3_n3s[N_GPUS][N_SIGMAS], max_output_sz3_max_output_sz3_s3_s3s[N_GPUS][N_SIGMAS], 
+	max_output_sz3_max_output_sz3_s3s[N_GPUS][N_SIGMAS], max_output_sz3_max_output_sz3s[N_GPUS][N_SIGMAS], z2b[N_GPUS][N_SIGMAS];
+
+#include "set_sigma_buffer.c"
 #include "einsum_deriv_gpu.cu"
-#include "set_sigma_buffer.cu"
-#include "set_filter_buffers.cu"
 #include "einsum_return.cu"
+#include "set_filter_buffers.cu"
 
 static PyMethodDef _sigma31_layers[] = {
 	{"compute_sigma31_reduced", compute_sigma31_reduced, METH_VARARGS},
@@ -379,14 +386,16 @@ extern "C" void init_sigma31_layers(){
 	import_array();
 	
 	for(int gpu = 0; gpu < N_GPUS; gpu++){
-		for(int layer = 0; layer < N_LAYERS; layer++){
-			sigma31s_c[gpu][layer] = 0;
+		for(int l = 0; l < N_SIGMAS; l++){
+			sigma31s_c[gpu][l] = 0;
+		}
+		for(int layer = 0; layer < N_OUTPUTS; layer++){
+			sum_res_c[gpu][layer] = 0;
 		}
 		F1s_c[gpu] = 0;
 		F2s_c[gpu] = 0;
 		F3s_c[gpu] = 0;
 		FLs_c[gpu] = 0;
 	}
-	
 	return;
 } 
