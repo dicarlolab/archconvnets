@@ -64,7 +64,7 @@ __global__ void kernel_s31_full(int n1, int n2, int n3, int s1, int s2, int s3, 
 	a2_y_sz = 1;
 	
 	///// z dim
-	int t2 = blockIdx.z;
+	int t2 = threadIdx.x;
 	int z2c = t2 / (max_output_sz3*s3*s3);
 	t2 = t2 % (max_output_sz3*s3*s3);
 	z2i = &z2c;
@@ -83,6 +83,11 @@ __global__ void kernel_s31_full(int n1, int n2, int n3, int s1, int s2, int s3, 
 	a3_yi = &a3_yc;
 	a3_y_sz = 1;
 	
+	/////
+	int imgc = blockIdx.z;
+	imgi = &imgc;
+	img_sz_ind = 1;
+	
 	for(a3_x = 0; a3_x < a3_x_sz; a3_x++){ for(a3_y = 0; a3_y < a3_y_sz; a3_y++){ /////
 		for(f1 = 0; f1 < f1_sz; f1++){ ///////
 			for(f2 = 0; f2 < f2_sz; f2++){ /////
@@ -90,7 +95,7 @@ __global__ void kernel_s31_full(int n1, int n2, int n3, int s1, int s2, int s3, 
 					for(a2_x = 0; a2_x < a2_x_sz; a2_x++){ for(a2_y = 0; a2_y < a2_y_sz; a2_y++){ ////////
 						for(z1 = 0; z1 < z1_sz; z1++){ for(z2 = 0; z2 < z2_sz; z2++){ //// z1
 							for(img = 0; img < img_sz_ind; img++){
-								cat = labels[img];
+								cat = labels[*imgi];
 								
 								// pool3 -> conv3
 								a3_x_global = output_switches3_x[O3_IND(*imgi,*f3i,*z1i,*z2i)] + *a3_xi;
@@ -257,9 +262,9 @@ static PyObject *compute_sigma31_full_gpu(PyObject *self, PyObject *args){
 	dim3 grid_sz;
 	grid_sz.x = n1*n2;
 	grid_sz.y = n3*s2*s2;
-	grid_sz.z = max_output_sz3*max_output_sz3*s3*s3;
+	grid_sz.z = N_IMGS;//max_output_sz3*max_output_sz3*s3*s3;
 	
-	kernel_s31_full <<< grid_sz, 1 >>>(n1, n2, n3, s1, s2, s3, max_output_sz3, output_switches3_x_c, output_switches3_y_c, output_switches2_x_c, output_switches2_y_c,
+	kernel_s31_full <<< grid_sz, max_output_sz3*max_output_sz3*s3*s3 >>>(n1, n2, n3, s1, s2, s3, max_output_sz3, output_switches3_x_c, output_switches3_y_c, output_switches2_x_c, output_switches2_y_c,
 		output_switches1_x_c, output_switches1_y_c, labels_c, N_IMGS, max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3_n1, max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3, 
 		max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1, max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1, max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2,
 		max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2, max_output_sz3_max_output_sz3_s3_s3_n3_s2, max_output_sz3_max_output_sz3_s3_s3_n3, max_output_sz3_max_output_sz3_s3_s3, 

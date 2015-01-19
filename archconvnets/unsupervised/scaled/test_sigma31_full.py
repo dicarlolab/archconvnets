@@ -22,13 +22,13 @@ FL_scale = 0.3
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 4 # batch size
+N_IMGS = 5 # batch size
 IMG_SZ_CROP = 28 # input image size (px)
 IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
 PAD = 2
 
-N = 16
+N = 4
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -101,14 +101,13 @@ t_start = time.time()
 sigma31 = sigma31_layers.s31_full_gpu(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
 print time.time() - t_start
 
-#sigma31 = sigma31.transpose((0,2,1,3,4,5,6,7,8,9,10,11,12))
-
 sigma31_F1 = sigma31*F1.reshape((1, n1, 3, s1, s1,  1, 1, 1, 1, 1,1,1,1))
 sigma31_F2 = sigma31_F1*F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1,1,1,1))
 sigma31_F3 = sigma31_F2*F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
 
 sigma31_F3 = sigma31_F3[6].reshape((n1*3*(s1**2)*n2*(s2**2), n3, s3**2, 2, 2)).sum(0).sum(1)[np.newaxis]
 
+## note: if N_IMGS is too large and multiple images of the same category are included, the two methods will not produce the same results (expectedly)
 print np.isclose(sigma31_F3, max_output3t[0][np.newaxis]).sum()/np.single(np.prod(sigma31_F3.shape))
 
 
