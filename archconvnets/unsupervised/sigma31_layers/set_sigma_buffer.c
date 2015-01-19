@@ -25,7 +25,7 @@ static PyObject *set_sigma_buffer(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(cudaSetDevice(g) != cudaSuccess) CHECK_CUDA_ERR
+	cudaSetDevice(g); CHECK_CUDA_ERR
 	
 	unsigned long sigma31_sz = PyArray_NBYTES(sigma31_in);
 	
@@ -50,14 +50,12 @@ static PyObject *set_sigma_buffer(PyObject *self, PyObject *args){
 		max_output_sz3s[g][l] = PyArray_DIM(sigma31_in, 11);
 	
 		/////////////////////////////////// cuda mem
-		err = cudaMalloc((void**) &sigma31s_c[g][l], sigma31_sz); MALLOC_ERR_CHECK
+		cudaMalloc((void**) &sigma31s_c[g][l], sigma31_sz); CHECK_CUDA_ERR
 	}
 	
 	sigma31 = (float *) sigma31_in -> data;
 	
-	err = cudaMemcpy(sigma31s_c[g][l], sigma31, sigma31_sz, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
-	
-	CHECK_CUDA_ERR
+	cudaMemcpy(sigma31s_c[g][l], sigma31, sigma31_sz, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

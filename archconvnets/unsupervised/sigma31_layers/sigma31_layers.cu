@@ -342,7 +342,6 @@ static PyObject *compute_sigma31_full(PyObject *self, PyObject *args){
 		printf("CUDA error: %s, %s, %i\n",cudaGetErrorString(err),__FILE__,__LINE__);return NULL;}}
 
 
-#define MALLOC_ERR_CHECK {if (err != cudaSuccess){printf("malloc err line: %i\n",__LINE__); return NULL;}}
 #define DATA_TYPE_SZ sizeof(float)
 
 #define N_OUTPUTS 10
@@ -371,9 +370,12 @@ int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s[N_GPUS][N_SIGMA
 #include "einsum_return.cu"
 #include "set_filter_buffers.cu"
 
+#include "compute_sigma31_full_gpu.cu"
+
 static PyMethodDef _sigma31_layers[] = {
 	{"compute_sigma31_reduced", compute_sigma31_reduced, METH_VARARGS},
 	{"compute_sigma31_full", compute_sigma31_full, METH_VARARGS},
+	{"compute_sigma31_full_gpu", compute_sigma31_full_gpu, METH_VARARGS},
 	{"einsum_deriv_gpu", einsum_deriv_gpu, METH_VARARGS},
 	{"set_sigma_buffer", set_sigma_buffer, METH_VARARGS},
 	{"set_filter_buffers", set_filter_buffers, METH_VARARGS},

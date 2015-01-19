@@ -27,7 +27,7 @@ static PyObject *einsum_return(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(cudaSetDevice(gpu_ind) != cudaSuccess) CHECK_CUDA_ERR
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	////////////////////////////////////////////////////////////////////////// which indices do we unravel across threads?
 	int output_sz, n_dims;
@@ -83,7 +83,7 @@ static PyObject *einsum_return(PyObject *self, PyObject *args){
 	
 	CHECK_CUDA_ERR
 	
-	err = cudaMemcpy(sum_res, sum_res_c[gpu_ind][output_ind], output_sz * DATA_TYPE_SZ, cudaMemcpyDeviceToHost);  MALLOC_ERR_CHECK
+	cudaMemcpy(sum_res, sum_res_c[gpu_ind][output_ind], output_sz * DATA_TYPE_SZ, cudaMemcpyDeviceToHost);  CHECK_CUDA_ERR
 	
 	cudaFree(sum_res_c[gpu_ind][output_ind]);
 	sum_res_c[gpu_ind][output_ind] = 0;

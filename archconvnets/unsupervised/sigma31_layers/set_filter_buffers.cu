@@ -19,7 +19,7 @@ static PyObject *set_filter_buffers(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(cudaSetDevice(gpu_ind) != cudaSuccess) CHECK_CUDA_ERR
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	FL = (float *) FL_in -> data;
 	F3 = (float *) F3_in -> data;
@@ -33,10 +33,10 @@ static PyObject *set_filter_buffers(PyObject *self, PyObject *args){
 	
 	/////////////////////////////////// allocate cuda mem
 	if(F1s_c[gpu_ind] == 0){
-		err = cudaMalloc((void**) &F1s_c[gpu_ind], F1_sz); MALLOC_ERR_CHECK
-		err = cudaMalloc((void**) &F2s_c[gpu_ind], F2_sz); MALLOC_ERR_CHECK
-		err = cudaMalloc((void**) &F3s_c[gpu_ind], F3_sz); MALLOC_ERR_CHECK
-		err = cudaMalloc((void**) &FLs_c[gpu_ind], FL_sz); MALLOC_ERR_CHECK
+		cudaMalloc((void**) &F1s_c[gpu_ind], F1_sz); CHECK_CUDA_ERR
+		cudaMalloc((void**) &F2s_c[gpu_ind], F2_sz); CHECK_CUDA_ERR
+		cudaMalloc((void**) &F3s_c[gpu_ind], F3_sz); CHECK_CUDA_ERR
+		cudaMalloc((void**) &FLs_c[gpu_ind], FL_sz); CHECK_CUDA_ERR
 		
 		///////////////////////////////// set global dimensions used in the main einsum function
 		N_C = PyArray_DIM(FL_in, 0);
@@ -58,13 +58,10 @@ static PyObject *set_filter_buffers(PyObject *self, PyObject *args){
 	}
 	
 	////////////////////////////////// set buffers
-	err = cudaMemcpy(F1s_c[gpu_ind], F1, F1_sz, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
-	err = cudaMemcpy(F2s_c[gpu_ind], F2, F2_sz, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
-	err = cudaMemcpy(F3s_c[gpu_ind], F3, F3_sz, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
-	err = cudaMemcpy(FLs_c[gpu_ind], FL, FL_sz, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
-	
-	
-	CHECK_CUDA_ERR
+	cudaMemcpy(F1s_c[gpu_ind], F1, F1_sz, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
+	cudaMemcpy(F2s_c[gpu_ind], F2, F2_sz, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
+	cudaMemcpy(F3s_c[gpu_ind], F3, F3_sz, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
+	cudaMemcpy(FLs_c[gpu_ind], FL, FL_sz, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;
