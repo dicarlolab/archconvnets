@@ -4,7 +4,6 @@
 	(D)*max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1 + (C)*max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1 + (B)*max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3 + \
 	(A)*max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3_n1)
 
-#define IND_DTYPE unsigned long long
 __global__ void kernel_s31_full(int n1, int n2, int n3, int s1, int s2, int s3, int max_output_sz3, long * output_switches3_x, long * output_switches3_y, long * output_switches2_x, long * output_switches2_y,
 		long * output_switches1_x, long * output_switches1_y, long * labels, int N_IMGS, IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3_n1, IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3, 
 		IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1, IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1, IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2,

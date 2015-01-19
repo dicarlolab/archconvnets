@@ -22,13 +22,13 @@ FL_scale = 0.3
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 5 # batch size
+N_IMGS = 10000 # batch size
 IMG_SZ_CROP = 28 # input image size (px)
 IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
 PAD = 2
 
-N = 4
+N = 16
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -74,6 +74,7 @@ t_forward_start = time.time()
 #conv_output1 = conv_block_cuda(F1, imgs_pad)
 conv_output1 = conv_block_cuda(np.double(F1.transpose((1,2,3,0))), np.double(imgs_pad.transpose((1,2,3,0)))).transpose((3,0,1,2))
 max_output1t, output_switches1_x, output_switches1_y = max_pool_locs(np.single(conv_output1))
+print 'finished L1 forward'
 
 #max_output1 = max_output1t
 max_output1 = np.zeros((N_IMGS, n1, max_output_sz1, max_output_sz1),dtype='single')
@@ -82,12 +83,14 @@ max_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
 #conv_output2 = conv_block_cuda(F2, max_output1)
 conv_output2 = conv_block_cuda(np.double(F2.transpose((1,2,3,0))), np.double(max_output1.transpose((1,2,3,0)))).transpose((3,0,1,2))
 max_output2t, output_switches2_x, output_switches2_y = max_pool_locs(np.single(conv_output2), PAD=2)
+print 'finished L2 forward'
 
 max_output2 = np.zeros((N_IMGS, n2, max_output_sz2, max_output_sz2),dtype='single')
 max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
 
 conv_output3 = conv_block_cuda(np.double(F3.transpose((1,2,3,0))), np.double(max_output2.transpose((1,2,3,0)))).transpose((3,0,1,2))
 max_output3t, output_switches3_x, output_switches3_y = max_pool_locs(np.single(conv_output3), PAD=2)
+print 'finished L3 forward'
 
 output_switches2_x -= PAD
 output_switches2_y -= PAD
@@ -95,19 +98,19 @@ output_switches2_y -= PAD
 output_switches3_x -= PAD
 output_switches3_y -= PAD
 
-#print time.time() - t_forward_start
+print time.time() - t_forward_start
 
 t_start = time.time()
 sigma31 = sigma31_layers.s31_full_gpu(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
 print time.time() - t_start
 
-sigma31_F1 = sigma31*F1.reshape((1, n1, 3, s1, s1,  1, 1, 1, 1, 1,1,1,1))
+'''sigma31_F1 = sigma31*F1.reshape((1, n1, 3, s1, s1,  1, 1, 1, 1, 1,1,1,1))
 sigma31_F2 = sigma31_F1*F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1,1,1,1))
 sigma31_F3 = sigma31_F2*F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
 
 sigma31_F3 = sigma31_F3[6].reshape((n1*3*(s1**2)*n2*(s2**2), n3, s3**2, 2, 2)).sum(0).sum(1)[np.newaxis]
 
 ## note: if N_IMGS is too large and multiple images of the same category are included, the two methods will not produce the same results (expectedly)
-print np.isclose(sigma31_F3, max_output3t[0][np.newaxis]).sum()/np.single(np.prod(sigma31_F3.shape))
+print np.isclose(sigma31_F3, max_output3t[0][np.newaxis]).sum()/np.single(np.prod(sigma31_F3.shape))'''
 
 

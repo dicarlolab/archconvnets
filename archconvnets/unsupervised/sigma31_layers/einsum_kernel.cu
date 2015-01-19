@@ -8,10 +8,10 @@
 #define FL_IND(A,B,C,D)(D + (max_output_sz3)*C + (max_output_sz3*max_output_sz3)*B + (max_output_sz3*max_output_sz3*n3)*A)
 	
 __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float * F2, float * F3, float * FL,
-		int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s, int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0s,
-		int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1s, int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1s, int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2s,
-		int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2s, int max_output_sz3_max_output_sz3_s3_s3_n3_s2s, int max_output_sz3_max_output_sz3_s3_s3_n3s, int max_output_sz3_max_output_sz3_s3_s3s,
-		int max_output_sz3_max_output_sz3_s3s, int max_output_sz3_max_output_sz3s, int z2b, int n0, int n0s, int n1, int n1s, int n2, int n2s, int n3, int n3s,
+		IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s, IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0s,
+		IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1s, IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1s, IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2s,
+		IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2s, IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2s, IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3s, IND_DTYPE max_output_sz3_max_output_sz3_s3_s3s,
+		IND_DTYPE max_output_sz3_max_output_sz3_s3s, IND_DTYPE max_output_sz3_max_output_sz3s, int z2b, int n0, int n0s, int n1, int n1s, int n2, int n2s, int n3, int n3s,
 		int max_output_sz3, int max_output_sz3s, int s1, int s1s, int s2, int s2s, int s3, int s3s, int N_C, int deriv_ind){
 	
 	extern __shared__ float sum_res_shared[];

@@ -51,7 +51,7 @@ static PyObject *einsum_deriv_gpu(PyObject *self, PyObject *args){
 	
 	
 	////////////////////////////////////////////////////////////////////////// which indices do we unravel across threads?
-	int output_sz;
+	unsigned long long output_sz;
 	dim3 thread_sz;
 	dim3 grid_sz;
 
@@ -96,19 +96,19 @@ static PyObject *einsum_deriv_gpu(PyObject *self, PyObject *args){
 	
 	
 	// indexing products
-	int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l]*s2s[g][l]*n2s[g][l]*s1s[g][l]*s1s[g][l]*n0s[g][l]*n1s[g][l];
-	int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l]*s2s[g][l]*n2s[g][l]*s1s[g][l]*s1s[g][l]*n0s[g][l];
-	int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l]*s2s[g][l]*n2s[g][l]*s1s[g][l]*s1s[g][l];
-	int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l]*s2s[g][l]*n2s[g][l]*s1s[g][l];
-	int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l]*s2s[g][l]*n2s[g][l];
-	int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l]*s2s[g][l];
-	int max_output_sz3_max_output_sz3_s3_s3_n3_s2s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l];
-	int max_output_sz3_max_output_sz3_s3_s3_n3s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l];
-	int max_output_sz3_max_output_sz3_s3_s3s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l];
-	int max_output_sz3_max_output_sz3_s3s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l];
-	int max_output_sz3_max_output_sz3s = max_output_sz3s[g][l]*max_output_sz3s[g][l];
-	int max_output_sz3s_local = max_output_sz3s[g][l];
-	int z2b = 1;
+	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l]*s2s[g][l]*n2s[g][l]*s1s[g][l]*s1s[g][l]*n0s[g][l]*n1s[g][l];
+	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l]*s2s[g][l]*n2s[g][l]*s1s[g][l]*s1s[g][l]*n0s[g][l];
+	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l]*s2s[g][l]*n2s[g][l]*s1s[g][l]*s1s[g][l];
+	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l]*s2s[g][l]*n2s[g][l]*s1s[g][l];
+	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l]*s2s[g][l]*n2s[g][l];
+	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l]*s2s[g][l];
+	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l]*s2s[g][l];
+	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l]*n3s[g][l];
+	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l]*s3s[g][l];
+	IND_DTYPE max_output_sz3_max_output_sz3_s3s = max_output_sz3s[g][l]*max_output_sz3s[g][l]*s3s[g][l];
+	IND_DTYPE max_output_sz3_max_output_sz3s = max_output_sz3s[g][l]*max_output_sz3s[g][l];
+	IND_DTYPE max_output_sz3s_local = max_output_sz3s[g][l];
+	IND_DTYPE z2b = 1;
 	
 	// check which dims should be broadcasted
 	if(n1s[g][l] != n1){

@@ -6,6 +6,8 @@
 #include <string.h>
 #include <cuda_runtime.h>
 
+#define IND_DTYPE unsigned long long
+
 #define O3_IND(A,B,C,D)((D) + (C)*max_output_sz3 + (B)*max_output_sz3_max_output_sz3 + (A)*max_output_sz3_max_output_sz3_n3)
 #define O2_IND(A,B,C,D)((D) + (C)*max_output_sz2 + (B)*max_output_sz2_max_output_sz2 + (A)*max_output_sz2_max_output_sz2_n2)
 #define O1_IND(A,B,C,D)((D) + (C)*max_output_sz1 + (B)*max_output_sz1_max_output_sz1 + (A)*max_output_sz1_max_output_sz1_n1)
