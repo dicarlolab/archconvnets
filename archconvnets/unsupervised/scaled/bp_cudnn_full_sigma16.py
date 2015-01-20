@@ -1,7 +1,6 @@
 from archconvnets.unsupervised.conv import conv_block
 import time
 import numpy as np
-from archconvnets.unsupervised.pool_inds_py import max_pool_locs
 from scipy.io import savemat, loadmat
 import copy
 from scipy.stats import zscore
@@ -9,6 +8,7 @@ import random
 import scipy
 from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 from archconvnets.unsupervised.sigma31_layers.sigma31_layers import *
+from archconvnets.unsupervised.pool_inds_py import max_pool_locs
 
 conv_block_cuda = conv_block
 
@@ -17,7 +17,7 @@ conv_block_cuda = conv_block
 #@profile
 #def sf():
 
-filename = '/home/darren/cifar_16_full.mat'
+filename = '/home/darren/cifar_16_full_5batches_eps4.mat'
 
 err_test = []
 class_err_test = []
@@ -27,7 +27,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.3
 
-EPS = 1e-5
+EPS = 1e-4#1e-5
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -37,7 +37,7 @@ WD = 0
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 256 # batch size
+N_IMGS = 2*2500 # batch size
 N_TEST_IMGS = N_IMGS #N_SIGMA_IMGS #128*2
 N_SIGMA_IMGS = N_IMGS
 IMG_SZ_CROP = 28 # input image size (px)
@@ -67,33 +67,53 @@ max_output_sz3  = len(range(0, output_sz3-POOL_SZ, POOL_STRIDE))
 
 np.random.seed(6666)
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
-F1_init = copy.deepcopy(F1)
 F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
-F2_init = copy.deepcopy(F2)
 F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
-F3_init = copy.deepcopy(F3)
 FL = np.single(np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, max_output_sz3)))
-FL_init = copy.deepcopy(FL)
+
 
 F1 = zscore(F1,axis=None)/500
 F2 = zscore(F2,axis=None)/500
 F3 = zscore(F3,axis=None)/500
 FL = zscore(FL,axis=None)/500
-imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
+
+F1_init = copy.deepcopy(F1)
+F2_init = copy.deepcopy(F2)
+F3_init = copy.deepcopy(F3)
+FL_init = copy.deepcopy(FL)
 
 
-sigma31 = np.load('/home/darren/sigma31_16_10k.npy')
-#sigma31 = np.ones((10,n1,3,5,5,n2,5,5,n3,3,3,2,2),dtype='single')
+if False:
+	z = loadmat(filename)
+	err_test = z['err_test'].tolist()[0]
+	class_err_test = z['class_err_test'].tolist()[0]
+	step = np.int(z['step'])
+	F1 = z['F1']
+	F2 = z['F2']
+	F3 = z['F3']
+	FL = z['FL']
+	N_IMGS = np.int(z['N_IMGS'])
+	N_TEST_IMGS = np.int(z['N_TEST_IMGS'])
+	print 'previous EPS:', z['eps_F1'][0][0], z['eps_F2'][0][0], z['eps_F3'][0][0], z['eps_FL'][0][0]
+	print 'new eps: ', EPS
 
-sigma31_L1 = sigma31
-sigma31_L2 = sigma31
-sigma31_L3 = sigma31
-sigma31_LF = sigma31
+
+print 'loading sigma'
+sigma31 = np.load('/home/darren/sigma31_16_comb.npy')
+
+set_sigma_buffer(sigma31, 1, 0)
+set_sigma_buffer(sigma31, 1, 2)
+set_sigma_buffer(sigma31, 1, 3)
+
+sigma31 = None
+print 'finished'
 
 grad_L1 = 0
 grad_L2 = 0
 grad_L3 = 0
 grad_FL = 0
+
+imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
 
 ##################
 # load test imgs into buffers
@@ -126,20 +146,29 @@ max_output3, output_switches3_x_init, output_switches3_y_init = max_pool_locs(co
 
 Y = np.eye(N_C)
 
-set_sigma_buffer(sigma31_L1, 1, 0)
-set_sigma_buffer(sigma31_L1, 1, 2)
-
 
 for step in range(10000000):
 	t_total = time.time()
 	
 	set_filter_buffers(F1,F2,F3,FL,0)
 	set_filter_buffers(F1,F2,F3,FL,2)
+	set_filter_buffers(F1,F2,F3,FL,3)
 	
-	FLr = FL.reshape((N_C, n3*max_output_sz3**2))
+	################### launch on gpus
+	# def einsum_deriv_gpu(deriv_layer_ind, sigma_ind, output_ind, gpu_ind)
+	
+	einsum_deriv_gpu(0,1,0,3) # pred, l1
+
+	einsum_deriv_gpu(1,1,1,0) # deriv, l1
+	einsum_deriv_gpu(2,1,3,3) # deriv, l2
+	einsum_deriv_gpu(3,1,5,2) # deriv, l3
+	einsum_deriv_gpu(4,1,7,2) # deriv, fl
+	
 	
 	########################## compute test err
 	t_test_forward_start = time.time()
+	FLr = FL.reshape((N_C, n3*max_output_sz3**2))
+	
 	# forward pass current filters
 	conv_output1 = conv_block_cuda(np.double(F1.transpose((1,2,3,0))), np.double(imgs_pad.transpose((1,2,3,0)))).transpose((3,0,1,2))
 	max_output1t = max_pool_locs_alt(np.ascontiguousarray(np.single(conv_output1[:,np.newaxis])), output_switches1_x_init, output_switches1_y_init)
@@ -159,20 +188,10 @@ for step in range(10000000):
 	class_err_test.append(1-np.float(np.sum(np.argmax(pred,axis=0) == np.argmax(Y_test, axis=0)))/N_TEST_IMGS)
 	
 	t_test_forward_start = time.time() - t_test_forward_start
-	t_grad_start = time.time()
-	#break
 	
-	################### launch on gpus
-	# def einsum_deriv_gpu(deriv_layer_ind, sigma_ind, output_ind, gpu_ind)
+	####### load from gpu
 	
-	einsum_deriv_gpu(0,1,0,0) # pred, l1
-
-	einsum_deriv_gpu(1,1,1,0) # deriv, l1
-	einsum_deriv_gpu(2,1,3,0) # deriv, l2
-	einsum_deriv_gpu(3,1,5,2) # deriv, l3
-	einsum_deriv_gpu(4,1,7,2) # deriv, fl
-	
-	predc = (einsum_return(0,0) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+	predc = (einsum_return(0,3) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
 	predc2 = predc.reshape((N_C, N_C, 1, 1, 1))
 	
 	############################################## F1 deriv
@@ -181,7 +200,7 @@ for step in range(10000000):
 	grad_L1 = 2*(derivc*predc).sum(0).sum(0)
 	
 	############################################# F2 deriv
-	derivc = einsum_return(3,0)
+	derivc = einsum_return(3,3)
 	
 	grad_L2 = 2*(derivc*predc).sum(0).sum(0)
 	
@@ -205,7 +224,7 @@ for step in range(10000000):
 	
 	#######################################
 	
-	print step, err_test[-1], class_err_test[-1],  time.time() - t_grad_start, t_test_forward_start, filename
+	print step, err_test[-1], class_err_test[-1],  time.time() - t_total, t_test_forward_start, filename
 	print '                        F1', eps_F1*np.mean(np.abs(grad_L1))/np.mean(np.abs(F1)), 'F2', eps_F2*np.mean(np.abs(grad_L2))/np.mean(np.abs(F2)), 'F3', eps_F3*np.mean(np.abs(grad_L3))/np.mean(np.abs(F3)), 'FL', eps_FL*np.mean(np.abs(grad_FL))/np.mean(np.abs(FL))
 	
 	print '                        F1', np.mean(np.abs(F1)), 'F2', np.mean(np.abs(F2)), 'F3', np.mean(np.abs(F3)), 'FL', np.mean(np.abs(FL)), ' m'
