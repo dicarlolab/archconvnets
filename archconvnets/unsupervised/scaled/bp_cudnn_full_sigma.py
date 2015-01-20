@@ -1,14 +1,14 @@
 from archconvnets.unsupervised.conv import conv_block
 import time
 import numpy as np
-from archconvnets.unsupervised.pool_inds_py import max_pool_locs
 from scipy.io import savemat, loadmat
 import copy
 from scipy.stats import zscore
 import random
 import scipy
-from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 from archconvnets.unsupervised.sigma31_layers.sigma31_layers import *
+from archconvnets.unsupervised.cudnn_module.cudnn_module import *
+from archconvnets.unsupervised.pool_inds_py import max_pool_locs
 
 conv_block_cuda = conv_block
 
@@ -27,7 +27,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.3
 
-EPS = 5e-7#1e-5
+EPS = 5e-4#1e-5
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -81,66 +81,13 @@ F3 = zscore(F3,axis=None)/500
 FL = zscore(FL,axis=None)/500
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
 
-y = loadmat('/home/darren/sigma31_dbg8.mat')
-#y = loadmat('/home/darren/sigma31_dbg.mat')
-sigma31 = y['sigma31']
+print 'loading sigma'
+sigma31 = np.load('/home/darren/sigma31_8_partial.npy')
 
-#sigma31 = np.single(np.random.random((10,n1,3,5,5,n2,5,5,n3,3,3,2,2)))
+set_sigma_buffer(sigma31, 1, 1)
 
-# 10, n1, 3, s1, s1, n2, s2, s2, n3, s3, s3, sz, sz
-
-sigma31_L1 = sigma31
-sigma31_L2 = sigma31
-sigma31_L3 = sigma31
-sigma31_LF = sigma31
-
-#sigma31_LF = sigma31.mean(1).mean(4).mean(4).mean(4).mean(5).mean(5)
-#sigma31_LF = sigma31_LF.reshape((N_C, 1, 3, s1, s1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
-
-#sigma31_LF = sigma31.mean(6).mean(6).mean(7)#.mean(7)
-#sigma31_LF = sigma31_LF.reshape((N_C, n1, 3, s1, s1, n2, 1, 1, n3, 1, s3, max_output_sz3, max_output_sz3))
-sigma31_LF = sigma31
-
-#sigma31_LF = sigma31.mean(1).mean(2).mean(2).mean(2).mean(2).mean(2).mean(3).mean(3)
-#sigma31_LF = sigma31_LF.reshape((N_C, 1, 3, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
-
-#sigma31_LF = sigma31.mean(2).mean(2).mean(2).mean(2).mean(2).mean(2).mean(3).mean(3)
-#sigma31_LF = sigma31_LF.reshape((N_C, n1, 1, 1, 1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
-
-#sigma31_LF = sigma31.mean(5).mean(5).mean(5).mean(6).mean(6)
-#sigma31_LF = sigma31_LF.reshape((N_C, n1, 3, s1, s1, 1, 1, 1, n3, 1, 1, max_output_sz3, max_output_sz3))
-
-#sigma31_L3 = sigma31.mean(-1).mean(-1).mean(5).mean(5).mean(5)
-#sigma31_L3 = sigma31_L3.reshape((N_C, n1, 3, s1, s1, 1, 1, 1, n3, s3, s3, 1, 1))
-
-#sigma31_L3 = sigma31.mean(1).mean(5).mean(5)#.mean(-1).mean(-1)
-#sigma31_L3 = sigma31_L3.reshape((N_C, 1, 3, s1, s1, n2, 1, 1, n3, s3, s3, max_output_sz3, max_output_sz3))
-sigma31_L3 = sigma31
-
-#sigma31_L3 = sigma31.mean(6).mean(6).mean(-1).mean(-1)
-#sigma31_L3 = sigma31_L3.reshape((N_C, n1, 3, s1, s1, n2, 1, 1, n3, s3, s3, 1, 1))
-
-#sigma31_L2 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1)
-#sigma31_L2 = sigma31_L2.reshape((N_C, n1, 3, s1, s1, n2, s2, s2, n3, 1, 1, 1, 1))
-
-#sigma31_L2 = sigma31.mean(-1).mean(-1)
-sigma31_L2 = sigma31#sigma31_L2.reshape((N_C, n1, 3, s1, s1, n2, s2, s2, n3, s3, s3, 1, 1))
-
-#sigma31_L2 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1)
-#sigma31_L2 = sigma31_L2.reshape((N_C, n1, 3, s1, s1, n2, s2, s2, 1, 1, 1, 1, 1))
-
-
-#sigma31_L1 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1)
-#sigma31_L1 = sigma31_L1.reshape((N_C, n1, 3, s1, s1, n2, s2, s2, 1, 1, 1, 1, 1))
-
-#sigma31_L1 = sigma31.mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1).mean(-1)
-#sigma31_L1 = sigma31_L1.reshape((N_C, n1, 3, s1, s1, n2, 1, 1, 1, 1, 1, 1, 1))
-sigma31_L1 = sigma31
-
-sigma31_LF = np.ascontiguousarray(np.single(sigma31_LF))
-sigma31_L3 = np.ascontiguousarray(np.single(sigma31_L3))
-sigma31_L2 = np.ascontiguousarray(np.single(sigma31_L2))
-sigma31_L1 = np.ascontiguousarray(np.single(sigma31_L1))
+sigma31 = None
+print 'finished'
 
 
 grad_L1 = 0
@@ -179,16 +126,22 @@ max_output3, output_switches3_x_init, output_switches3_y_init = max_pool_locs(co
 
 Y = np.eye(N_C)
 
-set_sigma_buffer(sigma31_L1, 1, 0)
-set_sigma_buffer(sigma31_L2, 2, 1)
-set_sigma_buffer(sigma31_L3, 3, 2)
-set_sigma_buffer(sigma31_LF, 4, 3)
 
 for step in range(10000000):
 	t_total = time.time()
 	
 	for gpu in range(4):
 		set_filter_buffers(F1,F2,F3,FL,gpu)
+	
+	
+	################### launch on gpus
+	# def einsum_deriv_gpu(deriv_layer_ind, sigma_ind, output_ind, gpu_ind)
+	einsum_deriv_gpu(0,1,0,1) # pred, l1
+
+	einsum_deriv_gpu(1,1,1,1) # deriv, l1
+	einsum_deriv_gpu(2,1,2,1) # deriv, l2
+	einsum_deriv_gpu(3,1,3,1) # deriv, l3
+	einsum_deriv_gpu(4,1,4,1) # deriv, fl
 	
 	FLr = FL.reshape((N_C, n3*max_output_sz3**2))
 	
@@ -215,42 +168,30 @@ for step in range(10000000):
 	t_test_forward_start = time.time() - t_test_forward_start
 	t_grad_start = time.time()
 	
-	################### launch on gpus
-	einsum_deriv_gpu(0,1,0,0) # pred, l1
-	einsum_deriv_gpu(1,1,1,0) # deriv, l1
-
-	einsum_deriv_gpu(0,2,0,1) # pred, l2
-	einsum_deriv_gpu(2,2,1,1) # deriv, l2
-
-	einsum_deriv_gpu(0,3,0,2) # pred, l3
-	einsum_deriv_gpu(3,3,1,2) # deriv, l3
-
-	einsum_deriv_gpu(0,4,0,3) # pred, fl
-	einsum_deriv_gpu(4,4,1,3) # deriv, fl
+	####### load from gpu
+	
+	predc = (einsum_return(0,1) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+	predc2 = predc.reshape((N_C, N_C, 1, 1, 1))
 	
 	############################################## F1 deriv
-	derivc = einsum_return(1,0)
-	predc = (einsum_return(0,0) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+	derivc = einsum_return(1,1)
 	
 	grad_L1 = 2*(derivc*predc).sum(0).sum(0)
 	
 	############################################# F2 deriv
-	derivc = einsum_return(1,1)
-	predc = (einsum_return(0,1) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+	derivc = einsum_return(2,1)
 	
 	grad_L2 = 2*(derivc*predc).sum(0).sum(0)
 	
 	############################################# F3 deriv
-	derivc = einsum_return(1,2)
-	predc = (einsum_return(0,2) - Y).reshape((N_C, N_C, 1, 1, 1, 1))
+	derivc = einsum_return(3,1)
 	
 	grad_L3 = 2*(derivc*predc).sum(0).sum(0)
 	
 	############################################# FL deriv
-	derivc = einsum_return(1,3)
-	predc = (einsum_return(0,3) - Y).reshape((N_C, N_C, 1, 1, 1))
+	derivc = einsum_return(4,1)
 	
-	grad_FL = 2*(predc*derivc).sum(1)
+	grad_FL = 2*(predc2*derivc).sum(1)
 	
 	
 	##########

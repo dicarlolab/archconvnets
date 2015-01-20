@@ -141,7 +141,7 @@ __global__ void kernel_s31_full(int n1, int n2, int n3, int s1, int s2, int s3, 
 // int: N_C
 static PyObject *compute_sigma31_full_gpu(PyObject *self, PyObject *args){
 	cudaError_t err;
-
+	cudaSetDevice(0); CHECK_CUDA_ERR
 	PyArrayObject *output_switches3_x_in, *output_switches3_y_in;
 	PyArrayObject *output_switches2_x_in, *output_switches2_y_in;
 	PyArrayObject *output_switches1_x_in, *output_switches1_y_in;
