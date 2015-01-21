@@ -8,9 +8,10 @@ static PyObject *set_sigma_buffer(PyObject *self, PyObject *args){
 	
 	int l; // sigma buffer ind
 	int g; // gpu ind
+	int warn;
 	
-	if (!PyArg_ParseTuple(args, "O!ii", 
-		&PyArray_Type, &sigma31_in, &l, &g)) 
+	if (!PyArg_ParseTuple(args, "O!iii", 
+		&PyArray_Type, &sigma31_in, &l, &g, &warn)) 
 		return NULL;
 	
 	if (NULL == sigma31_in)  return NULL;
@@ -30,7 +31,7 @@ static PyObject *set_sigma_buffer(PyObject *self, PyObject *args){
 	unsigned long sigma31_sz = PyArray_NBYTES(sigma31_in);
 	
 	if(sigma31s_c[g][l] != 0){
-		printf("warning: sigma31 already initialized on this gpu for this layer\n");
+		if(warn) printf("warning: sigma31 already initialized on this gpu for this layer\n");
 		
 		if(n1s[g][l] != PyArray_DIM(sigma31_in, 1) || n0s[g][l] != PyArray_DIM(sigma31_in, 2) || s1s[g][l] != PyArray_DIM(sigma31_in, 3) ||
 			n2s[g][l] != PyArray_DIM(sigma31_in, 5) || s2s[g][l] != PyArray_DIM(sigma31_in, 6) || n3s[g][l] != PyArray_DIM(sigma31_in, 8) ||

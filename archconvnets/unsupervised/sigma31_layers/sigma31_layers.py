@@ -86,7 +86,7 @@ def set_sigma_buffer(sigma31, layer_ind, gpu_ind):
 		print 'warning: input not C-contiguous (sigma31)'
 		sigma31 = np.ascontiguousarray(sigma31)
 	
-	return _sigma31_layers.set_sigma_buffer(sigma31, layer_ind, gpu_ind)
+	return _sigma31_layers.set_sigma_buffer(sigma31, layer_ind, gpu_ind, 0) # last arg is for showing warnings of previously set sigma buffers
 
 def set_filter_buffers(F1, F2, F3, FL, gpu_ind):
 	assert isinstance(gpu_ind,int)
