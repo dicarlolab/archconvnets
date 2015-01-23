@@ -28,7 +28,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.3
 
-EPS = 5e-5
+EPS = 7.5e-5
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
