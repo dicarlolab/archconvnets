@@ -36,23 +36,25 @@ static PyObject *set_sigma_buffer(PyObject *self, PyObject *args){
 		if(n1s[g][l] != PyArray_DIM(sigma31_in, 1) || n0s[g][l] != PyArray_DIM(sigma31_in, 2) || s1s[g][l] != PyArray_DIM(sigma31_in, 3) ||
 			n2s[g][l] != PyArray_DIM(sigma31_in, 5) || s2s[g][l] != PyArray_DIM(sigma31_in, 6) || n3s[g][l] != PyArray_DIM(sigma31_in, 8) ||
 			s3s[g][l] != PyArray_DIM(sigma31_in, 9) || max_output_sz3s[g][l] != PyArray_DIM(sigma31_in, 11)){
-				printf("sigma dimensions must be the same as first initialized for sigma buffer ind %i on gpu %i\n", l, g);
-				return NULL;
+				if(warn) printf("sigma dimensions must be the same as first initialized for sigma buffer ind %i on gpu %i\n", l, g);
+				cudaFree(sigma31s_c[g][l]);
+				cudaMalloc((void**) &sigma31s_c[g][l], sigma31_sz); CHECK_CUDA_ERR
 		}
 	}else{
-		//////////////////////////////////////////////////////////////////////////////// set global index size buffers
-		n1s[g][l] = PyArray_DIM(sigma31_in, 1);
-		n0s[g][l] = PyArray_DIM(sigma31_in, 2);
-		s1s[g][l] = PyArray_DIM(sigma31_in, 3);
-		n2s[g][l] = PyArray_DIM(sigma31_in, 5);
-		s2s[g][l] = PyArray_DIM(sigma31_in, 6);
-		n3s[g][l] = PyArray_DIM(sigma31_in, 8);
-		s3s[g][l] = PyArray_DIM(sigma31_in, 9);
-		max_output_sz3s[g][l] = PyArray_DIM(sigma31_in, 11);
-	
 		/////////////////////////////////// cuda mem
 		cudaMalloc((void**) &sigma31s_c[g][l], sigma31_sz); CHECK_CUDA_ERR
 	}
+	
+	//////////////////////////////////////////////////////////////////////////////// set global index size buffers
+	n1s[g][l] = PyArray_DIM(sigma31_in, 1);
+	n0s[g][l] = PyArray_DIM(sigma31_in, 2);
+	s1s[g][l] = PyArray_DIM(sigma31_in, 3);
+	n2s[g][l] = PyArray_DIM(sigma31_in, 5);
+	s2s[g][l] = PyArray_DIM(sigma31_in, 6);
+	n3s[g][l] = PyArray_DIM(sigma31_in, 8);
+	s3s[g][l] = PyArray_DIM(sigma31_in, 9);
+	max_output_sz3s[g][l] = PyArray_DIM(sigma31_in, 11);
+	
 	
 	sigma31 = (float *) sigma31_in -> data;
 	

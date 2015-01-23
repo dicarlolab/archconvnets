@@ -77,6 +77,8 @@ def set_sigma_buffer(sigma31, layer_ind, gpu_ind):
 	assert sigma31.shape[9] == sigma31.shape[10]
 	assert sigma31.shape[-1] == sigma31.shape[-2]
 	
+	assert (sigma31.shape[1] == sigma31.shape[5] or sigma31.shape[1] == 1 or sigma31.shape[5] == 1) and (sigma31.shape[5] == sigma31.shape[-5] or sigma31.shape[5] == 1 or sigma31.shape[-5] == 1) and (sigma31.shape[1] == sigma31.shape[-5] or sigma31.shape[1] == 1 or sigma31.shape[-5] == 1)
+	
 	assert isinstance(layer_ind,int)
 	assert isinstance(gpu_ind,int)
 	
