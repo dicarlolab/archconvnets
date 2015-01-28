@@ -2,6 +2,7 @@ import numpy as np
 from scipy.stats import zscore
 from scipy.io import savemat
 import time
+import random
 
 sigma31 = np.load('/home/darren/comb.npy')
 sigma31_test = np.load('/home/darren/0.npy')
@@ -57,11 +58,18 @@ F3 = F3.reshape((  1,  1, 1,  1,  1, n2,  1,  1, n3, s3, s3,  1,  1))
 FL = FL.reshape((N_C,  1, 1,  1,  1,  1,  1,  1, n3,  1,  1,  max_output_sz3, max_output_sz3))
 
 FL321 = F1 * F2 * F3 * FL
+FL321 = FL321.reshape((N_C, np.prod(FL321.shape[1:])))
 
-sigma_inds = [0,2,3,4,5,6,7,8,9,10,11,12,13]
-F_inds = [1,2,3,4,5,6,7,8,9,10,11,12,13]
+sigma31 = sigma31.reshape((N_C, np.prod(sigma31.shape[1:])))
+sigma31_test = sigma31_test.reshape((N_C, np.prod(sigma31_test.shape[1:])))
+
+sigma_inds = [0,2]
+F_inds = [1,2]
 
 EPS = 2.5e-17 #1e-17 #1e-18
+
+class_train = []
+class_test = []
 
 err_train = []
 err_test = []
@@ -72,13 +80,17 @@ for step in range(100000):
 	
 	pred = np.einsum(sigma31_test, sigma_inds, FL321, F_inds, [1,0])
 	err_test.append(np.mean((pred - Y)**2))
+	class_test.append((np.argmax(pred,axis=0) == range(10)).sum())
 
-	predc = (np.einsum(sigma31, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1, 1, 1, 1,1,1,1,1,1,1,1,1)) # (c, img)
+	predc = (np.einsum(sigma31, sigma_inds, FL321, F_inds, [1,0]) - Y).reshape((N_C, N_C, 1)) # (c, img)
 	grad = 2*(sigma31[np.newaxis]*predc).mean(1)
 	FL321 -= EPS * grad
 	
-	err_train.append(np.mean(predc**2))
+	pred = np.einsum(sigma31, sigma_inds, FL321, F_inds, [1,0])
+	err_train.append(np.mean((pred - Y)**2))
+	class_train.append((np.argmax(pred,axis=0) == range(10)).sum())
 
-	print err_test[-1], err_train[-1], time.time() - t_start
-	savemat('/home/darren/linear_fit.mat', {'err_test': err_test, 'err_train': err_train})
+	print err_test[-1], class_test[-1], err_train[-1], class_train[-1], time.time() - t_start
+	savemat('/home/darren/linear_fit_test.mat', {'err_test': err_test, 'err_train': err_train, 
+		'class_test': class_test, 'class_train': class_train})
 	
