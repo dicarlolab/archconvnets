@@ -48,7 +48,7 @@ static PyObject *max_pool_locs(PyObject *self, PyObject *args){
 	int o_ind;
 	
 	printf("%f\n", conv_output[0]);
-	printf("test %f %i %i %i %i %i %i\n", conv_output[C_IND(1,2,4,5)], n_imgs, n_filters, conv_sz,pad, PyArray_NBYTES(conv_output_in),sizeof(float));
+	printf("test %f %i %i %i %i %i %i\n", conv_output[C_IND(0,2,1,3)], n_imgs, n_filters, conv_sz,pad, PyArray_NBYTES(conv_output_in),sizeof(float));
 	
 	x = 0;
 	for(x_loc = 0; x_loc < (conv_sz-POOL_WINDOW_SZ); x_loc += POOL_STRIDE){
@@ -62,7 +62,7 @@ static PyObject *max_pool_locs(PyObject *self, PyObject *args){
 					for(offset_x = 0; offset_x < POOL_WINDOW_SZ; offset_x++){
 						for(offset_y = 0; offset_y < POOL_WINDOW_SZ; offset_y++){
 							t = conv_output[C_IND(img, filter, x_loc+offset_x, y_loc+offset_y)];
-							if(max_px < pad){
+							if(max_px < t){
 								max_px = t;
 								
 								output_switches_x[o_ind] = x_loc+offset_x;
