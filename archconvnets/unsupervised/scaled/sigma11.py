@@ -5,13 +5,13 @@ from archconvnets.unsupervised.pool_inds_py import max_pool_locs
 from archconvnets.unsupervised.conv import conv_block
 #from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 #from archconvnets.unsupervised.scaled.compute_sigma31_reduced import s31
-
 from archconvnets.unsupervised.scaled.compute_sigma31 import s31
-
 import archconvnets.unsupervised.sigma31_layers.sigma31_layers as sigma31_layers
-
 from scipy.io import savemat, loadmat
 from scipy.stats import zscore
+import random
+
+N_INDS_KEEP = 10000
 
 conv_block_cuda = conv_block
 F1_scale = 0.01 # std of init normal distribution
@@ -45,6 +45,13 @@ max_output_sz1  = len(range(0, output_sz1-POOL_SZ, POOL_STRIDE)) + 2*PAD
 output_sz2 = max_output_sz1 - s2 + 1
 max_output_sz2  = len(range(0, output_sz2-POOL_SZ, POOL_STRIDE)) + 2*PAD
 
+inds_keep = range(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*2*2)
+random.seed(666)
+random.shuffle(inds_keep)
+inds_keep = inds_keep[:N_INDS_KEEP]
+
+s11 = np.zeros((N_INDS_KEEP, N_INDS_KEEP),dtype='single')
+
 np.random.seed(6666)
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
 F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
@@ -55,7 +62,7 @@ F2 = zscore(F2,axis=None)/500
 F3 = zscore(F3,axis=None)/500
 
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
-z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_6')
+z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_2')
 
 ################### compute train err
 # load imgs
@@ -95,18 +102,13 @@ output_switches2_y -= PAD
 output_switches3_x -= PAD
 output_switches3_y -= PAD
 
-sigma31 = sigma31_layers.s31_full_gpu(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
-print time.time() - t_forward_start
+for img in range(N_IMGS):
+	t_start = time.time()
+	t = sigma31_layers.s31_full_gpu(output_switches3_x[img][np.newaxis], output_switches3_y[img][np.newaxis], output_switches2_x[img][np.newaxis], output_switches2_y[img][np.newaxis], output_switches1_x[img][np.newaxis], output_switches1_y[img][np.newaxis], s1, s2, s3, labels[img][np.newaxis], imgs_pad[img][np.newaxis], N_C, warn=False)[labels[img]]
+	t2 = t.ravel()[inds_keep]
+	s11 += np.dot(t2[:,np.newaxis],t2[np.newaxis])
+	print img, time.time() - t_start
+	if (img % 100) == 0:
+		print 'saving....'
+		np.save('/home/darren/s11_2.npy', s11)
 
-np.save('/home/darren/sigma31_4_6.npy', sigma31)
-
-'''sigma31 = sigma31.transpose((0,2,1,3,4,5,6,7,8,9,10,11,12))
-
-sigma31_F1 = sigma31*F1.reshape((1, n1, 3, s1, s1,  1, 1, 1, 1, 1,1,1,1))
-sigma31_F2 = sigma31_F1*F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1,1,1,1))
-sigma31_F3 = sigma31_F2*F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
-
-sigma31_F3 = sigma31_F3[6].reshape((n1*3*(s1**2)*n2*(s2**2), n3, s3**2, 2, 2)).sum(0).sum(1)[np.newaxis]
-
-print np.isclose(sigma31_F3, max_output3t[0][np.newaxis]).sum() / np.single(np.prod(sigma31_F3.shape))
-'''

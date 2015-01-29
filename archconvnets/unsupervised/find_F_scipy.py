@@ -59,7 +59,7 @@ FL = FL.reshape((N_C,  1, 1,  1,  1,  1,  1,  1, n3,  1,  1,  max_output_sz3, ma
 FL321 = FL*F3*F2*F1
 
 
-np.random.seed(61)
+np.random.seed(62)
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
 F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2))).transpose((1,0,2,3))
 F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3))).transpose((1,0,2,3))
