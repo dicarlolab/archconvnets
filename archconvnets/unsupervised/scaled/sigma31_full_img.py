@@ -102,6 +102,7 @@ for img in range(N_IMGS):
 	s31[img] = sigma31_layers.s31_full_gpu(output_switches3_x[img][np.newaxis], output_switches3_y[img][np.newaxis], output_switches2_x[img][np.newaxis], output_switches2_y[img][np.newaxis], output_switches1_x[img][np.newaxis], output_switches1_y[img][np.newaxis], s1, s2, s3, labels[img][np.newaxis], imgs_pad[img][np.newaxis], N_C, warn=False)[labels[img]].ravel()[inds_keep]
 	print img, time.time() - t_start
 
+np.save('/home/darren/sigma31_8_single_imgs_labels.npy', labels)
 np.save('/home/darren/sigma31_8_single_imgs.npy', s31)
 
 

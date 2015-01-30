@@ -111,5 +111,5 @@ for img in range(N_IMGS):
 	if (img % 100) == 0:
 		print 'saving....'
 		np.save('/home/darren/s11_8_1.npy', s11)
-		np.save('/home/darren/s31_8_1.npy', s11)
+		np.save('/home/darren/s31_8_1.npy', s31)
 
