@@ -37,7 +37,7 @@ static PyObject *set_conv_buffer(PyObject *self, PyObject *args)  {
 		//---------------------------------------
 		// Set decriptor
 		//---------------------------------------
-		status = cudnnSetConvolutionDescriptor(convDesc_buffers[conv_buff_ind], srcDesc_buffers[img_buff_ind], filterDesc_buffers[filter_buff_ind], 0, 0, 1, 1, 1, 1, CUDNN_CONVOLUTION);  ERR_CHECK
+		status = cudnnSetConvolutionDescriptor(convDesc_buffers[conv_buff_ind], srcDesc_buffers[img_buff_ind], filterDesc_buffers[filter_buff_ind], 0, 0, 1, 1, 1, 1, CUDNN_CROSS_CORRELATION);  ERR_CHECK
 
 		//---------------------------------------
 		// Query output layout
