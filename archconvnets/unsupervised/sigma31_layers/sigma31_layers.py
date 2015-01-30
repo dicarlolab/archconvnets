@@ -11,6 +11,13 @@ import numpy as np
 # imgs: [n_imgs, 3, img_sz, img_sz] (float32)
 # int: N_C
 def s31_full_gpu(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs, N_C, warn=True):
+	assert output_switches3_x.dtype == np.dtype('int64')
+	assert output_switches3_y.dtype == np.dtype('int64')
+	assert output_switches2_x.dtype == np.dtype('int64')
+	assert output_switches2_y.dtype == np.dtype('int64')
+	assert output_switches1_x.dtype == np.dtype('int64')
+	assert output_switches1_y.dtype == np.dtype('int64')
+	
 	assert isinstance(s1,int)
 	assert isinstance(s2,int)
 	assert isinstance(s3,int)
@@ -124,14 +131,15 @@ def set_filter_buffers(F1, F2, F3, FL, gpu_ind):
 	
 	return _sigma31_layers.set_filter_buffers(F1, F2, F3, FL, gpu_ind)
 
-def max_pool_locs(conv_output, PAD=0):
+def max_pool_locs(conv_output, PAD=0, warn=True):
 	assert conv_output.shape[2] == conv_output.shape[3]
 	assert PAD >= 0
 	assert isinstance(PAD,int)
 	assert conv_output.dtype == np.dtype('float32')
 	
 	if not conv_output.flags.contiguous:
-		print 'warning: input not C-contiguous (conv_output)'
+		if warn:
+			print 'warning: input not C-contiguous (conv_output)'
 		conv_output = np.ascontiguousarray(conv_output)
 	
 	return _sigma31_layers.max_pool_locs(conv_output, PAD)

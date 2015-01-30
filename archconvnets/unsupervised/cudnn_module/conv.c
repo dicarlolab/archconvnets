@@ -47,7 +47,7 @@ static PyObject *conv(PyObject *self, PyObject *args)  {
 	//---------------------------------------
 	status = cudnnSetTensor4dDescriptor(srcDesc, CUDNN_TENSOR_NCHW, dataType, n_imgs, n_channels, img_sz, img_sz);  ERR_CHECK
 	status = cudnnSetFilterDescriptor(filterDesc, dataType, n_filters, n_channels, filter_sz, filter_sz);  ERR_CHECK
-	status = cudnnSetConvolutionDescriptor(convDesc, srcDesc, filterDesc, 0, 0, 1, 1, 1, 1, CUDNN_CONVOLUTION);  ERR_CHECK
+	status = cudnnSetConvolutionDescriptor(convDesc, srcDesc, filterDesc, 0, 0, 1, 1, 1, 1, CUDNN_CROSS_CORRELATION);  ERR_CHECK
 
 	//---------------------------------------
 	// Query output layout

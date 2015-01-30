@@ -1,19 +1,16 @@
 import time
 import numpy as np
-from archconvnets.unsupervised.pool_inds_py import max_pool_locs
-#from archconvnets.unsupervised.pool_inds_py import max_pool_locs
-from archconvnets.unsupervised.conv import conv_block
-#from archconvnets.unsupervised.cudnn_module.cudnn_module import *
-#from archconvnets.unsupervised.scaled.compute_sigma31_reduced import s31
-from archconvnets.unsupervised.scaled.compute_sigma31 import s31
+from archconvnets.unsupervised.cudnn_module import cudnn_module as cm
 import archconvnets.unsupervised.sigma31_layers.sigma31_layers as sigma31_layers
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import max_pool_locs
 from scipy.io import savemat, loadmat
 from scipy.stats import zscore
 import random
+import copy
 
 N_INDS_KEEP = 10000
 
-conv_block_cuda = conv_block
+conv_block_cuda = cm.conv
 F1_scale = 0.01 # std of init normal distribution
 F2_scale = 0.01
 F3_scale = 0.01
@@ -28,7 +25,7 @@ IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
 PAD = 2
 
-N = 4
+N = 8
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -50,6 +47,7 @@ random.seed(666)
 random.shuffle(inds_keep)
 inds_keep = inds_keep[:N_INDS_KEEP]
 
+s31 = np.zeros((N_C, N_INDS_KEEP), dtype='single')
 s11 = np.zeros((N_INDS_KEEP, N_INDS_KEEP),dtype='single')
 
 np.random.seed(6666)
@@ -62,7 +60,7 @@ F2 = zscore(F2,axis=None)/500
 F3 = zscore(F3,axis=None)/500
 
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
-z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_2')
+z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_1')
 
 ################### compute train err
 # load imgs
@@ -78,23 +76,20 @@ imgs_pad = np.ascontiguousarray(imgs_pad.transpose((3,0,1,2)))
 
 # forward pass
 t_forward_start = time.time()
-#conv_output1 = conv_block_cuda(F1, imgs_pad)
-conv_output1 = conv_block_cuda(np.double(F1.transpose((1,2,3,0))), np.double(imgs_pad.transpose((1,2,3,0)))).transpose((3,0,1,2))
-max_output1t, output_switches1_x, output_switches1_y = max_pool_locs(np.single(conv_output1))
+conv_output1 = conv_block_cuda(F1, imgs_pad)
+max_output1t, output_switches1_x, output_switches1_y = max_pool_locs(np.single(conv_output1),warn=False)
 
-#max_output1 = max_output1t
 max_output1 = np.zeros((N_IMGS, n1, max_output_sz1, max_output_sz1),dtype='single')
 max_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
 
-#conv_output2 = conv_block_cuda(F2, max_output1)
-conv_output2 = conv_block_cuda(np.double(F2.transpose((1,2,3,0))), np.double(max_output1.transpose((1,2,3,0)))).transpose((3,0,1,2))
-max_output2t, output_switches2_x, output_switches2_y = max_pool_locs(np.single(conv_output2), PAD=2)
+conv_output2 = conv_block_cuda(F2, max_output1)
+max_output2t, output_switches2_x, output_switches2_y = max_pool_locs(np.single(conv_output2), PAD=2,warn=False)
 
 max_output2 = np.zeros((N_IMGS, n2, max_output_sz2, max_output_sz2),dtype='single')
 max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
 
-conv_output3 = conv_block_cuda(np.double(F3.transpose((1,2,3,0))), np.double(max_output2.transpose((1,2,3,0)))).transpose((3,0,1,2))
-max_output3t, output_switches3_x, output_switches3_y = max_pool_locs(np.single(conv_output3), PAD=2)
+conv_output3 = conv_block_cuda(F3, max_output2)
+max_output3t, output_switches3_x, output_switches3_y = max_pool_locs(np.single(conv_output3), PAD=2,warn=False)
 
 output_switches2_x -= PAD
 output_switches2_y -= PAD
@@ -102,13 +97,19 @@ output_switches2_y -= PAD
 output_switches3_x -= PAD
 output_switches3_y -= PAD
 
+print time.time() - t_forward_start
+
 for img in range(N_IMGS):
 	t_start = time.time()
 	t = sigma31_layers.s31_full_gpu(output_switches3_x[img][np.newaxis], output_switches3_y[img][np.newaxis], output_switches2_x[img][np.newaxis], output_switches2_y[img][np.newaxis], output_switches1_x[img][np.newaxis], output_switches1_y[img][np.newaxis], s1, s2, s3, labels[img][np.newaxis], imgs_pad[img][np.newaxis], N_C, warn=False)[labels[img]]
 	t2 = t.ravel()[inds_keep]
+	
+	s31[labels[img]] += t2
 	s11 += np.dot(t2[:,np.newaxis],t2[np.newaxis])
+	
 	print img, time.time() - t_start
 	if (img % 100) == 0:
 		print 'saving....'
-		np.save('/home/darren/s11_2.npy', s11)
+		np.save('/home/darren/s11_8_1.npy', s11)
+		np.save('/home/darren/s31_8_1.npy', s11)
 
