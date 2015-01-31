@@ -4,12 +4,12 @@ from scipy.io import savemat
 import time
 import random
 
-N_INDS_KEEP = 10000
+N_INDS_KEEP = 100
 
-sigma31 = np.load('/home/darren/s31_8_1.npy')
-sigma31_test_imgs = np.load('/home/darren/sigma31_8_single_imgs.npy')
+sigma31 = np.load('/home/darren/s31_8.npy')
+sigma31_test_imgs = np.load('/home/darren/patches_8.npy')
 
-sigma11 = np.load('/home/darren/s11_8_1.npy')
+sigma11 = np.load('/home/darren/s11_8.npy')
 
 F1_scale = 0.01 # std of init normal distribution
 F2_scale = 0.01
@@ -60,10 +60,8 @@ F2 = F2.reshape((  1, n1, 1,  1,  1, n2, s2, s2,  1,  1,  1,  1,  1))
 F3 = F3.reshape((  1,  1, 1,  1,  1, n2,  1,  1, n3, s3, s3,  1,  1))
 FL = FL.reshape((N_C,  1, 1,  1,  1,  1,  1,  1, n3,  1,  1,  max_output_sz3, max_output_sz3))
 
-inds_keep = range(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*2*2)
-random.seed(666)
-random.shuffle(inds_keep)
-inds_keep = inds_keep[:N_INDS_KEEP]
+np.random.seed(6666)
+inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*2*2, size=N_INDS_KEEP)
 
 FL321 = F1 * F2 * F3 * FL
 FL321 = FL321.reshape((N_C, np.prod(FL321.shape[1:])))[:,inds_keep]
@@ -73,7 +71,7 @@ F_inds = [1,2]
 
 EPS = 2.5e-12#2.5e-14
 
-labels = np.load('/home/darren/sigma31_8_single_imgs_labels.npy')
+labels = np.load('/home/darren/patches_8_labels.npy')
 Y_test = np.zeros((N_C, sigma31_test_imgs.shape[0]))
 Y_test[labels, range(sigma31_test_imgs.shape[0])] = 1
 
@@ -96,7 +94,7 @@ for step in range(100000):
 	
 	FL321 -= EPS * grad
 	
-	print err_test[-1], 1 - class_test[-1]/256.0, time.time() - t_start
+	print err_test[-1], 1 - class_test[-1]/10000.0, time.time() - t_start
 	savemat('/home/darren/linear_fit.mat', {'err_test': err_test, 'err_train': err_train, 
 		'class_test': class_test, 'class_train': class_train})
 	

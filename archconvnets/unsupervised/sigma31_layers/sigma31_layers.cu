@@ -53,10 +53,16 @@ int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s[N_GPUS][N_SIGMA
 #include "set_filter_buffers.cu"
 
 #include "compute_sigma31_full_gpu.cu"
+#include "compute_patch_inds.cu"
+#include "compute_sigma11_gpu.cu"
+#include "compute_sigma11.cu"
 #include "max_pool_locs.cu"
 
 static PyMethodDef _sigma31_layers[] = {
 	{"compute_sigma31_full_gpu", compute_sigma31_full_gpu, METH_VARARGS},
+	{"compute_patch_inds", compute_patch_inds, METH_VARARGS},
+	{"compute_sigma11", compute_sigma11, METH_VARARGS},
+	{"compute_sigma11_gpu", compute_sigma11_gpu, METH_VARARGS},
 	{"max_pool_locs", max_pool_locs, METH_VARARGS},
 	{"einsum_deriv_gpu", einsum_deriv_gpu, METH_VARARGS},
 	{"set_sigma_buffer", set_sigma_buffer, METH_VARARGS},
