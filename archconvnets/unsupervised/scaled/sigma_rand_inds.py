@@ -8,7 +8,7 @@ from scipy.stats import zscore
 import random
 import copy
 
-N_INDS_KEEP = 1000
+N_INDS_KEEP = 15000
 
 conv_block_cuda = cm.conv
 F1_scale = 0.01 # std of init normal distribution
@@ -25,7 +25,7 @@ IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
 PAD = 2
 
-N = 8
+N = 128
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -117,7 +117,14 @@ for batch in range(1,7):
 		sigma31[cat] += patches[labels == cat].sum(0)
 	print batch, time.time() - t_start
 
-np.save('/home/darren/s11_8.npy', sigma11)
-np.save('/home/darren/s31_8.npy', sigma31)
-np.save('/home/darren/patches_8.npy', patches)
-np.save('/home/darren/patches_8_labels.npy', labels)
+end = str(N) + '_' + str(N_INDS_KEEP) + '.npy'
+
+np.save('/home/darren/s11_' + end, sigma11)
+np.save('/home/darren/s31_' + end, sigma31)
+np.save('/home/darren/patches_' + end, patches)
+np.save('/home/darren/patches_labels_' + end, labels)
+
+import os
+os.system('ipython /home/darren/archconvnets/archconvnets/unsupervised/linear_fit_gpu.py')
+
+

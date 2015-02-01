@@ -4,7 +4,7 @@ from scipy.io import savemat
 import time
 import random
 
-N_INDS_KEEP = 100
+N_INDS_KEEP = 10000
 
 sigma31 = np.load('/home/darren/s31_8.npy')
 sigma31_test_imgs = np.load('/home/darren/patches_8.npy')
@@ -22,7 +22,7 @@ STRIDE1 = 1 # layer 1 stride
 IMG_SZ = 32 # input image size (px)
 PAD = 2
 
-N = 8
+N = 16
 n1 = N # L1 filters
 n2 = N # ...
 n3 = N
@@ -69,7 +69,7 @@ FL321 = FL321.reshape((N_C, np.prod(FL321.shape[1:])))[:,inds_keep]
 sigma_inds = [0,2]
 F_inds = [1,2]
 
-EPS = 2.5e-12#2.5e-14
+EPS = 2.5e-13#2.5e-14
 
 labels = np.load('/home/darren/patches_8_labels.npy')
 Y_test = np.zeros((N_C, sigma31_test_imgs.shape[0]))
@@ -83,18 +83,19 @@ err_test = []
 
 print 'starting'
 #########
+t_start = time.time()
 for step in range(100000):
-	t_start = time.time()
-	
-	pred = np.einsum(sigma31_test_imgs, sigma_inds, FL321, F_inds, [1,0])
-	err_test.append(np.mean((pred - Y_test)**2))
-	class_test.append((np.argmax(pred,axis=0) == labels).sum())
-	
-	grad = 2*(np.dot(FL321, 2*sigma11) - sigma31)
+	grad = 2*(np.dot(FL321, sigma11) - sigma31)
 	
 	FL321 -= EPS * grad
 	
-	print err_test[-1], 1 - class_test[-1]/10000.0, time.time() - t_start
-	savemat('/home/darren/linear_fit.mat', {'err_test': err_test, 'err_train': err_train, 
-		'class_test': class_test, 'class_train': class_train})
+	if (step % 20) == 0:
+		pred = np.einsum(sigma31_test_imgs, sigma_inds, FL321, F_inds, [1,0])
+		err_test.append(np.mean((pred - Y_test)**2))
+		class_test.append((np.argmax(pred,axis=0) == labels).sum())
+		
+		print err_test[-1], 1 - class_test[-1]/10000.0, time.time() - t_start
+		savemat('/home/darren/linear_fit.mat', {'err_test': err_test, 'err_train': err_train, 
+			'class_test': class_test, 'class_train': class_train})
+		t_start = time.time()
 	
