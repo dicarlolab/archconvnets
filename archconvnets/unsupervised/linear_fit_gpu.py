@@ -60,7 +60,7 @@ FL = zscore(FL,axis=None)/500
 
 
 np.random.seed(6666)
-inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*2*2, size=N_INDS_KEEP)
+inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
 
 FL321 = F_prod_inds(F1, F2, F3, FL, inds_keep)
 

@@ -7,7 +7,7 @@ static PyObject *compute_F_prod_inds(PyObject *self, PyObject *args){
 	PyArrayObject *FL321_in;
 	
 	int dims[14];
-	long *inds;
+	IND_DTYPE *inds;
 	float *F1, *F2, *F3, *FL, *FL321;
 	
 	if (!PyArg_ParseTuple(args, "O!O!O!O!O!",  &PyArray_Type, &F1_in, &PyArray_Type, &F2_in,
@@ -15,22 +15,22 @@ static PyObject *compute_F_prod_inds(PyObject *self, PyObject *args){
 
 	if (NULL == F1_in || NULL == F2_in || NULL == F3_in || NULL == FL_in)  return NULL;
 
-	inds = (long *) inds_in -> data;
+	inds = (IND_DTYPE *) inds_in -> data;
 	F1 = (float *) F1_in -> data;
 	F2 = (float *) F2_in -> data;
 	F3 = (float *) F3_in -> data;
 	FL = (float *) FL_in -> data;
 	
-	int N_C = PyArray_DIM(FL_in, 0);
-	int max_output_sz3 = PyArray_DIM(FL_in, 2);
-	int n3 = PyArray_DIM(F3_in, 0);
-	int n2 = PyArray_DIM(F2_in, 0);
-	int n1 = PyArray_DIM(F1_in, 0);
-	int s1 = PyArray_DIM(F1_in, 2);
-	int s2 = PyArray_DIM(F2_in, 2);
-	int s3 = PyArray_DIM(F3_in, 2);
-	int n_inds = PyArray_DIM(inds_in, 0);
-	int n0 = 3;
+	IND_DTYPE N_C = PyArray_DIM(FL_in, 0);
+	IND_DTYPE max_output_sz3 = PyArray_DIM(FL_in, 2);
+	IND_DTYPE n3 = PyArray_DIM(F3_in, 0);
+	IND_DTYPE n2 = PyArray_DIM(F2_in, 0);
+	IND_DTYPE n1 = PyArray_DIM(F1_in, 0);
+	IND_DTYPE s1 = PyArray_DIM(F1_in, 2);
+	IND_DTYPE s2 = PyArray_DIM(F2_in, 2);
+	IND_DTYPE s3 = PyArray_DIM(F3_in, 2);
+	IND_DTYPE n_inds = PyArray_DIM(inds_in, 0);
+	IND_DTYPE n0 = 3;
 	
 	dims[0] = N_C;
 	dims[1] = n_inds;
@@ -41,7 +41,7 @@ static PyObject *compute_F_prod_inds(PyObject *self, PyObject *args){
 	int f1, channel, a1_x, a1_y, f2, a2_x, a2_y, f3, a3_x, a3_y, z1, z2, cat, img, ind;
 	int a3_x_global, a3_y_global, a2_x_global, a2_y_global, a1_x_global, a1_y_global;
 	
-	long r;
+	IND_DTYPE r;
 	float F321;
 	
 	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3_n1 = max_output_sz3*max_output_sz3*s3*s3*n3*s2*s2*n2*s1*s1*3*n1;
