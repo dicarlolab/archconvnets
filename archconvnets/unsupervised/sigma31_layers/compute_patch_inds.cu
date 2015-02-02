@@ -25,7 +25,8 @@ static PyObject *compute_patch_inds(PyObject *self, PyObject *args){
 	long *output_switches3_x, *output_switches3_y;
 	long *output_switches2_x, *output_switches2_y;
 	long *output_switches1_x, *output_switches1_y;
-	long *labels, *inds;
+	long *labels;
+	IND_DTYPE *inds;
 	float *imgs;
 	float *patches;
 	
@@ -41,9 +42,10 @@ static PyObject *compute_patch_inds(PyObject *self, PyObject *args){
 		NULL == output_switches1_x_in || NULL == output_switches1_y_in ||
 		NULL == labels_in || NULL == imgs_in || NULL == inds_in)  return NULL;
 
+	
 	imgs = (float *) imgs_in -> data;
 	labels = (long *) labels_in -> data;
-	inds = (long *) inds_in -> data;
+	inds = (IND_DTYPE *) inds_in -> data;
 	output_switches3_x = (long *) output_switches3_x_in -> data;
 	output_switches3_y = (long *) output_switches3_y_in -> data;
 
@@ -53,15 +55,15 @@ static PyObject *compute_patch_inds(PyObject *self, PyObject *args){
 	output_switches1_x = (long *) output_switches1_x_in -> data;
 	output_switches1_y = (long *) output_switches1_y_in -> data;
 
-	int N_IMGS = PyArray_DIM(imgs_in, 0);
-	int img_sz = PyArray_DIM(imgs_in, 2);
-	int max_output_sz3 = PyArray_DIM(output_switches3_x_in, 2);
-	int max_output_sz2 = PyArray_DIM(output_switches2_x_in, 2);
-	int max_output_sz1 = PyArray_DIM(output_switches1_x_in, 2);
-	int n3 = PyArray_DIM(output_switches3_x_in, 1);
-	int n2 = PyArray_DIM(output_switches2_x_in, 1);
-	int n1 = PyArray_DIM(output_switches1_x_in, 1);
-	int n_inds = PyArray_DIM(inds_in, 0);
+	IND_DTYPE N_IMGS = PyArray_DIM(imgs_in, 0);
+	IND_DTYPE img_sz = PyArray_DIM(imgs_in, 2);
+	IND_DTYPE max_output_sz3 = PyArray_DIM(output_switches3_x_in, 2);
+	IND_DTYPE max_output_sz2 = PyArray_DIM(output_switches2_x_in, 2);
+	IND_DTYPE max_output_sz1 = PyArray_DIM(output_switches1_x_in, 2);
+	IND_DTYPE n3 = PyArray_DIM(output_switches3_x_in, 1);
+	IND_DTYPE n2 = PyArray_DIM(output_switches2_x_in, 1);
+	IND_DTYPE n1 = PyArray_DIM(output_switches1_x_in, 1);
+	IND_DTYPE n_inds = PyArray_DIM(inds_in, 0);
 	
 	dims[0] = N_IMGS;
 	dims[1] = n_inds;
@@ -72,7 +74,7 @@ static PyObject *compute_patch_inds(PyObject *self, PyObject *args){
 	int f1, channel, a1_x, a1_y, f2, a2_x, a2_y, f3, a3_x, a3_y, z1, z2, cat, img, ind;
 	int a3_x_global, a3_y_global, a2_x_global, a2_y_global, a1_x_global, a1_y_global;
 	
-	long r;
+	IND_DTYPE r;
 	
 	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3_n1 = max_output_sz3*max_output_sz3*s3*s3*n3*s2*s2*n2*s1*s1*3*n1;
 	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3 = max_output_sz3*max_output_sz3*s3*s3*n3*s2*s2*n2*s1*s1*3;
@@ -149,6 +151,6 @@ static PyObject *compute_patch_inds(PyObject *self, PyObject *args){
 			patches[P_IND(img, ind)] += imgs[I_IND(img, channel,a1_x_global,a1_y_global)];
 		} // img
 	} // ind
-		
+	
 	return PyArray_Return(patches_in);
 }

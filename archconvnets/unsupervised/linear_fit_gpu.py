@@ -1,19 +1,19 @@
 import numpy as np
 from scipy.stats import zscore
-from scipy.io import savemat
+from scipy.io import savemat, loadmat
 import time
 import random
 from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds
 
-N = 128
-N_INDS_KEEP = 15000
+N = 48
+N_INDS_KEEP = 1000
 
-end = str(N) + '_' + str(N_INDS_KEEP) + '.npy'
+z = loadmat('/home/darren/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat')
 
-sigma31 = np.load('/home/darren/s31_' + end)
-sigma31_test_imgs = np.load('/home/darren/patches_' + end)
+sigma31 = z['sigma31']
+sigma31_test_imgs = z['patches']
 
-sigma11 = np.load('/home/darren/s11_' + end)
+sigma11 = z['sigma11']
 
 F1_scale = 0.01 # std of init normal distribution
 F2_scale = 0.01
@@ -67,9 +67,9 @@ FL321 = F_prod_inds(F1, F2, F3, FL, inds_keep)
 sigma_inds = [0,2]
 F_inds = [1,2]
 
-EPS = 2.5e-13#2.5e-14
+EPS = 2.5e-14#2.5e-13#2.5e-14
 
-labels = np.load('/home/darren/patches_labels_' + end)
+labels = z['labels']
 Y_test = np.zeros((N_C, sigma31_test_imgs.shape[0]))
 Y_test[labels, range(sigma31_test_imgs.shape[0])] = 1
 

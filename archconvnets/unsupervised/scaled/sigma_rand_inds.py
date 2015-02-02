@@ -8,7 +8,7 @@ from scipy.stats import zscore
 import random
 import copy
 
-N_INDS_KEEP = 15000
+N_INDS_KEEP = 1000
 
 conv_block_cuda = cm.conv
 F1_scale = 0.01 # std of init normal distribution
@@ -20,12 +20,12 @@ POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
 N_IMGS = 10000 # batch size
-IMG_SZ_CROP = 28 # input image size (px)
-IMG_SZ = 32 # input image size (px)
-img_train_offset = 2
+IMG_SZ_CROP = 32 # input image size (px)
+IMG_SZ = 34#70#75# # input image size (px)
+img_train_offset = 0
 PAD = 2
 
-N = 128
+N = 48
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -42,8 +42,11 @@ max_output_sz1  = len(range(0, output_sz1-POOL_SZ, POOL_STRIDE)) + 2*PAD
 output_sz2 = max_output_sz1 - s2 + 1
 max_output_sz2  = len(range(0, output_sz2-POOL_SZ, POOL_STRIDE)) + 2*PAD
 
+output_sz3 = max_output_sz2 - s3 + 1
+max_output_sz3  = len(range(0, output_sz3-POOL_SZ, POOL_STRIDE))
+
 np.random.seed(6666)
-inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*2*2, size=N_INDS_KEEP)
+inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
 
 s31 = np.zeros((N_C, N_INDS_KEEP), dtype='single')
 s11 = np.zeros((N_INDS_KEEP, N_INDS_KEEP),dtype='single')
@@ -74,7 +77,7 @@ for batch in range(1,7):
 	labels = np.asarray(z['labels'])[:N_IMGS].astype(int)
 
 	imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, N_IMGS),dtype='single')
-	imgs_pad[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x[:,img_train_offset:img_train_offset+IMG_SZ_CROP,img_train_offset:img_train_offset+IMG_SZ_CROP]
+	imgs_pad[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
 	imgs_pad = np.ascontiguousarray(imgs_pad.transpose((3,0,1,2)))
 
 	# forward pass
@@ -117,14 +120,5 @@ for batch in range(1,7):
 		sigma31[cat] += patches[labels == cat].sum(0)
 	print batch, time.time() - t_start
 
-end = str(N) + '_' + str(N_INDS_KEEP) + '.npy'
 
-np.save('/home/darren/s11_' + end, sigma11)
-np.save('/home/darren/s31_' + end, sigma31)
-np.save('/home/darren/patches_' + end, patches)
-np.save('/home/darren/patches_labels_' + end, labels)
-
-import os
-os.system('ipython /home/darren/archconvnets/archconvnets/unsupervised/linear_fit_gpu.py')
-
-
+savemat('/home/darren/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat',{'sigma11':sigma11, 'sigma31':sigma31, 'patches':patches,'labels':labels})
