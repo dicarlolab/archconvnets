@@ -36,7 +36,7 @@ s3 = 3
 
 N_C = 999 # number of categories
 
-compute_training_sigmas = True
+compute_training_sigmas = False
 if compute_training_sigmas:
 	file_name = '/home/darren/sigmas_imgnet_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat'
 	batches = range(1,9100)

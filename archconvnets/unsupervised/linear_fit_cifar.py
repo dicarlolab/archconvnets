@@ -6,13 +6,13 @@ import random
 from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds
 
 N = 48
-N_INDS_KEEP = 1000
+N_INDS_KEEP = 10000
 
 z = loadmat('/home/darren/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat')
 
 sigma31 = z['sigma31']
 sigma31_test_imgs = z['patches']
-
+labels = z['labels']
 sigma11 = z['sigma11']
 
 F1_scale = 0.01 # std of init normal distribution
@@ -49,8 +49,8 @@ max_output_sz3  = len(range(0, output_sz3-POOL_SZ, POOL_STRIDE))
 
 np.random.seed(6666)
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
-F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))#.transpose((1,0,2,3))
-F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))#.transpose((1,0,2,3))
+F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
+F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
 FL = np.single(np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, max_output_sz3)))
 
 F1 = zscore(F1,axis=None)/500
@@ -69,7 +69,6 @@ F_inds = [1,2]
 
 EPS = 2.5e-14#2.5e-13#2.5e-14
 
-labels = z['labels']
 Y_test = np.zeros((N_C, sigma31_test_imgs.shape[0]))
 Y_test[labels, range(sigma31_test_imgs.shape[0])] = 1
 

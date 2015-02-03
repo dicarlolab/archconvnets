@@ -8,7 +8,7 @@ import gnumpy as gpu
 gpu.board_id_to_use = 1
 
 N = 48
-N_INDS_KEEP = 10000
+N_INDS_KEEP = 20000
 N_TEST_IMGS = 1024*2
 filename = '/home/darren/linear_fit_imgnet_' + str(N) + '_' + str(N_INDS_KEEP) +'.mat'
 
@@ -72,7 +72,7 @@ FL321 = F_prod_inds(F1, F2, F3, FL, inds_keep)
 sigma_inds = [0,2]
 F_inds = [1,2]
 
-EPS = 2.5e-13#2.5e-14
+EPS = 2.5e-14#2.5e-14
 
 Y_test = np.zeros((N_C, sigma31_test_imgs.shape[0]))
 Y_test[labels, range(sigma31_test_imgs.shape[0])] = 1
