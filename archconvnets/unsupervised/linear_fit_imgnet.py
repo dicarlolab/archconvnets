@@ -5,10 +5,12 @@ import time
 import random
 from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds
 import gnumpy as gpu
+gpu.board_id_to_use = 1
 
 N = 48
 N_INDS_KEEP = 10000
-N_TEST_IMGS = 100
+N_TEST_IMGS = 1024*2
+filename = '/home/darren/linear_fit_imgnet_' + str(N) + '_' + str(N_INDS_KEEP) +'.mat'
 
 z = loadmat('/home/darren/sigmas_imgnet_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat')
 y = loadmat('/home/darren/patches_imgnet_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat')
@@ -70,7 +72,7 @@ FL321 = F_prod_inds(F1, F2, F3, FL, inds_keep)
 sigma_inds = [0,2]
 F_inds = [1,2]
 
-EPS = 2.5e-18#2.5e-14
+EPS = 2.5e-13#2.5e-14
 
 Y_test = np.zeros((N_C, sigma31_test_imgs.shape[0]))
 Y_test[labels, range(sigma31_test_imgs.shape[0])] = 1
@@ -94,13 +96,13 @@ for step in range(100000):
 	
 	FL321 -= EPS * grad.as_numpy_array()
 	
-	if (step % 20) == 0:
+	if (step % 50) == 0:
 		pred = np.einsum(sigma31_test_imgs, sigma_inds, FL321, F_inds, [1,0])
 		err_test.append(np.mean((pred - Y_test)**2))
-		class_test.append((np.argmax(pred,axis=0) == labels).sum())
+		class_test.append((np.argmax(pred,axis=0) == labels).sum()/np.single(N_TEST_IMGS))
 		
-		print err_test[-1], 1 - class_test[-1]/N_TEST_IMGS, time.time() - t_start
-		savemat('/home/darren/linear_fit_imgnet_' + str(N) + '_' + str(N_INDS_KEEP) +'.mat', {'err_test': err_test, 'err_train': err_train, 
+		print err_test[-1], 1 - class_test[-1], time.time() - t_start, filename
+		savemat(filename, {'err_test': err_test, 'err_train': err_train, 
 			'class_test': class_test, 'class_train': class_train})
 		t_start = time.time()
 	
