@@ -8,7 +8,7 @@ from scipy.stats import zscore
 import random
 import copy
 
-N_INDS_KEEP = 10000
+N_INDS_KEEP = 100
 
 conv_block_cuda = cm.conv
 F1_scale = 0.01 # std of init normal distribution
