@@ -60,16 +60,13 @@ F2 = zscore(F2,axis=None)/500
 F3 = zscore(F3,axis=None)/500
 FL = zscore(FL,axis=None)/500
 
-
 np.random.seed(6666)
 inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
-
-FL321 = F_prod_inds(F1, F2, F3, FL, inds_keep)
 
 sigma_inds = [0,2]
 F_inds = [1,2]
 
-EPS = 2.5e-1#2.5e-13#2.5e-14
+EPS = 2.5e0#2.5e-13#2.5e-14
 
 Y_test = np.zeros((N_C, sigma31_test_imgs.shape[0]))
 Y_test[labels, range(sigma31_test_imgs.shape[0])] = 1
@@ -88,22 +85,34 @@ print 'starting'
 ########
 t_start = time.time()
 for step in range(100000):
-	FL32 = F_prod_inds(np.ones_like(F1), F2, F3, FL, inds_keep)
 	FL321 = F_prod_inds(F1, F2, F3, FL, inds_keep)
 	
+	FL32 = F_prod_inds(np.ones_like(F1), F2, F3, FL, inds_keep)
 	uns = F_layer_sum_deriv_inds(FL321, FL32, sigma11, F1, F2, F3, FL, inds_keep, 1)
-	
 	s = F_layer_sum_inds(FL32*sigma31, F1, F2, F3, FL, inds_keep, 1)
+	grad_F1 = uns - s
 	
-	F1 -= EPS*(uns - s)
+	FL31 = F_prod_inds(F1, np.ones_like(F2), F3, FL, inds_keep)
+	uns = F_layer_sum_deriv_inds(FL321, FL31, sigma11, F1, F2, F3, FL, inds_keep, 2)
+	s = F_layer_sum_inds(FL31*sigma31, F1, F2, F3, FL, inds_keep, 2)
+	grad_F2 = uns - s
+	
+	FL21 = F_prod_inds(F1, F2, np.ones_like(F3), FL, inds_keep)
+	uns = F_layer_sum_deriv_inds(FL321, FL21, sigma11, F1, F2, F3, FL, inds_keep, 3)
+	s = F_layer_sum_inds(FL21*sigma31, F1, F2, F3, FL, inds_keep, 3)
+	grad_F3 = uns - s
+	
+	F1 -= EPS*grad_F1
+	F2 -= EPS*grad_F2
+	F3 -= EPS*grad_F3
+	
 	#break
-	if (step % 4) == 0:
+	if (step % 1) == 0:
 		pred = np.einsum(sigma31_test_imgs, sigma_inds, FL321, F_inds, [1,0])
 		err_test.append(np.mean((pred - Y_test)**2))
-		class_test.append((np.argmax(pred,axis=0) == labels).sum())
+		class_test.append(1 - (np.argmax(pred,axis=0) == labels).sum()/10000.0)
 		
-		print err_test[-1], 1 - class_test[-1]/10000.0, time.time() - t_start, save_filename
-		savemat(save_filename, {'err_test': err_test, 'err_train': err_train, 
-			'class_test': class_test, 'class_train': class_train})
+		print err_test[-1], class_test[-1], time.time() - t_start, save_filename
+		savemat(save_filename, {'err_test': err_test, 'F1': F1, 'class_test': class_test})
 		t_start = time.time()
 	
