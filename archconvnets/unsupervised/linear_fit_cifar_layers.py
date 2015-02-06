@@ -7,9 +7,9 @@ from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds,
 
 N = 48
 N_INDS_KEEP = 10000
-N_INDS_UPDATE = 50
+N_INDS_UPDATE = 1000
 
-save_filename = '/home/darren/linear_fit_layers_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat'
+save_filename = '/home/darren/linear_fit_layers2_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat'
 
 z = loadmat('/home/darren/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat')
 
@@ -67,7 +67,7 @@ inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_ou
 sigma_inds = [0,2]
 F_inds = [1,2]
 
-EPS = 2.5e-3#2.5e-13#2.5e-14
+EPS = 2.5e2#2.5e-13#2.5e-14
 
 Y_test = np.zeros((N_C, sigma31_test_imgs.shape[0]))
 Y_test[labels, range(sigma31_test_imgs.shape[0])] = 1
@@ -77,10 +77,6 @@ class_test = []
 
 err_train = []
 err_test = []
-
-import gnumpy as gpu
-sigma31_g = gpu.garray(sigma31)
-sigma11_g = gpu.garray(sigma11)
 
 print 'starting'
 ########
@@ -99,28 +95,27 @@ for step in range(100000):
 	s = F_layer_sum_inds(FL32*sigma31_t, F1, F2, F3, FL, inds_keep_t, 1)
 	grad_F1 = uns - s
 	
-	FL31 = F_prod_inds(F1, np.ones_like(F2), F3, FL, inds_keep_t)
-	uns = F_layer_sum_deriv_inds(FL321, FL31, sigma11_t, F1, F2, F3, FL, inds_keep_t, 2)
-	s = F_layer_sum_inds(FL31*sigma31_t, F1, F2, F3, FL, inds_keep_t, 2)
-	grad_F2 = uns - s
+	#FL31 = F_prod_inds(F1, np.ones_like(F2), F3, FL, inds_keep_t)
+	#uns = F_layer_sum_deriv_inds(FL321, FL31, sigma11_t, F1, F2, F3, FL, inds_keep_t, 2)
+	#s = F_layer_sum_inds(FL31*sigma31_t, F1, F2, F3, FL, inds_keep_t, 2)
+	#grad_F2 = uns - s
 	
-	FL21 = F_prod_inds(F1, F2, np.ones_like(F3), FL, inds_keep_t)
-	uns = F_layer_sum_deriv_inds(FL321, FL21, sigma11_t, F1, F2, F3, FL, inds_keep_t, 3)
-	s = F_layer_sum_inds(FL21*sigma31_t, F1, F2, F3, FL, inds_keep_t, 3)
-	grad_F3 = uns - s
+	#FL21 = F_prod_inds(F1, F2, np.ones_like(F3), FL, inds_keep_t)
+	#uns = F_layer_sum_deriv_inds(FL321, FL21, sigma11_t, F1, F2, F3, FL, inds_keep_t, 3)
+	#s = F_layer_sum_inds(FL21*sigma31_t, F1, F2, F3, FL, inds_keep_t, 3)
+	#grad_F3 = uns - s
 	
-	F321 = F_prod_inds(F1, F2, F3, np.ones_like(FL), inds_keep_t)
-	uns = F_layer_sum_deriv_inds(FL321, F321, sigma11_t, F1, F2, F3, FL, inds_keep_t, 4)
-	s = F_layer_sum_inds(F321*sigma31_t, F1, F2, F3, FL, inds_keep_t, 4)
-	grad_FL = uns - s
+	#F321 = F_prod_inds(F1, F2, F3, np.ones_like(FL), inds_keep_t)
+	#uns = F_layer_sum_deriv_inds(FL321, F321, sigma11_t, F1, F2, F3, FL, inds_keep_t, 4)
+	#s = F_layer_sum_inds(F321*sigma31_t, F1, F2, F3, FL, inds_keep_t, 4)
+	#grad_FL = uns - s
 	
 	F1 -= EPS*grad_F1
-	F2 -= EPS*grad_F2
-	F3 -= EPS*grad_F3
-	FL -= EPS*grad_FL
+	#F2 -= EPS*grad_F2
+	#F3 -= EPS*grad_F3
+	#FL -= EPS*grad_FL
 	
-	#break
-	if (step % 10) == 0:
+	if (step % 100) == 0:
 		FL321 = F_prod_inds(F1, F2, F3, FL, inds_keep)
 		pred = np.einsum(sigma31_test_imgs, sigma_inds, FL321, F_inds, [1,0])
 		err_test.append(np.mean((pred - Y_test)**2))
