@@ -54,11 +54,11 @@ static PyObject *compute_F_layer_sum_deriv_inds(PyObject *self, PyObject *args){
 		dims[1] = n2;
 		dims[2] = s3;
 		dims[3] = s3;
-	/*}else if(layer_ind == 4){
+	}else if(layer_ind == 4){
 		dims[0] = N_C;
 		dims[1] = n3;
 		dims[2] = max_output_sz3;
-		dims[3] = max_output_sz3;*/
+		dims[3] = max_output_sz3;
 	}else{
 		printf("layer index (%i) not supported\n", layer_ind);
 		return NULL;
@@ -174,6 +174,8 @@ static PyObject *compute_F_layer_sum_deriv_inds(PyObject *self, PyObject *args){
 			}else if(layer_ind == 2 && f2_i == f2_j && f1_i == f1_j && a2_x_i == a2_x_j && a2_y_i == a2_y_j){
 				matching = 1;
 			}else if(layer_ind == 3 && f3_i == f3_j && f2_i == f2_j && a3_x_i == a3_x_j && a3_y_i == a3_y_j){
+				matching = 1;
+			}else if(layer_ind == 4 && f3_i == f3_j && z1_i == z1_j && z2_i == z2_j){
 				matching = 1;
 			}
 			
