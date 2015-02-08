@@ -2,6 +2,82 @@ import _sigma31_layers
 import time
 import numpy as np
 
+def F_layer_sum_deriv_inds_gpu(FL321, F_partial, sigma11, F1, F2, F3, FL, inds, layer_ind, warn=True):
+	assert isinstance(layer_ind,int)
+	assert F1.dtype == np.dtype('float32')
+	assert F2.dtype == np.dtype('float32')
+	assert F3.dtype == np.dtype('float32')
+	assert FL.dtype == np.dtype('float32')
+	assert FL321.dtype == np.dtype('float32')
+	assert F_partial.dtype == np.dtype('float32')
+
+	assert inds.dtype == np.dtype('int64')
+	assert FL321.shape == F_partial.shape
+	assert sigma11.shape[0] == sigma11.shape[1]
+	assert sigma11.shape[0] == FL321.shape[1]
+	assert np.min(inds) >= 0
+	assert len(inds.shape) == 1
+	assert len(sigma11.shape) == 2
+	assert np.prod(inds.shape) == FL321.shape[1]
+	assert FL321.shape[0] == FL.shape[0]
+	
+	assert F1.shape[-1] == F1.shape[-2]
+	assert F2.shape[-1] == F2.shape[-2]
+	assert F3.shape[-1] == F3.shape[-2]
+	assert FL.shape[-1] == FL.shape[-2]
+	
+	assert F2.shape[1] == F1.shape[0]
+	assert F2.shape[1] == F3.shape[0]
+	assert FL.shape[1] == F3.shape[0]
+	
+	n3 = F3.shape[0]
+	n2 = F2.shape[0]
+	n1 = F1.shape[0]
+	
+	s1 = F1.shape[-1]
+	s2 = F2.shape[-1]
+	s3 = F3.shape[-1]
+	max_output_sz3 = FL.shape[-1]
+	
+	assert np.max(inds) < (n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3)
+	
+	if not F_partial.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (F_partial)'
+		F_partial = np.ascontiguousarray(F_partial)
+	
+	if not FL321.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (FL321)'
+		FL321 = np.ascontiguousarray(FL321)
+	
+	if not F1.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (F1)'
+		F1 = np.ascontiguousarray(F1)
+	
+	if not F2.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (F2)'
+		F2 = np.ascontiguousarray(F2)
+	
+	if not F3.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (F3)'
+		F3 = np.ascontiguousarray(F3)
+	
+	if not FL.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (FL)'
+		FL = np.ascontiguousarray(FL)
+	
+	if not inds.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (inds)'
+		inds = np.ascontiguousarray(inds)
+	
+	return _sigma31_layers.compute_F_layer_sum_deriv_inds_gpu(FL321, F_partial, sigma11, F1, F2, F3, FL, inds, layer_ind)
+
 def F_layer_sum_deriv_inds(FL321, F_partial, sigma11, F1, F2, F3, FL, inds, layer_ind, warn=True):
 	assert isinstance(layer_ind,int)
 	assert F1.dtype == np.dtype('float32')

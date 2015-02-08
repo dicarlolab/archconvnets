@@ -8,7 +8,7 @@ from scipy.stats import zscore
 import random
 import copy
 
-N_INDS_KEEP = 100
+N_INDS_KEEP = 10000
 
 conv_block_cuda = cm.conv
 F1_scale = 0.01 # std of init normal distribution
@@ -25,7 +25,7 @@ IMG_SZ = 34#70#75# # input image size (px)
 img_train_offset = 0
 PAD = 2
 
-N = 48
+N = 2
 n1 = N # L1 filters
 n2 = N
 n3 = N

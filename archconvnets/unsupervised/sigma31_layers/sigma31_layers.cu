@@ -60,6 +60,7 @@ int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s[N_GPUS][N_SIGMA
 #include "compute_F_prod_inds.cu"
 #include "compute_F_layer_sum_inds.cu"
 #include "compute_F_layer_sum_deriv_inds.cu"
+#include "compute_F_layer_sum_deriv_inds_gpu.cu"
 
 static PyMethodDef _sigma31_layers[] = {
 	{"compute_sigma31_full_gpu", compute_sigma31_full_gpu, METH_VARARGS},
@@ -67,6 +68,7 @@ static PyMethodDef _sigma31_layers[] = {
 	{"compute_F_prod_inds", compute_F_prod_inds, METH_VARARGS},
 	{"compute_F_layer_sum_inds", compute_F_layer_sum_inds, METH_VARARGS},
 	{"compute_F_layer_sum_deriv_inds", compute_F_layer_sum_deriv_inds, METH_VARARGS},
+	{"compute_F_layer_sum_deriv_inds_gpu", compute_F_layer_sum_deriv_inds_gpu, METH_VARARGS},
 	{"compute_sigma11", compute_sigma11, METH_VARARGS},
 	{"compute_sigma11_gpu", compute_sigma11_gpu, METH_VARARGS},
 	{"max_pool_locs", max_pool_locs, METH_VARARGS},
