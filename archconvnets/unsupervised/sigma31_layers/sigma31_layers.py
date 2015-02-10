@@ -515,3 +515,14 @@ def compute_sigma11_gpu(patches, warn=True):
 		patches = np.ascontiguousarray(patches)
 	
 	return _sigma31_layers.compute_sigma11_gpu(patches)
+
+def compute_sigma11_lin_gpu(patches, warn=True):
+	assert len(patches.shape) == 2
+	assert patches.dtype == np.dtype('float32')
+	
+	if not patches.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (patches)'
+		patches = np.ascontiguousarray(patches)
+	
+	return _sigma31_layers.compute_sigma11_lin_gpu(patches)
