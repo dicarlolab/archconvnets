@@ -13,11 +13,12 @@ def F_layer_sum_deriv_inds_gpu(FL321, F_partial, sigma11, F1, F2, F3, FL, inds, 
 
 	assert inds.dtype == np.dtype('int64')
 	assert FL321.shape == F_partial.shape
-	assert sigma11.shape[0] == sigma11.shape[1]
-	assert sigma11.shape[0] == FL321.shape[1]
+	assert len(sigma11.shape) == 1
+	n_inds = np.prod(inds.shape)
+	assert np.prod(sigma11.shape) == (0.5*(n_inds-1)*n_inds + n_inds)
+	
 	assert np.min(inds) >= 0
 	assert len(inds.shape) == 1
-	assert len(sigma11.shape) == 2
 	assert np.prod(inds.shape) == FL321.shape[1]
 	assert FL321.shape[0] == FL.shape[0]
 	

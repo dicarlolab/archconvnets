@@ -1,7 +1,7 @@
 #define S11_IND(A,B)((B) - (A) + offsets_c[A])
 #define P_IND(A,B)((B) + (A)*(n_inds))
 
-__global__ void kernel_sigma11_lin(int n_inds, int N_IMGS, float *sigma11_c, float *patches_c, int *offsets_c, int ind_j_stride){
+__global__ void kernel_sigma11_lin(int n_inds, int N_IMGS, float *sigma11_c, float *patches_c, IND_DTYPE *offsets_c, int ind_j_stride){
 	int ind_i = blockIdx.x;
 	int ind_j_start = threadIdx.x * ind_j_stride;
 	
@@ -34,18 +34,18 @@ static PyObject *compute_sigma11_lin_gpu(PyObject *self, PyObject *args){
 	int dims[14], i;
 	
 	float *patches, *patches_c, *sigma11, *sigma11_c;
-	int *offsets_c;
+	IND_DTYPE *offsets_c;
 	
 	if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &patches_in)) return NULL;
 
 	if (NULL == patches_in)  return NULL;
 	
 	int N_IMGS = PyArray_DIM(patches_in, 0);
-	int n_inds = PyArray_DIM(patches_in, 1);
+	IND_DTYPE n_inds = PyArray_DIM(patches_in, 1);
 
 	patches = (float *) patches_in -> data;
 	
-	int n_pairs = 0.5*(n_inds-1)*n_inds + n_inds;
+	IND_DTYPE n_pairs = 0.5*(n_inds-1)*n_inds + n_inds;
 	
 	dims[0] = n_pairs;
 	sigma11_in = (PyArrayObject *) PyArray_FromDims(1, dims, NPY_FLOAT);
@@ -53,9 +53,9 @@ static PyObject *compute_sigma11_lin_gpu(PyObject *self, PyObject *args){
 	
 	/////////////////////////////////// offsets for indexing sigma11
 	// (square coordinates to raveled, ex: i,j -> k)
-	int * offsets = NULL;
+	IND_DTYPE * offsets = NULL;
 	
-	offsets = (int*)malloc(n_inds * sizeof(int));
+	offsets = (IND_DTYPE*)malloc(n_inds * sizeof(IND_DTYPE));
 	if(NULL == offsets) return NULL;
 	
 	offsets[0] = 0;
@@ -66,11 +66,11 @@ static PyObject *compute_sigma11_lin_gpu(PyObject *self, PyObject *args){
 	/////////////////////////////////////////// cuda mem
 	cudaMalloc((void**) &patches_c, N_IMGS*n_inds * DATA_TYPE_SZ); CHECK_CUDA_ERR
 	cudaMalloc((void**) &sigma11_c, n_pairs * DATA_TYPE_SZ); CHECK_CUDA_ERR
-	cudaMalloc((void**) &offsets_c, n_inds * sizeof(int)); CHECK_CUDA_ERR
+	cudaMalloc((void**) &offsets_c, n_inds * sizeof(IND_DTYPE)); CHECK_CUDA_ERR
 	
 	cudaMemcpy(patches_c, patches, N_IMGS*n_inds*DATA_TYPE_SZ, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
 	cudaMemcpy(sigma11_c, sigma11, n_pairs*DATA_TYPE_SZ, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
-	cudaMemcpy(offsets_c, offsets, n_inds * sizeof(int), cudaMemcpyHostToDevice);  CHECK_CUDA_ERR	
+	cudaMemcpy(offsets_c, offsets, n_inds * sizeof(IND_DTYPE), cudaMemcpyHostToDevice);  CHECK_CUDA_ERR	
 	
 	///////////////////////////
 	dim3 grid_sz;

@@ -2,13 +2,13 @@ import time
 import numpy as np
 from archconvnets.unsupervised.cudnn_module import cudnn_module as cm
 import archconvnets.unsupervised.sigma31_layers.sigma31_layers as sigma31_layers
-from archconvnets.unsupervised.sigma31_layers.sigma31_layers import max_pool_locs, patch_inds, compute_sigma11_gpu
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import max_pool_locs, patch_inds, compute_sigma11_lin_gpu
 from scipy.io import savemat, loadmat
 from scipy.stats import zscore
 import random
 import copy
 
-N_INDS_KEEP = 10000
+N_INDS_KEEP = 20000
 
 conv_block_cuda = cm.conv
 F1_scale = 0.01 # std of init normal distribution
@@ -25,7 +25,7 @@ IMG_SZ = 34#70#75# # input image size (px)
 img_train_offset = 0
 PAD = 2
 
-N = 2
+N = 16
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -57,11 +57,13 @@ F1 = zscore(F1,axis=None)/500
 F2 = zscore(F2,axis=None)/500
 F3 = zscore(F3,axis=None)/500
 
+N_PAIRS = 0.5*(N_INDS_KEEP-1)*N_INDS_KEEP + N_INDS_KEEP
+
 sigma31 = np.zeros((N_C, N_INDS_KEEP), dtype='single')
-sigma11 = np.zeros((N_INDS_KEEP, N_INDS_KEEP), dtype='single')
+sigma11 = np.zeros((N_PAIRS), dtype='single')
 
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
-for batch in range(1,7):
+for batch in [6]:#range(1,7):
 	t_start = time.time()
 	z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(batch))
 
@@ -106,11 +108,11 @@ for batch in range(1,7):
 	patches  = patch_inds(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C, inds_keep, warn=False)
 	print time.time() - t_patch
 	
-	if batch == 6:
-		break
+	#if batch == 6:
+	#	break
 		
 	t_start = time.time()
-	sigma11 += compute_sigma11_gpu(patches)
+	sigma11 += compute_sigma11_lin_gpu(patches)
 	print time.time() - t_start
 
 	for cat in range(N_C):

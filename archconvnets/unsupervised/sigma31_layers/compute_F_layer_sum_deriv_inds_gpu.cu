@@ -1,4 +1,5 @@
 #define P_IND(A,B)((B) + (A)*(n_inds))
+#define S11_INDa(A,B)((B) - (A) + offsets_c[A])
 
 #define F1S_IND(A, B, C, D)((D) + (C)*s1 + (B)*s1*s1 + (A)*s1*s1*3)
 #define F2S_IND(A, B, C, D)((D) + (C)*s2 + (B)*s2*s2 + (A)*s2*s2*n1)
@@ -6,6 +7,7 @@
 #define FLS_IND(A, B, C, D)((D) + (C)*max_output_sz3 + (B)*max_output_sz3_max_output_sz3 + (A)*max_output_sz3_max_output_sz3_n3)
 
 __global__ void kernel_F_layer_sum_deriv_inds(float * F_sum, float * FL321, float * F_partial, float * sigma11, IND_DTYPE * inds, 
+	IND_DTYPE * offsets_c,
 	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3,
 	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1, IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1,
 	IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2, IND_DTYPE max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2, 
@@ -70,7 +72,7 @@ __global__ void kernel_F_layer_sum_deriv_inds(float * F_sum, float * FL321, floa
 	////////////////////////////////////////////// unravel inds
 	int f1_j, channel_j, a1_x_j, a1_y_j, f2_j, a2_x_j, a2_y_j, f3_j, a3_x_j, a3_y_j, z1_j, z2_j;
 	int ind_j, cat;
-	float temp_sum = 0;
+	float temp_sum = 0, sigma11_temp;
 	
 	for(ind_j = ind_j_start; ind_j < max_j; ind_j++){
 		f1_j = inds[ind_j] / max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3;
@@ -118,12 +120,17 @@ __global__ void kernel_F_layer_sum_deriv_inds(float * F_sum, float * FL321, floa
 		}
 		
 		if(matching == 1){
+			if(ind_i <= ind_j)
+				sigma11_temp = sigma11[S11_INDa(ind_i, ind_j)];
+			else
+				sigma11_temp = sigma11[S11_INDa(ind_j, ind_i)];
+			
 			for(cat = 0; cat < N_C; cat++){
 				if(layer_ind == 4){
 					F_sum_ind = FLS_IND(cat, f3_i, z1_i, z2_i);
-					atomicAdd(&F_sum[F_sum_ind], FL321[P_IND(cat, ind_i)] * F_partial[P_IND(cat, ind_j)] * sigma11[ind_i + ind_j*n_inds]);
+					atomicAdd(&F_sum[F_sum_ind], FL321[P_IND(cat, ind_i)] * F_partial[P_IND(cat, ind_j)] * sigma11_temp);
 				}else{
-					temp_sum += FL321[P_IND(cat, ind_i)] * F_partial[P_IND(cat, ind_j)] * sigma11[ind_i + ind_j*n_inds];
+					temp_sum += FL321[P_IND(cat, ind_i)] * F_partial[P_IND(cat, ind_j)] * sigma11_temp;
 				}
 			} // cat
 		} // matching
@@ -141,9 +148,10 @@ static PyObject *compute_F_layer_sum_deriv_inds_gpu(PyObject *self, PyObject *ar
 	PyArrayObject *FL321_in, *F_sum_in, *F_partial_in; // F_partial: FL321 sans the layer the deriv. is take wrt
 	
 	int dims[14];
-	int layer_ind;
+	int layer_ind, i;
 	IND_DTYPE *inds;
 	float *FL321, *F_partial, *F_sum, *sigma11;
+	IND_DTYPE *offsets_c;
 	
 	if (!PyArg_ParseTuple(args, "O!O!O!O!O!O!O!O!i",  &PyArray_Type, &FL321_in, &PyArray_Type, &F_partial_in, &PyArray_Type, &sigma11_in, 
 		&PyArray_Type, &F1_in, &PyArray_Type, &F2_in, &PyArray_Type, &F3_in, &PyArray_Type, &FL_in, 
@@ -167,6 +175,8 @@ static PyObject *compute_F_layer_sum_deriv_inds_gpu(PyObject *self, PyObject *ar
 	IND_DTYPE s3 = PyArray_DIM(F3_in, 2);
 	IND_DTYPE n_inds = PyArray_DIM(inds_in, 0);
 	IND_DTYPE n0 = 3;
+	
+	IND_DTYPE n_pairs = 0.5*(n_inds-1)*n_inds + n_inds;
 	
 	if(layer_ind == 1){ // F1 inds
 		dims[0] = n1;
@@ -209,8 +219,17 @@ static PyObject *compute_F_layer_sum_deriv_inds_gpu(PyObject *self, PyObject *ar
 	
 	IND_DTYPE max_output_sz3_max_output_sz3_n3 = max_output_sz3*max_output_sz3*n3;
 	
-	IND_DTYPE F_sum_ind;
-	char matching;
+	/////////////////////////////////// offsets for indexing sigma11
+	// (square coordinates to raveled, ex: i,j -> k)
+	IND_DTYPE * offsets = NULL;
+	
+	offsets = (IND_DTYPE*)malloc(n_inds * sizeof(IND_DTYPE));
+	if(NULL == offsets) return NULL;
+	
+	offsets[0] = 0;
+	for(i = 1; i < n_inds; i++){
+		offsets[i] = offsets[i-1] + n_inds - i + 1;
+	}
 	
 	//////////// cuda mem
 	float * F_sum_c, *FL321_c, *F_partial_c, *sigma11_c;
@@ -219,14 +238,16 @@ static PyObject *compute_F_layer_sum_deriv_inds_gpu(PyObject *self, PyObject *ar
 	cudaMalloc((void**) &F_sum_c, dims[0]*dims[1]*dims[2]*dims[3] * DATA_TYPE_SZ); CHECK_CUDA_ERR
 	cudaMalloc((void**) &FL321_c, N_C*n_inds * DATA_TYPE_SZ); CHECK_CUDA_ERR
 	cudaMalloc((void**) &F_partial_c, N_C*n_inds * DATA_TYPE_SZ); CHECK_CUDA_ERR
-	cudaMalloc((void**) &sigma11_c, n_inds*n_inds * DATA_TYPE_SZ); CHECK_CUDA_ERR
+	cudaMalloc((void**) &sigma11_c, n_pairs * DATA_TYPE_SZ); CHECK_CUDA_ERR
 	cudaMalloc((void**) &inds_c, n_inds * sizeof(IND_DTYPE)); CHECK_CUDA_ERR
+	cudaMalloc((void**) &offsets_c, n_inds * sizeof(IND_DTYPE)); CHECK_CUDA_ERR
 	
 	cudaMemcpy(F_sum_c, F_sum, dims[0]*dims[1]*dims[2]*dims[3]*DATA_TYPE_SZ, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
 	cudaMemcpy(FL321_c, FL321, N_C*n_inds*DATA_TYPE_SZ, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
 	cudaMemcpy(F_partial_c, F_partial, N_C*n_inds*DATA_TYPE_SZ, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
-	cudaMemcpy(sigma11_c, sigma11, n_inds*n_inds*DATA_TYPE_SZ, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
+	cudaMemcpy(sigma11_c, sigma11, n_pairs*DATA_TYPE_SZ, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
 	cudaMemcpy(inds_c, inds, n_inds * sizeof(IND_DTYPE), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
+	cudaMemcpy(offsets_c, offsets, n_inds * sizeof(IND_DTYPE), cudaMemcpyHostToDevice);  CHECK_CUDA_ERR	
 	
 	//////////////
 	// can we index directly or do we need to stride?
@@ -238,9 +259,9 @@ static PyObject *compute_F_layer_sum_deriv_inds_gpu(PyObject *self, PyObject *ar
 		thread_sz = 1024;
 		ind_j_stride = ceil(n_inds/1024.0);
 	}
-	printf("%i\n", ind_j_stride);
+	
 	///////////////////////////////
-	kernel_F_layer_sum_deriv_inds <<<n_inds,thread_sz>>>(F_sum_c, FL321_c, F_partial_c, sigma11_c, inds_c, 
+	kernel_F_layer_sum_deriv_inds <<<n_inds,thread_sz>>>(F_sum_c, FL321_c, F_partial_c, sigma11_c, inds_c, offsets_c,
 		max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3,
 		max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1, max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1,
 		max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2, max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2, 
@@ -257,6 +278,8 @@ static PyObject *compute_F_layer_sum_deriv_inds_gpu(PyObject *self, PyObject *ar
 	cudaFree(F_partial_c);
 	cudaFree(sigma11_c);
 	cudaFree(inds_c);
+	cudaFree(offsets_c);
+	free(offsets);
 	
 	return PyArray_Return(F_sum_in);
 }
