@@ -39,6 +39,8 @@ int N_C, n1, n0, s1, n2, s2, n3, s3, max_output_sz3;
 // GPU pointers, one for each GPU
 float *F1s_c[N_GPUS], *F2s_c[N_GPUS], *F3s_c[N_GPUS], *FLs_c[N_GPUS];
 float *sigma31s_c[N_GPUS][N_SIGMAS]; // second dimension is the layer, generally not all GPUs will have all sigmas.
+float *sigma11s_c[N_GPUS];
+IND_DTYPE sigma11_len[N_GPUS];
 
 int n1s[N_GPUS][N_SIGMAS], n0s[N_GPUS][N_SIGMAS], s1s[N_GPUS][N_SIGMAS], n2s[N_GPUS][N_SIGMAS], s2s[N_GPUS][N_SIGMAS], n3s[N_GPUS][N_SIGMAS], s3s[N_GPUS][N_SIGMAS], max_output_sz3s[N_GPUS][N_SIGMAS];
 
@@ -48,6 +50,7 @@ int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s[N_GPUS][N_SIGMA
 	max_output_sz3_max_output_sz3_s3s[N_GPUS][N_SIGMAS], max_output_sz3_max_output_sz3s[N_GPUS][N_SIGMAS], z2b[N_GPUS][N_SIGMAS];
 
 #include "set_sigma_buffer.c"
+#include "set_sigma11_buffer.c"
 #include "einsum_deriv_gpu.cu"
 #include "einsum_return.cu"
 #include "set_filter_buffers.cu"
@@ -75,6 +78,7 @@ static PyMethodDef _sigma31_layers[] = {
 	{"max_pool_locs", max_pool_locs, METH_VARARGS},
 	{"einsum_deriv_gpu", einsum_deriv_gpu, METH_VARARGS},
 	{"set_sigma_buffer", set_sigma_buffer, METH_VARARGS},
+	{"set_sigma11_buffer", set_sigma11_buffer, METH_VARARGS},
 	{"set_filter_buffers", set_filter_buffers, METH_VARARGS},
 	{"einsum_return", einsum_return, METH_VARARGS},
 	{"compute_sigma11_lin_gpu", compute_sigma11_lin_gpu, METH_VARARGS},

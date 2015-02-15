@@ -8,8 +8,8 @@ from scipy.stats import zscore
 import random
 import copy
 
-batch_sz = 1000
-N_INDS_KEEP = 2000
+batch_sz = 500
+N_INDS_KEEP = 20000
 
 conv_block_cuda = cm.conv
 F1_scale = 0.01 # std of init normal distribution
@@ -26,7 +26,7 @@ IMG_SZ = 34#70#75# # input image size (px)
 img_train_offset = 0
 PAD = 2
 
-N = 4
+N = 6
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -65,7 +65,7 @@ imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean
 for batch in range(1,7):
 	t_start = time.time()
 	z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(batch))
-	for s_batch in range(10):
+	for s_batch in range(20):
 		################### compute train err
 		# load imgs
 		x = z['data'] - imgs_mean
@@ -103,7 +103,7 @@ for batch in range(1,7):
 
 		print time.time() - t_forward_start
 
-		np.random.seed(6666 + batch_ind)
+		np.random.seed(6666 )#+ batch_ind)
 		inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
 		
 		t_patch = time.time()
@@ -122,5 +122,5 @@ for batch in range(1,7):
 		print batch_ind, batch, time.time() - t_start
 
 
-		savemat('/export/imgnet_storage_full/sigma31_4_50batches/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '_' + str(batch_ind) + '.mat',{'sigma11':sigma11, 'sigma31':sigma31, 'patches':patches,'labels':labels})
+		savemat('/export/imgnet_storage_full/sigma31_2_100batches/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '_' + str(batch_ind) + '.mat',{'sigma11':sigma11, 'sigma31':sigma31, 'patches':patches,'labels':labels})
 		batch_ind += 1

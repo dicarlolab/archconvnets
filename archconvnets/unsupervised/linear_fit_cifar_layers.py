@@ -3,24 +3,24 @@ from scipy.stats import zscore
 from scipy.io import savemat, loadmat
 import time
 import random
-from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds, F_layer_sum_deriv_inds_gpu, F_layer_sum_inds
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds, F_layer_sum_deriv_inds_gpu, F_layer_sum_inds, set_sigma11_buffer
 
 #kernprof -l linear_fit_cifar_layers.py
 #python -m line_profiler linear_fit_cifar_layers.py.lprof  > p
 
 #@profile
 #def sf():
-N = 16
-N_INDS_KEEP = 5000
-N_INDS_UPDATE = 10000
-EPS = 1e-2
+N = 4
+N_INDS_KEEP = 2500
+N_INDS_UPDATE = 1000
+EPS = 1e-5
 sub_select_inds = False
 
 WD = 0
 
-save_filename = '/home/darren/linear_fit_layers_no_noise_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat'
+save_filename = '/home/darren/linear_fit_layers_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat'
 
-z = loadmat('/home/darren/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat')
+z = loadmat('/export/imgnet_storage_full/sigma31_inds/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '_0.mat')
 
 sigma31 = z['sigma31']
 sigma31_test_imgs = z['patches']
@@ -91,62 +91,59 @@ NOISE_STD = 5e2
 t_start = time.time()
 
 step = 0
-while True:
-	#F1 = zscore(F1,axis=None)/500
-	#F2 = zscore(F2,axis=None)/500
-	#F3 = zscore(F3,axis=None)/500
-	#FL = zscore(FL,axis=None)/500
-	
-	if sub_select_inds == True:
-		inds_inds = np.random.randint(N_INDS_KEEP, size=N_INDS_UPDATE)
-		
-		inds_keep_t = inds_keep[inds_inds]
-		sigma11_t = np.ascontiguousarray(sigma11[inds_inds][:, inds_inds])
-		sigma31_t = np.ascontiguousarray(sigma31[:, inds_inds])
-	
+s_batch = 0#(step % 179) + 1
+z = loadmat('/export/imgnet_storage_full/sigma31_inds/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '_' + str(s_batch) + '.mat')
+
+sigma31 = z['sigma31']
+sigma11 = np.ascontiguousarray(np.squeeze(z['sigma11']))
+set_sigma11_buffer(sigma11, 0)
+
+np.random.seed(6666 + s_batch)
+inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
+
+inds_keep_t = inds_keep
+sigma11_t = sigma11
+sigma31_t = sigma31
+
+while True:	
+	t = time.time()
 	FL321 = F_prod_inds(F1, F2, F3, FL, inds_keep_t)
 	
 	FL32 = F_prod_inds(np.ones_like(F1), F2, F3, FL, inds_keep_t)
-	uns = F_layer_sum_deriv_inds_gpu(FL321, FL32, sigma11_t, F1, F2, F3, FL, inds_keep_t, 1)
+	uns = F_layer_sum_deriv_inds_gpu(FL321, FL32, F1, F2, F3, FL, inds_keep_t, 1, 0)
 	s = F_layer_sum_inds(FL32*sigma31_t, F1, F2, F3, FL, inds_keep_t, 1)
 	grad_F1 = uns - s
 	
 	FL31 = F_prod_inds(F1, np.ones_like(F2), F3, FL, inds_keep_t)
-	uns = F_layer_sum_deriv_inds_gpu(FL321, FL31, sigma11_t, F1, F2, F3, FL, inds_keep_t, 2)
+	uns = F_layer_sum_deriv_inds_gpu(FL321, FL31, F1, F2, F3, FL, inds_keep_t, 2, 0)
 	s = F_layer_sum_inds(FL31*sigma31_t, F1, F2, F3, FL, inds_keep_t, 2)
 	grad_F2 = uns - s
 	
 	FL21 = F_prod_inds(F1, F2, np.ones_like(F3), FL, inds_keep_t)
-	uns = F_layer_sum_deriv_inds_gpu(FL321, FL21, sigma11_t, F1, F2, F3, FL, inds_keep_t, 3)
+	uns = F_layer_sum_deriv_inds_gpu(FL321, FL21, F1, F2, F3, FL, inds_keep_t, 3, 0)
 	s = F_layer_sum_inds(FL21*sigma31_t, F1, F2, F3, FL, inds_keep_t, 3)
 	grad_F3 = uns - s
 	
 	F321 = F_prod_inds(F1, F2, F3, np.ones_like(FL), inds_keep_t)
-	uns = F_layer_sum_deriv_inds_gpu(FL321, F321, sigma11_t, F1, F2, F3, FL, inds_keep_t, 4)
+	uns = F_layer_sum_deriv_inds_gpu(FL321, F321, F1, F2, F3, FL, inds_keep_t, 4, 0)
 	s = F_layer_sum_inds(F321*sigma31_t, F1, F2, F3, FL, inds_keep_t, 4)
 	grad_FL = uns - s
-	
-	#F1 -= EPS*zscore(grad_F1 + WD*F1 + np.random.normal(scale=NOISE_STD*np.std(grad_F1), size=F1.shape),axis=None)
-	#F2 -= EPS*zscore(grad_F2 + WD*F2 + np.random.normal(scale=NOISE_STD*np.std(grad_F2), size=F2.shape),axis=None)
-	#F3 -= EPS*zscore(grad_F3 + WD*F3 + np.random.normal(scale=NOISE_STD*np.std(grad_F3), size=F3.shape),axis=None)
-	#FL -= EPS*zscore(grad_FL + WD*FL + np.random.normal(scale=NOISE_STD*np.std(grad_FL), size=FL.shape),axis=None)
 	
 	F1 -= EPS*grad_F1
 	F2 -= EPS*grad_F2
 	F3 -= EPS*grad_F3
 	FL -= EPS*grad_FL
-	#F1 -= EPS*zscore(grad_F1 + WD*F1,axis=None)# + np.random.normal(scale=NOISE_STD*np.std(grad_F1), size=F1.shape),axis=None)
-	#F2 -= EPS*zscore(grad_F2 + WD*F2,axis=None)# + np.random.normal(scale=NOISE_STD*np.std(grad_F2), size=F2.shape),axis=None)
-	#F3 -= EPS*zscore(grad_F3 + WD*F3,axis=None)# + np.random.normal(scale=NOISE_STD*np.std(grad_F3), size=F3.shape),axis=None)
-	#FL -= EPS*zscore(grad_FL + WD*FL,axis=None)# + np.random.normal(scale=NOISE_STD*np.std(grad_FL), size=FL.shape),axis=None)
-	
-	if (step % 2) == 0:
+	#print time.time() - t
+	if (step % 50) == 0:
+		np.random.seed(6666)
+		inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
+		
 		FL321 = F_prod_inds(F1, F2, F3, FL, inds_keep)
 		pred = np.einsum(sigma31_test_imgs, sigma_inds, FL321, F_inds, [1,0])
 		err_test.append(np.mean((pred - Y_test)**2))
 		class_test.append(1 - (np.argmax(pred,axis=0) == labels).sum()/10000.0)
 		
-		print err_test[-1], class_test[-1], time.time() - t_start, save_filename
+		print err_test[-1], step, class_test[-1], time.time() - t_start, save_filename
 		savemat(save_filename, {'err_test': err_test, 'F1': F1, 'class_test': class_test})
 		t_start = time.time()
 	step += 1

@@ -144,26 +144,31 @@ __global__ void kernel_F_layer_sum_deriv_inds(float * F_sum, float * FL321, floa
 // layer_ind defines which layer to keep
 static PyObject *compute_F_layer_sum_deriv_inds_gpu(PyObject *self, PyObject *args){
 	cudaError_t err;
-	PyArrayObject *F1_in, *F2_in, *F3_in, *FL_in, *inds_in, *sigma11_in;
+	PyArrayObject *F1_in, *F2_in, *F3_in, *FL_in, *inds_in;
 	PyArrayObject *FL321_in, *F_sum_in, *F_partial_in; // F_partial: FL321 sans the layer the deriv. is take wrt
 	
 	int dims[14];
-	int layer_ind, i;
+	int layer_ind, i, gpu_ind;
 	IND_DTYPE *inds;
-	float *FL321, *F_partial, *F_sum, *sigma11;
+	float *FL321, *F_partial, *F_sum;
 	IND_DTYPE *offsets_c;
 	
-	if (!PyArg_ParseTuple(args, "O!O!O!O!O!O!O!O!i",  &PyArray_Type, &FL321_in, &PyArray_Type, &F_partial_in, &PyArray_Type, &sigma11_in, 
+	if (!PyArg_ParseTuple(args, "O!O!O!O!O!O!O!ii",  &PyArray_Type, &FL321_in, &PyArray_Type, &F_partial_in, 
 		&PyArray_Type, &F1_in, &PyArray_Type, &F2_in, &PyArray_Type, &F3_in, &PyArray_Type, &FL_in, 
-		&PyArray_Type, &inds_in, &layer_ind)) return NULL;
+		&PyArray_Type, &inds_in, &layer_ind, &gpu_ind)) return NULL;
 
-	if (NULL == FL321_in || NULL == F_partial_in || NULL == sigma11_in ||
-		NULL == F1_in || NULL == F2_in || NULL == F3_in || NULL == FL_in)  return NULL;
+	if (NULL == FL321_in || NULL == F_partial_in ||	NULL == F1_in || NULL == F2_in || NULL == F3_in || NULL == FL_in)  return NULL;
 
+	if(gpu_ind < 0 || gpu_ind > N_GPUS){
+		printf("invalid gpu index %i\n", gpu_ind);
+		return NULL;
+	}
+	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	
 	inds = (IND_DTYPE *) inds_in -> data;
 	FL321 = (float *) FL321_in -> data;
 	F_partial = (float *) F_partial_in -> data;
-	sigma11 = (float *) sigma11_in -> data;
 	
 	IND_DTYPE N_C = PyArray_DIM(FL_in, 0);
 	IND_DTYPE max_output_sz3 = PyArray_DIM(FL_in, 2);
@@ -177,6 +182,13 @@ static PyObject *compute_F_layer_sum_deriv_inds_gpu(PyObject *self, PyObject *ar
 	IND_DTYPE n0 = 3;
 	
 	IND_DTYPE n_pairs = 0.5*(n_inds-1)*n_inds + n_inds;
+	
+	if(n_pairs != sigma11_len[gpu_ind]){
+		printf("sigma11 length (%i) not matching number of pairs (%i) computed from the number of indices (%i) for gpu %i\n",
+			sigma11_len[gpu_ind], n_pairs, n_inds, gpu_ind);
+		printf("make sure the sigma11 buffer is properly initialized by set_sigma11_buffer() before calling this function\n");
+		return NULL;
+	}
 	
 	if(layer_ind == 1){ // F1 inds
 		dims[0] = n1;
@@ -232,20 +244,18 @@ static PyObject *compute_F_layer_sum_deriv_inds_gpu(PyObject *self, PyObject *ar
 	}
 	
 	//////////// cuda mem
-	float * F_sum_c, *FL321_c, *F_partial_c, *sigma11_c;
+	float * F_sum_c, *FL321_c, *F_partial_c;
 	IND_DTYPE *inds_c;
 	
 	cudaMalloc((void**) &F_sum_c, dims[0]*dims[1]*dims[2]*dims[3] * DATA_TYPE_SZ); CHECK_CUDA_ERR
 	cudaMalloc((void**) &FL321_c, N_C*n_inds * DATA_TYPE_SZ); CHECK_CUDA_ERR
 	cudaMalloc((void**) &F_partial_c, N_C*n_inds * DATA_TYPE_SZ); CHECK_CUDA_ERR
-	cudaMalloc((void**) &sigma11_c, n_pairs * DATA_TYPE_SZ); CHECK_CUDA_ERR
 	cudaMalloc((void**) &inds_c, n_inds * sizeof(IND_DTYPE)); CHECK_CUDA_ERR
 	cudaMalloc((void**) &offsets_c, n_inds * sizeof(IND_DTYPE)); CHECK_CUDA_ERR
 	
 	cudaMemcpy(F_sum_c, F_sum, dims[0]*dims[1]*dims[2]*dims[3]*DATA_TYPE_SZ, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
 	cudaMemcpy(FL321_c, FL321, N_C*n_inds*DATA_TYPE_SZ, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
 	cudaMemcpy(F_partial_c, F_partial, N_C*n_inds*DATA_TYPE_SZ, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
-	cudaMemcpy(sigma11_c, sigma11, n_pairs*DATA_TYPE_SZ, cudaMemcpyHostToDevice);  CHECK_CUDA_ERR
 	cudaMemcpy(inds_c, inds, n_inds * sizeof(IND_DTYPE), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
 	cudaMemcpy(offsets_c, offsets, n_inds * sizeof(IND_DTYPE), cudaMemcpyHostToDevice);  CHECK_CUDA_ERR	
 	
@@ -261,7 +271,7 @@ static PyObject *compute_F_layer_sum_deriv_inds_gpu(PyObject *self, PyObject *ar
 	}
 	
 	///////////////////////////////
-	kernel_F_layer_sum_deriv_inds <<<n_inds,thread_sz>>>(F_sum_c, FL321_c, F_partial_c, sigma11_c, inds_c, offsets_c,
+	kernel_F_layer_sum_deriv_inds <<<n_inds,thread_sz>>>(F_sum_c, FL321_c, F_partial_c, sigma11s_c[gpu_ind], inds_c, offsets_c,
 		max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3,
 		max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1, max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1,
 		max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2, max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2, 
@@ -276,7 +286,6 @@ static PyObject *compute_F_layer_sum_deriv_inds_gpu(PyObject *self, PyObject *ar
 	cudaFree(F_sum_c);
 	cudaFree(FL321_c);
 	cudaFree(F_partial_c);
-	cudaFree(sigma11_c);
 	cudaFree(inds_c);
 	cudaFree(offsets_c);
 	free(offsets);
