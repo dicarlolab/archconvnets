@@ -11,9 +11,9 @@ from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds,
 #@profile
 #def sf():
 N = 4
-N_INDS_KEEP = 7500
+N_INDS_KEEP = 20000
 N_INDS_UPDATE = 1000
-EPS = 1e-8
+EPS = 1e-6
 sub_select_inds = False
 
 WD = 0
@@ -140,7 +140,7 @@ while True:
 	
 	#print time.time() - t
 	
-	if (step % 100) == 0:
+	if (step % 10) == 0:
 		np.random.seed(6666)
 		inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
 		

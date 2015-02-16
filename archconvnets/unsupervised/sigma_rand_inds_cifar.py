@@ -9,7 +9,7 @@ import random
 import copy
 import os
 
-N_INDS_KEEP = 2500
+N_INDS_KEEP = 20000
 
 conv_block_cuda = cm.conv
 F1_scale = 0.01 # std of init normal distribution
