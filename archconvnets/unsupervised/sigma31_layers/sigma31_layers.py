@@ -2,25 +2,15 @@ import _sigma31_layers
 import time
 import numpy as np
 
-def F_layer_sum_deriv_inds_gpu(FL321, F_partial, F1, F2, F3, FL, inds, layer_ind, gpu_ind, warn=True):
+def F_layer_sum_deriv_inds_gpu(F_partial, F1, F2, F3, FL, layer_ind, gpu_ind, warn=True):
 	assert isinstance(layer_ind,int)
 	assert isinstance(gpu_ind,int)
 	assert F1.dtype == np.dtype('float32')
 	assert F2.dtype == np.dtype('float32')
 	assert F3.dtype == np.dtype('float32')
 	assert FL.dtype == np.dtype('float32')
-	assert FL321.dtype == np.dtype('float32')
 	assert F_partial.dtype == np.dtype('float32')
 
-	assert inds.dtype == np.dtype('int64')
-	assert FL321.shape == F_partial.shape
-	n_inds = np.prod(inds.shape)
-	
-	assert np.min(inds) >= 0
-	assert len(inds.shape) == 1
-	assert np.prod(inds.shape) == FL321.shape[1]
-	assert FL321.shape[0] == FL.shape[0]
-	
 	assert F1.shape[-1] == F1.shape[-2]
 	assert F2.shape[-1] == F2.shape[-2]
 	assert F3.shape[-1] == F3.shape[-2]
@@ -29,6 +19,7 @@ def F_layer_sum_deriv_inds_gpu(FL321, F_partial, F1, F2, F3, FL, inds, layer_ind
 	assert F2.shape[1] == F1.shape[0]
 	assert F2.shape[1] == F3.shape[0]
 	assert FL.shape[1] == F3.shape[0]
+	assert FL.shape[0] == F_partial.shape[0]
 	
 	n3 = F3.shape[0]
 	n2 = F2.shape[0]
@@ -39,17 +30,12 @@ def F_layer_sum_deriv_inds_gpu(FL321, F_partial, F1, F2, F3, FL, inds, layer_ind
 	s3 = F3.shape[-1]
 	max_output_sz3 = FL.shape[-1]
 	
-	assert np.max(inds) < (n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3)
+	#assert np.max(inds) < (n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3)
 	
 	if not F_partial.flags.contiguous:
 		if warn:
 			print 'warning: input not C-contiguous (F_partial)'
 		F_partial = np.ascontiguousarray(F_partial)
-	
-	if not FL321.flags.contiguous:
-		if warn:
-			print 'warning: input not C-contiguous (FL321)'
-		FL321 = np.ascontiguousarray(FL321)
 	
 	if not F1.flags.contiguous:
 		if warn:
@@ -71,12 +57,7 @@ def F_layer_sum_deriv_inds_gpu(FL321, F_partial, F1, F2, F3, FL, inds, layer_ind
 			print 'warning: input not C-contiguous (FL)'
 		FL = np.ascontiguousarray(FL)
 	
-	if not inds.flags.contiguous:
-		if warn:
-			print 'warning: input not C-contiguous (inds)'
-		inds = np.ascontiguousarray(inds)
-	
-	return _sigma31_layers.compute_F_layer_sum_deriv_inds_gpu(FL321, F_partial, F1, F2, F3, FL, inds, layer_ind, gpu_ind)
+	return _sigma31_layers.compute_F_layer_sum_deriv_inds_gpu(F_partial, F1, F2, F3, FL, layer_ind, gpu_ind)
 
 
 def F_layer_sum_inds(FL321, F1, F2, F3, FL, inds, layer_ind, warn=True):
@@ -379,8 +360,11 @@ def set_sigma_buffer(sigma31, layer_ind, gpu_ind):
 	
 	return _sigma31_layers.set_sigma_buffer(sigma31, layer_ind, gpu_ind, 0) # last arg is for showing warnings of previously set sigma buffers
 
-def set_sigma11_buffer(sigma11, gpu_ind):
+def set_sigma11_buffer(sigma11, inds, gpu_ind):
 	assert len(sigma11.shape) == 1
+	assert len(inds.shape) == 1
+	assert inds.dtype == np.dtype('int64')
+	assert np.min(inds) >= 0
 	
 	assert isinstance(gpu_ind,int)
 	
@@ -389,8 +373,31 @@ def set_sigma11_buffer(sigma11, gpu_ind):
 	if not sigma11.flags.contiguous:
 		print 'warning: input not C-contiguous (sigma11)'
 		sigma11 = np.ascontiguousarray(sigma11)
+		
+	if not inds.flags.contiguous:
+		print 'warning: input not C-contiguous (inds)'
+		inds = np.ascontiguousarray(inds)
 	
-	return _sigma31_layers.set_sigma11_buffer(sigma11, gpu_ind)
+	return _sigma31_layers.set_sigma11_buffer(sigma11, inds, gpu_ind)
+
+def F_layer_sum_deriv_inds_gpu_return(layer_ind, gpu_ind):
+	assert isinstance(layer_ind,int)
+	assert isinstance(gpu_ind,int)
+	
+	return _sigma31_layers.compute_F_layer_sum_deriv_inds_gpu_return(layer_ind, gpu_ind)
+
+def set_FL321_buffer(FL321, gpu_ind):
+	assert len(FL321.shape) == 2
+	
+	assert isinstance(gpu_ind,int)
+	
+	assert FL321.dtype == np.dtype('float32')
+	
+	if not FL321.flags.contiguous:
+		print 'warning: input not C-contiguous (FL321)'
+		FL321 = np.ascontiguousarray(FL321)
+	
+	return _sigma31_layers.set_FL321_buffer(FL321, gpu_ind)
 
 def set_filter_buffers(F1, F2, F3, FL, gpu_ind):
 	assert isinstance(gpu_ind,int)

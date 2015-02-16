@@ -40,7 +40,13 @@ int N_C, n1, n0, s1, n2, s2, n3, s3, max_output_sz3;
 float *F1s_c[N_GPUS], *F2s_c[N_GPUS], *F3s_c[N_GPUS], *FLs_c[N_GPUS];
 float *sigma31s_c[N_GPUS][N_SIGMAS]; // second dimension is the layer, generally not all GPUs will have all sigmas.
 float *sigma11s_c[N_GPUS];
-IND_DTYPE sigma11_len[N_GPUS];
+IND_DTYPE sigma11_len[N_GPUS], *inds_c[N_GPUS], *offsets_c[N_GPUS];
+IND_DTYPE n_inds[N_GPUS], n_inds_FL321[N_GPUS];
+int N_Cs[N_GPUS];
+float *FL321s_c[N_GPUS];
+
+float *F_sum_c[N_GPUS][5], *F_partial_c[N_GPUS][5];
+int dims_F_sum[N_GPUS][5][4];
 
 int n1s[N_GPUS][N_SIGMAS], n0s[N_GPUS][N_SIGMAS], s1s[N_GPUS][N_SIGMAS], n2s[N_GPUS][N_SIGMAS], s2s[N_GPUS][N_SIGMAS], n3s[N_GPUS][N_SIGMAS], s3s[N_GPUS][N_SIGMAS], max_output_sz3s[N_GPUS][N_SIGMAS];
 
@@ -51,6 +57,7 @@ int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s[N_GPUS][N_SIGMA
 
 #include "set_sigma_buffer.c"
 #include "set_sigma11_buffer.c"
+#include "set_FL321_buffer.c"
 #include "einsum_deriv_gpu.cu"
 #include "einsum_return.cu"
 #include "set_filter_buffers.cu"
@@ -64,6 +71,7 @@ int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s[N_GPUS][N_SIGMA
 #include "compute_F_layer_sum_inds.cu"
 #include "compute_F_layer_sum_deriv_inds.cu"
 #include "compute_F_layer_sum_deriv_inds_gpu.cu"
+#include "compute_F_layer_sum_deriv_inds_gpu_return.cu"
 #include "compute_sigma11_lin_gpu.cu"
 
 static PyMethodDef _sigma31_layers[] = {
@@ -73,12 +81,14 @@ static PyMethodDef _sigma31_layers[] = {
 	{"compute_F_layer_sum_inds", compute_F_layer_sum_inds, METH_VARARGS},
 	{"compute_F_layer_sum_deriv_inds", compute_F_layer_sum_deriv_inds, METH_VARARGS},
 	{"compute_F_layer_sum_deriv_inds_gpu", compute_F_layer_sum_deriv_inds_gpu, METH_VARARGS},
+	{"compute_F_layer_sum_deriv_inds_gpu_return", compute_F_layer_sum_deriv_inds_gpu_return, METH_VARARGS},
 	{"compute_sigma11", compute_sigma11, METH_VARARGS},
 	{"compute_sigma11_gpu", compute_sigma11_gpu, METH_VARARGS},
 	{"max_pool_locs", max_pool_locs, METH_VARARGS},
 	{"einsum_deriv_gpu", einsum_deriv_gpu, METH_VARARGS},
 	{"set_sigma_buffer", set_sigma_buffer, METH_VARARGS},
 	{"set_sigma11_buffer", set_sigma11_buffer, METH_VARARGS},
+	{"set_FL321_buffer", set_FL321_buffer, METH_VARARGS},
 	{"set_filter_buffers", set_filter_buffers, METH_VARARGS},
 	{"einsum_return", einsum_return, METH_VARARGS},
 	{"compute_sigma11_lin_gpu", compute_sigma11_lin_gpu, METH_VARARGS},
@@ -100,6 +110,18 @@ extern "C" void init_sigma31_layers(){
 		F2s_c[gpu] = 0;
 		F3s_c[gpu] = 0;
 		FLs_c[gpu] = 0;
+		
+		sigma11s_c[gpu] = 0;
+		FL321s_c[gpu] = 0;
+		
+		N_Cs[gpu] = 0;
+		n_inds[gpu] = 0;
+		n_inds_FL321[gpu] = 0;
+		
+		for(int layer = 0; layer < 5; layer++){
+			F_sum_c[gpu][layer] = 0;
+			F_partial_c[gpu][layer] = 0;
+		}
 	}
 	return;
 } 

@@ -3,7 +3,7 @@ from scipy.stats import zscore
 from scipy.io import savemat, loadmat
 import time
 import random
-from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds, F_layer_sum_deriv_inds_gpu, F_layer_sum_inds, set_sigma11_buffer
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds, F_layer_sum_deriv_inds_gpu, F_layer_sum_deriv_inds_gpu_return, F_layer_sum_inds, set_sigma11_buffer, set_FL321_buffer
 
 #kernprof -l linear_fit_cifar_layers.py
 #python -m line_profiler linear_fit_cifar_layers.py.lprof  > p
@@ -13,7 +13,7 @@ from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds,
 N = 4
 N_INDS_KEEP = 2500
 N_INDS_UPDATE = 1000
-EPS = 1e-5
+EPS = 1e-6
 sub_select_inds = False
 
 WD = 0
@@ -96,44 +96,52 @@ z = loadmat('/export/imgnet_storage_full/sigma31_inds/sigmas_' + str(N) + '_' + 
 
 sigma31 = z['sigma31']
 sigma11 = np.ascontiguousarray(np.squeeze(z['sigma11']))
-set_sigma11_buffer(sigma11, 0)
 
 np.random.seed(6666 + s_batch)
 inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
 
+for gpu in range(4):
+	set_sigma11_buffer(sigma11, inds_keep, gpu)
+
 inds_keep_t = inds_keep
-sigma11_t = sigma11
 sigma31_t = sigma31
 
 while True:	
 	t = time.time()
+	
 	FL321 = F_prod_inds(F1, F2, F3, FL, inds_keep_t)
+	for gpu in range(4):
+		set_FL321_buffer(FL321, gpu)
 	
 	FL32 = F_prod_inds(np.ones_like(F1), F2, F3, FL, inds_keep_t)
-	uns = F_layer_sum_deriv_inds_gpu(FL321, FL32, F1, F2, F3, FL, inds_keep_t, 1, 0)
-	s = F_layer_sum_inds(FL32*sigma31_t, F1, F2, F3, FL, inds_keep_t, 1)
-	grad_F1 = uns - s
-	
 	FL31 = F_prod_inds(F1, np.ones_like(F2), F3, FL, inds_keep_t)
-	uns = F_layer_sum_deriv_inds_gpu(FL321, FL31, F1, F2, F3, FL, inds_keep_t, 2, 0)
-	s = F_layer_sum_inds(FL31*sigma31_t, F1, F2, F3, FL, inds_keep_t, 2)
-	grad_F2 = uns - s
-	
 	FL21 = F_prod_inds(F1, F2, np.ones_like(F3), FL, inds_keep_t)
-	uns = F_layer_sum_deriv_inds_gpu(FL321, FL21, F1, F2, F3, FL, inds_keep_t, 3, 0)
-	s = F_layer_sum_inds(FL21*sigma31_t, F1, F2, F3, FL, inds_keep_t, 3)
-	grad_F3 = uns - s
-	
 	F321 = F_prod_inds(F1, F2, F3, np.ones_like(FL), inds_keep_t)
-	uns = F_layer_sum_deriv_inds_gpu(FL321, F321, F1, F2, F3, FL, inds_keep_t, 4, 0)
+	
+	F_layer_sum_deriv_inds_gpu(FL32, F1, F2, F3, FL, 1, 0)
+	F_layer_sum_deriv_inds_gpu(FL31, F1, F2, F3, FL, 2, 1)
+	F_layer_sum_deriv_inds_gpu(FL21, F1, F2, F3, FL, 3, 2)
+	F_layer_sum_deriv_inds_gpu(F321, F1, F2, F3, FL, 4, 3)
+	
+	s = F_layer_sum_inds(FL32*sigma31_t, F1, F2, F3, FL, inds_keep_t, 1)
+	grad_F1 = F_layer_sum_deriv_inds_gpu_return(1,0) - s
+	
+	s = F_layer_sum_inds(FL31*sigma31_t, F1, F2, F3, FL, inds_keep_t, 2)
+	grad_F2 = F_layer_sum_deriv_inds_gpu_return(2,1) - s
+	
+	s = F_layer_sum_inds(FL21*sigma31_t, F1, F2, F3, FL, inds_keep_t, 3)
+	grad_F3 = F_layer_sum_deriv_inds_gpu_return(3,2) - s
+	
 	s = F_layer_sum_inds(F321*sigma31_t, F1, F2, F3, FL, inds_keep_t, 4)
-	grad_FL = uns - s
+	grad_FL = F_layer_sum_deriv_inds_gpu_return(4,3) - s
 	
 	F1 -= EPS*grad_F1
 	F2 -= EPS*grad_F2
 	F3 -= EPS*grad_F3
 	FL -= EPS*grad_FL
+	
 	#print time.time() - t
+	
 	if (step % 50) == 0:
 		np.random.seed(6666)
 		inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
