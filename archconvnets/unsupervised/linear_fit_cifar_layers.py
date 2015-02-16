@@ -11,9 +11,9 @@ from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds,
 #@profile
 #def sf():
 N = 4
-N_INDS_KEEP = 2500
+N_INDS_KEEP = 7500
 N_INDS_UPDATE = 1000
-EPS = 1e-6
+EPS = 1e-8
 sub_select_inds = False
 
 WD = 0
@@ -27,10 +27,10 @@ sigma31_test_imgs = z['patches']
 labels = z['labels']
 sigma11 = np.ascontiguousarray(np.squeeze(z['sigma11']))
 
-F1_scale = 0.01 # std of init normal distribution
+F1_scale = 0.0001 # std of init normal distribution
 F2_scale = 0.01
 F3_scale = 0.01
-FL_scale = 0.3
+FL_scale = 0.01
 
 POOL_SZ = 3
 POOL_STRIDE = 2
@@ -63,10 +63,10 @@ F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
 F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
 FL = np.single(np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, max_output_sz3)))
 
-F1 = zscore(F1,axis=None)/500
-F2 = zscore(F2,axis=None)/500
-F3 = zscore(F3,axis=None)/500
-FL = zscore(FL,axis=None)/500
+#F1 = zscore(F1,axis=None)/500
+#F2 = zscore(F2,axis=None)/500
+#F3 = zscore(F3,axis=None)/500
+#FL = zscore(FL,axis=None)/500
 
 np.random.seed(6666)
 inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
@@ -123,17 +123,15 @@ while True:
 	F_layer_sum_deriv_inds_gpu(FL21, F1, F2, F3, FL, 3, 2)
 	F_layer_sum_deriv_inds_gpu(F321, F1, F2, F3, FL, 4, 3)
 	
-	s = F_layer_sum_inds(FL32*sigma31_t, F1, F2, F3, FL, inds_keep_t, 1)
-	grad_F1 = F_layer_sum_deriv_inds_gpu_return(1,0) - s
+	s_F1 = F_layer_sum_inds(FL32*sigma31_t, F1, F2, F3, FL, inds_keep_t, 1)
+	s_F2 = F_layer_sum_inds(FL31*sigma31_t, F1, F2, F3, FL, inds_keep_t, 2)
+	s_F3 = F_layer_sum_inds(FL21*sigma31_t, F1, F2, F3, FL, inds_keep_t, 3)
+	s_FL = F_layer_sum_inds(F321*sigma31_t, F1, F2, F3, FL, inds_keep_t, 4)
 	
-	s = F_layer_sum_inds(FL31*sigma31_t, F1, F2, F3, FL, inds_keep_t, 2)
-	grad_F2 = F_layer_sum_deriv_inds_gpu_return(2,1) - s
-	
-	s = F_layer_sum_inds(FL21*sigma31_t, F1, F2, F3, FL, inds_keep_t, 3)
-	grad_F3 = F_layer_sum_deriv_inds_gpu_return(3,2) - s
-	
-	s = F_layer_sum_inds(F321*sigma31_t, F1, F2, F3, FL, inds_keep_t, 4)
-	grad_FL = F_layer_sum_deriv_inds_gpu_return(4,3) - s
+	grad_F1 = F_layer_sum_deriv_inds_gpu_return(1,0) - s_F1
+	grad_F2 = F_layer_sum_deriv_inds_gpu_return(2,1) - s_F2
+	grad_F3 = F_layer_sum_deriv_inds_gpu_return(3,2) - s_F3
+	grad_FL = F_layer_sum_deriv_inds_gpu_return(4,3) - s_FL
 	
 	F1 -= EPS*grad_F1
 	F2 -= EPS*grad_F2
@@ -142,7 +140,7 @@ while True:
 	
 	#print time.time() - t
 	
-	if (step % 50) == 0:
+	if (step % 100) == 0:
 		np.random.seed(6666)
 		inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
 		
