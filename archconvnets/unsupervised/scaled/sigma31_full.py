@@ -1,8 +1,8 @@
 import time
 import numpy as np
-from archconvnets.unsupervised.pool_inds_py import max_pool_locs
 #from archconvnets.unsupervised.pool_inds_py import max_pool_locs
-from archconvnets.unsupervised.conv import conv_block
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import max_pool_locs
+from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 #from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 #from archconvnets.unsupervised.scaled.compute_sigma31_reduced import s31
 
@@ -12,7 +12,7 @@ import archconvnets.unsupervised.sigma31_layers.sigma31_layers as sigma31_layers
 
 from scipy.io import savemat, loadmat
 from scipy.stats import zscore
-
+conv_block = conv
 conv_block_cuda = conv_block
 F1_scale = 0.01 # std of init normal distribution
 F2_scale = 0.01
@@ -71,22 +71,23 @@ imgs_pad = np.ascontiguousarray(imgs_pad.transpose((3,0,1,2)))
 
 # forward pass
 t_forward_start = time.time()
-#conv_output1 = conv_block_cuda(F1, imgs_pad)
-conv_output1 = conv_block_cuda(np.double(F1.transpose((1,2,3,0))), np.double(imgs_pad.transpose((1,2,3,0)))).transpose((3,0,1,2))
+conv_output1 = conv_block_cuda(F1, imgs_pad)
+#conv_output1 = conv_block_cuda(np.double(F1.transpose((1,2,3,0))), np.double(imgs_pad.transpose((1,2,3,0)))).transpose((3,0,1,2))
 max_output1t, output_switches1_x, output_switches1_y = max_pool_locs(np.single(conv_output1))
 
 #max_output1 = max_output1t
 max_output1 = np.zeros((N_IMGS, n1, max_output_sz1, max_output_sz1),dtype='single')
 max_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
 
-#conv_output2 = conv_block_cuda(F2, max_output1)
-conv_output2 = conv_block_cuda(np.double(F2.transpose((1,2,3,0))), np.double(max_output1.transpose((1,2,3,0)))).transpose((3,0,1,2))
+conv_output2 = conv_block_cuda(F2, max_output1)
+#conv_output2 = conv_block_cuda(np.double(F2.transpose((1,2,3,0))), np.double(max_output1.transpose((1,2,3,0)))).transpose((3,0,1,2))
 max_output2t, output_switches2_x, output_switches2_y = max_pool_locs(np.single(conv_output2), PAD=2)
 
 max_output2 = np.zeros((N_IMGS, n2, max_output_sz2, max_output_sz2),dtype='single')
 max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
 
-conv_output3 = conv_block_cuda(np.double(F3.transpose((1,2,3,0))), np.double(max_output2.transpose((1,2,3,0)))).transpose((3,0,1,2))
+#conv_output3 = conv_block_cuda(np.double(F3.transpose((1,2,3,0))), np.double(max_output2.transpose((1,2,3,0)))).transpose((3,0,1,2))
+conv_output3 = conv_block_cuda(F3, max_output2)
 max_output3t, output_switches3_x, output_switches3_y = max_pool_locs(np.single(conv_output3), PAD=2)
 
 output_switches2_x -= PAD

@@ -2,7 +2,7 @@ from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 import time
 import numpy as np
 import numexpr as ne
-from archconvnets.unsupervised.sigma31_layers.sigma31_layers import max_pool_locs
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import *
 from scipy.io import savemat, loadmat
 import copy
 from scipy.stats import zscore
@@ -49,7 +49,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS = 1e-3#1e-2
+EPS = 1e-1#1e-2
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -168,6 +168,14 @@ max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
 conv_output3 = conv_block_cuda(F3_init, max_output2)
 max_output3, output_switches3_x_init, output_switches3_y_init = max_pool_locs(conv_output3)
 
+print 'loading sigma'
+sigma31 = np.load('/home/darren/sigma31_4_6.npy')
+
+set_sigma_buffer(sigma31, 1, 0)
+
+sigma31 = None
+print 'finished'
+
 for iter in range(np.int(1e7)):
 	epoch_err_t = 0
 	for batch in range(1,6):
@@ -181,6 +189,9 @@ for iter in range(np.int(1e7)):
 			set_filter_buffer(FBUFF_F1, F1)
 			set_filter_buffer(FBUFF_F2, F2)
 			set_filter_buffer(FBUFF_F3, F3)
+			
+			set_filter_buffers(F1,F2,F3,FL,0)
+			einsum_deriv_gpu(1,1,1,0) # deriv, l1
 			
 			set_conv_buffer(CBUFF_F1_TEST_IMGS, FBUFF_F1, IBUFF_TEST_IMGS)
 			
@@ -269,10 +280,12 @@ for iter in range(np.int(1e7)):
 			err.append(np.sum((pred - Y)**2)/N_IMGS)
 			class_err.append(1-np.float(np.sum(np.argmax(pred,axis=0) == np.argmax(Y,axis=0)))/N_IMGS)
 			
-			#random.shuffle(img_cats)
-			pred[img_cats, range(N_IMGS)] -= 1 ############ backprop supervised term
+			random.shuffle(img_cats)
+			pred_norm = copy.deepcopy(pred)
+			pred_norm[img_cats, range(N_IMGS)] -= 1 ############ backprop supervised term
 			#pred[img_cats[:20], range(20)] -= 10 ############ backprop supervised term (tenth supervised)
 			pred_ravel = pred.ravel()
+			pred_norm_ravel = pred_norm.ravel()
 			err.append(0)
 			class_err.append(0)
 			
@@ -319,76 +332,33 @@ for iter in range(np.int(1e7)):
 
 			t = t.reshape((N_C*N_IMGS, n1, 3, s1, s1)).transpose((1,2,3,0,4))
 			grad_L1_uns = np.dot(pred_ravel, t) / N_IMGS
+			grad_L1_uns_norm = np.dot(pred_norm_ravel, t) / N_IMGS
 			
-			########## F2 deriv wrt f2_, a2_x_, a2_y_, f1_
-			grad = np.zeros_like(F2)
+			derivc = einsum_return(1,0)
 			
-			# ravel together all the patches to reduce the needed convolution function calls
-			pool2_derivt = pool2_patches.reshape((N_IMGS*n1*s2*s2, n2, max_output_sz2-2*PAD, max_output_sz2-2*PAD))
-			pool2_deriv = np.zeros((N_IMGS*n1*s2*s2, n2, max_output_sz2, max_output_sz2),dtype='single')
-			pool2_deriv[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = pool2_derivt
+			#print np.median(np.abs(derivc)), np.median(np.abs(grad_L1_uns)), np.median(np.abs(grad_L1_uns_norm)), derivc.shape, grad_L1_uns.shape
 			
-			pool2_deriv = np.ascontiguousarray(pool2_deriv.transpose((1,0,2,3))[:,:,np.newaxis])
-			F3c = np.ascontiguousarray(F3.transpose((1,0,2,3))[:,:,np.newaxis])
+			derivc /= np.std(derivc)
+			derivc *= np.std(grad_L1_uns_norm)
 			
-			max_output3t_accum = np.zeros((N_IMGS, n2, n1, s2, s2, n3*max_output_sz3**2),dtype='single')
-			for f2_ in range(n2):
-				set_filter_buffer(FBUFF_F3_GRAD_L2, F3c[f2_])
-				set_img_buffer(IBUFF_F3_GRAD_L2, pool2_deriv[f2_])
-				set_conv_buffer(CBUFF_F3_GRAD_L2, FBUFF_F3_GRAD_L2, IBUFF_F3_GRAD_L2)
-				
-				conv_output3_deriv = conv_from_buffers(CBUFF_F3_GRAD_L2)
-				conv_output3_deriv = conv_output3_deriv.reshape((N_IMGS, n1*s2*s2, n3, output_sz3, output_sz3))
-				
-				max_output3t = max_pool_locs_alt(conv_output3_deriv, output_switches3_x, output_switches3_y)
-				max_output3t_accum[:,f2_] = max_output3t.reshape((N_IMGS, n1, s2, s2, n3*max_output_sz3**2))
-				
-			#mtg = gpu.garray(max_output3t_accum.transpose((0,1,2,3,5,4)))
-			#t=FLrg.dot(mtg).as_numpy_array()
-			t=np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4)))
-			
-			t = t.reshape((N_C*N_IMGS, n2, n1, s2, s2)).transpose((1,2,3,0,4))
-			grad_L2_uns = np.dot(pred_ravel, t) / N_IMGS
-
-			########## F3 deriv wrt f3_, a3_x_, a3_y_, f2_
-			grad = np.zeros_like(F3)
-			for a3_x_ in range(s3):
-				for a3_y_ in range(s3):
-					for f2_ in range(n2):
-						pool3_deriv = pool3_patches[:,f2_,a3_x_,a3_y_]
-						for f3_ in range(n3):
-							pred_deriv = np.dot(FL[:,f3_].reshape((N_C, max_output_sz3**2)), pool3_deriv[:,f3_].reshape((N_IMGS, max_output_sz3**2)).T).ravel()
-							
-							grad[f3_, f2_, a3_x_, a3_y_] = np.dot(pred_deriv, pred_ravel)
-							
-			grad_L3_uns = grad / N_IMGS
-			
-			########## FL deriv wrt cat_, f3_, z1_, z2_
-			grad_FL_uns = np.tile((pred[:,:,np.newaxis,np.newaxis,np.newaxis]*max_output3[np.newaxis]).sum(0).sum(0)[np.newaxis], (N_C,1,1,1)) / N_IMGS
+			#derivc = 0
+			#grad_L1_uns = np.zeros_like(grad_L1_uns)
 			
 			##########
 			# weight updates
-			v_i1_L1 = -eps_F1 * (grad_L1_uns + grad_L1_s)
-			v_i1_L2 = -eps_F2 * (grad_L2_uns + grad_L2_s)
-			v_i1_L3 = -eps_F3 * (grad_L3_uns + grad_L3_s)
-			v_i1_FL = -eps_FL * (grad_FL_uns + grad_FL_s)
+			#v_i1_L1 = -eps_F1 * (grad_L1_uns - derivc)
+			v_i1_L1 = -eps_F1 * (grad_L1_uns[np.newaxis][np.newaxis] - derivc).sum(0).sum(0)
 			
 			################
 			# diagnostics
 			grad_L1_uns *= eps_F1
-			grad_L2_uns *= eps_F2
-			grad_L3_uns *= eps_F3
-			grad_FL_uns *= eps_FL
 			
 			F1 += v_i1_L1
-			F2 += v_i1_L2
-			F3 += v_i1_L3
-			FL += v_i1_FL
 			
 			#######################################
 			
 			print iter, batch, step, err_test[-1], class_err_test[-1],  time.time() - t_total, filename
-			print '                        F1', np.mean(np.abs(v_i1_L1))/np.mean(np.abs(F1)), 'F2', np.mean(np.abs(v_i1_L2))/np.mean(np.abs(F2)), 'F3', np.mean(np.abs(v_i1_L3))/np.mean(np.abs(F3)), 'FL', np.mean(np.abs(v_i1_FL))/np.mean(np.abs(FL))
+			print '                        F1', np.mean(np.abs(v_i1_L1))/np.mean(np.abs(F1))
 			print '                        F1', np.mean(np.abs(F1)), 'F2', np.mean(np.abs(F2)), 'F3', np.mean(np.abs(F3)), 'FL', np.mean(np.abs(FL)), ' m'
 			savemat(filename, {'F1': F1, 'F2': F2, 'F3':F3, 'FL': FL, 'eps_FL': eps_FL, 'eps_F3': eps_F3, 'eps_F2': eps_F2, 'step': step, 'eps_F1': eps_F1, 'N_IMGS': N_IMGS, 'N_TEST_IMGS': N_TEST_IMGS,'err_test':err_test,'err':err,'class_err':class_err,'class_err_test':class_err_test,'epoch_err':epoch_err})
 			epoch_err_t += err[-1]
@@ -396,3 +366,4 @@ for iter in range(np.int(1e7)):
 	print '------------ epoch err ----------'
 	print epoch_err_t
 sf()
+

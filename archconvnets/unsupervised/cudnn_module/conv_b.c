@@ -1,17 +1,11 @@
-cudnnTensor4dDescriptor_t srcDesc;
-cudnnFilterDescriptor_t filterDesc;
-cudnnConvolutionDescriptor_t convDesc;
-cudnnTensor4dDescriptor_t destDesc;
+cudnnTensor4dDescriptor_t gradDesc_data;
+cudnnFilterDescriptor_t gradDesc_filter;
 
-//-------------------------------------
-// conv(): perform convolution of inputs
-
-// inputs: np raveled arrays: filters [n_filters, n_channels, filter_sz, filter_sz], imgs [n_imgs, n_channels, img_sz, img_sz]
-
-static PyObject *conv(PyObject *self, PyObject *args)  {
+static PyObject *conv_b(PyObject *self, PyObject *args)  {
+	PyObject * list;
 	
-	PyArrayObject *filters_in, *imgs_in, *vecout;
-	float *filters, *imgs, *cout;
+	PyArrayObject *filters_in, *imgs_in, *conv_out_in, *grad_data_in, *grad_filter_in;
+	float *filters, *imgs, *conv_out;
 	int i, dims[6];
 	int n_channels, filter_sz, n_filters, img_sz, n_imgs;
 	
@@ -39,6 +33,11 @@ static PyObject *conv(PyObject *self, PyObject *args)  {
 	float *srcData;
 	float *filterData;
 	float *destData;
+	float *gradData_data;
+	float *gradData_filter;
+	
+	float *grad_data;
+	float *grad_filter;
 	
 	cudnnStatus_t status;
 
@@ -46,7 +45,9 @@ static PyObject *conv(PyObject *self, PyObject *args)  {
 	// Set decriptors
 	//---------------------------------------
 	status = cudnnSetTensor4dDescriptor(srcDesc, CUDNN_TENSOR_NCHW, dataType, n_imgs, n_channels, img_sz, img_sz);  ERR_CHECK
+	status = cudnnSetTensor4dDescriptor(gradDesc_data, CUDNN_TENSOR_NCHW, dataType, n_imgs, n_channels, img_sz, img_sz);  ERR_CHECK
 	status = cudnnSetFilterDescriptor(filterDesc, dataType, n_filters, n_channels, filter_sz, filter_sz);  ERR_CHECK
+	status = cudnnSetFilterDescriptor(gradDesc_filter, dataType, n_filters, n_channels, filter_sz, filter_sz);  ERR_CHECK
 	status = cudnnSetConvolutionDescriptor(convDesc, srcDesc, filterDesc, 0, 0, 1, 1, 1, 1, CUDNN_CROSS_CORRELATION);  ERR_CHECK
 
 	//---------------------------------------
@@ -65,15 +66,32 @@ static PyObject *conv(PyObject *self, PyObject *args)  {
 	
 	err = cudaMalloc((void**) &destData, dims[0]*dims[1]*dims[2]*dims[3] * DATA_TYPE_SZ); MALLOC_ERR_CHECK
 	
-	/* Make a new double vector of same dimension */
-	vecout=(PyArrayObject *) PyArray_FromDims(4, dims, NPY_FLOAT);
-	cout = (float *) vecout -> data;
-
+	conv_out_in=(PyArrayObject *) PyArray_FromDims(4, dims, NPY_FLOAT);
+	conv_out = (float *) conv_out_in -> data;
+	
+	dims[0] = n_imgs;
+	dims[1] = n_channels;
+	dims[2] = img_sz;
+	dims[3] = img_sz;
+	
+	grad_data_in=(PyArrayObject *) PyArray_FromDims(4, dims, NPY_FLOAT);
+	grad_data = (float *) grad_data_in -> data;
+	
+	dims[0] = n_filters;
+	dims[1] = n_channels;
+	dims[2] = filter_sz;
+	dims[3] = filter_sz;
+	
+	grad_filter_in=(PyArrayObject *) PyArray_FromDims(4, dims, NPY_FLOAT);
+	grad_filter = (float *) grad_filter_in -> data;
+	
 	//--------------------------------------
 	// allocate filter, image, alpha, and beta tensors
 	//----------------------------------------
 	err = cudaMalloc((void**) &srcData, n_imgs*n_channels*img_sz*img_sz * DATA_TYPE_SZ); MALLOC_ERR_CHECK
+	err = cudaMalloc((void**) &gradData_data, n_imgs*n_channels*img_sz*img_sz * DATA_TYPE_SZ); MALLOC_ERR_CHECK
 	err = cudaMalloc((void**) &filterData, n_filters*n_channels*filter_sz*filter_sz * DATA_TYPE_SZ); MALLOC_ERR_CHECK
+	err = cudaMalloc((void**) &gradData_filter, n_filters*n_channels*filter_sz*filter_sz * DATA_TYPE_SZ); MALLOC_ERR_CHECK
 
 	//--------------------------------------
 	// set filter and image values
@@ -85,15 +103,28 @@ static PyObject *conv(PyObject *self, PyObject *args)  {
 	// Convolution
 	//--------------------------------------
 	status = cudnnConvolutionForward(handle, srcDesc, srcData, filterDesc, filterData, convDesc, destDesc, destData, CUDNN_RESULT_NO_ACCUMULATE);  ERR_CHECK
+	status = cudnnConvolutionBackwardData(handle, filterDesc, filterData, destDesc, destData, convDesc, gradDesc_data, gradData_data, CUDNN_RESULT_NO_ACCUMULATE);  ERR_CHECK
+	status = cudnnConvolutionBackwardFilter(handle, srcDesc, srcData, destDesc, destData, convDesc, gradDesc_filter, gradData_filter, CUDNN_RESULT_NO_ACCUMULATE);  ERR_CHECK
 
 	//--------------------------------------
 	// Get output data
 	//------------------------------------------
-	err = (cudaError_t)cudaMemcpy(cout, destData, n_imgs_out*n_filters_out*conv_out_sz_x*conv_out_sz_x * DATA_TYPE_SZ, cudaMemcpyDeviceToHost);  MALLOC_ERR_CHECK
+	err = (cudaError_t)cudaMemcpy(conv_out, destData, n_imgs_out*n_filters_out*conv_out_sz_x*conv_out_sz_x * DATA_TYPE_SZ, cudaMemcpyDeviceToHost);  MALLOC_ERR_CHECK
+	err = (cudaError_t)cudaMemcpy(grad_data, gradData_data, n_imgs*n_channels*img_sz*img_sz * DATA_TYPE_SZ, cudaMemcpyDeviceToHost);  MALLOC_ERR_CHECK
+	err = (cudaError_t)cudaMemcpy(grad_filter, gradData_filter, n_filters*n_channels*filter_sz*filter_sz * DATA_TYPE_SZ, cudaMemcpyDeviceToHost);  MALLOC_ERR_CHECK
 
 	cudaFree(destData);
 	cudaFree(srcData);
 	cudaFree(filterData);
+	cudaFree(gradData_data);
+	cudaFree(gradData_filter);
 	
-	return PyArray_Return(vecout);
+	list = PyList_New(3);
+	if(NULL == list) return NULL;
+	
+	if(-1 == PyList_SetItem(list, 0, PyArray_Return(conv_out_in))) return NULL;
+	if(-1 == PyList_SetItem(list, 1, PyArray_Return(grad_data_in))) return NULL;
+	if(-1 == PyList_SetItem(list, 2, PyArray_Return(grad_filter_in))) return NULL;
+	
+	return list;
 }

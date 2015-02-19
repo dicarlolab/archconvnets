@@ -9,6 +9,67 @@ conv_img_ind = np.zeros(N_BUFFERS,dtype='int')
 n_imgs_buffer = np.zeros(N_BUFFERS,dtype='int')
 n_filters_buffer = np.zeros(N_BUFFERS,dtype='int')
 
+def conv_ddata(filters, imgs, conv_out):
+	n_filters, n_channels, filter_sz, filter_sz2  = filters.shape
+	n_imgs, n_channels2, img_sz, img_sz2 = imgs.shape
+	assert imgs.shape[0] == conv_out.shape[0]
+	
+	assert n_channels == n_channels2 and img_sz == img_sz2 and filter_sz == filter_sz2
+	assert type(filters) == np.ndarray and type(imgs) == np.ndarray
+	assert filters.dtype == np.dtype('float32') and imgs.dtype == np.dtype('float32')
+	assert conv_out.dtype == np.dtype('float32')
+	
+	if not imgs.flags.contiguous:
+		print 'warning: input to conv not C-contiguous (imgs)'
+		imgs=np.ascontiguousarray(imgs)
+	if not filters.flags.contiguous:
+		print 'warning: input to conv not C-contiguous (filters)'
+		filters=np.ascontiguousarray(filters)
+	if not conv_out.flags.contiguous:
+		print 'warning: input to conv not C-contiguous (conv_out)'
+		conv_out=np.ascontiguousarray(conv_out)
+	
+	return _cudnn_module.conv_ddata(filters, imgs, conv_out)
+
+def conv_dfilter(filters, imgs, conv_out):
+	n_filters, n_channels, filter_sz, filter_sz2  = filters.shape
+	n_imgs, n_channels2, img_sz, img_sz2 = imgs.shape
+	assert imgs.shape[0] == conv_out.shape[0]
+	
+	assert n_channels == n_channels2 and img_sz == img_sz2 and filter_sz == filter_sz2
+	assert type(filters) == np.ndarray and type(imgs) == np.ndarray
+	assert filters.dtype == np.dtype('float32') and imgs.dtype == np.dtype('float32')
+	assert conv_out.dtype == np.dtype('float32')
+	
+	if not imgs.flags.contiguous:
+		print 'warning: input to conv not C-contiguous (imgs)'
+		imgs=np.ascontiguousarray(imgs)
+	if not filters.flags.contiguous:
+		print 'warning: input to conv not C-contiguous (filters)'
+		filters=np.ascontiguousarray(filters)
+	if not conv_out.flags.contiguous:
+		print 'warning: input to conv not C-contiguous (conv_out)'
+		conv_out=np.ascontiguousarray(conv_out)
+	
+	return _cudnn_module.conv_dfilter(filters, imgs, conv_out)
+
+def conv_b(filters, imgs):
+	n_filters, n_channels, filter_sz, filter_sz2  = filters.shape
+	n_imgs, n_channels2, img_sz, img_sz2 = imgs.shape
+	
+	assert n_channels == n_channels2 and img_sz == img_sz2 and filter_sz == filter_sz2
+	assert type(filters) == np.ndarray and type(imgs) == np.ndarray
+	assert filters.dtype == np.dtype('float32') and imgs.dtype == np.dtype('float32')
+	
+	if not imgs.flags.contiguous:
+		print 'warning: input to conv not C-contiguous (imgs)'
+		imgs=np.ascontiguousarray(imgs)
+	if not filters.flags.contiguous:
+		print 'warning: input to conv not C-contiguous (filters)'
+		filters=np.ascontiguousarray(filters)
+	
+	return _cudnn_module.conv_b(filters, imgs)
+
 # standard convolution, requires no pre-set buffers.
 # inputs: filters [n_filters, channels, filter_sz, filter_sz]
 #			imgs [n_imgs, channels, img_sz, img_sz]
@@ -27,9 +88,7 @@ def conv(filters, imgs):
 		print 'warning: input to conv not C-contiguous (filters)'
 		filters=np.ascontiguousarray(filters)
 	
-	out = _cudnn_module.conv(filters, imgs)
-	conv_out_sz = np.sqrt(out.shape[0]/(n_imgs*n_filters))
-	return out.reshape((n_imgs, n_filters, conv_out_sz, conv_out_sz))
+	return _cudnn_module.conv(filters, imgs)
 
 # set filter buffer on GPU, used by conv_from_buffers()
 # inputs: buff_ind, filters [n_filters, channels, filter_sz, filter_sz]
