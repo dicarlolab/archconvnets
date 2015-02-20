@@ -13,7 +13,7 @@ FL_scale = 0.01
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 1 # batch size
+N_IMGS = 256 # batch size
 IMG_SZ_CROP = 28 # input image size (px)
 IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
@@ -103,15 +103,13 @@ max_output1t, pool1_patches = max_pool_locs_alt_patches(conv_output1, output_swi
 
 pred = np.dot(FLr, max_output3.reshape((N_IMGS, n3*max_output_sz3**2)).T)
 
-pred = np.zeros_like(pred)
-pred[img_cats, range(N_IMGS)] = 1 ############ backprop supervised term
+#pred = np.zeros_like(pred)
+#pred[img_cats, range(N_IMGS)] = 1 ############ backprop supervised term
 
 pred_ravel = pred.ravel()
 
 
 ########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
-grad = np.zeros_like(F1)
-
 # ravel together all the patches to reduce the needed convolution function calls
 pool1_derivt = pool1_patches.reshape((N_IMGS*3*s1*s1, n1, max_output_sz1-2*PAD, max_output_sz1-2*PAD))
 pool1_deriv = np.zeros((N_IMGS*3*s1*s1, n1, max_output_sz1, max_output_sz1),dtype='single')
@@ -142,7 +140,7 @@ pred_deriv = pred_deriv.reshape((N_C*N_IMGS, n1, 3, s1, s1)).transpose((1,2,3,0,
 grad_L1_uns = np.dot(pred_ravel, pred_deriv) # sum across imgs and predictions (J_c)
 
 derivc = einsum_return(1,0) # [prediction each mean category makes for each category, category f1 inds]
-
+'''
 #### check for einsum_return -- sigma31 * FL32
 # verifies einsum_deriv_gpu
 sigma31_F2 = sigma31*F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1,1,1,1))
@@ -163,10 +161,47 @@ print np.isclose(np.squeeze(pred_deriv), derivc[:,6]).sum()/np.single(np.prod(pr
 print np.isclose(np.squeeze(pred_deriv.sum(0)), derivc.sum(0).sum(0)).sum()/np.single(np.prod(pred_deriv.sum(0).shape))
 pred_deriv = pred_deriv.reshape((N_C*N_IMGS, n1, 3, s1, s1)).transpose((1,2,3,0,4))
 print np.isclose(pred_deriv[:,:,:,6], grad_L1_uns).sum()/np.single(np.prod(grad_L1_uns.shape))
-print np.isclose(grad_L1_uns, derivc[6].sum(0)).sum()/np.single(np.prod(grad_L1_uns.shape))
+print np.isclose(grad_L1_uns, derivc[6].sum(0)).sum()/np.single(np.prod(grad_L1_uns.shape))'''
+print np.isclose(grad_L1_uns, derivc[range(N_C),range(N_C)].sum(0)).sum()/np.single(np.prod(grad_L1_uns.shape))
+grad = grad_L1_uns - derivc[range(N_C),range(N_C)].sum(0)
 
-'''print np.isclose(grad_L1_uns, derivc[:,range(N_C)].sum(0)).sum()/np.single(np.prod(pred_deriv.sum(0).shape))
+################
 
-print np.isclose(pred_deriv[:,:,:,6], derivc[:,6].sum(0)).sum()
-'''
+pred = np.dot(FLr, max_output3.reshape((N_IMGS, n3*max_output_sz3**2)).T)
 
+pred[img_cats, range(N_IMGS)] -= 1 ############ backprop supervised term
+
+pred_ravel = pred.ravel()
+
+
+########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
+# ravel together all the patches to reduce the needed convolution function calls
+pool1_derivt = pool1_patches.reshape((N_IMGS*3*s1*s1, n1, max_output_sz1-2*PAD, max_output_sz1-2*PAD))
+pool1_deriv = np.zeros((N_IMGS*3*s1*s1, n1, max_output_sz1, max_output_sz1),dtype='single')
+pool1_deriv[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = pool1_derivt
+
+pool1_deriv = np.ascontiguousarray(pool1_deriv.transpose((1,0,2,3))[:,:,np.newaxis])
+F2c = np.ascontiguousarray(F2.transpose((1,0,2,3))[:,:,np.newaxis])
+
+max_output3t_accum = np.zeros((N_IMGS, n1, 3, s1, s1, n3*max_output_sz3**2),dtype='single')
+for f1_ in range(n1):
+	conv_output2_deriv = conv(F2c[f1_], pool1_deriv[f1_])
+	conv_output2_deriv = conv_output2_deriv.reshape((N_IMGS, 3*s1*s1, n2, output_sz2, output_sz2))
+	
+	max_output2t = max_pool_locs_alt(conv_output2_deriv, output_switches2_x, output_switches2_y)
+	max_output2 = np.zeros((N_IMGS, 3*s1*s1, n2, max_output_sz2, max_output_sz2),dtype='single')
+	max_output2[:,:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
+	max_output2 = max_output2.reshape((N_IMGS*3*s1*s1, n2, max_output_sz2, max_output_sz2))
+	
+	conv_output3_deriv = conv(F3, max_output2)
+	conv_output3_deriv = conv_output3_deriv.reshape((N_IMGS, 3*s1*s1, n3, output_sz3, output_sz3))
+	
+	max_output3t = max_pool_locs_alt(conv_output3_deriv, output_switches3_x, output_switches3_y)
+	max_output3t_accum[:,f1_] = max_output3t.reshape((N_IMGS, 3, s1, s1, n3*max_output_sz3**2))
+	
+pred_deriv = np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4))) # sum across f3,z1,z2
+
+pred_deriv = pred_deriv.reshape((N_C*N_IMGS, n1, 3, s1, s1)).transpose((1,2,3,0,4))
+grad_L1_uns = np.dot(pred_ravel, pred_deriv) # sum across imgs and predictions (J_c)
+
+print np.isclose(grad_L1_uns, grad).sum()/np.single(np.prod(grad.shape))
