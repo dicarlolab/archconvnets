@@ -13,7 +13,7 @@ FL_scale = 0.01
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 9 # batch size
+N_IMGS = 1 # batch size
 IMG_SZ_CROP = 28 # input image size (px)
 IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
@@ -136,17 +136,37 @@ for f1_ in range(n1):
 	max_output3t = max_pool_locs_alt(conv_output3_deriv, output_switches3_x, output_switches3_y)
 	max_output3t_accum[:,f1_] = max_output3t.reshape((N_IMGS, 3, s1, s1, n3*max_output_sz3**2))
 	
-t=np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4)))
+pred_deriv = np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4))) # sum across f3,z1,z2
 
-t = t.reshape((N_C*N_IMGS, n1, 3, s1, s1)).transpose((1,2,3,0,4))
-grad_L1_uns = np.dot(pred_ravel, t) / N_IMGS
+pred_deriv = pred_deriv.reshape((N_C*N_IMGS, n1, 3, s1, s1)).transpose((1,2,3,0,4))
+grad_L1_uns = np.dot(pred_ravel, pred_deriv) # sum across imgs and predictions (J_c)
 
-derivc = einsum_return(1,0)
+derivc = einsum_return(1,0) # [prediction each mean category makes for each category, category f1 inds]
 
-####
+#### check for einsum_return -- sigma31 * FL32
+# verifies einsum_deriv_gpu
 sigma31_F2 = sigma31*F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1,1,1,1))
 sigma31_F3 = sigma31_F2*F3.transpose((1,0,2,3)).reshape((1, 1, 1, 1, 1, n2, 1, 1, n3, s3, s3, 1, 1))
-sigma31_F3 = sigma31_F3[6].reshape((n1*3*(s1**2)*n2*(s2**2), n3, s3**2, 2, 2)).sum(0).sum(1)[np.newaxis]
-#print np.isclose(sigma31_F3, max_output3[0][np.newaxis]).sum() / np.single(np.prod(sigma31_F3.shape))
-####
-	
+derivc_n = np.einsum(sigma31_F3, range(13), FL, [14, 8, 11, 12], [0, 14, 1,2,3,4])
+print np.isclose(derivc_n, derivc).sum() / np.single(np.prod(derivc.shape))
+
+#### check that max output 3 accum matches derivc
+# verifies max_pool_locs_alt, max_pool_locs_alt_patches
+max_output3t_accum_n = sigma31_F3.sum(5).sum(5).sum(5).sum(6).sum(6).reshape((N_C, n1, 3, s1, s1, n3*max_output_sz3**2))
+print np.isclose(max_output3t_accum[0], max_output3t_accum_n[6]).sum()/np.single(np.prod(max_output3t_accum.shape))
+
+##### check that pred_deriv == derivc
+# verifies functions above, again
+pred_deriv = np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4))) # sum across f3,z1,z2
+print np.isclose(np.squeeze(pred_deriv), derivc[:,6]).sum()/np.single(np.prod(pred_deriv.shape))
+
+print np.isclose(np.squeeze(pred_deriv.sum(0)), derivc.sum(0).sum(0)).sum()/np.single(np.prod(pred_deriv.sum(0).shape))
+pred_deriv = pred_deriv.reshape((N_C*N_IMGS, n1, 3, s1, s1)).transpose((1,2,3,0,4))
+print np.isclose(pred_deriv[:,:,:,6], grad_L1_uns).sum()/np.single(np.prod(grad_L1_uns.shape))
+print np.isclose(grad_L1_uns, derivc[6].sum(0)).sum()/np.single(np.prod(grad_L1_uns.shape))
+
+'''print np.isclose(grad_L1_uns, derivc[:,range(N_C)].sum(0)).sum()/np.single(np.prod(pred_deriv.sum(0).shape))
+
+print np.isclose(pred_deriv[:,:,:,6], derivc[:,6].sum(0)).sum()
+'''
+
