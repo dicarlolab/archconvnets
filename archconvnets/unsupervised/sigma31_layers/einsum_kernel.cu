@@ -27,7 +27,7 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 	int f3;
 	int s3x, s3y;
 	int z1, z2;
-	int cat_i, cat_j;
+	int cat_i;
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// which dimensions have been unraveled across the *grid* and that we should not loop over here? (we are solving for the term containing these particular indices)
@@ -38,7 +38,7 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 	int *f3i = &f3;
 	int *s3xi = &s3x, *s3yi = &s3y;
 	int *z1i = &z1, *z2i = &z2;
-	int *cat_ii = &cat_i, *cat_ji = &cat_j;
+	int *cat_ii = &cat_i;
 	
 	int f1_sz = n1;
 	int f0_sz = n0;
@@ -60,49 +60,10 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 	int t = threadIdx.x;
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// which indices are raveled across the grid and threads?
 	
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// prediction
-	if(deriv_ind == 0){
-		///////////////////////////////////////////// indices that we keep (specify output term)
-		int cat_jc = r;
-		cat_ji = &cat_jc;
-		cat_j_sz = 1;
-		
-		int cat_ic = blockIdx.y;
-		cat_ii = &cat_ic;
-		cat_i_sz = 1;
-	
-		output_ind = cat_jc*N_C + cat_ic;
-		
-		//////////////////////////////////////// indices that are raveled over the threads
-		//int f0c = threadIdx.y;
-		//f0i = &f0c;
-		//f0_sz = 1;
-		
-		int s1xc = t / (s2*s2*s3);
-		s1xi = &s1xc;
-		t = t % (s2*s2*s3);
-		s1x_sz = 1;
-		
-		int s2xc = t / (s2*s3);
-		s2xi = &s2xc;
-		t = t % (s2*s3);
-		s2x_sz = 1;
-		
-		int s2yc = t / s3;
-		s2yi = &s2yc;
-		s2y_sz = 1;
-		
-		int s3xc = t % s3;
-		s3xi = &s3xc;
-		s3x_sz = 1;
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// F1 deriv
-	}else if(deriv_ind == 1){
+	if(deriv_ind == 1){
 		///////////////////////////////////////////// indices that we keep (specify output term)
-		int cat_jc = r / (N_C*s1*s1);
-		cat_ji = &cat_jc;
-		r = r % (N_C*s1*s1);
-		cat_j_sz = 1;
-		
 		int cat_ic = r / (s1*s1);
 		cat_ii = &cat_ic;
 		r = r % (s1*s1);
@@ -125,7 +86,7 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 		f0i = &f0c;
 		f0_sz = 1;
 		
-		output_ind = cat_jc*(N_C*n1*n0*s1*s1) + cat_ic*(n1*n0*s1*s1) + f1c*(n0*s1*s1) + f0c*(s1*s1) + s1xc*s1 + s1yc;
+		output_ind = cat_ic*(n1*n0*s1*s1) + f1c*(n0*s1*s1) + f0c*(s1*s1) + s1xc*s1 + s1yc;
 		
 		//////////////////////////////////////// indices that are raveled over the threads
 		int s2xc = t / (s2*s3*s3);
@@ -148,11 +109,7 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// F2 deriv
 	}else if(deriv_ind == 2){
 		///////////////////////////////////////////// indices that we keep (specify output term)
-		int cat_jc = r / (N_C*s2*s2);
-		cat_ji = &cat_jc;
-		r = r % (N_C*s2*s2);
-		cat_j_sz = 1;
-		
+
 		int cat_ic = r / (s2*s2);
 		cat_ii = &cat_ic;
 		r = r % (s2*s2);
@@ -175,7 +132,7 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 		f1i = &f1c;
 		f1_sz = 1;
 		
-		output_ind = cat_jc*(N_C*n2*n1*s2*s2) + cat_ic*(n2*n1*s2*s2) + f2c*(n1*s2*s2) + f1c*(s2*s2) + s2xc*s2 + s2yc;
+		output_ind = cat_ic*(n2*n1*s2*s2) + f2c*(n1*s2*s2) + f1c*(s2*s2) + s2xc*s2 + s2yc;
 		
 		//////////////////////////////////////// indices that are raveled over the threads
 		int s1xc = t / (s1*s3*s3);
@@ -198,11 +155,7 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// F3 deriv
 	}else if(deriv_ind == 3){
 		///////////////////////////////////////////// indices that we keep (specify output term)
-		int cat_jc = r / (N_C*s3*s3);
-		cat_ji = &cat_jc;
-		r = r % (N_C*s3*s3);
-		cat_j_sz = 1;
-		
+
 		int cat_ic = r / (s3*s3);
 		cat_ii = &cat_ic;
 		r = r % (s3*s3);
@@ -225,7 +178,7 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 		f2i = &f2c;
 		f2_sz = 1;
 		
-		output_ind = cat_jc*(N_C*n3*n2*s3*s3) + cat_ic*(n3*n2*s3*s3) + f3c*(n2*s3*s3) + f2c*(s3*s3) + s3xc*s3 + s3yc;
+		output_ind = cat_ic*(n3*n2*s3*s3) + f3c*(n2*s3*s3) + f2c*(s3*s3) + s3xc*s3 + s3yc;
 		
 		//////////////////////////////////////// indices that are raveled over the threads
 		int s1xc = t / (s1*s2);
@@ -267,11 +220,6 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 		
 		output_ind = cat_ic*(n3*max_output_sz3*max_output_sz3) + f3c*(max_output_sz3*max_output_sz3) + z1c*max_output_sz3 + z2c;
 		
-		
-		// we want cat_j = cat_i, because we do not need to compute the products sigma31[cat_j] * FL[cat_i] for all cat_i,cat_j (because FL is 1)
-		cat_ji = &cat_ic;
-		cat_j_sz = 1;
-		
 		//////////////////////////////////////// indices that are raveled over the threads
 		
 		
@@ -296,160 +244,121 @@ __global__ void kernel_deriv(float * sum_res, float * sigma31, float * F1, float
 	
 	float sum_res_local = 0;
 	//////////////////////////////////////////////////////////////////////////////// do the right summation (exclude the relevant filter values from the product or not)
-	if(deriv_ind == 0){
+	if(deriv_ind == 1){ ////////////////////////////////////////////////////////////////////////////////// exclude F1:
 		for(cat_i = 0; cat_i < cat_i_sz; cat_i++){
-			for(cat_j = 0; cat_j < cat_j_sz; cat_j++){
-				for(f1 = 0; f1 < f1_sz; f1++){
-					for(f0 = 0; f0 < f0_sz; f0++){
-						for(s1x = 0; s1x < s1x_sz; s1x++){
-							for(s1y = 0; s1y < s1y_sz; s1y++){
-								for(f2 = 0; f2 < f2_sz; f2++){
-									for(s2x = 0; s2x < s2x_sz; s2x++){
-										for(s2y = 0; s2y < s2y_sz; s2y++){
-											for(f3 = 0; f3 < f3_sz; f3++){
-												for(s3x = 0; s3x < s3x_sz; s3x++){
-													for(s3y = 0; s3y < s3y_sz; s3y++){
-														for(z1 = 0; z1 < z1_sz; z1++){ 
-															for(z2 = 0; z2 < z2_sz; z2++){
-																sum_res_local += sigma31[S31_IND2(*cat_ii, *f1i, *f0i, *s1xi, *s1yi, *f2i, *s2xi, *s2yi, *f3i, *s3xi, *s3yi, *z1i, *z2i)] *
-																	F1[F1_IND(*f1i, *f0i, *s1xi, *s1yi)] * F2[F2_IND(*f2i, *f1i, *s2xi, *s2yi)] * F3[F3_IND(*f3i, *f2i, *s3xi, *s3yi)] * FL[FL_IND(*cat_ji, *f3i, *z1i, *z2i)];
-															} // z2
-														} // z1
-													}
-												} // s3x, s3y
-											} // f3
-										}
-									} // s2x, s2y
-								} // f2
-							}
-						} // s1x, s1y
-					} // f0
-				} // f1
-			} // cat_j
-		} // cat_i
-	}else if(deriv_ind == 1){ ////////////////////////////////////////////////////////////////////////////////// exclude F1:
-		for(cat_i = 0; cat_i < cat_i_sz; cat_i++){
-			for(cat_j = 0; cat_j < cat_j_sz; cat_j++){
-				for(f1 = 0; f1 < f1_sz; f1++){
-					for(f0 = 0; f0 < f0_sz; f0++){
-						for(s1x = 0; s1x < s1x_sz; s1x++){
-							for(s1y = 0; s1y < s1y_sz; s1y++){
-								for(f2 = 0; f2 < f2_sz; f2++){
-									for(s2x = 0; s2x < s2x_sz; s2x++){
-										for(s2y = 0; s2y < s2y_sz; s2y++){
-											for(f3 = 0; f3 < f3_sz; f3++){
-												for(s3x = 0; s3x < s3x_sz; s3x++){
-													for(s3y = 0; s3y < s3y_sz; s3y++){
-														for(z1 = 0; z1 < z1_sz; z1++){ 
-															for(z2 = 0; z2 < z2_sz; z2++){
-																sum_res_local += sigma31[S31_IND2(*cat_ii, *f1i, *f0i, *s1xi, *s1yi, *f2i, *s2xi, *s2yi, *f3i, *s3xi, *s3yi, *z1i, *z2i)] *
-																	F2[F2_IND(*f2i, *f1i, *s2xi, *s2yi)] * F3[F3_IND(*f3i, *f2i, *s3xi, *s3yi)] * FL[FL_IND(*cat_ji, *f3i, *z1i, *z2i)];
-															} // z2
-														} // z1
-													}
-												} // s3x, s3y
-											} // f3
-										}
-									} // s2x, s2y
-								} // f2
-							}
-						} // s1x, s1y
-					} // f0
-				} // f1
-			} // cat_j
+			for(f1 = 0; f1 < f1_sz; f1++){
+				for(f0 = 0; f0 < f0_sz; f0++){
+					for(s1x = 0; s1x < s1x_sz; s1x++){
+						for(s1y = 0; s1y < s1y_sz; s1y++){
+							for(f2 = 0; f2 < f2_sz; f2++){
+								for(s2x = 0; s2x < s2x_sz; s2x++){
+									for(s2y = 0; s2y < s2y_sz; s2y++){
+										for(f3 = 0; f3 < f3_sz; f3++){
+											for(s3x = 0; s3x < s3x_sz; s3x++){
+												for(s3y = 0; s3y < s3y_sz; s3y++){
+													for(z1 = 0; z1 < z1_sz; z1++){ 
+														for(z2 = 0; z2 < z2_sz; z2++){
+															sum_res_local += sigma31[S31_IND2(*cat_ii, *f1i, *f0i, *s1xi, *s1yi, *f2i, *s2xi, *s2yi, *f3i, *s3xi, *s3yi, *z1i, *z2i)] *
+																F2[F2_IND(*f2i, *f1i, *s2xi, *s2yi)] * F3[F3_IND(*f3i, *f2i, *s3xi, *s3yi)] * FL[FL_IND(*cat_ii, *f3i, *z1i, *z2i)];
+														} // z2
+													} // z1
+												}
+											} // s3x, s3y
+										} // f3
+									}
+								} // s2x, s2y
+							} // f2
+						}
+					} // s1x, s1y
+				} // f0
+			} // f1
 		} // cat_i
 	}else if(deriv_ind == 2){ ////////////////////////////////////////////////////////////////////////////////// exclude F2:
 		for(cat_i = 0; cat_i < cat_i_sz; cat_i++){
-			for(cat_j = 0; cat_j < cat_j_sz; cat_j++){
-				for(f1 = 0; f1 < f1_sz; f1++){
-					for(f0 = 0; f0 < f0_sz; f0++){
-						for(s1x = 0; s1x < s1x_sz; s1x++){
-							for(s1y = 0; s1y < s1y_sz; s1y++){
-								for(f2 = 0; f2 < f2_sz; f2++){
-									for(s2x = 0; s2x < s2x_sz; s2x++){
-										for(s2y = 0; s2y < s2y_sz; s2y++){
-											for(f3 = 0; f3 < f3_sz; f3++){
-												for(s3x = 0; s3x < s3x_sz; s3x++){
-													for(s3y = 0; s3y < s3y_sz; s3y++){
-														for(z1 = 0; z1 < z1_sz; z1++){ 
-															for(z2 = 0; z2 < z2_sz; z2++){
-																sum_res_local += sigma31[S31_IND2(*cat_ii, *f1i, *f0i, *s1xi, *s1yi, *f2i, *s2xi, *s2yi, *f3i, *s3xi, *s3yi, *z1i, *z2i)] *
-																	F1[F1_IND(*f1i, *f0i, *s1xi, *s1yi)] * F3[F3_IND(*f3i, *f2i, *s3xi, *s3yi)] * FL[FL_IND(*cat_ji, *f3i, *z1i, *z2i)];
-															} // z2
-														} // z1
-													}
-												} // s3x, s3y
-											} // f3
-										}
-									} // s2x, s2y
-								} // f2
-							}
-						} // s1x, s1y
-					} // f0
-				} // f1
-			} // cat_j
+			for(f1 = 0; f1 < f1_sz; f1++){
+				for(f0 = 0; f0 < f0_sz; f0++){
+					for(s1x = 0; s1x < s1x_sz; s1x++){
+						for(s1y = 0; s1y < s1y_sz; s1y++){
+							for(f2 = 0; f2 < f2_sz; f2++){
+								for(s2x = 0; s2x < s2x_sz; s2x++){
+									for(s2y = 0; s2y < s2y_sz; s2y++){
+										for(f3 = 0; f3 < f3_sz; f3++){
+											for(s3x = 0; s3x < s3x_sz; s3x++){
+												for(s3y = 0; s3y < s3y_sz; s3y++){
+													for(z1 = 0; z1 < z1_sz; z1++){ 
+														for(z2 = 0; z2 < z2_sz; z2++){
+															sum_res_local += sigma31[S31_IND2(*cat_ii, *f1i, *f0i, *s1xi, *s1yi, *f2i, *s2xi, *s2yi, *f3i, *s3xi, *s3yi, *z1i, *z2i)] *
+																F1[F1_IND(*f1i, *f0i, *s1xi, *s1yi)] * F3[F3_IND(*f3i, *f2i, *s3xi, *s3yi)] * FL[FL_IND(*cat_ii, *f3i, *z1i, *z2i)];
+														} // z2
+													} // z1
+												}
+											} // s3x, s3y
+										} // f3
+									}
+								} // s2x, s2y
+							} // f2
+						}
+					} // s1x, s1y
+				} // f0
+			} // f1
 		} // cat_i
 	}else if(deriv_ind == 3){ ////////////////////////////////////////////////////////////////////////////////// exclude F3:
 		for(cat_i = 0; cat_i < cat_i_sz; cat_i++){
-			for(cat_j = 0; cat_j < cat_j_sz; cat_j++){
-				for(f1 = 0; f1 < f1_sz; f1++){
-					for(f0 = 0; f0 < f0_sz; f0++){
-						for(s1x = 0; s1x < s1x_sz; s1x++){
-							for(s1y = 0; s1y < s1y_sz; s1y++){
-								for(f2 = 0; f2 < f2_sz; f2++){
-									for(s2x = 0; s2x < s2x_sz; s2x++){
-										for(s2y = 0; s2y < s2y_sz; s2y++){
-											for(f3 = 0; f3 < f3_sz; f3++){
-												for(s3x = 0; s3x < s3x_sz; s3x++){
-													for(s3y = 0; s3y < s3y_sz; s3y++){
-														for(z1 = 0; z1 < z1_sz; z1++){ 
-															for(z2 = 0; z2 < z2_sz; z2++){
-																sum_res_local += sigma31[S31_IND2(*cat_ii, *f1i, *f0i, *s1xi, *s1yi, *f2i, *s2xi, *s2yi, *f3i, *s3xi, *s3yi, *z1i, *z2i)] *
-																	F1[F1_IND(*f1i, *f0i, *s1xi, *s1yi)] * F2[F2_IND(*f2i, *f1i, *s2xi, *s2yi)] * FL[FL_IND(*cat_ji, *f3i, *z1i, *z2i)];
-															} // z2
-														} // z1
-													}
-												} // s3x, s3y
-											} // f3
-										}
-									} // s2x, s2y
-								} // f2
-							}
-						} // s1x, s1y
-					} // f0
-				} // f1
-			} // cat_j
+			for(f1 = 0; f1 < f1_sz; f1++){
+				for(f0 = 0; f0 < f0_sz; f0++){
+					for(s1x = 0; s1x < s1x_sz; s1x++){
+						for(s1y = 0; s1y < s1y_sz; s1y++){
+							for(f2 = 0; f2 < f2_sz; f2++){
+								for(s2x = 0; s2x < s2x_sz; s2x++){
+									for(s2y = 0; s2y < s2y_sz; s2y++){
+										for(f3 = 0; f3 < f3_sz; f3++){
+											for(s3x = 0; s3x < s3x_sz; s3x++){
+												for(s3y = 0; s3y < s3y_sz; s3y++){
+													for(z1 = 0; z1 < z1_sz; z1++){ 
+														for(z2 = 0; z2 < z2_sz; z2++){
+															sum_res_local += sigma31[S31_IND2(*cat_ii, *f1i, *f0i, *s1xi, *s1yi, *f2i, *s2xi, *s2yi, *f3i, *s3xi, *s3yi, *z1i, *z2i)] *
+																F1[F1_IND(*f1i, *f0i, *s1xi, *s1yi)] * F2[F2_IND(*f2i, *f1i, *s2xi, *s2yi)] * FL[FL_IND(*cat_ii, *f3i, *z1i, *z2i)];
+														} // z2
+													} // z1
+												}
+											} // s3x, s3y
+										} // f3
+									}
+								} // s2x, s2y
+							} // f2
+						}
+					} // s1x, s1y
+				} // f0
+			} // f1
 		} // cat_i
 	}else if(deriv_ind == 4){ ////////////////////////////////////////////////////////////////////////////////// exclude FL:
 		for(cat_i = 0; cat_i < cat_i_sz; cat_i++){
-			for(cat_j = 0; cat_j < cat_j_sz; cat_j++){
-				for(f1 = 0; f1 < f1_sz; f1++){
-					for(f0 = 0; f0 < f0_sz; f0++){
-						for(s1x = 0; s1x < s1x_sz; s1x++){
-							for(s1y = 0; s1y < s1y_sz; s1y++){
-								for(f2 = 0; f2 < f2_sz; f2++){
-									for(s2x = 0; s2x < s2x_sz; s2x++){
-										for(s2y = 0; s2y < s2y_sz; s2y++){
-											for(f3 = 0; f3 < f3_sz; f3++){
-												for(s3x = 0; s3x < s3x_sz; s3x++){
-													for(s3y = 0; s3y < s3y_sz; s3y++){
-														for(z1 = 0; z1 < z1_sz; z1++){ 
-															for(z2 = 0; z2 < z2_sz; z2++){
-																sum_res_local += sigma31[S31_IND2(*cat_ii, *f1i, *f0i, *s1xi, *s1yi, *f2i, *s2xi, *s2yi, *f3i, *s3xi, *s3yi, *z1i, *z2i)] *
-																	F1[F1_IND(*f1i, *f0i, *s1xi, *s1yi)] * F2[F2_IND(*f2i, *f1i, *s2xi, *s2yi)] * F3[F3_IND(*f3i, *f2i, *s3xi, *s3yi)];
-															} // z2
-														} // z1
-													}
-												} // s3x, s3y
-											} // f3
-										}
-									} // s2x, s2y
-								} // f2
-							}
-						} // s1x, s1y
-					} // f0
-				} // f1
-			} // cat_j
+			for(f1 = 0; f1 < f1_sz; f1++){
+				for(f0 = 0; f0 < f0_sz; f0++){
+					for(s1x = 0; s1x < s1x_sz; s1x++){
+						for(s1y = 0; s1y < s1y_sz; s1y++){
+							for(f2 = 0; f2 < f2_sz; f2++){
+								for(s2x = 0; s2x < s2x_sz; s2x++){
+									for(s2y = 0; s2y < s2y_sz; s2y++){
+										for(f3 = 0; f3 < f3_sz; f3++){
+											for(s3x = 0; s3x < s3x_sz; s3x++){
+												for(s3y = 0; s3y < s3y_sz; s3y++){
+													for(z1 = 0; z1 < z1_sz; z1++){ 
+														for(z2 = 0; z2 < z2_sz; z2++){
+															sum_res_local += sigma31[S31_IND2(*cat_ii, *f1i, *f0i, *s1xi, *s1yi, *f2i, *s2xi, *s2yi, *f3i, *s3xi, *s3yi, *z1i, *z2i)] *
+																F1[F1_IND(*f1i, *f0i, *s1xi, *s1yi)] * F2[F2_IND(*f2i, *f1i, *s2xi, *s2yi)] * F3[F3_IND(*f3i, *f2i, *s3xi, *s3yi)];
+														} // z2
+													} // z1
+												}
+											} // s3x, s3y
+										} // f3
+									}
+								} // s2x, s2y
+							} // f2
+						}
+					} // s1x, s1y
+				} // f0
+			} // f1
 		} // cat_i
 	}
 

@@ -6,8 +6,8 @@ from scipy.io import savemat
 from scipy.stats import zscore
 import random
 
-filename = '/home/darren/cifar_bp_L1L2L3.mat'
-BP = True # use real backprop or not
+filename = '/home/darren/cifar_bp_sigma_L4_eps10.mat'
+BP = False # use real backprop or not
 
 TEST_FREQ = 10
 F1_scale = 0.001 # std of init normal distribution
@@ -15,7 +15,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS = 1e-3
+EPS = 5e-3
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -102,7 +102,8 @@ sigma31 = np.load('/home/darren/sigma31_4.npy')#.mean(-1).mean(-1).reshape((N_C,
 #random.shuffle(sigma31)
 #sigma31 = sigma31.reshape((N_C, n1, 3, s1, s1, 1, 1, 1, 1, 1, 1, 1, 1))
 
-set_sigma_buffer(sigma31, 1, 0)
+for gpu in range(4):
+	set_sigma_buffer(sigma31, 1, gpu)
 
 err = []; class_err = []
 t_start = time.time()
@@ -113,11 +114,12 @@ while True:
 		x = x.reshape((3, 32, 32, 10000))
 		for step in range(np.int((10000)/N_IMGS)):
 			if BP != True:
-				set_filter_buffers(F1,F2,F3,FL,0)
+				for gpu in range(4):
+					set_filter_buffers(F1,F2,F3,FL,gpu)
 				einsum_deriv_gpu(1,1,1,0) # deriv, l1
-				einsum_deriv_gpu(2,1,2,0) # deriv, l1
-				einsum_deriv_gpu(3,1,3,0) # deriv, l1
-				#einsum_deriv_gpu(4,1,4,0) # deriv, l1
+				einsum_deriv_gpu(2,1,2,1) # deriv, l1
+				einsum_deriv_gpu(3,1,3,2) # deriv, l1
+				einsum_deriv_gpu(4,1,4,3) # deriv, l1
 
 			FLr = FL.reshape((N_C, n3*max_output_sz3**2))
 			
@@ -247,27 +249,27 @@ while True:
 							
 			grad_L3_uns = grad / N_IMGS
 			
-			'''########## FL deriv wrt cat_, f3_, z1_, z2_
-			grad_FL_uns = np.tile((pred[:,:,np.newaxis,np.newaxis,np.newaxis]*max_output3[np.newaxis]).sum(0).sum(0)[np.newaxis], (N_C,1,1,1)) / N_IMGS'''
+			########## FL deriv wrt cat_, f3_, z1_, z2_
+			grad_FL_uns = np.tile((pred[:,:,np.newaxis,np.newaxis,np.newaxis]*max_output3[np.newaxis]).sum(0).sum(0)[np.newaxis], (N_C,1,1,1)) / N_IMGS
 			
 			#### include sigma31 or not
 			if BP == True:
 				grad_F1 = grad_L1_uns
 				grad_F2 = grad_L2_uns
 				grad_F3 = grad_L3_uns
-				#grad_FL = grad_FL_uns
+				grad_FL = grad_FL_uns
 			else:
 				# einsum_return: [prediction each mean category makes for each category, category f1 inds]
-				grad_F1 = grad_L1_uns - einsum_return(1,0)[range(N_C),range(N_C)].sum(0)
-				grad_F2 = grad_L2_uns - einsum_return(2,0)[range(N_C),range(N_C)].sum(0)
-				grad_F3 = grad_L3_uns - einsum_return(3,0)[range(N_C),range(N_C)].sum(0)
-				#grad_FL = grad_FL_uns - einsum_return(4,0)
+				grad_F1 = grad_L1_uns - einsum_return(1,0).sum(0)#[range(N_C),range(N_C)].sum(0)
+				grad_F2 = grad_L2_uns - einsum_return(2,1).sum(0)#[range(N_C),range(N_C)].sum(0)
+				grad_F3 = grad_L3_uns - einsum_return(3,2).sum(0)#[range(N_C),range(N_C)].sum(0)
+				grad_FL = grad_FL_uns - einsum_return(4,3)
 			
 			
 			F1 -= eps_F1*grad_F1
 			F2 -= eps_F2*grad_F2
 			F3 -= eps_F3*grad_F3
-			#FL -= eps_FL*grad_FL
+			FL -= eps_FL*grad_FL
 			
 			if (step % TEST_FREQ) == 0:
 				print err[-1], class_err[-1], batch, step, time.time() - t_start, filename

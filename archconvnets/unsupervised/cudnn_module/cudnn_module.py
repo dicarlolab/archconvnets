@@ -73,10 +73,10 @@ def conv_b(filters, imgs):
 # standard convolution, requires no pre-set buffers.
 # inputs: filters [n_filters, channels, filter_sz, filter_sz]
 #			imgs [n_imgs, channels, img_sz, img_sz]
-def conv(filters, imgs):
+def conv(filters, imgs, gpu=0):
 	n_filters, n_channels, filter_sz, filter_sz2  = filters.shape
 	n_imgs, n_channels2, img_sz, img_sz2 = imgs.shape
-	
+	assert isinstance(gpu,int)
 	assert n_channels == n_channels2 and img_sz == img_sz2 and filter_sz == filter_sz2
 	assert type(filters) == np.ndarray and type(imgs) == np.ndarray
 	assert filters.dtype == np.dtype('float32') and imgs.dtype == np.dtype('float32')
@@ -88,7 +88,7 @@ def conv(filters, imgs):
 		print 'warning: input to conv not C-contiguous (filters)'
 		filters=np.ascontiguousarray(filters)
 	
-	return _cudnn_module.conv(filters, imgs)
+	return _cudnn_module.conv(filters, imgs, gpu)
 
 # set filter buffer on GPU, used by conv_from_buffers()
 # inputs: buff_ind, filters [n_filters, channels, filter_sz, filter_sz]

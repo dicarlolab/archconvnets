@@ -9,13 +9,14 @@ import random
 import copy
 import os
 
-N_INDS_KEEP = 20000
+N_INDS_KEEP = 1000
 
 conv_block_cuda = cm.conv
-F1_scale = 0.01 # std of init normal distribution
+F1_scale = 0.0001 # std of init normal distribution
 F2_scale = 0.01
 F3_scale = 0.01
-FL_scale = 0.3
+FL_scale = 0.01
+
 
 POOL_SZ = 3
 POOL_STRIDE = 2
@@ -26,7 +27,7 @@ IMG_SZ = 34#70#75# # input image size (px)
 img_train_offset = 0
 PAD = 2
 
-N = 4
+N = 16
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -50,10 +51,6 @@ np.random.seed(6666)
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
 F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
 F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
-
-F1 = zscore(F1,axis=None)/500
-F2 = zscore(F2,axis=None)/500
-F3 = zscore(F3,axis=None)/500
 
 N_PAIRS = 0.5*(N_INDS_KEEP-1)*N_INDS_KEEP + N_INDS_KEEP
 
@@ -100,7 +97,34 @@ print time.time() - t_forward_start
 
 for step in range(500):
 	np.random.seed(6666 + step)
-	inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
+	#inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
+	N_REP = 10
+	inds_new = np.zeros((12, n1*3*s1*s1*N_REP), dtype='int')
+	ind = 0
+
+	np.random.seed(6666 + step)
+	for rep in range(N_REP):
+		for f1 in range(n1):
+			for f0 in range(3):
+				for a1_x in range(s1):
+					for a1_y in range(s2):
+						inds_new[0,ind] = f1
+						inds_new[1,ind] = f0
+						inds_new[2,ind] = a1_x
+						inds_new[3,ind] = a1_y
+						inds_new[4,ind] = np.random.randint(n2)
+						inds_new[5,ind] = np.random.randint(s2)
+						inds_new[6,ind] = np.random.randint(s2)
+						inds_new[7,ind] = np.random.randint(n3)
+						inds_new[8,ind] = np.random.randint(s3)
+						inds_new[9,ind] = np.random.randint(s3)
+						inds_new[10,ind] = np.random.randint(max_output_sz3)
+						inds_new[11,ind] = np.random.randint(max_output_sz3)
+						ind += 1
+
+	inds_keep = np.ravel_multi_index(inds_new, (n1,3,s1,s1,n2,s2,s2,n3,s3,s3,max_output_sz3,max_output_sz3))
+	break
+	print len(inds_keep), len(np.unique(inds_keep))
 
 	t_patch = time.time()
 	patches  = patch_inds(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C, inds_keep, warn=False)
@@ -110,13 +134,13 @@ for step in range(500):
 	sigma11 = compute_sigma11_lin_gpu(patches)
 	print time.time() - t_start
 
-	sigma31 = np.zeros((N_C, N_INDS_KEEP), dtype='single')
+	sigma31 = np.zeros((N_C, len(inds_keep)), dtype='single')
 	for cat in range(N_C):
 		sigma31[cat] += patches[labels == cat].sum(0)
 	print step, time.time() - t_start
 
 	if step == 0:
-		savemat('/export/imgnet_storage_full/sigma31_inds/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '_' + str(step) + '.mat',{'sigma11':sigma11, 'sigma31':sigma31, 'patches':patches,'labels':labels})
+		savemat('/export/imgnet_storage_full/sigma31_inds/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '_' + str(step) + '.mat',{'sigma11':sigma11, 'sigma31':sigma31, 'patches':patches,'labels':labels,'N_IMGS':N_IMGS})
 	else:
-		savemat('/export/imgnet_storage_full/sigma31_inds/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '_' + str(step) + '.mat',{'sigma11':sigma11, 'sigma31':sigma31})
+		savemat('/export/imgnet_storage_full/sigma31_inds/sigmas_' + str(N) + '_' + str(N_INDS_KEEP) + '_' + str(step) + '.mat',{'sigma11':sigma11, 'sigma31':sigma31,'N_IMGS':N_IMGS})
 	

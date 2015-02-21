@@ -55,28 +55,22 @@ static PyObject *einsum_deriv_gpu(PyObject *self, PyObject *args){
 	dim3 thread_sz;
 	dim3 grid_sz;
 
-	if(deriv_layer_ind == 0){ // prediction (no deriv)
-		thread_sz.x = s1*s2*s2*s3;
-		//thread_sz.y = n0;
-		output_sz = N_C * N_C;
-		grid_sz.x = N_C;
-		grid_sz.y = N_C;
-	}else if(deriv_layer_ind == 1){ // F1 deriv
+	if(deriv_layer_ind == 1){ // F1 deriv
 		thread_sz.x = s2*s2*s3*s3;
-		output_sz = N_C * N_C * n1 * n0 * s1 * s1;
-		grid_sz.x = N_C * N_C * s1 * s1;
+		output_sz = N_C * n1 * n0 * s1 * s1;
+		grid_sz.x = N_C * s1 * s1;
 		grid_sz.y = n1;
 		grid_sz.z = n0;
 	}else if(deriv_layer_ind == 2){ // F2 deriv
 		thread_sz.x = s1*s1*s3*s3;
-		output_sz = N_C * N_C * n2 * n1 * s2 * s2;
-		grid_sz.x = N_C * N_C * s2 * s2;
+		output_sz = N_C * n2 * n1 * s2 * s2;
+		grid_sz.x = N_C * s2 * s2;
 		grid_sz.y = n2;
 		grid_sz.z = n1;
 	}else if(deriv_layer_ind == 3){ // F3 deriv
 		thread_sz.x = s1*s1*s2;//*s2;
-		output_sz = N_C * N_C * n3 * n2 * s3 * s3;
-		grid_sz.x = N_C * N_C * s3 * s3;
+		output_sz = N_C * n3 * n2 * s3 * s3;
+		grid_sz.x = N_C * s3 * s3;
 		grid_sz.y = n3;
 		grid_sz.z = n2;
 	}else if(deriv_layer_ind == 4){ // FL deriv
@@ -85,6 +79,9 @@ static PyObject *einsum_deriv_gpu(PyObject *self, PyObject *args){
 		grid_sz.x = N_C * max_output_sz3;
 		grid_sz.y = max_output_sz3;
 		grid_sz.z = n3;
+	}else{
+		printf("deriv layer index unsupported\n");
+		return NULL;
 	}
 	
 	

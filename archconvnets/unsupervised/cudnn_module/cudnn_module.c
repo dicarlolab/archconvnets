@@ -1,5 +1,9 @@
 #include "includes.h"
 
+#define CHECK_CUDA_ERR {err = cudaGetLastError();if(err != cudaSuccess){\
+		printf("CUDA error: %s, %s, %i\n",cudaGetErrorString(err),__FILE__,__LINE__);return NULL;}}
+
+
 #include "conv.c"
 #include "conv_b.c"
 #include "conv_dfilter.c"
@@ -11,6 +15,7 @@
 #include "conv_from_buffers.c"
 #include "max_pool_locs_alt.c"
 #include "pool_alt_inds_opt_patches.c"
+
 
 static PyMethodDef _cudnn_module[] = {
 	{"conv", conv, METH_VARARGS},

@@ -9,16 +9,23 @@ cudnnTensor4dDescriptor_t destDesc;
 // inputs: np raveled arrays: filters [n_filters, n_channels, filter_sz, filter_sz], imgs [n_imgs, n_channels, img_sz, img_sz]
 
 static PyObject *conv(PyObject *self, PyObject *args)  {
-	
+	cudaError_t err;
 	PyArrayObject *filters_in, *imgs_in, *vecout;
 	float *filters, *imgs, *cout;
-	int i, dims[6];
+	int i, dims[6], gpu_ind;
 	int n_channels, filter_sz, n_filters, img_sz, n_imgs;
 	
-	if (!PyArg_ParseTuple(args, "O!O!", &PyArray_Type, &filters_in, &PyArray_Type, &imgs_in)) 
+	if (!PyArg_ParseTuple(args, "O!O!i", &PyArray_Type, &filters_in, &PyArray_Type, &imgs_in, &gpu_ind)) 
 		return NULL;
 	
 	if (NULL == filters_in || NULL == imgs_in)  return NULL;
+	
+	if(gpu_ind < 0 ){//|| gpu_ind > N_GPUS){
+		printf("invalid gpu index %i\n", gpu_ind);
+		return NULL;
+	}
+	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	filters = (float *) filters_in -> data;
 	imgs = (float *) imgs_in -> data;
@@ -34,7 +41,6 @@ static PyObject *conv(PyObject *self, PyObject *args)  {
 	int n_filters_out;
 	int conv_out_sz_x;
 	int conv_out_sz_y;
-	cudaError_t err;
 
 	float *srcData;
 	float *filterData;

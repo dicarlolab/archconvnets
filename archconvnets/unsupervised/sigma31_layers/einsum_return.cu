@@ -17,7 +17,7 @@ static PyObject *einsum_return(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(deriv_layer_ind < 0 || deriv_layer_ind > N_LAYERS){
+	if(deriv_layer_ind < 1 || deriv_layer_ind > N_LAYERS){
 		printf("invalid deriv_layer_ind %i\n", deriv_layer_ind);
 		return NULL;
 	}
@@ -33,34 +33,27 @@ static PyObject *einsum_return(PyObject *self, PyObject *args){
 	int output_sz, n_dims;
 
 	dims[0] = N_C;
-	if(deriv_layer_ind == 0){ // prediction (no deriv)
-		output_sz = N_C * N_C;
-		dims[1] = N_C;
-		n_dims = 2;
-	}else if(deriv_layer_ind == 1){ // F1 deriv
-		output_sz = N_C * N_C * n1 * n0 * s1 * s1;
-		dims[1] = N_C;
-		dims[2] = n1;
-		dims[3] = n0;
+	if(deriv_layer_ind == 1){ // F1 deriv
+		output_sz = N_C * n1 * n0 * s1 * s1;
+		dims[1] = n1;
+		dims[2] = n0;
+		dims[3] = s1;
 		dims[4] = s1;
-		dims[5] = s1;
-		n_dims = 6;
+		n_dims = 5;
 	}else if(deriv_layer_ind == 2){ // F2 deriv
-		output_sz = N_C * N_C * n2 * n1 * s2 * s2;
-		dims[1] = N_C;
-		dims[2] = n2;
-		dims[3] = n1;
+		output_sz = N_C * n2 * n1 * s2 * s2;
+		dims[1] = n2;
+		dims[2] = n1;
+		dims[3] = s2;
 		dims[4] = s2;
-		dims[5] = s2;
-		n_dims = 6;
+		n_dims = 5;
 	}else if(deriv_layer_ind == 3){ // F3 deriv
-		output_sz = N_C * N_C * n3 * n2 * s3 * s3;
-		dims[1] = N_C;
-		dims[2] = n3;
-		dims[3] = n2;
+		output_sz = N_C * n3 * n2 * s3 * s3;
+		dims[1] = n3;
+		dims[2] = n2;
+		dims[3] = s3;
 		dims[4] = s3;
-		dims[5] = s3;
-		n_dims = 6;
+		n_dims = 5;
 	}else if(deriv_layer_ind == 4){ // FL deriv
 		output_sz = N_C * n3 * max_output_sz3 * max_output_sz3;
 		dims[1] = n3;
