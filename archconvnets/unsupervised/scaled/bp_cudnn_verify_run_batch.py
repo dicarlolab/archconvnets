@@ -6,8 +6,13 @@ from scipy.io import savemat
 from scipy.stats import zscore
 import random
 
-filename = '/home/darren/cifar_bp_sigma_L4_eps10.mat'
 BP = False # use real backprop or not
+filename = '/home/darren/cifar_bp'
+
+if BP != True:
+	filename += '_sigma'
+filename += '.mat'
+
 
 TEST_FREQ = 10
 F1_scale = 0.001 # std of init normal distribution
@@ -15,7 +20,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS = 5e-3
+EPS = 3e-1
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -30,7 +35,7 @@ IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
 PAD = 2
 
-N = 4
+N = 8
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N
@@ -116,9 +121,9 @@ while True:
 			if BP != True:
 				for gpu in range(4):
 					set_filter_buffers(F1,F2,F3,FL,gpu)
-				einsum_deriv_gpu(1,1,1,0) # deriv, l1
-				einsum_deriv_gpu(2,1,2,1) # deriv, l1
-				einsum_deriv_gpu(3,1,3,2) # deriv, l1
+				#einsum_deriv_gpu(1,1,1,0) # deriv, l1
+				#einsum_deriv_gpu(2,1,2,1) # deriv, l1
+				#einsum_deriv_gpu(3,1,3,2) # deriv, l1
 				einsum_deriv_gpu(4,1,4,3) # deriv, l1
 
 			FLr = FL.reshape((N_C, n3*max_output_sz3**2))
@@ -184,7 +189,7 @@ while True:
 
 			pred_ravel = pred.ravel()
 
-			########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
+			'''########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
 			# ravel together all the patches to reduce the needed convolution function calls
 			pool1_derivt = pool1_patches.reshape((N_IMGS*3*s1*s1, n1, max_output_sz1-2*PAD, max_output_sz1-2*PAD))
 			pool1_deriv = np.zeros((N_IMGS*3*s1*s1, n1, max_output_sz1, max_output_sz1),dtype='single')
@@ -247,28 +252,30 @@ while True:
 							
 							grad[f3_, f2_, a3_x_, a3_y_] = np.dot(pred_deriv, pred_ravel)
 							
-			grad_L3_uns = grad / N_IMGS
+			grad_L3_uns = grad / N_IMGS'''
 			
 			########## FL deriv wrt cat_, f3_, z1_, z2_
-			grad_FL_uns = np.tile((pred[:,:,np.newaxis,np.newaxis,np.newaxis]*max_output3[np.newaxis]).sum(0).sum(0)[np.newaxis], (N_C,1,1,1)) / N_IMGS
+			#grad_FL_uns = np.tile((pred[:,:,np.newaxis,np.newaxis,np.newaxis]*max_output3[np.newaxis]).sum(0).sum(0)[np.newaxis], (N_C,1,1,1)) / N_IMGS
+			grad_FL_uns = np.einsum(pred,[4,0],max_output3,range(4),[4,1,2,3]) / N_IMGS
+			
 			
 			#### include sigma31 or not
 			if BP == True:
-				grad_F1 = grad_L1_uns
-				grad_F2 = grad_L2_uns
-				grad_F3 = grad_L3_uns
+				#grad_F1 = grad_L1_uns
+				#grad_F2 = grad_L2_uns
+				#grad_F3 = grad_L3_uns
 				grad_FL = grad_FL_uns
 			else:
 				# einsum_return: [prediction each mean category makes for each category, category f1 inds]
-				grad_F1 = grad_L1_uns - einsum_return(1,0).sum(0)#[range(N_C),range(N_C)].sum(0)
-				grad_F2 = grad_L2_uns - einsum_return(2,1).sum(0)#[range(N_C),range(N_C)].sum(0)
-				grad_F3 = grad_L3_uns - einsum_return(3,2).sum(0)#[range(N_C),range(N_C)].sum(0)
+				#grad_F1 = grad_L1_uns - einsum_return(1,0).sum(0)#[range(N_C),range(N_C)].sum(0)
+				#grad_F2 = grad_L2_uns - einsum_return(2,1).sum(0)#[range(N_C),range(N_C)].sum(0)
+				#grad_F3 = grad_L3_uns - einsum_return(3,2).sum(0)#[range(N_C),range(N_C)].sum(0)
 				grad_FL = grad_FL_uns - einsum_return(4,3)
 			
 			
-			F1 -= eps_F1*grad_F1
-			F2 -= eps_F2*grad_F2
-			F3 -= eps_F3*grad_F3
+			#F1 -= eps_F1*grad_F1
+			#F2 -= eps_F2*grad_F2
+			#F3 -= eps_F3*grad_F3
 			FL -= eps_FL*grad_FL
 			
 			if (step % TEST_FREQ) == 0:
