@@ -34,7 +34,7 @@
 float * sum_res_c[N_GPUS][N_OUTPUTS];
 int deriv_layer_ind_res[N_GPUS][N_OUTPUTS];
 
-int N_C, n1, n0, s1, n2, s2, n3, s3, max_output_sz3;
+int N_C, n1, n0=3, s1, n2, s2, n3, s3, max_output_sz3;
 
 // GPU pointers, one for each GPU
 float *F1s_c[N_GPUS], *F2s_c[N_GPUS], *F3s_c[N_GPUS], *FLs_c[N_GPUS];
@@ -73,6 +73,7 @@ int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s[N_GPUS][N_SIGMA
 #include "compute_F_layer_sum_deriv_inds_gpu.cu"
 #include "compute_F_layer_sum_deriv_inds_gpu_return.cu"
 #include "compute_sigma11_lin_gpu.cu"
+#include "pred_deriv_gpu.cu"
 
 static PyMethodDef _sigma31_layers[] = {
 	{"compute_sigma31_full_gpu", compute_sigma31_full_gpu, METH_VARARGS},
@@ -92,6 +93,7 @@ static PyMethodDef _sigma31_layers[] = {
 	{"set_filter_buffers", set_filter_buffers, METH_VARARGS},
 	{"einsum_return", einsum_return, METH_VARARGS},
 	{"compute_sigma11_lin_gpu", compute_sigma11_lin_gpu, METH_VARARGS},
+	{"pred_deriv_gpu", pred_deriv_gpu, METH_VARARGS},
 	{NULL, NULL}
 };
 

@@ -87,7 +87,7 @@ for batch in range(1,6):
 	n_batches += 1
 	print time.time() - t_forward_start
 
-np.save('/home/darren/sigma31_4.npy', sigma31/(n_batches*N_IMGS))
+np.save('/home/darren/sigma31_' + str(N) + '.npy', sigma31/(n_batches*N_IMGS))
 
 '''sigma31_F1 = sigma31*F1.reshape((1, n1, 3, s1, s1, 1, 1, 1, 1, 1,1,1,1))
 sigma31_F2 = sigma31_F1*F2.transpose((1,0,2,3)).reshape((1, n1, 1, 1, 1, n2, s2, s2, 1, 1,1,1,1))

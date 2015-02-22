@@ -6,9 +6,9 @@ from scipy.io import savemat
 from scipy.stats import zscore
 import random
 
-N = 4
-BP = False # use real backprop or not
-filename = '/home/darren/cifar_bp_no_updates_' + str(N)
+N = 16
+BP = True # use real backprop or not
+filename = '/home/darren/cifar_bp_' + str(N)
 
 if BP != True:
 	filename += '_sigma'
@@ -21,7 +21,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS = 1e-5
+EPS = 1e-3
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -100,7 +100,7 @@ max_output3, output_switches3_x_init, output_switches3_y_init = max_pool_locs(co
 
 
 #sigma31 = np.load('/home/darren/sigma31_16.npy')
-sigma31 = np.load('/home/darren/sigma31_' + str(N) + '.npy')
+#sigma31 = np.load('/home/darren/sigma31_' + str(N) + '.npy')
 '''
 sigma31_L1 = sigma31.reshape((N_C, n1, 3, s1, s1, n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3)).mean(-1).reshape((N_C, n1, 3, s1, s1, 1, 1, 1, 1, 1, 1, 1, 1))
 
@@ -116,8 +116,8 @@ set_sigma_buffer(sigma31_L3,1,2)
 set_sigma_buffer(sigma31_FL,1,3)
 '''
 
-for gpu in range(4):
-	set_sigma_buffer(sigma31, 1, gpu)
+#for gpu in range(4):
+#	set_sigma_buffer(sigma31, 1, gpu)
 
 err = []; class_err = []
 t_start = time.time()
@@ -140,17 +140,17 @@ while True:
 			##### test err:
 			if (step % TEST_FREQ) == 0:
 				conv_output1 = conv(F1, imgs_pad)
-				max_output1t, pool1_patches = max_pool_locs_alt_patches(conv_output1, output_switches1_x_init, output_switches1_y_init, imgs_pad, s1)
+				max_output1t, output_switches1_x_init, output_switches1_y_init = max_pool_locs(conv_output1)
 				max_output1 = np.zeros((N_IMGS, n1, max_output_sz1, max_output_sz1),dtype='single')
 				max_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
 
 				conv_output2 = conv(F2, max_output1)
-				max_output2t, pool2_patches = max_pool_locs_alt_patches(conv_output2, output_switches2_x_init, output_switches2_y_init, max_output1, s2)
+				max_output2t, output_switches2_x_init, output_switches2_y_init = max_pool_locs(conv_output2, PAD=2)
 				max_output2 = np.zeros((N_IMGS, n2, max_output_sz2, max_output_sz2),dtype='single')
 				max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
 
 				conv_output3 = conv(F3, max_output2)
-				max_output3, pool3_patches = max_pool_locs_alt_patches(conv_output3, output_switches3_x_init, output_switches3_y_init, max_output2, s3)
+				max_output3, output_switches3_x_init, output_switches3_y_init = max_pool_locs(conv_output3, PAD=2)
 
 				pred = np.dot(FLr, max_output3.reshape((N_IMGS, n3*max_output_sz3**2)).T)
 				
@@ -165,32 +165,20 @@ while True:
 			# forward pass init filters
 			conv_output1 = conv(F1_init, imgs_pad_batch)
 			max_output1t, output_switches1_x, output_switches1_y = max_pool_locs(conv_output1)
+			max_output1t, pool1_patches = max_pool_locs_alt_patches(conv_output1, output_switches1_x, output_switches1_y, imgs_pad_batch, s1)
 			max_output1 = np.zeros((N_IMGS, n1, max_output_sz1, max_output_sz1),dtype='single')
 			max_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
 
 			conv_output2 = conv(F2_init, max_output1)
 			max_output2t, output_switches2_x, output_switches2_y = max_pool_locs(conv_output2)
+			max_output2t, pool2_patches = max_pool_locs_alt_patches(conv_output2, output_switches2_x, output_switches2_y, max_output1, s2)
 			max_output2 = np.zeros((N_IMGS, n2, max_output_sz2, max_output_sz2),dtype='single')
 			max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
 
 			conv_output3 = conv(F3_init, max_output2)
 			max_output3, output_switches3_x, output_switches3_y = max_pool_locs(conv_output3)
-	
-	
-			# forward pass current filters
-			conv_output1 = conv(F1, imgs_pad_batch)
-			max_output1t, pool1_patches = max_pool_locs_alt_patches(conv_output1, output_switches1_x, output_switches1_y, imgs_pad_batch, s1)
-			max_output1 = np.zeros((N_IMGS, n1, max_output_sz1, max_output_sz1),dtype='single')
-			max_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
-
-			conv_output2 = conv(F2, max_output1)
-			max_output2t, pool2_patches = max_pool_locs_alt_patches(conv_output2, output_switches2_x, output_switches2_y, max_output1, s2)
-			max_output2 = np.zeros((N_IMGS, n2, max_output_sz2, max_output_sz2),dtype='single')
-			max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
-
-			conv_output3 = conv(F3, max_output2)
 			max_output3, pool3_patches = max_pool_locs_alt_patches(conv_output3, output_switches3_x, output_switches3_y, max_output2, s3)
-
+	
 			pred = np.dot(FLr, max_output3.reshape((N_IMGS, n3*max_output_sz3**2)).T)
 			
 			if BP == True:
