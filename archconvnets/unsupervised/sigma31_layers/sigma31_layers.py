@@ -259,7 +259,7 @@ def patch_inds(output_switches3_x, output_switches3_y, output_switches2_x, outpu
 	
 	return _sigma31_layers.compute_patch_inds(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs, N_C, inds)
 
-def pred_deriv_gpu(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, imgs, N_C, deriv_layer_ind, warn=True):
+def pred_deriv_gpu(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, imgs, N_C, deriv_layer_ind, pred, warn=True):
 	assert output_switches3_x.dtype == np.dtype('int64')
 	assert output_switches3_y.dtype == np.dtype('int64')
 	assert output_switches2_x.dtype == np.dtype('int64')
@@ -271,6 +271,11 @@ def pred_deriv_gpu(F1, F2, F3, FL, output_switches3_x, output_switches3_y, outpu
 	assert F2.dtype == np.dtype('float32')
 	assert F3.dtype == np.dtype('float32')
 	assert FL.dtype == np.dtype('float32')
+	assert pred.dtype == np.dtype('float32')
+	
+	assert pred.shape[0] == FL.shape[0]
+	assert pred.shape[1] == imgs.shape[0]
+	
 	assert F1.shape[-1] == F1.shape[-2]
 	assert F2.shape[-1] == F2.shape[-2]
 	assert F3.shape[-1] == F3.shape[-2]
@@ -346,8 +351,12 @@ def pred_deriv_gpu(F1, F2, F3, FL, output_switches3_x, output_switches3_y, outpu
 		if warn:
 			print 'warning: input not C-contiguous (output_switches1_y)'
 		output_switches1_y = np.ascontiguousarray(output_switches1_y)
+	if not pred.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (pred)'
+		pred = np.ascontiguousarray(pred)
 	
-	return _sigma31_layers.pred_deriv_gpu(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, imgs, N_C, deriv_layer_ind)
+	return _sigma31_layers.pred_deriv_gpu(F1, F2, F3, FL, output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, imgs, N_C, deriv_layer_ind, pred)
 
 # output_switches3_x, output_switches3_y, [n_imgs, n3, max_output_sz3, max_output_sz3]
 # output_switches2_x, output_switches2_y, [n_imgs, n2, max_output_sz2, max_output_sz2]
