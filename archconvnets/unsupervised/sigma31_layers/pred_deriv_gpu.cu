@@ -11,7 +11,13 @@ __global__ void kernel_pred_deriv(float * F1, float * F2, float * F3, float * FL
 		IND_DTYPE max_output_sz2_max_output_sz2_n2, IND_DTYPE max_output_sz1_max_output_sz1, IND_DTYPE max_output_sz1_max_output_sz1_n1, IND_DTYPE img_sz_img_sz_3, IND_DTYPE img_sz_img_sz, float * sigma31, float * imgs, int img_sz, int N_C, float * pred){
 	int a3_x, a3_y, f1, f2, f3, a2_x, a2_y, z1, z2, img, cat, a1_x, a1_y, channel;
 	int a3_x_global, a3_y_global, a2_x_global, a2_y_global, a1_x_global, a1_y_global;
-		
+	extern __shared__ float s[];
+	int i;
+	for(i = 0; i < (s1*s1*3*n1); i++){
+		s[i] = 0;
+	}
+	__syncthreads();
+	
 	int output_switches1_xt, output_switches1_yt;
 	
 	int *a3_xi = &a3_x, *a3_yi = &a3_y;
@@ -35,26 +41,22 @@ __global__ void kernel_pred_deriv(float * F1, float * F2, float * F3, float * FL
 	int z1_sz = max_output_sz3;
 	int z2_sz = max_output_sz3;
 	int img_sz_ind = N_IMGS;
+	int channel_sz = 3;
 	
 	////////////////////////////// what is unraveled across the grid?
-	int r = blockIdx.x;
-	int f1c = r / n2;
-	f1i = &f1c;
-	f1_sz = 1;
-	
-	int f2c = r % n2;
+	int f2c = threadIdx.x;
 	f2i = &f2c;
 	f2_sz = 1;
 	
 	/// y dim
 	
-	int t = blockIdx.y;
-	int f3c = t / (s2*s2);
-	t = t % (s2*s2);
+	int t = threadIdx.y;
+	/*int f3c = t / (s2*s2);
+	t = t% (s2*s2);
 	f3i = &f3c;
-	f3_sz = 1;
+	f3_sz = 1;*/
 	
-	int a2_xc = t / s2;
+	int a2_xc = t / (s2);
 	a2_xi = &a2_xc;
 	a2_x_sz = 1;
 	
@@ -63,7 +65,16 @@ __global__ void kernel_pred_deriv(float * F1, float * F2, float * F3, float * FL
 	a2_y_sz = 1;
 	
 	///// z dim
-	int t2 = threadIdx.x;
+	int t2 = blockIdx.x;
+	int a1_xc = t2 / s1;
+	a1_xi = &a1_xc;
+	a1_x_sz = 1;
+	
+	int a1_yc = t2 % s1;
+	a1_yi = &a1_yc;
+	a1_y_sz = 1;
+	
+	/*int t2 = threadIdx.x;
 	int z2c = t2 / (max_output_sz3*s3*s3);
 	t2 = t2 % (max_output_sz3*s3*s3);
 	z2i = &z2c;
@@ -80,20 +91,28 @@ __global__ void kernel_pred_deriv(float * F1, float * F2, float * F3, float * FL
 	
 	int a3_yc = t2 % s3;
 	a3_yi = &a3_yc;
-	a3_y_sz = 1;
+	a3_y_sz = 1;*/
 	
-	/////
-	/*int imgc = blockIdx.z;
-	imgi = &imgc;
-	img_sz_ind = 1;*/
+	/////////////// y dim
+	
+	int f1c = blockIdx.y;
+	f1i = &f1c;
+	f1_sz = 1;
+	
+	int channelc = blockIdx.z;
+	channeli = &channelc;
+	channel_sz = 1;
 	
 	float temp_sum;
+	IND_DTYPE f3_ind, f2_ind;
 	
 	for(a3_x = 0; a3_x < a3_x_sz; a3_x++){ for(a3_y = 0; a3_y < a3_y_sz; a3_y++){ /////
 		for(f1 = 0; f1 < f1_sz; f1++){ ///////
 			for(f2 = 0; f2 < f2_sz; f2++){ /////
 				for(f3 = 0; f3 < f3_sz; f3++){ ////////
+					f3_ind = F3_IND(*f3i, *f2i, *a3_xi, *a3_yi);
 					for(a2_x = 0; a2_x < a2_x_sz; a2_x++){ for(a2_y = 0; a2_y < a2_y_sz; a2_y++){ ////////
+						f2_ind = F2_IND(*f2i, *f1i, *a2_xi, *a2_yi);
 						for(z1 = 0; z1 < z1_sz; z1++){ for(z2 = 0; z2 < z2_sz; z2++){ //// z1
 							for(img = 0; img < img_sz_ind; img++){
 								// pool3 -> conv3
@@ -107,24 +126,25 @@ __global__ void kernel_pred_deriv(float * F1, float * F2, float * F3, float * FL
 								output_switches1_xt = output_switches1_x[O1_IND(*imgi,*f1i,a2_x_global,a2_y_global)];
 								output_switches1_yt = output_switches1_y[O1_IND(*imgi,*f1i,a2_x_global,a2_y_global)];
 								
-								a1_x_global = output_switches1_xt;
+								//a1_x_global = output_switches1_xt;
 								for(a1_x = 0; a1_x < a1_x_sz; a1_x++){
 									// pool1 -> conv1
-									a1_y_global = output_switches1_yt;
+									//a1_y_global = output_switches1_yt;
 									for(a1_y = 0; a1_y < a1_y_sz; a1_y++){
-										for(channel = 0; channel < 3; channel++){
+										for(channel = 0; channel < channel_sz; channel++){
 											temp_sum = 0;
 											for(cat = 0; cat < N_C; cat++){
 												//N_C * 3 * n1 * s1 * s1 * n2 * s2 * s2 * n3 * s3 * s3 * max_output_sz3 * max_output_sz3
-												temp_sum += imgs[I_IND(*imgi,*channeli,a1_x_global,a1_y_global)] *
-													F2[F2_IND(*f2i, *f1i, *a2_xi, *a2_yi)] * F3[F3_IND(*f3i, *f2i, *a3_xi, *a3_yi)] *
+												temp_sum += imgs[I_IND(*imgi,*channeli,(output_switches1_xt + *a1_xi),(output_switches1_yt + *a1_yi))] *
+													F2[f2_ind] * F3[f3_ind] *
 													FL[FL_IND(*cati, *f3i, *z1i, *z2i)] * pred[*imgi + N_IMGS*(*cati)];
 											} // cat
-											atomicAdd(&sigma31[PRED_IND(*f1i, *channeli, *a1_xi, *a1_yi)], temp_sum);
+											atomicAdd(&s[PRED_IND(*f1i, *channeli, *a1_xi, *a1_yi)], temp_sum);
+											//s[PRED_IND(*f1i, *channeli, *a1_xi, *a1_yi)] += temp_sum;
 										} // channel
-										a1_y_global ++;
+										//a1_y_global ++;
 									} // a1_y
-									a1_x_global ++;
+									//a1_x_global ++;
 								} // a1_x
 							} // img
 						}} // z1, z2
@@ -133,6 +153,13 @@ __global__ void kernel_pred_deriv(float * F1, float * F2, float * F3, float * FL
 			} // f2
 		} // f1
 	}} // a3_x, a3_y
+	
+	__syncthreads();
+	if(threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0){
+		for(i = 0; i < (s1*s1*3*n1); i++){
+			atomicAdd(&sigma31[i], s[i]);
+		}
+	}
 	
 	return;
 }
@@ -276,11 +303,15 @@ static PyObject *pred_deriv_gpu(PyObject *self, PyObject *args){
 	IND_DTYPE img_sz_img_sz = img_sz*img_sz;
 	
 	dim3 grid_sz;
-	grid_sz.x = n1*n2;
-	grid_sz.y = n3*s2*s2;
+	grid_sz.x = n2;
+	grid_sz.y = s2*s2;
 	//grid_sz.z = N_IMGS;//max_output_sz3*max_output_sz3*s3*s3;
+	dim3 thread_sz;
+	thread_sz.x = s1*s1;//max_output_sz3*max_output_sz3*s3*s3;
+	thread_sz.y = n1;
+	thread_sz.z = 3;
 	
-	kernel_pred_deriv <<< grid_sz, max_output_sz3*max_output_sz3*s3*s3 >>>(F1_c, F2_c, F3_c, FL_c,
+	kernel_pred_deriv <<< thread_sz, grid_sz, PyArray_NBYTES(sigma31_in) >>>(F1_c, F2_c, F3_c, FL_c,
 		n1, n2, n3, s1, s2, s3, max_output_sz3, output_switches3_x_c, output_switches3_y_c, output_switches2_x_c, output_switches2_y_c,
 		output_switches1_x_c, output_switches1_y_c, N_IMGS, max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3_n1, max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_3, 
 		max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1, max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1, max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2,

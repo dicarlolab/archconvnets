@@ -162,8 +162,8 @@ print np.isclose(np.squeeze(pred_deriv.sum(0)), derivc.sum(0).sum(0)).sum()/np.s
 pred_deriv = pred_deriv.reshape((N_C*N_IMGS, n1, 3, s1, s1)).transpose((1,2,3,0,4))
 print np.isclose(pred_deriv[:,:,:,6], grad_L1_uns).sum()/np.single(np.prod(grad_L1_uns.shape))
 print np.isclose(grad_L1_uns, derivc[6].sum(0)).sum()/np.single(np.prod(grad_L1_uns.shape))'''
-print np.isclose(grad_L1_uns, derivc[range(N_C),range(N_C)].sum(0)).sum()/np.single(np.prod(grad_L1_uns.shape))
-grad = grad_L1_uns - derivc[range(N_C),range(N_C)].sum(0)
+print np.isclose(grad_L1_uns, derivc.sum(0)).sum()/np.single(np.prod(grad_L1_uns.shape))
+grad = grad_L1_uns - derivc.sum(0)
 
 ################
 

@@ -18,7 +18,7 @@ IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
 PAD = 2
 
-N = 4
+N = 8
 n1 = N # L1 filters
 n2 = N
 n3 = N

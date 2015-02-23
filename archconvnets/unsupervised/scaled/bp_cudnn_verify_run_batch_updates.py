@@ -21,7 +21,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS = 1e-3
+EPS = 5e-2
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -163,19 +163,19 @@ while True:
 			imgs_pad_batch = np.ascontiguousarray(imgs_pad_batch.transpose((3,0,1,2)))
 			
 			# forward pass init filters
-			conv_output1 = conv(F1_init, imgs_pad_batch)
+			conv_output1 = conv(F1, imgs_pad_batch)
 			max_output1t, output_switches1_x, output_switches1_y = max_pool_locs(conv_output1)
 			max_output1t, pool1_patches = max_pool_locs_alt_patches(conv_output1, output_switches1_x, output_switches1_y, imgs_pad_batch, s1)
 			max_output1 = np.zeros((N_IMGS, n1, max_output_sz1, max_output_sz1),dtype='single')
 			max_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
 
-			conv_output2 = conv(F2_init, max_output1)
+			conv_output2 = conv(F2, max_output1)
 			max_output2t, output_switches2_x, output_switches2_y = max_pool_locs(conv_output2)
 			max_output2t, pool2_patches = max_pool_locs_alt_patches(conv_output2, output_switches2_x, output_switches2_y, max_output1, s2)
 			max_output2 = np.zeros((N_IMGS, n2, max_output_sz2, max_output_sz2),dtype='single')
 			max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
 
-			conv_output3 = conv(F3_init, max_output2)
+			conv_output3 = conv(F3, max_output2)
 			max_output3, output_switches3_x, output_switches3_y = max_pool_locs(conv_output3)
 			max_output3, pool3_patches = max_pool_locs_alt_patches(conv_output3, output_switches3_x, output_switches3_y, max_output2, s3)
 	
@@ -186,7 +186,7 @@ while True:
 
 			pred_ravel = pred.ravel()
 
-			########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
+			'''########### F1 deriv wrt f1_, a1_x_, a1_y_, channel_
 			# ravel together all the patches to reduce the needed convolution function calls
 			pool1_derivt = pool1_patches.reshape((N_IMGS*3*s1*s1, n1, max_output_sz1-2*PAD, max_output_sz1-2*PAD))
 			pool1_deriv = np.zeros((N_IMGS*3*s1*s1, n1, max_output_sz1, max_output_sz1),dtype='single')
@@ -235,31 +235,22 @@ while True:
 				
 			pred_deriv = np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4)))
 			
-			pred_deriv = pred_deriv.reshape((N_C*N_IMGS, n2, n1, s2, s2)).transpose((1,2,3,0,4))
-			grad_L2_uns = np.dot(pred_ravel, pred_deriv) / N_IMGS
+			grad_L2_uns = np.einsum(pred, [0,1], pred_deriv, range(6), [2,3,4,5]) / N_IMGS
+			
 			
 			########## F3 deriv wrt f3_, a3_x_, a3_y_, f2_
-			grad = np.zeros_like(F3)
-			for a3_x_ in range(s3):
-				for a3_y_ in range(s3):
-					for f2_ in range(n2):
-						pool3_deriv = pool3_patches[:,f2_,a3_x_,a3_y_]
-						for f3_ in range(n3):
-							pred_deriv = np.dot(FL[:,f3_].reshape((N_C, max_output_sz3**2)), pool3_deriv[:,f3_].reshape((N_IMGS, max_output_sz3**2)).T).ravel()
-							
-							grad[f3_, f2_, a3_x_, a3_y_] = np.dot(pred_deriv, pred_ravel)
-							
-			grad_L3_uns = grad / N_IMGS
-			
+			pred_deriv = np.einsum(pool3_patches, range(7), FL, [7, 4, 5, 6], [7, 0, 4, 1, 2, 3])
+			grad_L3_uns = np.einsum(pred, [0,1], pred_deriv, range(6), [2,3,4,5]) / N_IMGS
+			'''
 			########## FL deriv wrt cat_, f3_, z1_, z2_
 			grad_FL_uns = np.einsum(pred,[4,0],max_output3,range(4),[4,1,2,3]) / N_IMGS
 			
 			
 			#### include sigma31 or not
 			if BP == True:
-				grad_F1 = grad_L1_uns
-				grad_F2 = grad_L2_uns
-				grad_F3 = grad_L3_uns
+				#grad_F1 = grad_L1_uns
+				#grad_F2 = grad_L2_uns
+				#grad_F3 = grad_L3_uns
 				grad_FL = grad_FL_uns
 			else:
 				# einsum_return: [prediction each mean category makes for each category, category f1 inds]
@@ -269,9 +260,9 @@ while True:
 				grad_FL = grad_FL_uns - einsum_return(4,3)
 			
 			
-			F1 -= eps_F1*grad_F1
-			F2 -= eps_F2*grad_F2
-			F3 -= eps_F3*grad_F3
+			#F1 -= eps_F1*grad_F1
+			#F2 -= eps_F2*grad_F2
+			#F3 -= eps_F3*grad_F3
 			FL -= eps_FL*grad_FL
 			
 			if (step % TEST_FREQ) == 0:

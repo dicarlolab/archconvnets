@@ -6,9 +6,9 @@ from scipy.io import savemat
 from scipy.stats import zscore
 import random
 
-N = 4
+N = 8
 BP = False # use real backprop or not
-filename = '/home/darren/cifar_bp_no_updates_' + str(N)
+filename = '/home/darren/cifar_bp_no_updates_no_s_' + str(N)
 
 if BP != True:
 	filename += '_sigma'
@@ -21,7 +21,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS = 1e-5
+EPS = 1#e-1
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -275,10 +275,15 @@ while True:
 				grad_FL = grad_FL_uns
 			else:
 				# einsum_return: [prediction each mean category makes for each category, category f1 inds]
-				grad_F1 = grad_L1_uns - einsum_return(1,0).sum(0)#[range(N_C),range(N_C)].sum(0)
-				grad_F2 = grad_L2_uns - einsum_return(2,1).sum(0)#[range(N_C),range(N_C)].sum(0)
-				grad_F3 = grad_L3_uns - einsum_return(3,2).sum(0)#[range(N_C),range(N_C)].sum(0)
-				grad_FL = grad_FL_uns - einsum_return(4,3)
+				#grad_F1 = grad_L1_uns - 0.05*einsum_return(1,0).sum(0)#[range(N_C),range(N_C)].sum(0)
+				#grad_F2 = grad_L2_uns - 0.05*einsum_return(2,1).sum(0)#[range(N_C),range(N_C)].sum(0)
+				#grad_F3 = grad_L3_uns - 0.05*einsum_return(3,2).sum(0)#[range(N_C),range(N_C)].sum(0)
+				#grad_FL = grad_FL_uns - 0.05*einsum_return(4,3)
+				
+				grad_F1 = grad_L1_uns - 0.0*einsum_return(1,0).sum(0)#[range(N_C),range(N_C)].sum(0)
+				grad_F2 = grad_L2_uns - 0.0*einsum_return(2,1).sum(0)#[range(N_C),range(N_C)].sum(0)
+				grad_F3 = grad_L3_uns - 0.0*einsum_return(3,2).sum(0)#[range(N_C),range(N_C)].sum(0)
+				grad_FL = grad_FL_uns - 0.0*einsum_return(4,3)
 			
 			
 			F1 -= eps_F1*grad_F1
