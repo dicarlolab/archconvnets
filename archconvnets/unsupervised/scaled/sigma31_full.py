@@ -18,7 +18,7 @@ IMG_SZ = 32 # input image size (px)
 img_train_offset = 2
 PAD = 2
 
-N = 8
+N = 4
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -79,11 +79,14 @@ for batch in range(1,6):
 
 	output_switches3_x -= PAD
 	output_switches3_y -= PAD
-
+	
+	sigma31_c = s31_full_gpu(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
 	if batch == 1:
-		sigma31 = s31_full_gpu(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
+		sigma31 = sigma31_c
 	else:
-		sigma31 += s31_full_gpu(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C)
+		sigma31 += sigma31_c
+	
+	np.save('/home/darren/sigma31_' + str(N) + '_' + str(n_batches) + '.npy', sigma31_c/(N_IMGS))
 	n_batches += 1
 	print time.time() - t_forward_start
 
