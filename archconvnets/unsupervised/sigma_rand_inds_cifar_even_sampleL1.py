@@ -8,7 +8,7 @@ from scipy.stats import zscore
 import random
 import copy
 
-N_INDS_KEEP = 10000
+N_INDS_KEEP = 30
 
 conv_block_cuda = cm.conv
 F1_scale = 0.01 # std of init normal distribution
@@ -25,7 +25,7 @@ IMG_SZ = 34#70#75# # input image size (px)
 img_train_offset = 0
 PAD = 2
 
-N = 2
+N = 4
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -46,8 +46,22 @@ output_sz3 = max_output_sz2 - s3 + 1
 max_output_sz3  = len(range(0, output_sz3-POOL_SZ, POOL_STRIDE))
 
 np.random.seed(6666)
-inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
+#inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
 
+###########
+# dense sample points with even spread over F1 values
+remainder_inds = np.random.randint(4*5*5*4*3*3*2*2, size=N_INDS_KEEP)
+remainder_inds_unraveled = np.asarray(np.unravel_index(remainder_inds, (4,5,5,4,3,3,2,2)))
+
+global_inds = np.zeros((12, n1*3*5*5*N_INDS_KEEP),dtype='int')
+for f_ind in range(n1*3*5*5):
+	f_inds_unraveled = np.asarray(np.unravel_index(f_ind, (n1, 3, 5, 5)))
+	global_inds[:, f_ind*N_INDS_KEEP:(f_ind+1)*N_INDS_KEEP] = np.concatenate((np.tile(f_inds_unraveled[:,np.newaxis], (1, N_INDS_KEEP)), remainder_inds_unraveled), axis=0)
+
+inds_keep = np.ravel_multi_index(global_inds, (n1,3,5,5,4,5,5,4,3,3,2,2))
+
+
+#####
 np.random.seed(6666)
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
 F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
@@ -57,11 +71,11 @@ F1 = zscore(F1,axis=None)/500
 F2 = zscore(F2,axis=None)/500
 F3 = zscore(F3,axis=None)/500
 
-sigma31 = np.zeros((N_C, N_INDS_KEEP), dtype='single')
-sigma11 = np.zeros((N_INDS_KEEP, N_INDS_KEEP), dtype='single')
+sigma31 = np.zeros((N_C, len(inds_keep)), dtype='single')
+sigma11 = np.zeros((len(inds_keep), len(inds_keep)), dtype='single')
 
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
-for batch in [6]:#range(1,7):
+for batch in range(1,7):
 	t_start = time.time()
 	z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(batch))
 
@@ -106,8 +120,8 @@ for batch in [6]:#range(1,7):
 	patches  = patch_inds(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C, inds_keep, warn=False)
 	print time.time() - t_patch
 	
-	#if batch == 6:
-	#	break
+	if batch == 6:
+		break
 		
 	t_start = time.time()
 	sigma11 += compute_sigma11_gpu(patches)
@@ -118,4 +132,4 @@ for batch in [6]:#range(1,7):
 	print batch, time.time() - t_start
 
 
-savemat('/home/darren/sigmas_train_test_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat',{'sigma11':sigma11, 'sigma31':sigma31, 'patches':patches,'labels':labels})
+savemat('/home/darren/sigmas_train_test_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat',{'sigma11':sigma11, 'sigma31':sigma31, 'patches':patches,'labels':labels, 'inds_keep': inds_keep})
