@@ -183,6 +183,81 @@ def F_prod_inds(F1, F2, F3, FL, inds, warn=True):
 	
 	return _sigma31_layers.compute_F_prod_inds(F1, F2, F3, FL, inds)
 
+def set_img_from_patches(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, imgs, inds, patches, warn=True):
+	assert output_switches3_x.dtype == np.dtype('int64')
+	assert output_switches3_y.dtype == np.dtype('int64')
+	assert output_switches2_x.dtype == np.dtype('int64')
+	assert output_switches2_y.dtype == np.dtype('int64')
+	assert output_switches1_x.dtype == np.dtype('int64')
+	assert output_switches1_y.dtype == np.dtype('int64')
+	assert inds.dtype == np.dtype('int64')
+	assert np.min(inds) >= 0
+	assert len(inds.shape) == 1
+	assert len(patches.shape) == 2
+	assert inds.shape[0] == patches.shape[1]
+	
+	assert isinstance(s1,int)
+	assert isinstance(s2,int)
+	assert isinstance(s3,int)
+	assert output_switches1_x.shape[0] == output_switches2_x.shape[0] == output_switches3_x.shape[0] == imgs.shape[0] == patches.shape[0]
+	assert output_switches1_x.shape[2] == output_switches1_y.shape[3]
+	assert output_switches2_x.shape[2] == output_switches2_y.shape[3]
+	assert output_switches3_x.shape[2] == output_switches3_y.shape[3]
+	assert imgs.shape[2] == imgs.shape[3]
+	
+	N_IMGS = imgs.shape[0]
+	n3 = output_switches3_x.shape[1]
+	n2 = output_switches2_x.shape[1]
+	n1 = output_switches1_x.shape[1]
+	max_output_sz3 = output_switches3_x.shape[2]
+	
+	assert np.max(inds) < (n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3)
+	
+	if not patches.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (patches)'
+		patches = np.ascontiguousarray(patches)
+		
+	if not imgs.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (imgs)'
+		imgs = np.ascontiguousarray(imgs)
+	
+	if not output_switches3_x.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches3_x)'
+		output_switches3_x = np.ascontiguousarray(output_switches3_x)
+	if not output_switches3_y.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches3_y)'
+		output_switches3_y = np.ascontiguousarray(output_switches3_y)
+		
+	if not output_switches2_x.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches2_x)'
+		output_switches2_x = np.ascontiguousarray(output_switches2_x)
+	if not output_switches2_y.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches2_y)'
+		output_switches2_y = np.ascontiguousarray(output_switches2_y)
+		
+	if not output_switches1_x.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches1_x)'
+		output_switches1_x = np.ascontiguousarray(output_switches1_x)
+	if not output_switches1_y.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches1_y)'
+		output_switches1_y = np.ascontiguousarray(output_switches1_y)
+	
+	if not inds.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (inds)'
+		inds = np.ascontiguousarray(inds)
+	
+	return _sigma31_layers.set_img_from_patches(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, imgs, inds, patches)
+
+
 # output_switches3_x, output_switches3_y, [n_imgs, n3, max_output_sz3, max_output_sz3]
 # output_switches2_x, output_switches2_y, [n_imgs, n2, max_output_sz2, max_output_sz2]
 # output_switches1_x, output_switches1_y, [n_imgs, n1, max_output_sz1, max_output_sz1]

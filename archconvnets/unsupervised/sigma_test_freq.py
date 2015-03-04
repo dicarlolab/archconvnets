@@ -9,7 +9,7 @@ from scipy.stats import zscore
 import random
 import copy
 
-N_INDS_KEEP = 20000
+N_INDS_KEEP = 1000
 
 conv_block_cuda = cm.conv
 F1_scale = 0.01 # std of init normal distribution
@@ -26,7 +26,7 @@ IMG_SZ = 34#70#75# # input image size (px)
 img_train_offset = 0
 PAD = 2
 
-N = 4
+N = 16
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -128,16 +128,19 @@ img_orig = copy.deepcopy(imgs_pad[IMG])
 EPS=1e-9
 p = patches[IMG]
 err = []
-for step in range(1000):
+corr = []
+step = 0
+while True:
 	s11_img = compute_sigma11_gpu(p[np.newaxis][[0,0]]) / 2
 	diff = sigma11 - s11_img
 	g = -2*(np.dot(sigma11 - s11_img, p) - p*(sigma11[range(N_INDS_KEEP),range(N_INDS_KEEP)] - s11_img[range(N_INDS_KEEP),range(N_INDS_KEEP)]))
 	p -= EPS*g
-	if step % 20 == 0:
+	if step % 5 == 0:
 		err.append(np.sum(diff**2))
-		print err[-1], pearsonr(sigma11.ravel(), s11_img.ravel())
+		corr.append(pearsonr(sigma11.ravel(), s11_img.ravel())[0])
+		print err[-1], corr[-1]
 		
-		######## load imge
+		######## load img
 		
 		output_switches3_x_new = output_switches3_x[IMG][np.newaxis]
 		output_switches3_y_new = output_switches3_y[IMG][np.newaxis]
@@ -150,39 +153,50 @@ for step in range(1000):
 
 		img_new = imgs_pad[IMG][np.newaxis]
 		img_new = set_img_from_patches(output_switches3_x_new, output_switches3_y_new, output_switches2_x_new, output_switches2_y_new, output_switches1_x_new, output_switches1_y_new, s1, s2, s3, img_new, inds_keep, p[np.newaxis], warn=False)
-		savemat('/home/darren/img_test.mat',{'img_new': img_new, 'img_orig': img_orig, 'imgs_mean': imgs_mean,'err':err})
+		savemat('/home/darren/img_test_switch_16.mat',{'img_new': img_new, 'img_orig': img_orig, 'imgs_mean': imgs_mean,'err':err,'corr':corr})
 
 		imgs_pad[IMG] = copy.deepcopy(img_new[0])
 		
 		#################### new indices
-		'''inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
+		inds_keep = np.random.randint(n1*3*s1*s1*n2*s2*s2*n3*s3*s3*max_output_sz3*max_output_sz3, size=N_INDS_KEEP)
 		
 		patches  = patch_inds(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C, inds_keep, warn=False)
 
 		t_start = time.time()
 		sigma11 = compute_sigma11_gpu(patches[1:]) / (N_IMGS - 1)
-		'''
-		'''conv_output1 = conv_block_cuda(F1, imgs_pad)#new)
-		max_output1t, output_switches1_x, output_switches1_y = max_pool_locs(np.single(conv_output1),warn=False)
+		
+		conv_output1 = conv_block_cuda(F1, img_new[[0,0]])
+		max_output1t, output_switches1_x_new, output_switches1_y_new = max_pool_locs(np.single(conv_output1),warn=False)
 
-		max_output1 = np.zeros((N_IMGS, n1, max_output_sz1, max_output_sz1),dtype='single')
+		max_output1 = np.zeros((2, n1, max_output_sz1, max_output_sz1),dtype='single')
 		max_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
 
 		conv_output2 = conv_block_cuda(F2, max_output1)
-		max_output2t, output_switches2_x, output_switches2_y = max_pool_locs(np.single(conv_output2), PAD=2,warn=False)
+		max_output2t, output_switches2_x_new, output_switches2_y_new = max_pool_locs(np.single(conv_output2), PAD=2,warn=False)
 
-		max_output2 = np.zeros((N_IMGS, n2, max_output_sz2, max_output_sz2),dtype='single')
+		max_output2 = np.zeros((2, n2, max_output_sz2, max_output_sz2),dtype='single')
 		max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
 
 		conv_output3 = conv_block_cuda(F3, max_output2)
-		max_output3t, output_switches3_x, output_switches3_y = max_pool_locs(np.single(conv_output3), PAD=2,warn=False)
+		max_output3t, output_switches3_x_new, output_switches3_y_new = max_pool_locs(np.single(conv_output3), PAD=2,warn=False)
 
-		output_switches2_x -= PAD
-		output_switches2_y -= PAD
+		output_switches2_x_new -= PAD
+		output_switches2_y_new -= PAD
 
-		output_switches3_x -= PAD
-		output_switches3_y -= PAD
+		output_switches3_x_new -= PAD
+		output_switches3_y_new -= PAD
 
-		patches  = patch_inds(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, labels, imgs_pad, N_C, inds_keep, warn=False)'''
-		#p = patches[IMG]
+		patches  = patch_inds(output_switches3_x_new, output_switches3_y_new, output_switches2_x_new, output_switches2_y_new, output_switches1_x_new, output_switches1_y_new, s1, s2, s3, labels[[0,0]], img_new[[0,0]], N_C, inds_keep, warn=False)
+		
+		output_switches3_x[IMG] = copy.deepcopy(output_switches3_x_new[IMG])
+		output_switches3_y[IMG] = copy.deepcopy(output_switches3_y_new[IMG])
+		
+		output_switches2_x[IMG] = copy.deepcopy(output_switches2_x_new[IMG])
+		output_switches2_y[IMG] = copy.deepcopy(output_switches2_y_new[IMG])
+		
+		output_switches1_x[IMG] = copy.deepcopy(output_switches1_x_new[IMG])
+		output_switches1_y[IMG] = copy.deepcopy(output_switches1_y_new[IMG])
+		
+		p = patches[IMG]
+	step += 1
 		

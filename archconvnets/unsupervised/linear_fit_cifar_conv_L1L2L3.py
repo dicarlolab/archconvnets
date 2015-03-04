@@ -6,8 +6,8 @@ import random
 from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds
 from scipy.stats import pearsonr
 
-N = 4
-N_INDS_KEEP = 10
+N = 16
+N_INDS_KEEP = 2
 
 filename = '/home/darren/linear_fit_' + str(N) + '_' + str(N_INDS_KEEP) + '_conv.mat'
 
@@ -51,7 +51,7 @@ max_output_sz2  = len(range(0, output_sz2-POOL_SZ, POOL_STRIDE)) + 2*PAD
 output_sz3 = max_output_sz2 - s3 + 1
 max_output_sz3  = len(range(0, output_sz3-POOL_SZ, POOL_STRIDE))
 
-np.random.seed(660662)
+np.random.seed(6666)
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
 F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
 F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
@@ -72,8 +72,8 @@ FL321 = FL321.reshape(fl321s)
 sigma_inds = [0,2]
 F_inds = [1,2]
 
-EPS = 1e-12
-EPS_CORR = 1e-8
+EPS = 2e-12
+EPS_CORR = 1e-6#0#2e-6#1e-7#8
 
 Y_test = np.zeros((N_C, sigma31_test_imgs.shape[0]))
 Y_test[labels, range(sigma31_test_imgs.shape[0])] = 1
@@ -106,14 +106,14 @@ while True:
 	grad_corrs = np.zeros_like(FL321)
 	
 	################### F1
-	FL321t = FL321[0,:N_INDS_KEEP*F1_s].reshape((4*3*5*5, N_INDS_KEEP))
+	FL321t = FL321[0,:N_INDS_KEEP*F1_s].reshape((n1*3*5*5, N_INDS_KEEP))
 	
 	FL321t_no_mean = FL321t - FL321t.mean(0)[np.newaxis]
 	FL321t_sigma = np.std(FL321t,0) * np.sqrt(FL321t.shape[0])
 	FL321t_no_mean_no_sigma = FL321t_no_mean / FL321t_sigma[np.newaxis]
 	FL321t_sigma2 = FL321t_sigma**2
 	
-	grad_corr = np.zeros((4*3*5*5, N_INDS_KEEP))
+	grad_corr = np.zeros((n1*3*5*5, N_INDS_KEEP))
 	total = 0
 	for i in range(N_INDS_KEEP):
 		for j in range(i+1,N_INDS_KEEP):
@@ -127,14 +127,14 @@ while True:
 	grad_corrs[:,:N_INDS_KEEP*F1_s] += (grad_corr.ravel())[np.newaxis] / total
 	
 	################## F2
-	FL321t = FL321[0, N_INDS_KEEP*F1_s:N_INDS_KEEP*(F1_s + F2_s)].reshape((4*4*5*5, N_INDS_KEEP))
+	FL321t = FL321[0, N_INDS_KEEP*F1_s:N_INDS_KEEP*(F1_s + F2_s)].reshape((n2*n1*5*5, N_INDS_KEEP))
 	
 	FL321t_no_mean = FL321t - FL321t.mean(0)[np.newaxis]
 	FL321t_sigma = np.std(FL321t,0) * np.sqrt(FL321t.shape[0])
 	FL321t_no_mean_no_sigma = FL321t_no_mean / FL321t_sigma[np.newaxis]
 	FL321t_sigma2 = FL321t_sigma**2
 	
-	grad_corr = np.zeros((4*4*5*5, N_INDS_KEEP))
+	grad_corr = np.zeros((n2*n1*5*5, N_INDS_KEEP))
 	total = 0
 	for i in range(N_INDS_KEEP):
 		for j in range(i+1,N_INDS_KEEP):
@@ -147,14 +147,14 @@ while True:
 	grad_corrs[:, N_INDS_KEEP*F1_s:N_INDS_KEEP*(F1_s + F2_s)] += (grad_corr.ravel())[np.newaxis] / total
 	
 	############## F3
-	FL321t = FL321[0, N_INDS_KEEP*(F1_s + F2_s):].reshape((4*4*3*3, N_INDS_KEEP))
+	FL321t = FL321[0, N_INDS_KEEP*(F1_s + F2_s):].reshape((n3*n2*3*3, N_INDS_KEEP))
 	
 	FL321t_no_mean = FL321t - FL321t.mean(0)[np.newaxis]
 	FL321t_sigma = np.std(FL321t,0) * np.sqrt(FL321t.shape[0])
 	FL321t_no_mean_no_sigma = FL321t_no_mean / FL321t_sigma[np.newaxis]
 	FL321t_sigma2 = FL321t_sigma**2
 	
-	grad_corr = np.zeros((4*4*3*3, N_INDS_KEEP))
+	grad_corr = np.zeros((n3*n2*3*3, N_INDS_KEEP))
 	total = 0
 	for i in range(N_INDS_KEEP):
 		for j in range(i+1,N_INDS_KEEP):
@@ -175,7 +175,7 @@ while True:
 		class_test.append((np.argmax(pred,axis=0) == labels).sum())
 		
 		### convolutionarity for layer 1
-		FL321t = FL321[0,:N_INDS_KEEP*F1_s].reshape((3*4*5*5, N_INDS_KEEP))
+		FL321t = FL321[0,:N_INDS_KEEP*F1_s].reshape((3*n1*5*5, N_INDS_KEEP))
 
 		intact_sum = 0
 		total = 0
@@ -186,7 +186,7 @@ while True:
 		convolutionarity_F1.append(intact_sum/total)
 		
 		### convolutionarity for layer 2
-		FL321t = FL321[0,N_INDS_KEEP*F1_s:N_INDS_KEEP*(F1_s + F2_s)].reshape((4*4*5*5, N_INDS_KEEP))
+		FL321t = FL321[0,N_INDS_KEEP*F1_s:N_INDS_KEEP*(F1_s + F2_s)].reshape((n2*n1*5*5, N_INDS_KEEP))
 
 		intact_sum = 0
 		total = 0
@@ -197,7 +197,7 @@ while True:
 		convolutionarity_F2.append(intact_sum/total)
 		
 		### convolutionarity for layer 3
-		FL321t = FL321[0,N_INDS_KEEP*(F1_s + F2_s):].reshape((4*4*3*3, N_INDS_KEEP))
+		FL321t = FL321[0,N_INDS_KEEP*(F1_s + F2_s):].reshape((n3*n2*3*3, N_INDS_KEEP))
 
 		intact_sum = 0
 		total = 0

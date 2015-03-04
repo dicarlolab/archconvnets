@@ -7,11 +7,11 @@ from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds
 from scipy.stats import pearsonr
 
 N = 4
-N_INDS_KEEP = 9000
+N_INDS_KEEP = 40
 
-filename = '/home/darren/linear_fit_' + str(N) + '_' + str(N_INDS_KEEP) + '_dbg.mat'
+filename = '/home/darren/linear_fit_' + str(N) + '_' + str(N_INDS_KEEP) + '_rand_nmatch.mat'
 
-z = loadmat('/home/darren/sigmas_train_test_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat')
+z = loadmat('/home/darren/sigmas_train_test_' + str(N) + '_' + str(N_INDS_KEEP) + '_rand.mat')
 
 sigma31 = z['sigma31']
 sigma31_test_imgs = z['patches']
@@ -51,7 +51,7 @@ max_output_sz2  = len(range(0, output_sz2-POOL_SZ, POOL_STRIDE)) + 2*PAD
 output_sz3 = max_output_sz2 - s3 + 1
 max_output_sz3  = len(range(0, output_sz3-POOL_SZ, POOL_STRIDE))
 
-np.random.seed(6666)
+np.random.seed(660662)
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
 F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
 F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
@@ -63,11 +63,16 @@ F3 = zscore(F3,axis=None)/500
 FL = zscore(FL,axis=None)/500
 
 FL321 = F_prod_inds(F1, F2, F3, FL, inds_keep)
+fl321s = FL321.shape
+FL321 = FL321.ravel()
+#FL321 = np.ones_like(FL321)
+random.shuffle(FL321)
+FL321 = FL321.reshape(fl321s)
 
 sigma_inds = [0,2]
 F_inds = [1,2]
 
-EPS = 2.5e-14
+EPS = 1e-12#5e-13#2.5e-14
 
 Y_test = np.zeros((N_C, sigma31_test_imgs.shape[0]))
 Y_test[labels, range(sigma31_test_imgs.shape[0])] = 1
@@ -86,10 +91,10 @@ print 'starting'
 ########
 step = 0
 t_start = time.time()
-N_INDS_KEEP = 30
+#N_INDS_KEEP = 40
 
 f_shuffle = range(4*3*5*5*N_INDS_KEEP)
-random.shuffle(f_shuffle)
+#random.shuffle(f_shuffle)
 
 while True:
 	FL321_g = gpu.garray(FL321)

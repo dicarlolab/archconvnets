@@ -8,7 +8,7 @@ import gnumpy as gpu
 gpu.board_id_to_use = 1
 
 N = 48
-N_INDS_KEEP = 20000
+N_INDS_KEEP = 20000#20000
 N_TEST_IMGS = 1024*2
 filename = '/home/darren/linear_fit_imgnet_' + str(N) + '_' + str(N_INDS_KEEP) +'.mat'
 
@@ -89,7 +89,8 @@ sigma11_g = gpu.garray(sigma11)
 print 'starting'
 ########
 t_start = time.time()
-for step in range(100000):
+step = 0
+while True:#for step in range(100000):
 	FL321_g = gpu.garray(FL321)
 	
 	grad = 2*(FL321_g.dot(sigma11_g) - sigma31_g)
@@ -105,4 +106,4 @@ for step in range(100000):
 		savemat(filename, {'err_test': err_test, 'err_train': err_train, 
 			'class_test': class_test, 'class_train': class_train})
 		t_start = time.time()
-	
+	step += 1
