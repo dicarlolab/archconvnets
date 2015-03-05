@@ -9,7 +9,7 @@ from scipy.spatial.distance import squareform, pdist
 import random
 import copy
 
-N_INDS_KEEP = 20000
+N_INDS_KEEP = 1000
 
 conv_block_cuda = cm.conv
 F1_scale = 0.01 # std of init normal distribution
@@ -74,7 +74,18 @@ for batch in [6]:#range(1,7):
 
 	labels = np.asarray(z['labels'])[:N_IMGS].astype(int)
 
-	pixel_dists = squareform(pdist(x.reshape((3*32*32,N_IMGS)),lambda u, v: np.dot(u,v))) / N_IMGS
+	#pixel_dists = squareform(pdist(x.reshape((3*32*32,N_IMGS)),lambda u, v: np.dot(u,v))) / N_IMGS
+	
+	if False:
+		xt = x.reshape((3*32*32,N_IMGS))
+		pixel_dists = np.zeros((xt.shape[0],xt.shape[0]))
+		for i in range(xt.shape[0]):
+			for j in range(i,xt.shape[0]):
+				pixel_dists[i,j] = pixel_dists[j,i] = np.dot(xt[i], xt[j])
+		pixel_dists /= N_IMGS
+		savemat('/home/darren/pixel_dists.mat',{'pixel_dists':pixel_dists})
+	else:
+		pixel_dists = loadmat('/home/darren/pixel_dists.mat')['pixel_dists']
 	
 	imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, N_IMGS),dtype='single')
 	imgs_pad[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
@@ -109,19 +120,17 @@ for batch in [6]:#range(1,7):
 	patches, channels, x, y = patch_inds_addresses(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, s1, s2, s3, imgs_pad, N_C, inds_keep, warn=False)
 	print time.time() - t_patch
 	
-	c_mean = np.mean(channels,0)
-	x_mean = np.mean(x,0)
-	y_mean = np.mean(y,0)
-	inds = np.ravel_multi_index((np.int64(c_mean),np.int64(x_mean),np.int64(y_mean)),dims=(3,32,32))
-	
+	x[x>=32] = 31
+	y[y>=32] = 31
+	inds = np.ravel_multi_index((np.int64(channels),np.int64(x),np.int64(y)),dims=(3,32,32))
 	sigma11 = np.zeros((N_INDS_KEEP,N_INDS_KEEP))
 	for i in range(N_INDS_KEEP):
-		for j in range(i+1,N_INDS_KEEP):
-			sigma11[i,j] = sigma11[j,i] = pixel_dists[inds[i],inds[j]]
+		for j in range(i,N_INDS_KEEP):
+			sigma11[i,j] = sigma11[j,i] = np.mean(pixel_dists[inds[:N_IMGS,i],inds[:N_IMGS,j]])
 	
 	for cat in range(N_C):
 		sigma31[cat] += patches[labels == cat].sum(0) / N_IMGS
 	print batch, time.time() - t_start
 
 
-savemat('/home/darren/sigmas_train_test_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat',{'sigma11':sigma11, 'sigma31':sigma31, 'patches':patches,'labels':labels, 'inds_keep':inds_keep})
+savemat('/home/darren/sigmas_train_test_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat',{'sigma11':sigma11, 'sigma31':sigma31, 'patches':patches,'labels':labels, 'inds_keep':inds_keep,'x':x,'y':y,'channels':channels})
