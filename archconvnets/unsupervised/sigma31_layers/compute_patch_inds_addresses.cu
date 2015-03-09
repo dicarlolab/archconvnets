@@ -157,6 +157,11 @@ static PyObject *compute_patch_inds_addresses(PyObject *self, PyObject *args){
 			a1_x_global = output_switches1_x[O1_IND(img,f1,a2_x_global,a2_y_global)] + a1_x;
 			a1_y_global = output_switches1_y[O1_IND(img,f1,a2_x_global,a2_y_global)] + a1_y;
 			
+			if(a1_x_global >= img_sz) /// this shouldn't happen
+				a1_x_global = img_sz - 1;
+			if(a1_y_global >= img_sz)
+				a1_y_global = img_sz - 1;
+			
 			patches[P_IND(img, ind)] += imgs[I_IND(img, channel,a1_x_global,a1_y_global)];
 			channels[P_IND(img, ind)] = channel;
 			x[P_IND(img, ind)] = a1_x_global;

@@ -5,18 +5,22 @@ import time
 import random
 from archconvnets.unsupervised.sigma31_layers.sigma31_layers import F_prod_inds
 from scipy.stats import pearsonr
+import copy
+import gnumpy as gpu
 
-N = 4
-N_INDS_KEEP = 40
+N = 2
+N_INDS_KEEP = 500
 
-filename = '/home/darren/linear_fit_' + str(N) + '_' + str(N_INDS_KEEP) + '_rand_nmatch.mat'
+filename = '/home/darren/linear_fit_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat'
 
-z = loadmat('/home/darren/sigmas_train_test_' + str(N) + '_' + str(N_INDS_KEEP) + '_rand.mat')
+z = loadmat('/home/darren/sigmas_train_test_' + str(N) + '_' + str(N_INDS_KEEP) + '.mat')
 
 sigma31 = z['sigma31']
 sigma31_test_imgs = z['patches']
 labels = z['labels']
 sigma11 = z['sigma11']
+#sigma11 = np.zeros_like(sigma11)
+#sigma11 = loadmat('/home/darren/s11_approx.mat')['sigma11']
 inds_keep = np.squeeze(z['inds_keep'])
 
 F1_scale = 0.01 # std of init normal distribution
@@ -51,7 +55,7 @@ max_output_sz2  = len(range(0, output_sz2-POOL_SZ, POOL_STRIDE)) + 2*PAD
 output_sz3 = max_output_sz2 - s3 + 1
 max_output_sz3  = len(range(0, output_sz3-POOL_SZ, POOL_STRIDE))
 
-np.random.seed(660662)
+np.random.seed(6666)
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
 F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
 F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
@@ -72,7 +76,7 @@ FL321 = FL321.reshape(fl321s)
 sigma_inds = [0,2]
 F_inds = [1,2]
 
-EPS = 1e-12#5e-13#2.5e-14
+EPS = 1e-8#5e-13#2.5e-14
 
 Y_test = np.zeros((N_C, sigma31_test_imgs.shape[0]))
 Y_test[labels, range(sigma31_test_imgs.shape[0])] = 1
@@ -83,18 +87,16 @@ convolutionarity = []
 err_train = []
 err_test = []
 
-import gnumpy as gpu
+
 sigma31_g = gpu.garray(sigma31)
 sigma11_g = gpu.garray(sigma11)
+
+#FL321 = copy.deepcopy(sigma31)
 
 print 'starting'
 ########
 step = 0
 t_start = time.time()
-#N_INDS_KEEP = 40
-
-f_shuffle = range(4*3*5*5*N_INDS_KEEP)
-#random.shuffle(f_shuffle)
 
 while True:
 	FL321_g = gpu.garray(FL321)
@@ -108,7 +110,7 @@ while True:
 		err_test.append(np.mean((pred - Y_test)**2))
 		class_test.append((np.argmax(pred,axis=0) == labels).sum())
 		
-		### convolutionarity f0r layer 1
+		'''### convolutionarity for layer 1
 		FL321t = ((FL321[0].ravel())[f_shuffle]).reshape((4*3*5*5, N_INDS_KEEP))
 
 		intact_sum = 0
@@ -117,10 +119,11 @@ while True:
 			for j in range(i+1,N_INDS_KEEP):
 				intact_sum += np.abs(pearsonr(FL321t[:,i], FL321t[:,j])[0])
 				total += 1
-		convolutionarity.append(intact_sum/total)
+		convolutionarity.append(intact_sum/total)'''
 		
-		print err_test[-1], 1 - class_test[-1]/10000.0, time.time() - t_start, convolutionarity[-1], filename
+		print err_test[-1], 1 - class_test[-1]/10000.0, time.time() - t_start, filename#convolutionarity[-1], filename
 		savemat(filename, {'err_test': err_test, 'err_train': err_train, 
 			'class_test': class_test, 'class_train': class_train, 'convolutionarity':convolutionarity})
 		t_start = time.time()
+	step += 1
 	
