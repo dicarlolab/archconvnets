@@ -17,6 +17,11 @@
 #define S3_IND(A,B,C,D,E)((E) + (D)*s3 + (C)*s3_s3 + (B)*s3_s3_n2 + (A)*s3_s3_n2_n3)
 #define SL_IND(A,B,C,D)((D) + (C)*max_output_sz3 + (B)*max_output_sz3_max_output_sz3 + (A)*max_output_sz3_max_output_sz3_n3)
 
+#define F1_IND(A,B,C,D)(D + (s1)*C + (s1*s1)*B + (s1*s1*n0)*A)
+#define F2_IND(A,B,C,D)(D + (s2)*C + (s2*s2)*B + (s2*s2*n1)*A)
+#define F3_IND(A,B,C,D)(D + (s3)*C + (s3*s3)*B + (s3*s3*n2)*A)
+#define FL_IND(A,B,C,D)(D + (max_output_sz3)*C + (max_output_sz3*max_output_sz3)*B + (max_output_sz3*max_output_sz3*n3)*A)
+
 #define I_IND(A,B,C,D)((D) + (C)*img_sz + (B)*img_sz_img_sz + (A)*img_sz_img_sz_3)
 
 
@@ -76,6 +81,7 @@ int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s[N_GPUS][N_SIGMA
 #include "compute_sigma11_lin_gpu.cu"
 #include "pred_deriv_gpu.cu"
 #include "set_img_from_patches.cu"
+#include "bp_patch_sigma31.cu"
 
 static PyMethodDef _sigma31_layers[] = {
 	{"compute_sigma31_full_gpu", compute_sigma31_full_gpu, METH_VARARGS},
@@ -98,6 +104,7 @@ static PyMethodDef _sigma31_layers[] = {
 	{"compute_sigma11_lin_gpu", compute_sigma11_lin_gpu, METH_VARARGS},
 	{"pred_deriv_gpu", pred_deriv_gpu, METH_VARARGS},
 	{"set_img_from_patches", set_img_from_patches, METH_VARARGS},
+	{"bp_patch_sigma31", bp_patch_sigma31, METH_VARARGS},
 	{NULL, NULL}
 };
 
