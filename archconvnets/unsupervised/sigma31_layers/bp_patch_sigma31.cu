@@ -122,13 +122,15 @@ static PyObject *bp_patch_sigma31(PyObject *self, PyObject *args){
 	IND_DTYPE img_sz_img_sz_3 = img_sz*img_sz*3;
 	IND_DTYPE img_sz_img_sz = img_sz*img_sz;
 	
+	IND_DTYPE deriv_in_ind;
+	
 	for(cat=0; cat < N_C; cat++){ for(f1=0; f1 < n1; f1++){ for(channel=0; channel < 3; channel++){ for(a1_x=0; a1_x < s1; a1_x++){
 	for(a1_y=0; a1_y < s1; a1_y++){ for(f2=0; f2 < n2; f2++){ for(a2_x=0; a2_x < s2; a2_x++){ for(a2_y=0; a2_y < s2; a2_y++){
 	for(f3=0; f3 < n3; f3++){ for(a3_x=0; a3_x < s3; a3_x++){ for(a3_y=0; a3_y < s3; a3_y++){ for(z1=0; z1 < max_output_sz3; z1++){ for(z2=0; z2 < max_output_sz3; z2++){
 		
 		F_prod = F1[F1_IND(f1, channel, a1_x, a1_y)] * F2[F2_IND(f2, f1, a2_x, a2_y)] * F3[F3_IND(f3, f2, a3_x, a3_y)] * FL[FL_IND(cat, f3, z1, z2)];
 		if(deriv_ind == 1){
-			deriv_ind = F1_IND(f1, channel, a1_x, a1_y);
+			deriv_in_ind = F1_IND(f1, channel, a1_x, a1_y);
 		}
 		
 		///////////////////////////////////////////////////// uns
@@ -159,7 +161,7 @@ static PyObject *bp_patch_sigma31(PyObject *self, PyObject *args){
 		a1_x_global = output_switches1_x_s31[O1_IND(cat,f1,a2_x_global,a2_y_global)] + a1_x;
 		a1_y_global = output_switches1_y_s31[O1_IND(cat,f1,a2_x_global,a2_y_global)] + a1_y;
 		
-		deriv[deriv_ind] += N_IMGS * F_prod * sigma_imgs[I_IND(cat, channel,a1_x_global,a1_y_global)];
+		deriv[deriv_in_ind] += N_IMGS * F_prod * sigma_imgs[I_IND(cat, channel,a1_x_global,a1_y_global)];
 
 		
 	}}}}}}}}}}}}} // ind

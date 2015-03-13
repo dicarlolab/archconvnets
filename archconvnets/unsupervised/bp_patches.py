@@ -17,7 +17,7 @@ FL_scale = 0.3
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 100 # batch size
+N_IMGS = 20 # batch size
 IMG_SZ_CROP = 32 # input image size (px)
 IMG_SZ = 34#70#75# # input image size (px)
 img_train_offset = 0
@@ -32,7 +32,7 @@ s1 = 5
 s2 = 5
 s3 = 3
 
-N_C = 20 # number of categories
+N_C = 10 # number of categories
 
 output_sz1 = len(range(0, IMG_SZ - s1 + 1, STRIDE1))
 max_output_sz1  = len(range(0, output_sz1-POOL_SZ, POOL_STRIDE)) + 2*PAD
@@ -101,7 +101,11 @@ print time.time() - t_forward_start
 t_patch = time.time()
 
 deriv_ind = 1
-deriv = bp_patch_sigma31(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x[:N_C], output_switches3_y[:N_C], output_switches2_x[:N_C], output_switches2_y[:N_C], output_switches1_x[:N_C], output_switches1_y[:N_C], s1, s2, s3, imgs_pad, imgs_pad[:N_C], deriv_ind, pred, F1, F2, F3, FL)
+while True:
+	t_patch = time.time()
+	deriv = bp_patch_sigma31(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x[:N_C], output_switches3_y[:N_C], output_switches2_x[:N_C], output_switches2_y[:N_C], output_switches1_x[:N_C], output_switches1_y[:N_C], s1, s2, s3, imgs_pad, imgs_pad[:N_C], deriv_ind, pred, F1, F2, F3, FL)
+	F1 -= deriv*1
+	savemat('/home/darren/F1.mat', {'F1': F1})
 
-print time.time() - t_patch
+	print time.time() - t_patch
 
