@@ -21,7 +21,7 @@ IMG_SZ = 34#70#75# # input image size (px)
 img_train_offset = 0
 PAD = 2
 
-N = 2
+N = 4
 n1 = N # L1 filters
 n2 = N
 n3 = N
@@ -97,7 +97,7 @@ print time.time() - t_forward_start
 t_patch = time.time()
 
 EPS = 1e-2
-for step in range(100):
+while True:
 	t_patch = time.time()
 	
 	conv_output1 = conv(F1, imgs_pad)

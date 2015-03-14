@@ -12,7 +12,7 @@ static PyObject *bp_patch_sigma31(PyObject *self, PyObject *args){
 	PyArrayObject *deriv_in;
 	
 	int dims[14];
-	int s1, s2, s3, N_C, deriv_ind;
+	int deriv_ind;
 	long *output_switches3_x, *output_switches3_y;
 	long *output_switches2_x, *output_switches2_y;
 	long *output_switches1_x, *output_switches1_y;
@@ -25,14 +25,14 @@ static PyObject *bp_patch_sigma31(PyObject *self, PyObject *args){
 	
 	float *F1, *F2, *F3, *FL;
 	
-	if (!PyArg_ParseTuple(args, "O!O!O!O!O!O!O!O!O!O!O!O!iiiO!O!iO!O!O!O!O!", 
+	if (!PyArg_ParseTuple(args, "O!O!O!O!O!O!O!O!O!O!O!O!O!O!iO!O!O!O!O!", 
 		&PyArray_Type, &output_switches3_x_in, &PyArray_Type, &output_switches3_y_in,
 		&PyArray_Type, &output_switches2_x_in, &PyArray_Type, &output_switches2_y_in,
 		&PyArray_Type, &output_switches1_x_in, &PyArray_Type, &output_switches1_y_in,
 		&PyArray_Type, &output_switches3_x_s31_in, &PyArray_Type, &output_switches3_y_s31_in,
 		&PyArray_Type, &output_switches2_x_s31_in, &PyArray_Type, &output_switches2_y_s31_in,
 		&PyArray_Type, &output_switches1_x_s31_in, &PyArray_Type, &output_switches1_y_s31_in,
-		&s1, &s2, &s3, &PyArray_Type, &imgs_in, &PyArray_Type, &sigma_imgs_in, &deriv_ind, 
+		&PyArray_Type, &imgs_in, &PyArray_Type, &sigma_imgs_in, &deriv_ind, 
 		&PyArray_Type, &pred_in, &PyArray_Type, &F1_in, &PyArray_Type, &F2_in, &PyArray_Type, &F3_in, &PyArray_Type, &FL_in)) 
 			return NULL;
 
@@ -81,13 +81,31 @@ static PyObject *bp_patch_sigma31(PyObject *self, PyObject *args){
 	IND_DTYPE n3 = PyArray_DIM(output_switches3_x_in, 1);
 	IND_DTYPE n2 = PyArray_DIM(output_switches2_x_in, 1);
 	IND_DTYPE n1 = PyArray_DIM(output_switches1_x_in, 1);
-	N_C = PyArray_DIM(sigma_imgs_in, 0);
+	IND_DTYPE N_C = PyArray_DIM(sigma_imgs_in, 0);
+	IND_DTYPE s1 = PyArray_DIM(F1_in, 2);
+	IND_DTYPE s2 = PyArray_DIM(F2_in, 2);
+	IND_DTYPE s3 = PyArray_DIM(F3_in, 2);
 	
 	if(deriv_ind == 1){
 		dims[0] = n1;
 		dims[1] = 3;
 		dims[2] = s1;
 		dims[3] = s1;
+	}else if(deriv_ind == 2){
+		dims[0] = n2;
+		dims[1] = n1;
+		dims[2] = s2;
+		dims[3] = s2;
+	}else if(deriv_ind == 3){
+		dims[0] = n3;
+		dims[1] = n2;
+		dims[2] = s3;
+		dims[3] = s3;
+	}else if(deriv_ind == 4){
+		dims[0] = N_C;
+		dims[1] = n3;
+		dims[2] = max_output_sz3;
+		dims[3] = max_output_sz3;
 	}else{
 		printf("unsupported deriv_ind %i\n", deriv_ind);
 		return NULL;
@@ -129,9 +147,14 @@ static PyObject *bp_patch_sigma31(PyObject *self, PyObject *args){
 	for(f3=0; f3 < n3; f3++){ for(a3_x=0; a3_x < s3; a3_x++){ for(a3_y=0; a3_y < s3; a3_y++){ for(z1=0; z1 < max_output_sz3; z1++){ for(z2=0; z2 < max_output_sz3; z2++){
 		
 		F_prod = F1[F1_IND(f1, channel, a1_x, a1_y)] * F2[F2_IND(f2, f1, a2_x, a2_y)] * F3[F3_IND(f3, f2, a3_x, a3_y)] * FL[FL_IND(cat, f3, z1, z2)];
-		if(deriv_ind == 1){
+		if(deriv_ind == 1)
 			deriv_in_ind = F1_IND(f1, channel, a1_x, a1_y);
-		}
+		else if(deriv_ind == 2)
+			deriv_in_ind = F2_IND(f2, f1, a2_x, a2_y);
+		else if(deriv_ind == 3)
+			deriv_in_ind = F3_IND(f3, f2, a3_x, a3_y);
+		else if(deriv_ind == 4)
+			deriv_in_ind = FL_IND(cat, f3, z1, z2);
 		
 		///////////////////////////////////////////////////// uns
 		for(img = 0; img < N_IMGS; img++){
@@ -146,7 +169,7 @@ static PyObject *bp_patch_sigma31(PyObject *self, PyObject *args){
 			a1_x_global = output_switches1_x[O1_IND(img,f1,a2_x_global,a2_y_global)] + a1_x;
 			a1_y_global = output_switches1_y[O1_IND(img,f1,a2_x_global,a2_y_global)] + a1_y;
 			
-			deriv[deriv_ind] -= F_prod * imgs[I_IND(img, channel,a1_x_global,a1_y_global)] * pred[cat + N_C*img];
+			deriv[deriv_in_ind] += F_prod * imgs[I_IND(img, channel,a1_x_global,a1_y_global)] * pred[cat + N_C*img];
 		} // img	
 		
 		//////////////////////////////////////////////// sup
@@ -161,7 +184,7 @@ static PyObject *bp_patch_sigma31(PyObject *self, PyObject *args){
 		a1_x_global = output_switches1_x_s31[O1_IND(cat,f1,a2_x_global,a2_y_global)] + a1_x;
 		a1_y_global = output_switches1_y_s31[O1_IND(cat,f1,a2_x_global,a2_y_global)] + a1_y;
 		
-		deriv[deriv_in_ind] += N_IMGS * F_prod * sigma_imgs[I_IND(cat, channel,a1_x_global,a1_y_global)];
+		deriv[deriv_in_ind] -= N_IMGS * F_prod * sigma_imgs[I_IND(cat, channel,a1_x_global,a1_y_global)];
 
 		
 	}}}}}}}}}}}}} // ind
