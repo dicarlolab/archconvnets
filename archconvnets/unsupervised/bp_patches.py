@@ -1,14 +1,12 @@
 import time
 import numpy as np
-from archconvnets.unsupervised.cudnn_module import cudnn_module as cm
-import archconvnets.unsupervised.sigma31_layers.sigma31_layers as sigma31_layers
-from archconvnets.unsupervised.sigma31_layers.sigma31_layers import max_pool_locs, bp_patch_sigma31
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import *
+from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 from scipy.io import savemat, loadmat
 from scipy.stats import zscore
 import random
 import copy
 
-conv_block_cuda = cm.conv
 F1_scale = 0.01 # std of init normal distribution
 F2_scale = 0.01
 F3_scale = 0.01
@@ -17,7 +15,7 @@ FL_scale = 0.3
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 20 # batch size
+N_IMGS = 128 # batch size
 IMG_SZ_CROP = 32 # input image size (px)
 IMG_SZ = 34#70#75# # input image size (px)
 img_train_offset = 0
@@ -73,20 +71,20 @@ imgs_pad = np.ascontiguousarray(imgs_pad.transpose((3,0,1,2)))
 
 # forward pass
 t_forward_start = time.time()
-conv_output1 = conv_block_cuda(F1, imgs_pad)
+conv_output1 = conv(F1, imgs_pad)
 max_output1t, output_switches1_x, output_switches1_y = max_pool_locs(np.single(conv_output1),warn=False)
 
 max_output1 = np.zeros((N_IMGS, n1, max_output_sz1, max_output_sz1),dtype='single')
 max_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
 
-conv_output2 = conv_block_cuda(F2, max_output1)
+conv_output2 = conv(F2, max_output1)
 max_output2t, output_switches2_x, output_switches2_y = max_pool_locs(np.single(conv_output2), PAD=2,warn=False)
 
 max_output2 = np.zeros((N_IMGS, n2, max_output_sz2, max_output_sz2),dtype='single')
 max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
 
-conv_output3 = conv_block_cuda(F3, max_output2)
-max_output3t, output_switches3_x, output_switches3_y = max_pool_locs(np.single(conv_output3), PAD=2,warn=False)
+conv_output3 = conv(F3, max_output2)
+max_output3, output_switches3_x, output_switches3_y = max_pool_locs(np.single(conv_output3), PAD=2,warn=False)
 
 output_switches2_x -= PAD
 output_switches2_y -= PAD
@@ -94,17 +92,41 @@ output_switches2_y -= PAD
 output_switches3_x -= PAD
 output_switches3_y -= PAD
 
-pred = np.einsum(max_output3t, [0,1,2,3], FL, [4,1,2,3], [0,4])
-
 print time.time() - t_forward_start
 
 t_patch = time.time()
 
-deriv_ind = 1
-while True:
+EPS = 1e-2
+for step in range(100):
 	t_patch = time.time()
-	deriv = bp_patch_sigma31(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x[:N_C], output_switches3_y[:N_C], output_switches2_x[:N_C], output_switches2_y[:N_C], output_switches1_x[:N_C], output_switches1_y[:N_C], s1, s2, s3, imgs_pad, imgs_pad[:N_C], deriv_ind, pred, F1, F2, F3, FL)
-	F1 -= deriv*1
+	
+	conv_output1 = conv(F1, imgs_pad)
+	max_output1t = max_pool_locs_alt(np.ascontiguousarray(np.single(conv_output1[:,np.newaxis])), output_switches1_x, output_switches1_y)
+	max_output1 = np.zeros((N_IMGS, n1, max_output_sz1, max_output_sz1),dtype='single')
+	max_output1[:,:, PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = np.squeeze(max_output1t)
+
+	conv_output2 = conv(F2, max_output1)
+	max_output2t = max_pool_locs_alt(np.ascontiguousarray(np.single(conv_output2[:,np.newaxis])), output_switches2_x, output_switches2_y)
+	max_output2 = np.zeros((N_IMGS, n2, max_output_sz2, max_output_sz2),dtype='single')
+	max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = np.squeeze(max_output2t)
+
+	conv_output3 = conv(F3, max_output2)
+	max_output3 = max_pool_locs_alt(np.ascontiguousarray(np.single(conv_output3[:,np.newaxis])), output_switches3_x, output_switches3_y)
+	pred = np.einsum(np.squeeze(max_output3), [0,1,2,3], FL, [4,1,2,3], [0,4])
+	
+	#grad_F1 = bp_patch_sigma31(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x[:N_C], output_switches3_y[:N_C], output_switches2_x[:N_C], output_switches2_y[:N_C], output_switches1_x[:N_C], output_switches1_y[:N_C], imgs_pad, imgs_pad[:N_C], 1, pred, F1, F2, F3, FL)
+	grad_F1 = bp_patch_sigma31_gpu(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x[:N_C], output_switches3_y[:N_C], output_switches2_x[:N_C], output_switches2_y[:N_C], output_switches1_x[:N_C], output_switches1_y[:N_C], imgs_pad, imgs_pad[:N_C], 1, pred, F1, F2, F3, FL)
+	F1 -= grad_F1*EPS
+	
+	'''grad_F2 = bp_patch_sigma31(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x[:N_C], output_switches3_y[:N_C], output_switches2_x[:N_C], output_switches2_y[:N_C], output_switches1_x[:N_C], output_switches1_y[:N_C], imgs_pad, imgs_pad[:N_C], 2, pred, F1, F2, F3, FL)
+	F2 -= grad_F2*EPS
+	
+	grad_F3 = bp_patch_sigma31(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x[:N_C], output_switches3_y[:N_C], output_switches2_x[:N_C], output_switches2_y[:N_C], output_switches1_x[:N_C], output_switches1_y[:N_C], imgs_pad, imgs_pad[:N_C], 3, pred, F1, F2, F3, FL)
+	F3 -= grad_F3*EPS
+	
+	grad_FL = bp_patch_sigma31(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x[:N_C], output_switches3_y[:N_C], output_switches2_x[:N_C], output_switches2_y[:N_C], output_switches1_x[:N_C], output_switches1_y[:N_C], imgs_pad, imgs_pad[:N_C], 4, pred, F1, F2, F3, FL)
+	FL -= grad_FL*EPS
+	'''
 	savemat('/home/darren/F1.mat', {'F1': F1})
 
 	print time.time() - t_patch

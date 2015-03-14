@@ -82,6 +82,7 @@ int max_output_sz3_max_output_sz3_s3_s3_n3_s2_s2_n2_s1_s1_n0_n1s[N_GPUS][N_SIGMA
 #include "pred_deriv_gpu.cu"
 #include "set_img_from_patches.cu"
 #include "bp_patch_sigma31.cu"
+#include "bp_patch_sigma31_gpu.cu"
 
 static PyMethodDef _sigma31_layers[] = {
 	{"compute_sigma31_full_gpu", compute_sigma31_full_gpu, METH_VARARGS},
@@ -105,6 +106,7 @@ static PyMethodDef _sigma31_layers[] = {
 	{"pred_deriv_gpu", pred_deriv_gpu, METH_VARARGS},
 	{"set_img_from_patches", set_img_from_patches, METH_VARARGS},
 	{"bp_patch_sigma31", bp_patch_sigma31, METH_VARARGS},
+	{"bp_patch_sigma31_gpu", bp_patch_sigma31_gpu, METH_VARARGS},
 	{NULL, NULL}
 };
 
