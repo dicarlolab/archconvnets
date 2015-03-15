@@ -5,9 +5,14 @@ from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 from scipy.io import savemat, loadmat
 from scipy.stats import zscore
 import random
+import gnumpy as gpu
 import copy
 
-TEST_FREQ = 10
+#kernprof -l bp_patches_conv.py
+#python -m line_profiler bp_patches_conv.py.lprof  > p
+#@profile
+#def sf():
+TEST_FREQ = 50
 N_TEST_SET = 500
 N_TRAIN = 300
 TOP_N = 1
@@ -35,7 +40,7 @@ s1 = 5
 s2 = 5
 s3 = 3
 
-N_C = 150 # number of categories
+N_C = 100 # number of categories
 
 output_sz1 = len(range(0, IMG_SZ - s1 + 1, STRIDE1))
 max_output_sz1  = len(range(0, output_sz1-POOL_SZ, POOL_STRIDE)) + 2*PAD
@@ -104,11 +109,15 @@ output_switches3_y_test -= PAD
 
 
 class_test = []
-EPS = 1e-1
+EPS = 1e-4
 step_total = 0
+epoch = 0
 while True:
+	epoch += 1
 	for batch in range(1,6):
 		z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(batch))
+		z['data'] = z['data'] - imgs_mean
+		z['data'] = z['data'].reshape((3, 32, 32, 10000))
 		for step in range(100):
 			if (step % TEST_FREQ) == 0:
 				t_patch = time.time()
@@ -147,9 +156,7 @@ while True:
 
 			########################################################################################## uns
 			s_batch = step % 100
-			x = z['data'] - imgs_mean
-			x = x.reshape((3, 32, 32, 10000))
-			x = x[:,:,:,s_batch*100:(s_batch+1)*100]
+			x = z['data'][:,:,:,s_batch*100:(s_batch+1)*100]
 
 			imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, N_IMGS),dtype='single')
 			imgs_pad[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
@@ -218,7 +225,13 @@ while True:
 				max_output3t_accum[:,f1_] = max_output3t.reshape((N_IMGS, 3, s1, s1, n3*max_output_sz3**2))
 				
 			FLr = FL.reshape((N_C, n3*max_output_sz3**2))
-			pred_deriv_L1 = np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4))) # sum across f3,z1,z2
+			
+			FLr_g = gpu.garray(FLr)
+			max_output3t_accum_g = gpu.garray(max_output3t_accum.transpose((0,1,2,3,5,4)))
+			pred_deriv_L1 = FLr_g.dot(max_output3t_accum_g).as_numpy_array()
+			
+			
+			#pred_deriv_L1 = np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4))) # sum across f3,z1,z2
 			
 			pred_deriv_L1 = pred_deriv_L1.reshape((N_C*N_IMGS, n1, 3, s1, s1)).transpose((1,2,3,0,4))
 			pred_pred_deriv_L1 = np.dot(pred_ravel, pred_deriv_L1)
@@ -239,7 +252,10 @@ while True:
 				max_output3t = max_pool_locs_alt(conv_output3_deriv, output_switches3_x, output_switches3_y)
 				max_output3t_accum[:,f2_] = max_output3t.reshape((N_IMGS, n1, s2, s2, n3*max_output_sz3**2))
 				
-			pred_deriv_L2 = np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4)))
+			max_output3t_accum_g = gpu.garray(max_output3t_accum.transpose((0,1,2,3,5,4)))
+			pred_deriv_L2 = FLr_g.dot(max_output3t_accum_g).as_numpy_array()
+			
+			#pred_deriv_L2 = np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4)))
 			
 			pred_deriv_L2 = pred_deriv_L2.reshape((N_C*N_IMGS, n2, n1, s2, s2)).transpose((1,2,3,0,4))
 			pred_pred_deriv_L2 = np.dot(pred_ravel, pred_deriv_L2)
@@ -259,9 +275,7 @@ while True:
 			pred_pred_deriv_FL = np.einsum(pred,[4,0],max_output3,range(4),[4,1,2,3])
 			
 			########################################################################################## sup
-			x = z['data'] - imgs_mean
-			x = x.reshape((3, 32, 32, 10000))
-			x = x[:,:,:,:N_C]
+			x = z['data'][:,:,:,:N_C]
 			
 			imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, N_C),dtype='single')
 			imgs_pad[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
@@ -327,7 +341,10 @@ while True:
 				max_output3t = max_pool_locs_alt(conv_output3_deriv, output_switches3_x_sup, output_switches3_y_sup)
 				max_output3t_accum[:,f1_] = max_output3t.reshape((N_C, 3, s1, s1, n3*max_output_sz3**2))
 				
-			pred_deriv_L1_sup = np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4))) # sum across f3,z1,z2
+			max_output3t_accum_g = gpu.garray(max_output3t_accum.transpose((0,1,2,3,5,4)))
+			pred_deriv_L1_sup = FLr_g.dot(max_output3t_accum_g).as_numpy_array()
+			
+			#pred_deriv_L1_sup = np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4))) # sum across f3,z1,z2
 			
 			########## F2 deriv wrt f2_, a2_x_, a2_y_, f1_
 			pool2_derivt = pool2_patches.reshape((N_C*n1*s2*s2, n2, max_output_sz2-2*PAD, max_output_sz2-2*PAD))
@@ -345,7 +362,9 @@ while True:
 				max_output3t = max_pool_locs_alt(conv_output3_deriv, output_switches3_x_sup, output_switches3_y_sup)
 				max_output3t_accum[:,f2_] = max_output3t.reshape((N_C, n1, s2, s2, n3*max_output_sz3**2))
 				
-			pred_deriv_L2_sup = np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4)))
+			max_output3t_accum_g = gpu.garray(max_output3t_accum.transpose((0,1,2,3,5,4)))
+			pred_deriv_L2_sup = FLr_g.dot(max_output3t_accum_g).as_numpy_array()
+			#pred_deriv_L2_sup = np.dot(FLr, max_output3t_accum.transpose((0,1,2,3,5,4)))
 			
 			########## F3 deriv wrt f3_, a3_x_, a3_y_, f2_
 			pred_deriv_L3_sup = np.zeros((N_C, N_C, n3, n2, s3, s3), dtype='single')
@@ -373,5 +392,6 @@ while True:
 			step_total += 1
 			if (step_total % TEST_FREQ) == 0:
 				savemat('/home/darren/F1.mat', {'F1': F1, 'step':step_total, 'class_test':class_test})
-				print step, class_test[-1], time.time() - t_patch
+				print epoch, batch, step, class_test[-1], time.time() - t_patch
 
+sf()
