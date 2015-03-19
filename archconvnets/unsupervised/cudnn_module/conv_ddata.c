@@ -83,7 +83,7 @@ static PyObject *conv_ddata(PyObject *self, PyObject *args)  {
 	// set filter and image values
 	//--------------------------------------
 	err = cudaMemcpy(filterData, filters, n_filters*n_channels*filter_sz*filter_sz * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
-	err = cudaMemcpy(destData, conv_out, n_imgs*n_channels*conv_out_sz_x*conv_out_sz_x * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
+	err = cudaMemcpy(destData, conv_out, n_imgs_out*n_filters_out*conv_out_sz_x*conv_out_sz_x * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
 
 	//--------------------------------------
 	// Convolution

@@ -73,7 +73,7 @@ def conv_b(filters, imgs):
 # standard convolution, requires no pre-set buffers.
 # inputs: filters [n_filters, channels, filter_sz, filter_sz]
 #			imgs [n_imgs, channels, img_sz, img_sz]
-def conv(filters, imgs, gpu=0):
+def conv(filters, imgs, gpu=0,warn=True):
 	n_filters, n_channels, filter_sz, filter_sz2  = filters.shape
 	n_imgs, n_channels2, img_sz, img_sz2 = imgs.shape
 	assert isinstance(gpu,int)
@@ -81,10 +81,10 @@ def conv(filters, imgs, gpu=0):
 	assert type(filters) == np.ndarray and type(imgs) == np.ndarray
 	assert filters.dtype == np.dtype('float32') and imgs.dtype == np.dtype('float32')
 	
-	if not imgs.flags.contiguous:
+	if not imgs.flags.contiguous and warn:
 		print 'warning: input to conv not C-contiguous (imgs)'
 		imgs=np.ascontiguousarray(imgs)
-	if not filters.flags.contiguous:
+	if not filters.flags.contiguous and warn:
 		print 'warning: input to conv not C-contiguous (filters)'
 		filters=np.ascontiguousarray(filters)
 	
@@ -139,7 +139,7 @@ def conv_from_buffers(conv_buff_ind):
 
 # conv_output: [n_imgs, n_sets, n_filters, conv_output_sz, conv_output_sz]
 # output_switches_x: [n_imgs, n_filters, output_sz, output_sz]
-def max_pool_locs_alt(conv_output, output_switches_x, output_switches_y):
+def max_pool_locs_alt(conv_output, output_switches_x, output_switches_y,warn=True):
 	assert conv_output.shape[-1] == conv_output.shape[-2]
 	assert conv_output.shape[2] == output_switches_x.shape[1]
 	assert conv_output.shape[0] == output_switches_x.shape[0]
@@ -148,13 +148,13 @@ def max_pool_locs_alt(conv_output, output_switches_x, output_switches_y):
 	assert output_switches_y.shape[2] == output_switches_x.shape[2]
 	assert output_switches_y.shape[3] == output_switches_x.shape[3]
 	assert conv_output.dtype == np.dtype('float32')
-	if not conv_output.flags.contiguous:
+	if not conv_output.flags.contiguous and warn:
 		print 'warning: input to max_pool_locs_alt not C-contiguous (conv_output)'
 		conv_output = np.ascontiguousarray(conv_output)
-	if not output_switches_x.flags.contiguous:
+	if not output_switches_x.flags.contiguous and warn:
 		print 'warning: input to max_pool_locs_alt not C-contiguous (output_switches_x)'
 		output_switches_x = np.ascontiguousarray(output_switches_x)
-	if not output_switches_y.flags.contiguous:
+	if not output_switches_y.flags.contiguous and warn:
 		print 'warning: input to max_pool_locs_alt not C-contiguous (output_switches_y)'
 		output_switches_y = np.ascontiguousarray(output_switches_y)
 	
