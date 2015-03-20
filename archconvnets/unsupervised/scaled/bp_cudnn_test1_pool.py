@@ -18,7 +18,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS = 1e-2
+EPS = 1e-4
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -27,7 +27,7 @@ eps_FL = EPS
 POOL_SZ = 3
 POOL_STRIDE = 2
 STRIDE1 = 1 # layer 1 stride
-N_IMGS = 100 # batch size
+N_IMGS = 50 # batch size
 N_TEST_IMGS = N_IMGS #N_SIGMA_IMGS #128*2
 IMG_SZ_CROP = 32 # input image size (px)
 IMG_SZ = 34 # input image size (px)
@@ -65,6 +65,8 @@ imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean
 t_start = time.time()
 
 epoch = 0
+err = []
+class_err = []
 while True:
 	for batch in range(1,6):
 		##################
@@ -82,9 +84,9 @@ while True:
 		imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, 10000),dtype='single')
 		imgs_pad[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
 		imgs_pad = np.ascontiguousarray(imgs_pad.transpose((3,0,1,2)))
-		for s in range(100):
+		for s in range(200):
 			# forward pass
-			conv_output1 = conv(F1, imgs_pad[s*100:(s+1)*100])
+			conv_output1 = conv(F1, imgs_pad[s*N_IMGS:(s+1)*N_IMGS])
 			max_output1t, output_switches1_x, output_switches1_y = max_pool_locs(conv_output1)
 			max_output1 = np.zeros((N_IMGS, n1, max_output_sz1, max_output_sz1),dtype='single')
 			max_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
@@ -99,10 +101,10 @@ while True:
 			
 			pred_uns2 = np.einsum(FL**2, range(4), max_output3, [4,1,2,3], [0,4,1,2,3]).reshape((N_C*N_IMGS, n3, max_output_sz3, max_output_sz3)) # ravel together categories and imgs
 			
-			Ys_unravel = Y_test[:,s*100:(s+1)*100]
+			Ys_unravel = Y_test[:,s*N_IMGS:(s+1)*N_IMGS]
 			Ys = Ys_unravel.reshape((N_C*N_IMGS, 1, 1, 1))
 			
-			imgs_pads = np.tile(imgs_pad[s*100:(s+1)*100],(N_C,1,1,1,1)).reshape((N_C*N_IMGS, 3, IMG_SZ, IMG_SZ))
+			imgs_pads = np.tile(imgs_pad[s*N_IMGS:(s+1)*N_IMGS],(N_C,1,1,1,1)).reshape((N_C*N_IMGS, 3, IMG_SZ, IMG_SZ))
 			
 			# each category's predictions are weighted differently, but they all use the same switches
 			output_switches3_x = np.tile(output_switches3_x,(N_C,1,1,1,1)).reshape((N_C*N_IMGS, n3, max_output_sz3, max_output_sz3))
@@ -132,6 +134,7 @@ while True:
 			dF3_uns = conv_dfilter(F3, max_output2, pred_uns2_unpool)
 			dF3_uns_1 = conv_dfilter(F3, max_output2, Ys*FL_max)
 			
+			#### F2
 			dconv_output2 = conv_ddata(F3, max_output2, pred_uns2_unpool)
 			dconv_output2_1 = conv_ddata(F3, max_output2, Ys*FL_max)
 			
@@ -141,14 +144,12 @@ while True:
 			dconv_output2 = unpool(dconv_output2, output_switches2_x, output_switches2_y, conv_output2.shape[2],warn=False)
 			dconv_output2_1 = unpool(dconv_output2_1, output_switches2_x, output_switches2_y, conv_output2.shape[2],warn=False)
 			
-			#### F2
 			dF2_uns = conv_dfilter(F2, max_output1, dconv_output2)
 			dF2_uns_1 = conv_dfilter(F2, max_output1, dconv_output2_1)
 			
+			## F1
 			dconv_output1 = conv_ddata(F2, max_output1, dconv_output2)
 			dconv_output1_1 = conv_ddata(F2, max_output1, dconv_output2_1)
-			
-			## F1
 			
 			dconv_output1 = dconv_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD]
 			dconv_output1_1 = dconv_output1_1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD]
@@ -168,9 +169,11 @@ while True:
 			F2 -= grad_F2*EPS / N_IMGS
 			F3 -= grad_F3*EPS / N_IMGS
 			FL -= grad_FL*EPS / N_IMGS
-			
-		print epoch, batch, np.sum((pred - Ys)**2)/N_TEST_IMGS, np.sum(pred**2), np.sum(np.abs(F1)), (pred.argmax(0) == labels[s*100:(s+1)*100]).sum()/np.single(N_IMGS), time.time() - t_start
-		savemat('/home/darren/F1.mat', {'F1':F1})
+		
+		err.append(np.mean((pred - Ys)**2))
+		class_err.append(1-(pred.argmax(0) == labels[s*N_IMGS:(s+1)*N_IMGS]).mean())
+		print epoch, batch, err[-1], class_err[-1], np.sum(np.abs(F1)), time.time() - t_start
+		savemat('/home/darren/F1.mat', {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err})
 		t_start = time.time()
 	epoch += 1
 sf()
