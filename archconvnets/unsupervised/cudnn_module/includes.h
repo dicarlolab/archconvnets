@@ -21,6 +21,10 @@
 #define MALLOC_ERR_CHECK {if (err != cudaSuccess){printf("malloc err line: %i\n",__LINE__); return NULL;}}
 
 #define DATA_TYPE_SZ sizeof(float)
+
+#define POOL_WINDOW_SZ 3
+#define POOL_STRIDE 2
+
 cudnnHandle_t handle;
 cudnnDataType_t dataType = CUDNN_DATA_FLOAT;
 

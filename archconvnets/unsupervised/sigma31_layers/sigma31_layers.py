@@ -481,7 +481,7 @@ def bp_patch_sigma31(output_switches3_x, output_switches3_y, output_switches2_x,
 	return _sigma31_layers.bp_patch_sigma31(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x_s31, output_switches3_y_s31, output_switches2_x_s31, output_switches2_y_s31, output_switches1_x_s31, output_switches1_y_s31, imgs, sigma_imgs, deriv_ind, pred, F1, F2, F3, FL)
 
 
-def bp_patch_sigma31_gpu(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x_s31, output_switches3_y_s31, output_switches2_x_s31, output_switches2_y_s31, output_switches1_x_s31, output_switches1_y_s31, imgs, sigma_imgs, deriv_ind, pred, F1, F2, F3, FL, gpu_ind=0, warn=True):
+def bp_patch_sigma31_sup(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x_s31, output_switches3_y_s31, output_switches2_x_s31, output_switches2_y_s31, output_switches1_x_s31, output_switches1_y_s31, imgs, sigma_imgs, deriv_ind, pred, F1, F2, F3, FL, gpu_ind=0, warn=True):
 	assert output_switches3_x.dtype == np.dtype('int64')
 	assert output_switches3_y.dtype == np.dtype('int64')
 	assert output_switches2_x.dtype == np.dtype('int64')
@@ -634,7 +634,165 @@ def bp_patch_sigma31_gpu(output_switches3_x, output_switches3_y, output_switches
 			print 'warning: input not C-contiguous (output_switches1_y_s31)'
 		output_switches1_y_s31 = np.ascontiguousarray(output_switches1_y_s31)
 	
-	return _sigma31_layers.bp_patch_sigma31_gpu(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x_s31, output_switches3_y_s31, output_switches2_x_s31, output_switches2_y_s31, output_switches1_x_s31, output_switches1_y_s31, imgs, sigma_imgs, deriv_ind, pred, F1, F2, F3, FL, gpu_ind)
+	return _sigma31_layers.bp_patch_sigma31_sup(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x_s31, output_switches3_y_s31, output_switches2_x_s31, output_switches2_y_s31, output_switches1_x_s31, output_switches1_y_s31, imgs, sigma_imgs, deriv_ind, pred, F1, F2, F3, FL, gpu_ind)
+
+def bp_patch_sigma31_uns(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x_s31, output_switches3_y_s31, output_switches2_x_s31, output_switches2_y_s31, output_switches1_x_s31, output_switches1_y_s31, imgs, sigma_imgs, deriv_ind, pred, F1, F2, F3, FL, gpu_ind=0, warn=True):
+	assert output_switches3_x.dtype == np.dtype('int64')
+	assert output_switches3_y.dtype == np.dtype('int64')
+	assert output_switches2_x.dtype == np.dtype('int64')
+	assert output_switches2_y.dtype == np.dtype('int64')
+	assert output_switches1_x.dtype == np.dtype('int64')
+	assert output_switches1_y.dtype == np.dtype('int64')
+	
+	assert output_switches3_x_s31.dtype == np.dtype('int64')
+	assert output_switches3_y_s31.dtype == np.dtype('int64')
+	assert output_switches2_x_s31.dtype == np.dtype('int64')
+	assert output_switches2_y_s31.dtype == np.dtype('int64')
+	assert output_switches1_x_s31.dtype == np.dtype('int64')
+	assert output_switches1_y_s31.dtype == np.dtype('int64')
+	
+	assert isinstance(gpu_ind,int)
+	assert isinstance(deriv_ind,int)
+	
+	assert F1.dtype == np.dtype('float32')
+	assert F2.dtype == np.dtype('float32')
+	assert F3.dtype == np.dtype('float32')
+	assert FL.dtype == np.dtype('float32')
+
+	assert F1.shape[-1] == F1.shape[-2]
+	assert F2.shape[-1] == F2.shape[-2]
+	assert F3.shape[-1] == F3.shape[-2]
+	assert FL.shape[-1] == FL.shape[-2]
+	
+	assert F2.shape[1] == F1.shape[0]
+	assert F2.shape[1] == F3.shape[0]
+	assert FL.shape[1] == F3.shape[0]
+	
+	assert output_switches1_x.shape[0] == output_switches2_x.shape[0] == output_switches3_x.shape[0] == imgs.shape[0]
+	assert output_switches1_x.shape[2] == output_switches1_y.shape[3]
+	assert output_switches2_x.shape[2] == output_switches2_y.shape[3]
+	assert output_switches3_x.shape[2] == output_switches3_y.shape[3]
+	
+	assert output_switches1_x_s31.shape[0] == output_switches2_x_s31.shape[0] == output_switches3_x_s31.shape[0] == FL.shape[0]
+	assert output_switches1_x_s31.shape[2] == output_switches1_y_s31.shape[3]
+	assert output_switches2_x_s31.shape[2] == output_switches2_y_s31.shape[3]
+	assert output_switches3_x_s31.shape[2] == output_switches3_y_s31.shape[3]
+	
+	assert output_switches1_x_s31.shape[1] == output_switches1_x.shape[1]
+	assert output_switches1_x_s31.shape[2] == output_switches1_x.shape[2]
+	assert output_switches1_x_s31.shape[3] == output_switches1_x.shape[3]
+	
+	assert output_switches2_x_s31.shape[1] == output_switches2_x.shape[1]
+	assert output_switches2_x_s31.shape[2] == output_switches2_x.shape[2]
+	assert output_switches2_x_s31.shape[3] == output_switches2_x.shape[3]
+	
+	assert output_switches3_x_s31.shape[1] == output_switches3_x.shape[1]
+	assert output_switches3_x_s31.shape[2] == output_switches3_x.shape[2]
+	assert output_switches3_x_s31.shape[3] == output_switches3_x.shape[3]
+	
+	assert imgs.shape[2] == imgs.shape[3]
+	
+	N_IMGS = imgs.shape[0]
+	n3 = output_switches3_x.shape[1]
+	n2 = output_switches2_x.shape[1]
+	n1 = output_switches1_x.shape[1]
+	max_output_sz3 = output_switches3_x.shape[2]
+	
+	if deriv_ind == 1:
+		F1 = np.ones_like(F1)
+	elif deriv_ind == 2:
+		F2 = np.ones_like(F2)
+	elif deriv_ind == 3:
+		F3 = np.ones_like(F3)
+	elif deriv_ind == 4:
+		FL = np.ones_like(FL)
+	
+	if not F1.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (F1)'
+		F1 = np.ascontiguousarray(F1)
+	
+	if not F2.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (F2)'
+		F2 = np.ascontiguousarray(F2)
+	
+	if not F3.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (F3)'
+		F3 = np.ascontiguousarray(F3)
+	
+	if not FL.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (FL)'
+		FL = np.ascontiguousarray(FL)
+	
+	
+	if not imgs.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (imgs)'
+		imgs = np.ascontiguousarray(imgs)
+	
+	if not output_switches3_x.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches3_x)'
+		output_switches3_x = np.ascontiguousarray(output_switches3_x)
+	if not output_switches3_y.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches3_y)'
+		output_switches3_y = np.ascontiguousarray(output_switches3_y)
+		
+	if not output_switches2_x.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches2_x)'
+		output_switches2_x = np.ascontiguousarray(output_switches2_x)
+	if not output_switches2_y.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches2_y)'
+		output_switches2_y = np.ascontiguousarray(output_switches2_y)
+		
+	if not output_switches1_x.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches1_x)'
+		output_switches1_x = np.ascontiguousarray(output_switches1_x)
+	if not output_switches1_y.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches1_y)'
+		output_switches1_y = np.ascontiguousarray(output_switches1_y)
+	
+	############################
+	
+	if not output_switches3_x_s31.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches3_x_s31)'
+		output_switches3_x_s31 = np.ascontiguousarray(output_switches3_x_s31)
+	if not output_switches3_y_s31.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches3_y_s31)'
+		output_switches3_y_s31 = np.ascontiguousarray(output_switches3_y_s31)
+		
+	if not output_switches2_x_s31.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches2_x_s31)'
+		output_switches2_x_s31 = np.ascontiguousarray(output_switches2_x_s31)
+	if not output_switches2_y_s31.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches2_y_s31)'
+		output_switches2_y_s31 = np.ascontiguousarray(output_switches2_y_s31)
+		
+	if not output_switches1_x_s31.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches1_x_s31)'
+		output_switches1_x_s31 = np.ascontiguousarray(output_switches1_x_s31)
+	if not output_switches1_y_s31.flags.contiguous:
+		if warn:
+			print 'warning: input not C-contiguous (output_switches1_y_s31)'
+		output_switches1_y_s31 = np.ascontiguousarray(output_switches1_y_s31)
+	
+	if deriv_ind == 1:
+		FL = np.ascontiguousarray(FL.transpose((1,2,3,0)))
+	
+	return _sigma31_layers.bp_patch_sigma31_uns(output_switches3_x, output_switches3_y, output_switches2_x, output_switches2_y, output_switches1_x, output_switches1_y, output_switches3_x_s31, output_switches3_y_s31, output_switches2_x_s31, output_switches2_y_s31, output_switches1_x_s31, output_switches1_y_s31, imgs, sigma_imgs, deriv_ind, pred, F1, F2, F3, FL, gpu_ind)
 
 # output_switches3_x, output_switches3_y, [n_imgs, n3, max_output_sz3, max_output_sz3]
 # output_switches2_x, output_switches2_y, [n_imgs, n2, max_output_sz2, max_output_sz2]

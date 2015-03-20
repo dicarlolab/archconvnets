@@ -5,7 +5,6 @@
 
 
 #include "conv.c"
-#include "conv_b.c"
 #include "conv_dfilter.c"
 #include "conv_ddata.c"
 #include "init_buffers.c"
@@ -15,11 +14,13 @@
 #include "conv_from_buffers.c"
 #include "max_pool_locs_alt.c"
 #include "pool_alt_inds_opt_patches.c"
+#include "max_pool_cudnn.c"
+#include "max_pool_back_cudnn.c"
+#include "unpool.c"
 
 
 static PyMethodDef _cudnn_module[] = {
 	{"conv", conv, METH_VARARGS},
-	{"conv_b", conv_b, METH_VARARGS},
 	{"conv_dfilter", conv_dfilter, METH_VARARGS},
 	{"conv_ddata", conv_ddata, METH_VARARGS},
 	{"init_buffers", init_buffers, METH_VARARGS},
@@ -29,6 +30,9 @@ static PyMethodDef _cudnn_module[] = {
 	{"conv_from_buffers", conv_from_buffers, METH_VARARGS},
 	{"max_pool_locs_alt", max_pool_locs_alt, METH_VARARGS},
 	{"max_pool_locs_alt_patches", max_pool_locs_alt_patches, METH_VARARGS},
+	{"max_pool_cudnn", max_pool_cudnn, METH_VARARGS},
+	{"max_pool_back_cudnn", max_pool_back_cudnn, METH_VARARGS},
+	{"unpool", unpool, METH_VARARGS},
 	{NULL, NULL}
 };
 
@@ -48,6 +52,12 @@ void init_cudnn_module(){
 	status = cudnnCreateFilterDescriptor(&filterDesc);  ERR_CHECK_R
 	status = cudnnCreateFilterDescriptor(&gradDesc_filter);  ERR_CHECK_R
 	status = cudnnCreateConvolutionDescriptor(&convDesc);  ERR_CHECK_R
+	
+	status = cudnnCreatePoolingDescriptor(&poolingDesc);  ERR_CHECK_R
+	status = cudnnCreateTensor4dDescriptor(&srcDiffDesc);  ERR_CHECK_R
+	status = cudnnCreateTensor4dDescriptor(&destDiffDesc);  ERR_CHECK_R
+	
+	status = cudnnSetPoolingDescriptor(poolingDesc, CUDNN_POOLING_MAX, POOL_WINDOW_SZ, POOL_WINDOW_SZ, POOL_STRIDE, POOL_STRIDE); ERR_CHECK_R
 	
 	return;
 } 

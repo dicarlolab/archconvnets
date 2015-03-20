@@ -171,7 +171,7 @@ static PyObject *bp_patch_sigma31(PyObject *self, PyObject *args){
 			
 			deriv[deriv_in_ind] += F_prod * imgs[I_IND(img, channel,a1_x_global,a1_y_global)] * pred[cat + N_C*img];
 		} // img	
-		
+		/*
 		//////////////////////////////////////////////// sup
 		// pool3 -> conv3
 		a3_x_global = output_switches3_x_s31[O3_IND(cat,f3,z1,z2)] + a3_x;
@@ -184,7 +184,7 @@ static PyObject *bp_patch_sigma31(PyObject *self, PyObject *args){
 		a1_x_global = output_switches1_x_s31[O1_IND(cat,f1,a2_x_global,a2_y_global)] + a1_x;
 		a1_y_global = output_switches1_y_s31[O1_IND(cat,f1,a2_x_global,a2_y_global)] + a1_y;
 		
-		deriv[deriv_in_ind] -= N_IMGS * F_prod * sigma_imgs[I_IND(cat, channel,a1_x_global,a1_y_global)];
+		deriv[deriv_in_ind] -= N_IMGS * F_prod * sigma_imgs[I_IND(cat, channel,a1_x_global,a1_y_global)];*/
 
 		
 	}}}}}}}}}}}}} // ind

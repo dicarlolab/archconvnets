@@ -1,0 +1,150 @@
+from archconvnets.unsupervised.cudnn_module.cudnn_module import *
+import time
+import numpy as np
+import numexpr as ne
+from archconvnets.unsupervised.sigma31_layers.sigma31_layers import max_pool_locs
+from scipy.io import savemat, loadmat
+import copy
+from scipy.stats import zscore
+import random
+import gnumpy as gpu
+
+#kernprof -l bp_cudnn.py
+#python -m line_profiler bp_cudnn.py.lprof  > p
+#@profile
+#def sf():
+
+F1_scale = 0.001 # std of init normal distribution
+F2_scale = 0.01
+F3_scale = 0.01
+FL_scale = 0.01
+
+EPS = 1e-2
+eps_F1 = EPS
+eps_F2 = EPS
+eps_F3 = EPS
+eps_FL = EPS
+
+POOL_SZ = 3
+POOL_STRIDE = 2
+STRIDE1 = 1 # layer 1 stride
+N_IMGS = 100 # batch size
+N_TEST_IMGS = N_IMGS #N_SIGMA_IMGS #128*2
+IMG_SZ_CROP = 32 # input image size (px)
+IMG_SZ = 34 # input image size (px)
+img_train_offset = 2
+PAD = 2
+
+N = 8
+n1 = N # L1 filters
+n2 = N# ...
+n3 = N
+
+s3 = 3 # L1 filter size (px)
+s2 = 5 # ...
+s1 = 5
+
+N_C = 10 # number of categories
+
+output_sz1 = len(range(0, IMG_SZ - s1 + 1, STRIDE1))
+max_output_sz1  = len(range(0, output_sz1-POOL_SZ, POOL_STRIDE)) + 2*PAD
+
+output_sz2 = max_output_sz1 - s2 + 1
+max_output_sz2  = len(range(0, output_sz2-POOL_SZ, POOL_STRIDE)) + 2*PAD
+
+output_sz3 = max_output_sz2 - s3 + 1
+max_output_sz3  = len(range(0, output_sz3-POOL_SZ, POOL_STRIDE))
+
+np.random.seed(6166)
+F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
+F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
+F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
+FL = np.single(np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, max_output_sz3)))
+
+imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
+
+t_start = time.time()
+
+while True:
+	for batch in range(1,6):
+		##################
+		# load test imgs into buffers
+		z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(batch))
+		x = z['data'] - imgs_mean
+		x = x.reshape((3, 32, 32, 10000))
+
+		labels = np.asarray(z['labels'])
+
+		l = np.zeros((10000, N_C),dtype='int')
+		l[np.arange(10000),np.asarray(z['labels']).astype(int)] = 1
+		Y_test = np.single(l.T)[:,:,np.newaxis,np.newaxis,np.newaxis]
+
+		imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, 10000),dtype='single')
+		imgs_pad[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
+		imgs_pad = np.ascontiguousarray(imgs_pad.transpose((3,0,1,2)))
+		for s in range(100):
+			conv_output1 = conv(F1, imgs_pad[s*100:(s+1)*100])
+			max_output1t, output_switches1_x, output_switches1_y = max_pool_locs(conv_output1)
+			max_output1 = np.zeros((N_IMGS, n1, max_output_sz1, max_output_sz1),dtype='single')
+			max_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD] = max_output1t
+			conv_output2 = conv(F2, max_output1,warn=False)
+			max_output2t, output_switches2_x, output_switches2_y = max_pool_locs(conv_output2)
+			max_output2 = np.zeros((N_IMGS, n2, max_output_sz2, max_output_sz2),dtype='single')
+			max_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD] = max_output2t
+			conv_output3 = conv(F3, max_output2,warn=False)
+			max_output3, output_switches3_x, output_switches3_y = max_pool_locs(conv_output3)
+			
+			pred_unsum = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4,1,2,3])
+			pred = np.einsum(pred_unsum, range(5), [0,1])
+			
+			pred_uns2 = np.einsum(max_output3, range(4), FL**2, [4,1,2,3], [4,0,1,2,3])
+			
+			grad_F1 = np.zeros_like(F1)
+			grad_F2 = np.zeros_like(F2)
+			grad_F3 = np.zeros_like(F3)
+			
+			for cat_i in range(N_C):
+				pred_uns2_unpool = unpool(pred_uns2[cat_i], output_switches3_x, output_switches3_y, conv_output3.shape[2])
+				FL_max = unpool(np.tile(FL[cat_i],(N_IMGS,1,1,1)), output_switches3_x, output_switches3_y, conv_output3.shape[2])
+				
+				dF3_uns = conv_dfilter(F3, max_output2, pred_uns2_unpool)
+				dF3_uns_1 = conv_dfilter(F3, max_output2, Y_test[cat_i,s*100:(s+1)*100]*FL_max)
+				
+				dconv_output2 = conv_ddata(F3, max_output2, pred_uns2_unpool)
+				dconv_output2_1 = conv_ddata(F3, max_output2, Y_test[cat_i,s*100:(s+1)*100]*FL_max)
+				
+				dconv_output2 = dconv_output2[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD]
+				dconv_output2_1 = dconv_output2_1[:,:,PAD:max_output_sz2-PAD,PAD:max_output_sz2-PAD]
+				
+				dconv_output2 = unpool(dconv_output2, output_switches2_x, output_switches2_y, conv_output2.shape[2],warn=False)
+				dconv_output2_1 = unpool(dconv_output2_1, output_switches2_x, output_switches2_y, conv_output2.shape[2],warn=False)
+				
+				#### F2
+				dF2_uns = conv_dfilter(F2, max_output1, dconv_output2)
+				dF2_uns_1 = conv_dfilter(F2, max_output1, dconv_output2_1)
+				
+				dconv_output1 = conv_ddata(F2, max_output1, dconv_output2)
+				dconv_output1_1 = conv_ddata(F2, max_output1, dconv_output2_1)
+				
+				## F1
+				
+				dconv_output1 = dconv_output1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD]
+				dconv_output1_1 = dconv_output1_1[:,:,PAD:max_output_sz1-PAD,PAD:max_output_sz1-PAD]
+				
+				dconv_output1 = unpool(dconv_output1, output_switches1_x, output_switches1_y, conv_output1.shape[2],warn=False)
+				dconv_output1_1 = unpool(dconv_output1_1, output_switches1_x, output_switches1_y, conv_output1.shape[2],warn=False)
+				
+				dF1_uns = conv_dfilter(F1, imgs_pad[s*100:(s+1)*100], dconv_output1)
+				dF1_uns_1 = conv_dfilter(F1, imgs_pad[s*100:(s+1)*100], dconv_output1_1)
+				
+				grad_F1 += dF1_uns - dF1_uns_1
+				grad_F2 += dF2_uns - dF2_uns_1
+				grad_F3 += dF3_uns - dF3_uns_1
+				
+			F1 -= grad_F1*EPS / N_IMGS
+			F2 -= grad_F2*EPS / N_IMGS
+			F3 -= grad_F3*EPS / N_IMGS
+			
+		print batch, np.sum((pred - Y_test[:,s*100:(s+1)*100])**2)/N_TEST_IMGS, np.sum(pred**2), np.sum(np.abs(F1)), (pred.argmax(0) == labels[s*100:(s+1)*100]).sum()/np.single(N_IMGS), time.time() - t_start
+		savemat('/home/darren/F1.mat', {'F1':F1})
+		t_start = time.time()

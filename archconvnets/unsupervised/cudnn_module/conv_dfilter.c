@@ -79,9 +79,10 @@ static PyObject *conv_dfilter(PyObject *self, PyObject *args)  {
 	// set filter and image values
 	//--------------------------------------
 	if(n_imgs_out*n_filters_out*conv_out_sz_x*conv_out_sz_x*DATA_TYPE_SZ != PyArray_NBYTES(conv_out_in)){
-		printf("%i %i\n", n_imgs, n_filters);
+		printf("err %s %i\n", __FILE__, __LINE__);
+		/*printf("%i %i\n", n_imgs, n_filters);
 		printf("%i %i %i\n", n_imgs_out, n_filters_out, conv_out_sz_x);
-		printf("memory error %i buffer size not expected, %i %i\n", __LINE__, n_imgs_out*n_filters_out*conv_out_sz_x*conv_out_sz_x*DATA_TYPE_SZ, PyArray_BYTES(conv_out_in));
+		printf("memory error %i buffer size not expected, %i %i\n", __LINE__, n_imgs_out*n_filters_out*conv_out_sz_x*conv_out_sz_x*DATA_TYPE_SZ, PyArray_BYTES(conv_out_in));*/
 		return NULL;
 	}
 	err = cudaMemcpy(srcData, imgs, n_imgs*n_channels*img_sz*img_sz * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK

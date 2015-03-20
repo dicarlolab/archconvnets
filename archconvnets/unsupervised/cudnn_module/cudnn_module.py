@@ -9,6 +9,66 @@ conv_img_ind = np.zeros(N_BUFFERS,dtype='int')
 n_imgs_buffer = np.zeros(N_BUFFERS,dtype='int')
 n_filters_buffer = np.zeros(N_BUFFERS,dtype='int')
 
+def unpool(conv_output, output_switches_x, output_switches_y, img_sz, warn=True):
+	assert conv_output.shape[-1] == conv_output.shape[-2]
+	assert output_switches_y.shape[0] == output_switches_x.shape[0] == conv_output.shape[0]
+	assert output_switches_y.shape[1] == output_switches_x.shape[1] == conv_output.shape[1]
+	assert output_switches_y.shape[2] == output_switches_x.shape[2] == conv_output.shape[2]
+	assert output_switches_y.shape[3] == output_switches_x.shape[3] == conv_output.shape[3]
+	assert conv_output.dtype == np.dtype('float32')
+	assert isinstance(img_sz,int)
+	
+	if not conv_output.flags.contiguous and warn:
+		print 'warning: input to unpool not C-contiguous (conv_output)'
+		conv_output = np.ascontiguousarray(conv_output)
+	if not output_switches_x.flags.contiguous and warn:
+		print 'warning: input to unpool not C-contiguous (output_switches_x)'
+		output_switches_x = np.ascontiguousarray(output_switches_x)
+	if not output_switches_y.flags.contiguous and warn:
+		print 'warning: input to unpool not C-contiguous (output_switches_y)'
+		output_switches_y = np.ascontiguousarray(output_switches_y)
+	
+	return _cudnn_module.unpool(conv_output, output_switches_x, output_switches_y, img_sz)
+
+def max_pool_cudnn(conv_output,gpu=0,warn=True):
+	assert conv_output.shape[-1] == conv_output.shape[-2]
+	assert conv_output.dtype == np.dtype('float32')
+	assert isinstance(gpu,int)
+	
+	if not conv_output.flags.contiguous and warn:
+		print 'warning: input to max_pool_cudnn not C-contiguous (conv_output)'
+		conv_output = np.ascontiguousarray(conv_output)
+	
+	return _cudnn_module.max_pool_cudnn(conv_output, gpu)
+
+def max_pool_back_cudnn(srcData, srcDiffData, destData, gpu=0, warn=True):
+	assert srcData.shape[-1] == srcData.shape[-2]
+	assert srcDiffData.shape[-1] == srcDiffData.shape[-2]
+	assert destData.shape[-1] == destData.shape[-2]
+	
+	assert destData.shape[-1] == (srcData.shape[-1]/2) == (srcDiffData.shape[-1]/2)
+	
+	
+	assert srcData.shape[0] == srcDiffData.shape[0] == destData.shape[0]
+	assert srcData.shape[1] == srcDiffData.shape[1] == destData.shape[1]
+	
+	assert srcData.dtype == np.dtype('float32')
+	assert srcDiffData.dtype == np.dtype('float32')
+	assert destData.dtype == np.dtype('float32')
+	assert isinstance(gpu,int)
+	
+	if not srcData.flags.contiguous and warn:
+		print 'warning: input to max_pool_back_cudnn not C-contiguous (srcData)'
+		srcData = np.ascontiguousarray(srcData)
+	if not srcDiffData.flags.contiguous and warn:
+		print 'warning: input to max_pool_back_cudnn not C-contiguous (srcDiffData)'
+		srcDiffData = np.ascontiguousarray(srcDiffData)
+	if not destData.flags.contiguous and warn:
+		print 'warning: input to max_pool_back_cudnn not C-contiguous (destData)'
+		destData = np.ascontiguousarray(destData)
+
+	return _cudnn_module.max_pool_back_cudnn(srcData, srcDiffData, destData, gpu)
+
 def conv_ddata(filters, imgs, conv_out):
 	n_filters, n_channels, filter_sz, filter_sz2  = filters.shape
 	n_imgs, n_channels2, img_sz, img_sz2 = imgs.shape
@@ -52,23 +112,6 @@ def conv_dfilter(filters, imgs, conv_out):
 		conv_out=np.ascontiguousarray(conv_out)
 	
 	return _cudnn_module.conv_dfilter(filters, imgs, conv_out)
-
-def conv_b(filters, imgs):
-	n_filters, n_channels, filter_sz, filter_sz2  = filters.shape
-	n_imgs, n_channels2, img_sz, img_sz2 = imgs.shape
-	
-	assert n_channels == n_channels2 and img_sz == img_sz2 and filter_sz == filter_sz2
-	assert type(filters) == np.ndarray and type(imgs) == np.ndarray
-	assert filters.dtype == np.dtype('float32') and imgs.dtype == np.dtype('float32')
-	
-	if not imgs.flags.contiguous:
-		print 'warning: input to conv not C-contiguous (imgs)'
-		imgs=np.ascontiguousarray(imgs)
-	if not filters.flags.contiguous:
-		print 'warning: input to conv not C-contiguous (filters)'
-		filters=np.ascontiguousarray(filters)
-	
-	return _cudnn_module.conv_b(filters, imgs)
 
 # standard convolution, requires no pre-set buffers.
 # inputs: filters [n_filters, channels, filter_sz, filter_sz]
