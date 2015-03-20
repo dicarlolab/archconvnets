@@ -9,17 +9,16 @@ from scipy.stats import zscore
 import random
 import gnumpy as gpu
 
-#kernprof -l bp_cudnn.py
-#python -m line_profiler bp_cudnn.py.lprof  > p
+#kernprof -l bp_cudnn_test1_pool.py
+#python -m line_profiler bp_cudnn_test1_pool.py.lprof  > p
 #@profile
 #def sf():
-
 F1_scale = 0.001 # std of init normal distribution
 F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS = 1e-3
+EPS = 1e-2
 eps_F1 = EPS
 eps_F2 = EPS
 eps_F3 = EPS
@@ -65,6 +64,7 @@ imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean
 
 t_start = time.time()
 
+epoch = 0
 while True:
 	for batch in range(1,6):
 		##################
@@ -99,7 +99,8 @@ while True:
 			
 			pred_uns2 = np.einsum(FL**2, range(4), max_output3, [4,1,2,3], [0,4,1,2,3]).reshape((N_C*N_IMGS, n3, max_output_sz3, max_output_sz3)) # ravel together categories and imgs
 			
-			Ys = Y_test[:,s*100:(s+1)*100].reshape((N_C*N_IMGS, 1, 1, 1))
+			Ys_unravel = Y_test[:,s*100:(s+1)*100]
+			Ys = Ys_unravel.reshape((N_C*N_IMGS, 1, 1, 1))
 			
 			imgs_pads = np.tile(imgs_pad[s*100:(s+1)*100],(N_C,1,1,1,1)).reshape((N_C*N_IMGS, 3, IMG_SZ, IMG_SZ))
 			
@@ -118,11 +119,16 @@ while True:
 			FL_rep_imgs = np.tile(FL,(N_IMGS,1,1,1,1)).transpose((1,0,2,3,4)).reshape((N_C*N_IMGS, n3, max_output_sz3, max_output_sz3))
 			
 			######## gradients:
-		
+			
+			## FL
+			pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4])
+			dFL_uns = np.einsum(pred, [0,1], max_output3, [1,2,3,4], [0,2,3,4])
+			dFL_uns_1 = np.einsum(Ys_unravel, [0,1], max_output3, [1,2,3,4], [0,2,3,4])
+			
+			### F3
 			pred_uns2_unpool = unpool(pred_uns2, output_switches3_x, output_switches3_y, conv_output3.shape[2])
 			FL_max = unpool(FL_rep_imgs, output_switches3_x, output_switches3_y, conv_output3.shape[2])
 			
-			### F3
 			dF3_uns = conv_dfilter(F3, max_output2, pred_uns2_unpool)
 			dF3_uns_1 = conv_dfilter(F3, max_output2, Ys*FL_max)
 			
@@ -156,12 +162,15 @@ while True:
 			grad_F1 = dF1_uns - dF1_uns_1
 			grad_F2 = dF2_uns - dF2_uns_1
 			grad_F3 = dF3_uns - dF3_uns_1
+			grad_FL = dFL_uns - dFL_uns_1
 				
 			F1 -= grad_F1*EPS / N_IMGS
 			F2 -= grad_F2*EPS / N_IMGS
 			F3 -= grad_F3*EPS / N_IMGS
+			FL -= grad_FL*EPS / N_IMGS
 			
-		pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4])
-		print batch, np.sum((pred - Ys)**2)/N_TEST_IMGS, np.sum(pred**2), np.sum(np.abs(F1)), (pred.argmax(0) == labels[s*100:(s+1)*100]).sum()/np.single(N_IMGS), time.time() - t_start
+		print epoch, batch, np.sum((pred - Ys)**2)/N_TEST_IMGS, np.sum(pred**2), np.sum(np.abs(F1)), (pred.argmax(0) == labels[s*100:(s+1)*100]).sum()/np.single(N_IMGS), time.time() - t_start
 		savemat('/home/darren/F1.mat', {'F1':F1})
 		t_start = time.time()
+	epoch += 1
+sf()
