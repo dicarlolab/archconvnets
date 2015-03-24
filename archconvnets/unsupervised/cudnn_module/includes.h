@@ -51,3 +51,5 @@ float *srcData_buffers[N_BUFFERS], *filterData_buffers[N_BUFFERS], *destData_buf
 int n_channels_imgs_buffers[N_BUFFERS], n_channels_filters_buffers[N_BUFFERS], filter_sz_buffers[N_BUFFERS], n_filters_buffers[N_BUFFERS], img_sz_buffers[N_BUFFERS], n_imgs_buffers[N_BUFFERS], dims_buffers[N_BUFFERS];
 int conv_filter_ind[N_BUFFERS], conv_img_ind[N_BUFFERS];
 
+#define N_GPUS 4
+cudaStream_t streams[N_GPUS];

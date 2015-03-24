@@ -3,9 +3,12 @@
 #define CHECK_CUDA_ERR {err = cudaGetLastError();if(err != cudaSuccess){\
 		printf("CUDA error: %s, %s, %i\n",cudaGetErrorString(err),__FILE__,__LINE__);return NULL;}}
 
+#define CHECK_CUDA_ERR_R {err = cudaGetLastError();if(err != cudaSuccess){\
+		printf("CUDA error: %s, %s, %i\n",cudaGetErrorString(err),__FILE__,__LINE__);return;}}
 
 #include "conv.c"
 #include "conv_dfilter.c"
+#include "conv_dfilter_stream.c"
 #include "conv_ddata.c"
 #include "init_buffers.c"
 #include "set_img_buffer.c"
@@ -21,6 +24,7 @@
 
 static PyMethodDef _cudnn_module[] = {
 	{"conv", conv, METH_VARARGS},
+	{"conv_dfilter_stream", conv_dfilter_stream, METH_VARARGS},
 	{"conv_dfilter", conv_dfilter, METH_VARARGS},
 	{"conv_ddata", conv_ddata, METH_VARARGS},
 	{"init_buffers", init_buffers, METH_VARARGS},
@@ -42,6 +46,12 @@ void init_cudnn_module(){
 	
 	cudnnStatus_t status;
 	status = cudnnCreate(&handle);  ERR_CHECK_R
+	
+	cudaError_t err;
+	for(int gpu = 0; gpu < N_GPUS; gpu++){
+		cudaSetDevice(gpu); CHECK_CUDA_ERR_R
+		cudaStreamCreate(&streams[gpu]); CHECK_CUDA_ERR_R
+	}
 	
 	//---------------------------------------
 	// Create general Descriptors

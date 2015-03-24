@@ -12,10 +12,10 @@ static PyObject *conv(PyObject *self, PyObject *args)  {
 	cudaError_t err;
 	PyArrayObject *filters_in, *imgs_in, *vecout;
 	float *filters, *imgs, *cout;
-	int i, dims[6], gpu_ind;
+	int i, dims[6], gpu_ind, PAD;
 	int n_channels, filter_sz, n_filters, img_sz, n_imgs;
 	
-	if (!PyArg_ParseTuple(args, "O!O!i", &PyArray_Type, &filters_in, &PyArray_Type, &imgs_in, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "O!O!ii", &PyArray_Type, &filters_in, &PyArray_Type, &imgs_in, &PAD, &gpu_ind)) 
 		return NULL;
 	
 	if (NULL == filters_in || NULL == imgs_in)  return NULL;
@@ -53,7 +53,7 @@ static PyObject *conv(PyObject *self, PyObject *args)  {
 	//---------------------------------------
 	status = cudnnSetTensor4dDescriptor(srcDesc, CUDNN_TENSOR_NCHW, dataType, n_imgs, n_channels, img_sz, img_sz);  ERR_CHECK
 	status = cudnnSetFilterDescriptor(filterDesc, dataType, n_filters, n_channels, filter_sz, filter_sz);  ERR_CHECK
-	status = cudnnSetConvolutionDescriptor(convDesc, srcDesc, filterDesc, 0, 0, 1, 1, 1, 1, CUDNN_CROSS_CORRELATION);  ERR_CHECK
+	status = cudnnSetConvolutionDescriptor(convDesc, srcDesc, filterDesc, PAD, PAD, 1, 1, 1, 1, CUDNN_CROSS_CORRELATION);  ERR_CHECK
 
 	//---------------------------------------
 	// Query output layout

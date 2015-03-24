@@ -62,7 +62,7 @@ static PyObject *max_pool_back_cudnn(PyObject *self, PyObject *args)  {
 	// set filter and image values
 	//--------------------------------------
 	err = cudaMemcpy(srcData_c, srcData, n_imgs*n_channels*img_sz*img_sz * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
-	err = cudaMemcpy(srcDiffData_c, srcData, n_imgs*n_channels*img_sz*img_sz * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
+	err = cudaMemcpy(srcDiffData_c, srcDiffData, n_imgs*n_channels*img_sz*img_sz * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
 	err = cudaMemcpy(destData_c, destData, n_imgs*n_channels*out_sz*out_sz * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
 
 	//--------------------------------------
@@ -75,7 +75,7 @@ static PyObject *max_pool_back_cudnn(PyObject *self, PyObject *args)  {
 	// Get output data
 	//------------------------------------------
 	err = (cudaError_t)cudaMemcpy(cout, destDiffData_c, n_imgs*n_channels*out_sz*out_sz * DATA_TYPE_SZ, cudaMemcpyDeviceToHost);  MALLOC_ERR_CHECK
-
+	
 	cudaFree(destDiffData_c);
 	cudaFree(destData_c);
 	cudaFree(srcData_c);

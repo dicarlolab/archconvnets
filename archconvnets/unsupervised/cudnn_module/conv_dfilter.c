@@ -2,16 +2,19 @@ cudnnTensor4dDescriptor_t gradDesc_data;
 cudnnFilterDescriptor_t gradDesc_filter;
 
 static PyObject *conv_dfilter(PyObject *self, PyObject *args)  {
+	cudaError_t err;
 	PyArrayObject *filters_in, *imgs_in, *conv_out_in, *grad_data_in, *grad_filter_in;
 	float *filters, *imgs, *conv_out;
-	int i, dims[6];
+	int i, dims[6], PAD, gpu_ind;
 	int n_channels, filter_sz, n_filters, img_sz, n_imgs;
 	
-	if (!PyArg_ParseTuple(args, "O!O!O!", &PyArray_Type, &filters_in, &PyArray_Type, &imgs_in, &PyArray_Type, &conv_out_in)) 
+	if (!PyArg_ParseTuple(args, "O!O!O!ii", &PyArray_Type, &filters_in, &PyArray_Type, &imgs_in, &PyArray_Type, &conv_out_in, &PAD, &gpu_ind)) 
 		return NULL;
 	
 	if (NULL == filters_in || NULL == imgs_in || NULL == conv_out_in)  return NULL;
-	
+
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+		
 	filters = (float *) filters_in -> data;
 	imgs = (float *) imgs_in -> data;
 	conv_out = (float *) conv_out_in -> data;
@@ -27,7 +30,6 @@ static PyObject *conv_dfilter(PyObject *self, PyObject *args)  {
 	int n_filters_out;
 	int conv_out_sz_x;
 	int conv_out_sz_y;
-	cudaError_t err;
 
 	float *srcData;
 	float *filterData;
@@ -47,7 +49,7 @@ static PyObject *conv_dfilter(PyObject *self, PyObject *args)  {
 	status = cudnnSetTensor4dDescriptor(gradDesc_data, CUDNN_TENSOR_NCHW, dataType, n_imgs, n_channels, img_sz, img_sz);  ERR_CHECK
 	status = cudnnSetFilterDescriptor(filterDesc, dataType, n_filters, n_channels, filter_sz, filter_sz);  ERR_CHECK
 	status = cudnnSetFilterDescriptor(gradDesc_filter, dataType, n_filters, n_channels, filter_sz, filter_sz);  ERR_CHECK
-	status = cudnnSetConvolutionDescriptor(convDesc, srcDesc, filterDesc, 0, 0, 1, 1, 1, 1, CUDNN_CROSS_CORRELATION);  ERR_CHECK
+	status = cudnnSetConvolutionDescriptor(convDesc, srcDesc, filterDesc, PAD, PAD, 1, 1, 1, 1, CUDNN_CROSS_CORRELATION);  ERR_CHECK
 
 	//---------------------------------------
 	// Query output layout
