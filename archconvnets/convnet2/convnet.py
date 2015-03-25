@@ -275,7 +275,7 @@ class ConvNet(IGPUModel):
         op.add_option("layer-params", "layer_params", StringOptionParser, "Layer parameter file")
         op.add_option("layer-path", "layer_path", StringOptionParser, "Layer file path prefix", default="")
         op.add_option("check-grads", "check_grads", BooleanOptionParser, "Check gradients and quit?", default=0, excuses=['data_path', 'train_batch_range','test_batch_range'])
-        op.add_option("crop-border", "crop_border", IntegerOptionParser, "Cropped DP: crop border size", default=4, set_once=True)        
+        op.add_option("crop-border", "crop_border", ListOptionParser(IntegerOptionParser), "Cropped DP: crop border size", default=[4], set_once=True)        
         op.add_option("multiview-test", "multiview_test", BooleanOptionParser, "Cropped DP: test on multiple patches?", default=0)
         op.add_option("inner-size", "inner_size", IntegerOptionParser, "Cropped DP: crop size (0 = don't crop)", default=0, set_once=True)
         op.add_option("conv-to-local", "conv_to_local", ListOptionParser(StringOptionParser), "Convert given conv layers to unshared local", default=[])
@@ -309,6 +309,7 @@ class ConvNet(IGPUModel):
         DataProvider.register_data_provider('image', 'JPEG-encoded image data provider', ImageDataProvider)
         DataProvider.register_data_provider('cifar', 'CIFAR-10 data provider', CIFARDataProvider)
         DataProvider.register_data_provider('general-cropped', 'Cropped General', CroppedGeneralDataProvider)
+        DataProvider.register_data_provider('general-map-cropped', 'Cropped General Mop', CroppedGeneralDataMapProvider)
         DataProvider.register_data_provider('general-cropped-rand', 'Cropped General Random',
                                             CroppedGeneralDataRandomProvider)                
         DataProvider.register_data_provider('general-cropped-vectors', 'Cropped General_Vector',

@@ -550,6 +550,8 @@ class DLDataProvider(LabeledDataProvider):
             perm_seed = dp_params.get('perm_seed', 0)
             rng = n.random.RandomState(seed=perm_seed)
             return rng.permutation(mlen), perm_type + '_' + str(perm_seed)
+        elif perm_type == None:
+            return n.arange(mlen), 'None'
         else:
             raise ValueError, 'Unknown permutation type.'
 
@@ -762,7 +764,6 @@ class DLDataMapProvider(DLDataProvider):
         meta = self.meta = dset.meta
         mlen = len(meta)
         self.dp_params = dp_params
-
         #compute number of batches
         mlen = len(meta)
         batch_size = self.batch_size = dp_params['batch_size']
@@ -770,7 +771,13 @@ class DLDataMapProvider(DLDataProvider):
         self.num_batches_for_meta = dp_params['num_batches_for_mean']
 
         perm, perm_id = self.get_perm()
-        self.metacol = self.get_metacol()[perm]
+        metacol = self.get_metacol()
+        if hasattr(metacol, 'keys'):
+            for k in metacol:
+                metacol[k] = metacol[k][perm]
+            self.metacol = metacol
+        else:
+            self.metacol = metacol[perm]
 
         map_methods = self.map_methods = dp_params['map_methods']
         map_preprocs = self.map_preprocs = dp_params['map_preprocs']
@@ -792,7 +799,7 @@ class DLDataMapProvider(DLDataProvider):
         basedir = self.dset.home('cache')
         self.batch_meta_dict = {}
         for map, mname, pp in zip(map_list, mnames, map_preprocs):
-            self.stimarraylist.append(get_stimarray(map, mname, perm, perm_id, cache_type, basedir))
+            self.stimarraylist.append(get_stimarray(map, mname, perm, perm_id, cache_type, basedir, read_mode))
             self.make_batch_meta(mname, self.stimarraylist[-1], pp)
 
     def get_num_classes(self, dataIdx=None):
@@ -912,7 +919,7 @@ class Reorder2(object):
             return getattr(self.X, attr)
 
 
-def get_stimarray(marray, mname, perm, perm_id, cache_type, base_dir):
+def get_stimarray(marray, mname, perm, perm_id, cache_type, base_dir, read_mode='r'):
     reorder = Reorder2(marray)
     lmap = larray.lmap(reorder, perm, f_map = reorder)
     if cache_type == 'hdf5':
