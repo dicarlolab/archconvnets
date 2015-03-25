@@ -11,6 +11,50 @@ GPU_FORWARD = 0
 GPU_SUP = 1
 GPU_UNS = 0
 
+# gpu buffer indices
+MAX_OUTPUT1_UNS = 0
+DF2_DATA_UNS = 1
+CONV_OUTPUT1_UNS = 2
+DPOOL1_UNS = 3
+F1_IND = 4
+IMGS_PAD_UNS = 5
+DF1_UNS = 6
+F2_IND = 11
+D_UNS_UNPOOL2 = 12
+F3_IND = 13
+
+MAX_OUTPUT2_UNS = 14
+MAX_OUTPUT3_UNS = 15
+
+MAX_OUTPUT1_SUP = 16
+MAX_OUTPUT2_SUP = 17
+MAX_OUTPUT3_SUP = 18
+
+CONV_OUTPUT1_UNS = 19
+CONV_OUTPUT2_UNS = 20
+CONV_OUTPUT3_UNS = 21
+
+CONV_OUTPUT1_SUP = 22
+CONV_OUTPUT2_SUP = 23
+CONV_OUTPUT3_SUP = 24
+DF2_UNS = 25
+DPOOL2_UNS = 26
+DF3_DATA_UNS = 27
+DPOOL3_UNS = 28
+DF3_UNS = 29
+FL_PRED_UNS = 30
+FL_PRED_SUP = 31
+DF3_SUP=32
+DPOOL3_SUP = 33
+DF3_DATA_SUP=34
+DPOOL2_SUP = 35
+DF2_SUP = 36
+DF2_DATA_SUP=37
+IMGS_PAD_SUP=38
+DF3_DATA_SUP=39
+DPOOL1_SUP=40
+DF1_SUP = 41
+
 #kernprof -l bp.py
 #python -m line_profiler bp.py.lprof  > p
 #@profile
@@ -20,7 +64,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS = 1e-3
+EPS = 1e-2
 
 N_IMGS = 100 # batch size
 IMG_SZ_CROP = 32 # input image size (px)
@@ -91,6 +135,8 @@ while True:
 			Ys = Y_test[:,s*N_IMGS:(s+1)*N_IMGS]
 			pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4])
 			
+			
+			
 			######## gradients:
 			
 			dFL_uns = np.einsum(max_output3, range(4), pred, [4,0], [4,1,2,3])
@@ -113,31 +159,76 @@ while True:
 			max_output1 = np.tile(max_output1,(N_C,1,1,1,1)).reshape((N_C*N_IMGS, n1, max_output_sz1, max_output_sz1))
 			FL_rep_imgs = np.tile(FL,(N_IMGS,1,1,1,1)).transpose((1,0,2,3,4)).reshape((N_C*N_IMGS, n3, max_output_sz3, max_output_sz3))
 			
+			######### buffers:
+			set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_UNS)
+			set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_UNS)
+			set_buffer(F3, F3_IND, filter_flag=1, gpu=GPU_UNS)
 			
-			d_uns = max_pool_back_cudnn(max_output3, FL_pred, conv_output3, gpu=GPU_UNS)
-			d_s = max_pool_back_cudnn(max_output3, -FL_Y, conv_output3, gpu=GPU_SUP)
+			set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_SUP)
+			set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_SUP)
+			set_buffer(F3, F3_IND, filter_flag=1, gpu=GPU_SUP)
+			
+			set_buffer(max_output1, MAX_OUTPUT1_UNS, gpu=GPU_UNS)
+			set_buffer(max_output2, MAX_OUTPUT2_UNS, gpu=GPU_UNS)
+			set_buffer(max_output3, MAX_OUTPUT3_UNS, gpu=GPU_UNS)
+			
+			set_buffer(max_output1, MAX_OUTPUT1_SUP, gpu=GPU_SUP)
+			set_buffer(max_output2, MAX_OUTPUT2_SUP, gpu=GPU_SUP)
+			set_buffer(max_output3, MAX_OUTPUT3_SUP, gpu=GPU_SUP)
+			
+			set_buffer(conv_output1, CONV_OUTPUT1_UNS, gpu=GPU_UNS)
+			set_buffer(conv_output2, CONV_OUTPUT2_UNS, gpu=GPU_UNS)
+			set_buffer(conv_output3, CONV_OUTPUT3_UNS, gpu=GPU_UNS)
+			
+			set_buffer(conv_output1, CONV_OUTPUT1_SUP, gpu=GPU_SUP)
+			set_buffer(conv_output2, CONV_OUTPUT2_SUP, gpu=GPU_SUP)
+			set_buffer(conv_output3, CONV_OUTPUT3_SUP, gpu=GPU_SUP)
+			
+			set_buffer(imgs_pads, IMGS_PAD_UNS, gpu=GPU_UNS)
+			set_buffer(imgs_pads, IMGS_PAD_SUP, gpu=GPU_SUP)
+			
+			set_buffer(FL_pred, FL_PRED_UNS, gpu=GPU_UNS)
+			set_buffer(FL_pred, FL_PRED_SUP, gpu=GPU_SUP)
+			
+			###########
 
-			dF3_uns = conv_dfilter(F3, max_output2, d_uns, PAD=2, gpu=GPU_UNS)
-			dF3_s = conv_dfilter(F3, max_output2, d_s, PAD=2, gpu=GPU_SUP)
 			
-			d_uns = conv_ddata(F3, max_output2, d_uns, PAD=2, gpu=GPU_UNS)
-			d_s = conv_ddata(F3, max_output2, d_s, PAD=2, gpu=GPU_SUP)
+			max_pool_back_cudnn_buffers(MAX_OUTPUT3_UNS, FL_PRED_UNS, CONV_OUTPUT3_UNS, DPOOL3_UNS, gpu=GPU_UNS)
+			max_pool_back_cudnn_buffers(MAX_OUTPUT3_SUP, FL_PRED_SUP, CONV_OUTPUT3_SUP, DPOOL3_SUP, gpu=GPU_SUP)
 			
-			d_uns = max_pool_back_cudnn(max_output2, d_uns, conv_output2, gpu=GPU_UNS)
-			d_s = max_pool_back_cudnn(max_output2, d_s, conv_output2, gpu=GPU_SUP)
+			conv_dfilter_buffers(F3_IND, MAX_OUTPUT2_UNS, DPOOL3_UNS, DF3_UNS, PAD=2, gpu=GPU_UNS)
+			conv_dfilter_buffers(F3_IND, MAX_OUTPUT2_SUP, DPOOL3_SUP, DF3_SUP, PAD=2, gpu=GPU_SUP)
 			
-			d_uns = conv_ddata(F2, max_output1, d_uns, PAD=2, gpu=GPU_UNS)
-			d_s = conv_ddata(F2, max_output1, d_s, PAD=2, gpu=GPU_SUP)
+			conv_ddata_buffers(F3_IND, MAX_OUTPUT2_UNS, DPOOL3_UNS, DF3_DATA_UNS, PAD=2, gpu=GPU_UNS)
+			conv_ddata_buffers(F3_IND, MAX_OUTPUT2_SUP, DPOOL3_SUP, DF3_DATA_SUP, PAD=2, gpu=GPU_SUP)
 			
-			dF2_uns = conv_dfilter(F2, max_output1, d_uns, PAD=2, gpu=GPU_UNS)
-			dF2_s = conv_dfilter(F2, max_output1, d_s, PAD=2, gpu=GPU_SUP)
+			max_pool_back_cudnn_buffers(MAX_OUTPUT2_UNS, DF3_DATA_UNS, CONV_OUTPUT2_UNS, DPOOL2_UNS, gpu=GPU_UNS)
+			max_pool_back_cudnn_buffers(MAX_OUTPUT2_SUP, DF3_DATA_SUP, CONV_OUTPUT2_SUP, DPOOL2_SUP, gpu=GPU_SUP)
 			
-			d_uns = max_pool_back_cudnn(max_output1, d_uns, conv_output1, gpu=GPU_UNS)
-			d_s = max_pool_back_cudnn(max_output1, d_s, conv_output1, gpu=GPU_SUP)
+			conv_ddata_buffers(F2_IND, MAX_OUTPUT1_UNS, DPOOL2_UNS, DF2_DATA_UNS, PAD=2, gpu=GPU_UNS)
+			conv_ddata_buffers(F2_IND, MAX_OUTPUT1_SUP, DPOOL2_SUP, DF2_DATA_SUP, PAD=2, gpu=GPU_SUP)
 			
-			dF1_uns = conv_dfilter(F1, imgs_pads, d_uns, PAD=2, gpu=GPU_UNS)
-			dF1_s = conv_dfilter(F1, imgs_pads, d_s, PAD=2, gpu=GPU_SUP)
-
+			conv_dfilter_buffers(F2_IND, MAX_OUTPUT1_UNS, DPOOL2_UNS, DF2_UNS, PAD=2, gpu=GPU_UNS)
+			conv_dfilter_buffers(F2_IND, MAX_OUTPUT1_SUP, DPOOL2_SUP, DF2_SUP, PAD=2, gpu=GPU_SUP)
+			
+			max_pool_back_cudnn_buffers(MAX_OUTPUT1_UNS, DF2_DATA_UNS, CONV_OUTPUT1_UNS, DPOOL1_UNS, gpu=GPU_UNS)
+			max_pool_back_cudnn_buffers(MAX_OUTPUT1_SUP, DF2_DATA_SUP, CONV_OUTPUT1_SUP, DPOOL1_SUP, gpu=GPU_SUP)
+			
+			conv_dfilter_buffers(F1_IND, IMGS_PAD_UNS, DPOOL1_UNS, DF1_UNS, PAD=2, gpu=GPU_UNS)
+			conv_dfilter_buffers(F1_IND, IMGS_PAD_SUP, DPOOL1_SUP, DF1_SUP, PAD=2, gpu=GPU_SUP)
+			
+			###
+			
+			dF3_uns = return_buffer(DF3_UNS, gpu=GPU_UNS)
+			dF3_s = return_buffer(DF3_SUP, gpu=GPU_SUP)
+			
+			dF2_uns = return_buffer(DF2_UNS, gpu=GPU_UNS)
+			dF2_s = return_buffer(DF2_SUP, gpu=GPU_SUP)
+			
+			dF1_uns = return_buffer(DF1_UNS, gpu=GPU_UNS)
+			dF1_s = return_buffer(DF1_SUP, gpu=GPU_SUP)
+			
+			
 			grad_F3 = 2*(dF3_uns + dF3_s)
 			grad_F2 = 2*(dF2_uns + dF2_s)
 			grad_F1 = 2*(dF1_uns + dF1_s)
