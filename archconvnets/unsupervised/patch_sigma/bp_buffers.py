@@ -188,7 +188,7 @@ while True:
 			set_buffer(imgs_pads, IMGS_PAD_SUP, gpu=GPU_SUP)
 			
 			set_buffer(FL_pred, FL_PRED_UNS, gpu=GPU_UNS)
-			set_buffer(FL_pred, FL_PRED_SUP, gpu=GPU_SUP)
+			set_buffer(-FL_Y, FL_PRED_SUP, gpu=GPU_SUP)
 			
 			###########
 
