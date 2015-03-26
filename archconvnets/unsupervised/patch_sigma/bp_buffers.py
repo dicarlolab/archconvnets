@@ -258,8 +258,8 @@ while True:
 		
 		## mcc
 		t_mcc = time.time()
-		pred_train = pred[:,N_TRAIN:N_TEST_SET].T
-		pred = pred[:,:N_TRAIN].T
+		pred_train = pred[:,:N_TRAIN].T
+		pred = pred[:,N_TRAIN:N_TEST_SET].T
 		
 		test_corrs = np.dot(pred, pred_train.T)
 		hit = 0
