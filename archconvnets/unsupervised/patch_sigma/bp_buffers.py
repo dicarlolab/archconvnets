@@ -11,6 +11,10 @@ GPU_FORWARD = 0
 GPU_SUP = 1
 GPU_UNS = 0
 
+N_TEST_SET = 500*2
+N_TRAIN = 300*2
+TOP_N = 1
+
 # gpu buffer indices
 MAX_OUTPUT1_UNS = 0
 DF2_DATA_UNS = 1
@@ -64,14 +68,14 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS = 1e-2
+EPS = 1e-3
 
 N_IMGS = 100 # batch size
 IMG_SZ_CROP = 32 # input image size (px)
 IMG_SZ = 34 # input image size (px)
 PAD = 2
 
-N = 4
+N = 16
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N
@@ -97,6 +101,7 @@ t_start = time.time()
 epoch = 0
 err = []
 class_err = []
+mcc = []
 
 while True:
 	for batch in range(1,6):
@@ -250,8 +255,20 @@ while True:
 		
 		err.append(np.mean((pred - Y_test)**2))
 		class_err.append(1-(pred.argmax(0) == labels).mean())
-		print epoch, batch, err[-1], class_err[-1], np.sum(np.abs(F1)), time.time() - t_start
-		savemat('/home/darren/F1.mat', {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err})
+		
+		## mcc
+		t_mcc = time.time()
+		pred_train = pred[:,N_TRAIN:N_TEST_SET].T
+		pred = pred[:,:N_TRAIN].T
+		
+		test_corrs = np.dot(pred, pred_train.T)
+		hit = 0
+		for test_img in range(N_TEST_SET-N_TRAIN):
+			hit += np.max(labels[N_TRAIN + test_img] == labels[np.argsort(-test_corrs[test_img])[:TOP_N]])
+		mcc.append(1-hit/np.single(N_TEST_SET-N_TRAIN))
+		
+		print epoch, batch, err[-1], class_err[-1], mcc[-1], np.sum(np.abs(F1)), time.time() - t_start, time.time() - t_mcc
+		savemat('/home/darren/F1.mat', {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,'mcc':mcc})
 		t_start = time.time()
 	epoch += 1
 sf()
