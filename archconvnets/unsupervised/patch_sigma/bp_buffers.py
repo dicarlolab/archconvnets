@@ -1,3 +1,6 @@
+# todo: new FL weighting
+# todo: different stream for conv_dfilter_buffers
+# todo: conv gpu buffers/outputs
 from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 import time
 import numpy as np
@@ -6,6 +9,9 @@ import copy
 from scipy.stats import zscore
 import random
 import gnumpy as gpu
+
+def pinv(F):
+	return np.dot(np.linalg.inv(np.dot(F.T,F)), F.T)
 
 #kernprof -l bp_buffers_patch.py
 #python -m line_profiler bp_buffers_patch.py.lprof  > p
@@ -26,7 +32,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS_E = 5
+EPS_E = 4
 EPS = 10**(-EPS_E)
 
 N_IMGS = 100 # batch size
@@ -90,6 +96,9 @@ x = z['data'] - imgs_mean
 x = x.reshape((3, 32, 32, 10000))
 
 labels_test = np.asarray(z['labels'])
+l = np.zeros((10000, 10),dtype='int')
+l[np.arange(10000),np.asarray(z['labels']).astype(int)] = 1
+Y_test = np.single(l.T)
 
 imgs_pad_test = np.zeros((3, IMG_SZ, IMG_SZ, 10000),dtype='single')
 imgs_pad_test[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
@@ -111,9 +120,9 @@ while True:
 
 		labels = np.asarray(z['labels'])
 
-		l = np.zeros((10000, N_C),dtype='int')
+		l = np.zeros((10000, 10),dtype='int')
 		l[np.arange(10000),np.asarray(z['labels']).astype(int)] = 1
-		Y_test = np.single(l.T)
+		Y_train = np.single(l.T)
 
 		imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, 10000),dtype='single')
 		imgs_pad[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
@@ -123,7 +132,7 @@ while True:
 			imgs_pads_patch = copy.deepcopy(imgs_pad[:N_C])
 			set_buffer(imgs_pads_patch[:N_C], IMGS_PAD_SUP, gpu=GPU_SUP)
 			
-			Ys = Y_test[:,:N_C]
+			Ys = np.eye(N_C, dtype='single')
 			
 		for s in range(100):
 			# forward pass imgs
@@ -160,7 +169,7 @@ while True:
 			conv_output_sz1 = conv_output1.shape[2]
 			
 			if REAL_BP == True:
-				Ys = Y_test[:,s*N_IMGS:(s+1)*N_IMGS]
+				Ys = Y_train[:,s*N_IMGS:(s+1)*N_IMGS]
 			
 			pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4])
 			
@@ -293,9 +302,20 @@ while True:
 			hit += np.max(labels_test[N_TRAIN + test_img] == labels_test[np.argsort(-test_corrs[test_img])[:TOP_N]])
 		mcc_max3.append(1-hit/np.single(N_TEST_SET-N_TRAIN))
 		
-		print epoch, batch, mcc_FL[-1], mcc_max3[-1], ' F1:', np.sum(np.abs(F1)), time.time() - t_mcc, time.time() - t_start, file_name
+		#########
+		## least squares FC
+		pred_train = max_output3[:N_TRAIN].reshape((N_TRAIN, n3*max_output_sz3**2))
+		pred = max_output3[N_TRAIN:N_TEST_SET].reshape((N_TEST_SET-N_TRAIN, n3*max_output_sz3**2))
+		
+		w = np.dot(pinv(pred_train), Y_test.T[:N_TRAIN])
+		
+		pred_remap = np.dot(pred,w)
+		err.append(np.mean((pred_remap - Y_test.T[N_TRAIN:N_TEST_SET])**2))
+		class_err.append(1-(np.argmax(pred_remap,axis=1) == np.asarray(np.squeeze(labels_test))[N_TRAIN:N_TEST_SET]).mean())
+		
+		print epoch, batch, 'mccFL:', mcc_FL[-1], 'mccMax3:', mcc_max3[-1], 'LSQclass:', class_err[-1], 'LSQerr:', err[-1], ' F1:', np.sum(np.abs(F1)), time.time() - t_mcc, time.time() - t_start, file_name
 		savemat(file_name, {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,'mcc_FL':mcc_FL, 'mcc_max3':mcc_max3,'F2':F2,'F3':F3,'FL':FL,
-			'EPS':EPS})
+			'EPS':EPS,'err':err,'class_err':class_err})
 		t_start = time.time()
 	epoch += 1
 sf()
