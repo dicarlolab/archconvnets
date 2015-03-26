@@ -7,75 +7,45 @@ from scipy.stats import zscore
 import random
 import gnumpy as gpu
 
-GPU_FORWARD = 0
-GPU_SUP = 1
-GPU_UNS = 0
-
-N_TEST_SET = 500*2
-N_TRAIN = 300*2
-TOP_N = 1
-
-# gpu buffer indices
-MAX_OUTPUT1_UNS = 0
-DF2_DATA_UNS = 1
-CONV_OUTPUT1_UNS = 2
-DPOOL1_UNS = 3
-F1_IND = 4
-IMGS_PAD_UNS = 5
-DF1_UNS = 6
-F2_IND = 11
-D_UNS_UNPOOL2 = 12
-F3_IND = 13
-
-MAX_OUTPUT2_UNS = 14
-MAX_OUTPUT3_UNS = 15
-
-MAX_OUTPUT1_SUP = 16
-MAX_OUTPUT2_SUP = 17
-MAX_OUTPUT3_SUP = 18
-
-CONV_OUTPUT1_UNS = 19
-CONV_OUTPUT2_UNS = 20
-CONV_OUTPUT3_UNS = 21
-
-CONV_OUTPUT1_SUP = 22
-CONV_OUTPUT2_SUP = 23
-CONV_OUTPUT3_SUP = 24
-DF2_UNS = 25
-DPOOL2_UNS = 26
-DF3_DATA_UNS = 27
-DPOOL3_UNS = 28
-DF3_UNS = 29
-FL_PRED_UNS = 30
-FL_PRED_SUP = 31
-DF3_SUP=32
-DPOOL3_SUP = 33
-DF3_DATA_SUP=34
-DPOOL2_SUP = 35
-DF2_SUP = 36
-DF2_DATA_SUP=37
-IMGS_PAD_SUP=38
-DF3_DATA_SUP=39
-DPOOL1_SUP=40
-DF1_SUP = 41
-
-#kernprof -l bp.py
-#python -m line_profiler bp.py.lprof  > p
+#kernprof -l bp_buffers_patch.py
+#python -m line_profiler bp_buffers_patch.py.lprof  > p
 #@profile
 #def sf():
+
+GPU_FORWARD = 2
+GPU_SUP = 2
+GPU_UNS = 3
+
+# mcc number of train/test imgs
+N_TEST_SET = 5000
+N_TRAIN = 1000
+TOP_N = 1
+
 F1_scale = 0.001 # std of init normal distribution
 F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS = 1e-3
+EPS_E = 5
+EPS = 10**(-EPS_E)
 
 N_IMGS = 100 # batch size
 IMG_SZ_CROP = 32 # input image size (px)
 IMG_SZ = 34 # input image size (px)
 PAD = 2
 
-N = 16
+# compute real BP or patch approx for s31
+REAL_BP = False
+if REAL_BP == True:
+	N_C = 10 # number of categories
+	N_REP_IMGS = N_IMGS
+	BP_STR = ''
+else:
+	N_C = 25 # number of patches
+	N_REP_IMGS = N_C
+	BP_STR = 'patches'
+
+N = 8
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N
@@ -84,7 +54,7 @@ s3 = 3 # L1 filter size (px)
 s2 = 5 # ...
 s1 = 5
 
-N_C = 10 # number of categories
+file_name = '/home/darren/F1_' + str(N_C) + BP_STR + '_' + str(EPS_E) + 'eps_' + str(N) + 'N.mat'
 
 max_output_sz3  = 5
 
@@ -96,17 +66,45 @@ FL = np.single(np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, m
 
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
 
+s_scale = N_IMGS / np.single(N_C)
+
+# gpu buffer indices
+MAX_OUTPUT1_UNS = 0; DF2_DATA_UNS = 1; CONV_OUTPUT1_UNS = 2; DPOOL1_UNS = 3
+F1_IND = 4; IMGS_PAD_UNS = 5; DF1_UNS = 6; F2_IND = 11
+D_UNS_UNPOOL2 = 12;F3_IND = 13; MAX_OUTPUT2_UNS = 14; MAX_OUTPUT3_UNS = 15
+MAX_OUTPUT1_SUP = 16; MAX_OUTPUT2_SUP = 17; MAX_OUTPUT3_SUP = 18; CONV_OUTPUT1_UNS = 19
+CONV_OUTPUT2_UNS = 20; CONV_OUTPUT3_UNS = 21; CONV_OUTPUT1_SUP = 22; CONV_OUTPUT2_SUP = 23
+CONV_OUTPUT3_SUP = 24; DF2_UNS = 25; DPOOL2_UNS = 26; DF3_DATA_UNS = 27
+DPOOL3_UNS = 28; DF3_UNS = 29; FL_PRED_UNS = 30; FL_PRED_SUP = 31
+DF3_SUP=32; DPOOL3_SUP = 33; DF3_DATA_SUP=34; DPOOL2_SUP = 35
+DF2_SUP = 36; DF2_DATA_SUP=37; IMGS_PAD_SUP=38; DF3_DATA_SUP=39
+DPOOL1_SUP=40; DF1_SUP = 41
+
+
 t_start = time.time()
+
+##################
+# load test imgs into buffers
+z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(6))
+x = z['data'] - imgs_mean
+x = x.reshape((3, 32, 32, 10000))
+
+labels_test = np.asarray(z['labels'])
+
+imgs_pad_test = np.zeros((3, IMG_SZ, IMG_SZ, 10000),dtype='single')
+imgs_pad_test[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
+imgs_pad_test = np.ascontiguousarray(imgs_pad_test.transpose((3,0,1,2)))
 
 epoch = 0
 err = []
 class_err = []
-mcc = []
+mcc_FL = []
+mcc_max3 = []
 
 while True:
 	for batch in range(1,6):
 		##################
-		# load test imgs into buffers
+		# load train imgs into buffers
 		z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(batch))
 		x = z['data'] - imgs_mean
 		x = x.reshape((3, 32, 32, 10000))
@@ -120,14 +118,39 @@ while True:
 		imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, 10000),dtype='single')
 		imgs_pad[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
 		imgs_pad = np.ascontiguousarray(imgs_pad.transpose((3,0,1,2)))
+		
+		if batch == 1 and REAL_BP == False:
+			imgs_pads_patch = copy.deepcopy(imgs_pad[:N_C])
+			imgs_pads_patch_tile = np.tile(imgs_pads_patch[:N_C],(N_C,1,1,1,1)).reshape((N_C*N_C, 3, IMG_SZ, IMG_SZ))
+			set_buffer(imgs_pads_patch_tile, IMGS_PAD_SUP, gpu=GPU_SUP)
+			
+			Ys = Y_test[:,:N_C]
+			
 		for s in range(100):
-			# forward pass
-			conv_output1 = conv(F1, imgs_pad[s*N_IMGS:(s+1)*N_IMGS], PAD=2)
-			max_output1 = max_pool_cudnn(conv_output1)
-			conv_output2 = conv(F2, max_output1, PAD=2)
-			max_output2 = max_pool_cudnn(conv_output2)
-			conv_output3 = conv(F3, max_output2, PAD=2)
-			max_output3 = max_pool_cudnn(conv_output3)
+			# forward pass imgs
+			conv_output1 = conv(F1, imgs_pad[s*N_IMGS:(s+1)*N_IMGS], PAD=2, gpu=GPU_FORWARD)
+			max_output1 = max_pool_cudnn(conv_output1, gpu=GPU_FORWARD)
+			conv_output2 = conv(F2, max_output1, PAD=2, gpu=GPU_FORWARD)
+			max_output2 = max_pool_cudnn(conv_output2, gpu=GPU_FORWARD)
+			conv_output3 = conv(F3, max_output2, PAD=2, gpu=GPU_FORWARD)
+			max_output3 = max_pool_cudnn(conv_output3, gpu=GPU_FORWARD)
+			
+			# forward pass patches
+			if REAL_BP == False:
+				conv_output1_patch = conv(F1, imgs_pads_patch, PAD=2, gpu=GPU_FORWARD)
+				max_output1_patch = max_pool_cudnn(conv_output1_patch, gpu=GPU_FORWARD)
+				conv_output2_patch = conv(F2, max_output1_patch, PAD=2, gpu=GPU_FORWARD)
+				max_output2_patch = max_pool_cudnn(conv_output2_patch, gpu=GPU_FORWARD)
+				conv_output3_patch = conv(F3, max_output2_patch, PAD=2, gpu=GPU_FORWARD)
+				max_output3_patch = max_pool_cudnn(conv_output3_patch, gpu=GPU_FORWARD)
+			else:
+				conv_output1_patch = conv_output1
+				conv_output2_patch = conv_output2
+				conv_output3_patch = conv_output3
+				max_output1_patch = max_output1
+				max_output2_patch = max_output2
+				max_output3_patch = max_output3
+
 			
 			max_output_sz3 = max_output3.shape[2]
 			max_output_sz2 = max_output2.shape[2]
@@ -137,31 +160,39 @@ while True:
 			conv_output_sz2 = conv_output2.shape[2]
 			conv_output_sz1 = conv_output1.shape[2]
 			
-			Ys = Y_test[:,s*N_IMGS:(s+1)*N_IMGS]
+			if REAL_BP == True:
+				Ys = Y_test[:,s*N_IMGS:(s+1)*N_IMGS]
+			
 			pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4])
-			
-			
 			
 			######## gradients:
 			
 			dFL_uns = np.einsum(max_output3, range(4), pred, [4,0], [4,1,2,3])
-			dFL_s = np.einsum(max_output3, range(4), -Ys, [4,0], [4,1,2,3])
+			dFL_s = np.einsum(max_output3_patch, range(4), -Ys, [4,0], [4,1,2,3])
 			
-			grad_FL = 2*(dFL_uns + dFL_s)
+			grad_FL = 2*(dFL_uns + dFL_s*s_scale)
 			
 			###### ravel together categories and imgs, replicate across imgs (FL weights) or categories (switches) as necessary to match dims.
 			FL_pred = np.einsum(FL, range(4), pred, [0,4], [0,4,1,2,3]).reshape((N_C*N_IMGS, n3, max_output_sz3, max_output_sz3))
-			FL_Y = np.einsum(FL, range(4), Ys, [0,4], [0,4,1,2,3]).reshape((N_C*N_IMGS, n3, max_output_sz3, max_output_sz3))
+			FL_Y = np.einsum(FL, range(4), Ys, [0,4], [0,4,1,2,3]).reshape((N_C*N_REP_IMGS, n3, max_output_sz3, max_output_sz3))
 			
-			imgs_pads = np.tile(imgs_pad[s*100:(s+1)*100],(N_C,1,1,1,1)).reshape((N_C*N_IMGS, 3, IMG_SZ, IMG_SZ))
+			imgs_pads = np.tile(imgs_pad[s*N_IMGS:(s+1)*N_IMGS],(N_C,1,1,1,1)).reshape((N_C*N_IMGS, 3, IMG_SZ, IMG_SZ))
 			# each category's predictions are weighted differently, but they all use the same switches
 			conv_output3 = np.tile(conv_output3,(N_C,1,1,1,1)).reshape((N_C*N_IMGS, n3, conv_output_sz3, conv_output_sz3))
 			conv_output2 = np.tile(conv_output2,(N_C,1,1,1,1)).reshape((N_C*N_IMGS, n2, conv_output_sz2, conv_output_sz2))
 			conv_output1 = np.tile(conv_output1,(N_C,1,1,1,1)).reshape((N_C*N_IMGS, n1, conv_output_sz1, conv_output_sz1))
 			
+			conv_output3_patch = np.tile(conv_output3_patch,(N_C,1,1,1,1)).reshape((N_C*N_REP_IMGS, n3, conv_output_sz3, conv_output_sz3))
+			conv_output2_patch = np.tile(conv_output2_patch,(N_C,1,1,1,1)).reshape((N_C*N_REP_IMGS, n2, conv_output_sz2, conv_output_sz2))
+			conv_output1_patch = np.tile(conv_output1_patch,(N_C,1,1,1,1)).reshape((N_C*N_REP_IMGS, n1, conv_output_sz1, conv_output_sz1))
+			
 			max_output3 = np.tile(max_output3,(N_C,1,1,1,1)).reshape((N_C*N_IMGS, n3, max_output_sz3, max_output_sz3))
 			max_output2 = np.tile(max_output2,(N_C,1,1,1,1)).reshape((N_C*N_IMGS, n2, max_output_sz2, max_output_sz2))
 			max_output1 = np.tile(max_output1,(N_C,1,1,1,1)).reshape((N_C*N_IMGS, n1, max_output_sz1, max_output_sz1))
+			
+			max_output3_patch = np.tile(max_output3_patch,(N_C,1,1,1,1)).reshape((N_C*N_REP_IMGS, n3, max_output_sz3, max_output_sz3))
+			max_output2_patch = np.tile(max_output2_patch,(N_C,1,1,1,1)).reshape((N_C*N_REP_IMGS, n2, max_output_sz2, max_output_sz2))
+			max_output1_patch = np.tile(max_output1_patch,(N_C,1,1,1,1)).reshape((N_C*N_REP_IMGS, n1, max_output_sz1, max_output_sz1))
 			
 			######### buffers:
 			set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_UNS)
@@ -176,20 +207,21 @@ while True:
 			set_buffer(max_output2, MAX_OUTPUT2_UNS, gpu=GPU_UNS)
 			set_buffer(max_output3, MAX_OUTPUT3_UNS, gpu=GPU_UNS)
 			
-			set_buffer(max_output1, MAX_OUTPUT1_SUP, gpu=GPU_SUP)
-			set_buffer(max_output2, MAX_OUTPUT2_SUP, gpu=GPU_SUP)
-			set_buffer(max_output3, MAX_OUTPUT3_SUP, gpu=GPU_SUP)
+			set_buffer(max_output1_patch, MAX_OUTPUT1_SUP, gpu=GPU_SUP)
+			set_buffer(max_output2_patch, MAX_OUTPUT2_SUP, gpu=GPU_SUP)
+			set_buffer(max_output3_patch, MAX_OUTPUT3_SUP, gpu=GPU_SUP)
 			
 			set_buffer(conv_output1, CONV_OUTPUT1_UNS, gpu=GPU_UNS)
 			set_buffer(conv_output2, CONV_OUTPUT2_UNS, gpu=GPU_UNS)
 			set_buffer(conv_output3, CONV_OUTPUT3_UNS, gpu=GPU_UNS)
 			
-			set_buffer(conv_output1, CONV_OUTPUT1_SUP, gpu=GPU_SUP)
-			set_buffer(conv_output2, CONV_OUTPUT2_SUP, gpu=GPU_SUP)
-			set_buffer(conv_output3, CONV_OUTPUT3_SUP, gpu=GPU_SUP)
+			set_buffer(conv_output1_patch, CONV_OUTPUT1_SUP, gpu=GPU_SUP)
+			set_buffer(conv_output2_patch, CONV_OUTPUT2_SUP, gpu=GPU_SUP)
+			set_buffer(conv_output3_patch, CONV_OUTPUT3_SUP, gpu=GPU_SUP)
 			
 			set_buffer(imgs_pads, IMGS_PAD_UNS, gpu=GPU_UNS)
-			set_buffer(imgs_pads, IMGS_PAD_SUP, gpu=GPU_SUP)
+			if REAL_BP == True:
+				set_buffer(imgs_pads, IMGS_PAD_SUP, gpu=GPU_SUP)
 			
 			set_buffer(FL_pred, FL_PRED_UNS, gpu=GPU_UNS)
 			set_buffer(-FL_Y, FL_PRED_SUP, gpu=GPU_SUP)
@@ -233,9 +265,9 @@ while True:
 			dF1_s = return_buffer(DF1_SUP, gpu=GPU_SUP)
 			
 			
-			grad_F3 = 2*(dF3_uns + dF3_s)
-			grad_F2 = 2*(dF2_uns + dF2_s)
-			grad_F1 = 2*(dF1_uns + dF1_s)
+			grad_F3 = 2*(dF3_uns + dF3_s*s_scale)
+			grad_F2 = 2*(dF2_uns + dF2_s*s_scale)
+			grad_F1 = 2*(dF1_uns + dF1_s*s_scale)
 			
 			F1 -= grad_F1*EPS / N_IMGS
 			F2 -= grad_F2*EPS / N_IMGS
@@ -243,19 +275,20 @@ while True:
 			FL -= grad_FL*EPS / N_IMGS
 			
 		
-		conv_output1 = conv(F1, imgs_pad, PAD=2)
-		max_output1 = max_pool_cudnn(conv_output1)
-		conv_output2 = conv(F2, max_output1, PAD=2)
-		max_output2 = max_pool_cudnn(conv_output2)
-		conv_output3 = conv(F3, max_output2, PAD=2)
-		max_output3 = max_pool_cudnn(conv_output3)
+		conv_output1 = conv(F1, imgs_pad_test, PAD=2, gpu=GPU_FORWARD)
+		max_output1 = max_pool_cudnn(conv_output1, gpu=GPU_FORWARD)
+		conv_output2 = conv(F2, max_output1, PAD=2, gpu=GPU_FORWARD)
+		max_output2 = max_pool_cudnn(conv_output2, gpu=GPU_FORWARD)
+		conv_output3 = conv(F3, max_output2, PAD=2, gpu=GPU_FORWARD)
+		max_output3 = max_pool_cudnn(conv_output3, gpu=GPU_FORWARD)
 		
 		pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4])
 		
-		err.append(np.mean((pred - Y_test)**2))
-		class_err.append(1-(pred.argmax(0) == labels).mean())
+		err.append(1)
+		class_err.append(1)
 		
-		## mcc
+		#########
+		## mcc on FL
 		t_mcc = time.time()
 		pred_train = pred[:,:N_TRAIN].T
 		pred = pred[:,N_TRAIN:N_TEST_SET].T
@@ -263,11 +296,22 @@ while True:
 		test_corrs = np.dot(pred, pred_train.T)
 		hit = 0
 		for test_img in range(N_TEST_SET-N_TRAIN):
-			hit += np.max(labels[N_TRAIN + test_img] == labels[np.argsort(-test_corrs[test_img])[:TOP_N]])
-		mcc.append(1-hit/np.single(N_TEST_SET-N_TRAIN))
+			hit += np.max(labels_test[N_TRAIN + test_img] == labels_test[np.argsort(-test_corrs[test_img])[:TOP_N]])
+		mcc_FL.append(1-hit/np.single(N_TEST_SET-N_TRAIN))
 		
-		print epoch, batch, err[-1], class_err[-1], mcc[-1], np.sum(np.abs(F1)), time.time() - t_start, time.time() - t_mcc
-		savemat('/home/darren/F1.mat', {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,'mcc':mcc})
+		## mcc on max3
+		pred_train = max_output3[:N_TRAIN].reshape((N_TRAIN, n3*max_output_sz3**2))
+		pred = max_output3[N_TRAIN:N_TEST_SET].reshape((N_TEST_SET-N_TRAIN, n3*max_output_sz3**2))
+		
+		test_corrs = np.dot(pred, pred_train.T)
+		hit = 0
+		for test_img in range(N_TEST_SET-N_TRAIN):
+			hit += np.max(labels_test[N_TRAIN + test_img] == labels_test[np.argsort(-test_corrs[test_img])[:TOP_N]])
+		mcc_max3.append(1-hit/np.single(N_TEST_SET-N_TRAIN))
+		
+		print epoch, batch, mcc_FL[-1], mcc_max3[-1], ' F1:', np.sum(np.abs(F1)), time.time() - t_mcc, time.time() - t_start, file_name
+		savemat(file_name, {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,'mcc_FL':mcc_FL, 'mcc_max3':mcc_max3,'F2':F2,'F3':F3,'FL':FL,
+			'EPS':EPS})
 		t_start = time.time()
 	epoch += 1
 sf()
