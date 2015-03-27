@@ -17,10 +17,6 @@ def pinv(F):
 #@profile
 #def sf():
 
-GPU_SUP = 0
-GPU_UNS = 1
-GPU_FORWARD = GPU_SUP
-
 # mcc number of train/test imgs
 N_TEST_SET = 10000
 N_TRAIN = 9000
@@ -40,16 +36,21 @@ IMG_SZ = 34 # input image size (px)
 PAD = 2
 
 # compute real BP or patch approx for s31
-REAL_BP = True
+REAL_BP = False
 if REAL_BP == True:
 	N_C = 10 # number of categories
 	N_REP_IMGS = N_IMGS
 	BP_STR = ''
+	GPU_SUP = 0
+	GPU_UNS = 1
 else:
-	N_C = 100 # number of patches
+	N_C = 250 # number of patches
 	N_REP_IMGS = N_C
 	BP_STR = 'patches'
+	GPU_SUP = 2
+	GPU_UNS = 3
 
+GPU_FORWARD = GPU_SUP
 N = 8
 n1 = N # L1 filters
 n2 = N# ...
@@ -162,7 +163,7 @@ while True:
 		savemat(file_name, {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,'mcc_FL':mcc_FL, 'mcc_max3':mcc_max3,'F2':F2,'F3':F3,'FL':FL,
 			'EPS':EPS,'err':err,'class_err':class_err})
 			
-		
+		t_start = time.time()
 		##################
 		# load train imgs into buffers
 		z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(batch))
@@ -318,6 +319,5 @@ while True:
 			F3 -= grad_F3*EPS / N_IMGS
 			FL -= grad_FL*EPS / N_IMGS
 		
-		t_start = time.time()
 	epoch += 1
 sf()
