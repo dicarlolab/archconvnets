@@ -44,7 +44,7 @@ if REAL_BP == True:
 	GPU_SUP = 0
 	GPU_UNS = 1
 else:
-	N_C = 250 # number of patches
+	N_C = 500 # number of patches
 	N_REP_IMGS = N_C
 	BP_STR = 'patches'
 	GPU_SUP = 2
@@ -109,6 +109,9 @@ err = []
 class_err = []
 mcc_FL = []
 mcc_max3 = []
+
+random.seed(666)
+cat_inds = range(N_C)
 
 while True:
 	for batch in range(1,6):
@@ -269,9 +272,15 @@ while True:
 			grad_F2 = np.zeros_like(F2)
 			grad_F3 = np.zeros_like(F3)
 			
-			for cat_i in range(N_C):
-				set_buffer(FL_pred[cat_i], FL_PRED_UNS, gpu=GPU_UNS)
-				set_buffer(-FL_Y[cat_i], FL_PRED_SUP, gpu=GPU_SUP)
+			random.shuffle(cat_inds)
+			
+			for cat_i in range(10):
+				if REAL_BP == True:
+					set_buffer(FL_pred[cat_i], FL_PRED_UNS, gpu=GPU_UNS)
+					set_buffer(-FL_Y[cat_i], FL_PRED_SUP, gpu=GPU_SUP)
+				else: # randomly update a sub-set of categories
+					set_buffer(FL_pred[cat_inds[cat_i]], FL_PRED_UNS, gpu=GPU_UNS)
+					set_buffer(-FL_Y[cat_inds[cat_i]], FL_PRED_SUP, gpu=GPU_SUP)
 			
 				###########
 
