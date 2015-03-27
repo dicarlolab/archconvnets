@@ -27,7 +27,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS_E = 4
+EPS_E = 3
 EPS = 10**(-EPS_E)
 
 N_IMGS = 100 # batch size
@@ -41,17 +41,17 @@ if REAL_BP == True:
 	N_C = 10 # number of categories
 	N_REP_IMGS = N_IMGS
 	BP_STR = ''
-	GPU_SUP = 0
-	GPU_UNS = 1
+	GPU_SUP = 3
+	GPU_UNS = 2
 else:
-	N_C = 500 # number of patches
+	N_C = 101 # number of patches
 	N_REP_IMGS = N_C
 	BP_STR = 'patches'
 	GPU_SUP = 2
 	GPU_UNS = 3
 
 GPU_FORWARD = GPU_SUP
-N = 8
+N = 4
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N
@@ -151,7 +151,7 @@ while True:
 			hit += np.max(labels_test[N_TRAIN + test_img] == labels_test[np.argsort(-test_corrs[test_img])[:TOP_N]])
 		mcc_max3.append(1-hit/np.single(N_TEST_SET-N_TRAIN))
 		
-		#########
+		'''#########
 		## least squares FC
 		pred_train = max_output3[:N_TRAIN].reshape((N_TRAIN, n3*max_output_sz3**2))
 		pred = max_output3[N_TRAIN:N_TEST_SET].reshape((N_TEST_SET-N_TRAIN, n3*max_output_sz3**2))
@@ -161,6 +161,8 @@ while True:
 		pred_remap = np.dot(pred,w)
 		err.append(np.mean((pred_remap - Y_test.T[N_TRAIN:N_TEST_SET])**2))
 		class_err.append(1-(np.argmax(pred_remap,axis=1) == np.asarray(np.squeeze(labels_test))[N_TRAIN:N_TEST_SET]).mean())
+		'''
+		class_err.append(1);err.append(1)
 		
 		print epoch, batch, 'mccFL:', mcc_FL[-1], 'mccMax3:', mcc_max3[-1], 'LSQclass:', class_err[-1], 'LSQerr:', err[-1], ' F1:', np.sum(np.abs(F1)), time.time() - t_mcc, time.time() - t_start, file_name
 		savemat(file_name, {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,'mcc_FL':mcc_FL, 'mcc_max3':mcc_max3,'F2':F2,'F3':F3,'FL':FL,
@@ -274,13 +276,15 @@ while True:
 			
 			random.shuffle(cat_inds)
 			
-			for cat_i in range(10):
-				if REAL_BP == True:
+			for cat_i in range(N_C):
+				set_buffer(FL_pred[cat_i], FL_PRED_UNS, gpu=GPU_UNS)
+				set_buffer(-FL_Y[cat_i], FL_PRED_SUP, gpu=GPU_SUP)
+				'''if REAL_BP == True:
 					set_buffer(FL_pred[cat_i], FL_PRED_UNS, gpu=GPU_UNS)
 					set_buffer(-FL_Y[cat_i], FL_PRED_SUP, gpu=GPU_SUP)
 				else: # randomly update a sub-set of categories
 					set_buffer(FL_pred[cat_inds[cat_i]], FL_PRED_UNS, gpu=GPU_UNS)
-					set_buffer(-FL_Y[cat_inds[cat_i]], FL_PRED_SUP, gpu=GPU_SUP)
+					set_buffer(-FL_Y[cat_inds[cat_i]], FL_PRED_SUP, gpu=GPU_SUP)'''
 			
 				###########
 
