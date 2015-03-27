@@ -1,6 +1,22 @@
 import _cudnn_module
 import numpy as np
 
+def max_pool_cudnn_buffers(imgs_ind, out_ind, gpu=0,warn=True):
+	assert isinstance(imgs_ind, int)
+	assert isinstance(out_ind, int)
+	assert isinstance(gpu,int)
+	
+	return _cudnn_module.max_pool_cudnn_buffers(imgs_ind, out_ind, gpu)
+
+def conv_buffers(filters_ind, imgs_ind, out_ind, PAD=0, gpu=0, warn=True):
+	assert isinstance(PAD,int)
+	assert isinstance(gpu,int)
+	assert isinstance(filters_ind,int)
+	assert isinstance(imgs_ind,int)
+	assert isinstance(out_ind,int)
+	
+	return _cudnn_module.conv_buffers(filters_ind, imgs_ind, out_ind, PAD, gpu)
+
 def conv_ddata_buffers(filters_ind, imgs_ind, conv_out_ind, out_ind, PAD=0, gpu=0, warn=True):
 	assert isinstance(PAD,int)
 	assert isinstance(gpu,int)

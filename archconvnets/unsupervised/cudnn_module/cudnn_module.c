@@ -7,6 +7,7 @@
 		printf("CUDA error: %s, %s, %i\n",cudaGetErrorString(err),__FILE__,__LINE__);return;}}
 
 #include "conv.c"
+#include "conv_buffers.c"
 
 #include "conv_dfilter.c"
 #include "conv_dfilter_buffers.c"
@@ -15,8 +16,11 @@
 #include "conv_ddata_buffers.c"
 
 #include "max_pool_locs_alt.c"
+
 #include "pool_alt_inds_opt_patches.c"
+
 #include "max_pool_cudnn.c"
+#include "max_pool_cudnn_buffers.c"
 
 #include "max_pool_back_cudnn.c"
 #include "max_pool_back_cudnn_buffers.c"
@@ -28,6 +32,7 @@
 
 static PyMethodDef _cudnn_module[] = {
 	{"conv", conv, METH_VARARGS},
+	{"conv_buffers", conv_buffers, METH_VARARGS},
 	
 	{"conv_dfilter", conv_dfilter, METH_VARARGS},
 	{"conv_dfilter_buffers", conv_dfilter_buffers, METH_VARARGS},
@@ -37,7 +42,9 @@ static PyMethodDef _cudnn_module[] = {
     
 	{"max_pool_locs_alt", max_pool_locs_alt, METH_VARARGS},
 	{"max_pool_locs_alt_patches", max_pool_locs_alt_patches, METH_VARARGS},
+	
 	{"max_pool_cudnn", max_pool_cudnn, METH_VARARGS},
+	{"max_pool_cudnn_buffers", max_pool_cudnn_buffers, METH_VARARGS},
 	
 	{"max_pool_back_cudnn", max_pool_back_cudnn, METH_VARARGS},
 	{"max_pool_back_cudnn_buffers", max_pool_back_cudnn_buffers, METH_VARARGS},
