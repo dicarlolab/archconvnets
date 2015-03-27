@@ -44,11 +44,11 @@ if REAL_BP == True:
 	GPU_SUP = 0
 	GPU_UNS = 1
 else:
-	N_C = 10 # number of patches
+	N_C = 250 # number of patches
 	N_REP_IMGS = N_C
 	BP_STR = 'patches'
-	GPU_SUP = 3
-	GPU_UNS = 2
+	GPU_SUP = 2
+	GPU_UNS = 3
 
 GPU_FORWARD = GPU_SUP
 N = 16
@@ -98,6 +98,30 @@ imgs_pad_test = np.zeros((3, IMG_SZ, IMG_SZ, 10000),dtype='single')
 imgs_pad_test[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
 imgs_pad_test = np.ascontiguousarray(imgs_pad_test.transpose((3,0,1,2)))
 
+##################
+# load train imgs into buffers
+imgs_pad = np.zeros((6, 10000, 3, IMG_SZ, IMG_SZ),dtype='single')
+Y_train = np.zeros((6, N_C, 10000), dtype='single')
+for batch in range(1,6):
+	z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(batch))
+	x = z['data'] - imgs_mean
+	x = x.reshape((3, 32, 32, 10000))
+
+	labels = np.asarray(z['labels'])
+
+	l = np.zeros((10000, 10),dtype='int')
+	l[np.arange(10000),np.asarray(z['labels']).astype(int)] = 1
+	Y_train[batch] = np.single(l.T)
+
+	imgs_pad[batch,:,:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x.transpose((3,0,1,2))
+imgs_pad = np.ascontiguousarray(imgs_pad)
+
+if REAL_BP == False:
+	imgs_pads_patch = copy.deepcopy(imgs_pad[batch][:N_C])
+	set_buffer(imgs_pads_patch[:N_C], IMGS_PAD, gpu=GPU_SUP)
+	
+	Ys = np.eye(N_C, dtype='single')
+
 epoch = 0
 err = []
 class_err = []
@@ -108,7 +132,8 @@ random.seed(666)
 cat_inds = range(N_C)
 
 while True:
-	###############################################
+	t_mcc = time.time()
+	'''###############################################
 	# test imgs
 	conv_output1 = conv(F1, imgs_pad_test, PAD=2, gpu=GPU_FORWARD)
 	max_output1 = max_pool_cudnn(conv_output1, gpu=GPU_FORWARD)
@@ -122,7 +147,6 @@ while True:
 
 	#########
 	## mcc on FL
-	t_mcc = time.time()
 	pred_train = pred[:,:N_TRAIN].T
 	pred = pred[:,N_TRAIN:N_TEST_SET].T
 	
@@ -140,9 +164,9 @@ while True:
 	hit = 0
 	for test_img in range(N_TEST_SET-N_TRAIN):
 		hit += np.max(labels_test[N_TRAIN + test_img] == labels_test[np.argsort(-test_corrs[test_img])[:TOP_N]])
-	mcc_max3.append(1-hit/np.single(N_TEST_SET-N_TRAIN))
+	mcc_max3.append(1-hit/np.single(N_TEST_SET-N_TRAIN))'''
 	
-	#########
+	'''#########
 	## least squares FC
 	pred_train = max_output3[:N_TRAIN].reshape((N_TRAIN, n3*max_output_sz3**2))
 	pred = max_output3[N_TRAIN:N_TEST_SET].reshape((N_TEST_SET-N_TRAIN, n3*max_output_sz3**2))
@@ -151,9 +175,10 @@ while True:
 	
 	pred_remap = np.dot(pred,w)
 	err.append(np.mean((pred_remap - Y_test.T[N_TRAIN:N_TEST_SET])**2))
-	class_err.append(1-(np.argmax(pred_remap,axis=1) == np.asarray(np.squeeze(labels_test))[N_TRAIN:N_TEST_SET]).mean())
+	class_err.append(1-(np.argmax(pred_remap,axis=1) == np.asarray(np.squeeze(labels_test))[N_TRAIN:N_TEST_SET]).mean())'''
 	
-	#class_err.append(1);err.append(1)
+	mcc_max3.append(1);mcc_FL.append(1)
+	class_err.append(1);err.append(1)
 	
 	print epoch, 'mccFL:', mcc_FL[-1], 'mccMax3:', mcc_max3[-1], 'LSQclass:', class_err[-1], 'LSQerr:', err[-1], ' F1:', np.sum(np.abs(F1)), time.time() - t_mcc, time.time() - t_start, file_name
 	savemat(file_name, {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,'mcc_FL':mcc_FL, 'mcc_max3':mcc_max3,'F2':F2,'F3':F3,'FL':FL,
@@ -163,29 +188,6 @@ while True:
 	
 	
 	for batch in range(1,6):
-
-		##################
-		# load train imgs into buffers
-		z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(batch))
-		x = z['data'] - imgs_mean
-		x = x.reshape((3, 32, 32, 10000))
-
-		labels = np.asarray(z['labels'])
-
-		l = np.zeros((10000, 10),dtype='int')
-		l[np.arange(10000),np.asarray(z['labels']).astype(int)] = 1
-		Y_train = np.single(l.T)
-
-		imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, 10000),dtype='single')
-		imgs_pad[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
-		imgs_pad = np.ascontiguousarray(imgs_pad.transpose((3,0,1,2)))
-		
-		if batch == 1 and REAL_BP == False:
-			imgs_pads_patch = copy.deepcopy(imgs_pad[:N_C])
-			set_buffer(imgs_pads_patch[:N_C], IMGS_PAD, gpu=GPU_SUP)
-			
-			Ys = np.eye(N_C, dtype='single')
-			
 		for s in range(100):
 			#F1 = zscore(F1,axis=None)
 			#F2 = zscore(F2,axis=None)
@@ -195,9 +197,9 @@ while True:
 			grad_F2 = np.zeros_like(F2)
 			grad_F3 = np.zeros_like(F3)
 			
-			set_buffer(imgs_pad[s*N_IMGS:(s+1)*N_IMGS], IMGS_PAD, gpu=GPU_UNS)
+			set_buffer(imgs_pad[batch][s*N_IMGS:(s+1)*N_IMGS], IMGS_PAD, gpu=GPU_UNS)
 			if REAL_BP == True:
-				set_buffer(imgs_pad[s*N_IMGS:(s+1)*N_IMGS], IMGS_PAD, gpu=GPU_SUP)
+				set_buffer(imgs_pad[batch][s*N_IMGS:(s+1)*N_IMGS], IMGS_PAD, gpu=GPU_SUP)
 			
 			set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_UNS)
 			set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_UNS)
@@ -242,7 +244,7 @@ while True:
 				set_buffer(conv_output2, CONV_OUTPUT2, gpu=GPU_SUP)
 				set_buffer(conv_output3, CONV_OUTPUT3, gpu=GPU_SUP)
 				
-				Ys = Y_train[:,s*N_IMGS:(s+1)*N_IMGS]
+				Ys = Y_train[batch][:,s*N_IMGS:(s+1)*N_IMGS]
 			
 			pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4])
 			
@@ -254,11 +256,11 @@ while True:
 			
 			grad_FL = 2*(dFL_uns + dFL_s*s_scale)
 			
-			FL_pred = np.einsum(FL, range(4), pred, [0,4], [0,4,1,2,3]) # N_C, N_IMGS
-			FL_Y = np.einsum(FL, range(4), Ys, [0,4], [0,4,1,2,3]) # N_C, N_IMGS
+			FL_pred = np.einsum(FL, range(4), pred, [0,4], [4,1,2,3])
+			FL_Y = np.einsum(FL, range(4), Ys, [0,4], [4,1,2,3])
 			
-			set_buffer(FL_pred.sum(0), FL_PRED, gpu=GPU_UNS) # summing across categories
-			set_buffer((-FL_Y).sum(0), FL_PRED, gpu=GPU_SUP)
+			set_buffer(FL_pred, FL_PRED, gpu=GPU_UNS) # summing across categories
+			set_buffer(-FL_Y, FL_PRED, gpu=GPU_SUP)
 		
 			###########
 
