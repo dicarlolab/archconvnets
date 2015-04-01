@@ -3,9 +3,9 @@ static PyObject *return_buffer(PyObject *self, PyObject *args){
 	cudnnStatus_t status;
 	PyArrayObject *data_in = NULL;
 	float *data;
-	int gpu_ind, buffer_ind, dims[5];
+	int gpu_ind, buffer_ind, dims[5], stream_ind;
 	
-	if (!PyArg_ParseTuple(args, "ii", &buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iii", &buffer_ind, &stream_ind, &gpu_ind)) 
 		return NULL;
         
 	if(buffer_ind >= N_BUFFERS || buffer_ind < 0){
@@ -23,8 +23,16 @@ static PyObject *return_buffer(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	if(stream_ind < -1 || stream_ind > N_ALT_STREAMS){
+		printf("invalid stream index %i\n", stream_ind);
+		return NULL;
+	}
+	
     cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
-	cudnnSetStream(handle, streams[gpu_ind]);
+	if(stream_ind == -1)
+		cudnnSetStream(handle, streams[gpu_ind]);
+	else
+		cudnnSetStream(handle, alt_streams[gpu_ind][stream_ind]);
 	
 	dims[0] = data_dims[0][gpu_ind][buffer_ind];
 	dims[1] = data_dims[1][gpu_ind][buffer_ind];

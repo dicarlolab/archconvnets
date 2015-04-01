@@ -8,7 +8,7 @@ def max_pool_cudnn_buffers(imgs_ind, out_ind, gpu=0,warn=True):
 	
 	return _cudnn_module.max_pool_cudnn_buffers(imgs_ind, out_ind, gpu)
 
-def conv_buffers(filters_ind, imgs_ind, out_ind, PAD=0, gpu=0, warn=True):
+def conv_buffers(filters_ind, imgs_ind, out_ind, PAD=2, gpu=0, warn=True):
 	assert isinstance(PAD,int)
 	assert isinstance(gpu,int)
 	assert isinstance(filters_ind,int)
@@ -17,7 +17,7 @@ def conv_buffers(filters_ind, imgs_ind, out_ind, PAD=0, gpu=0, warn=True):
 	
 	return _cudnn_module.conv_buffers(filters_ind, imgs_ind, out_ind, PAD, gpu)
 
-def conv_ddata_buffers(filters_ind, imgs_ind, conv_out_ind, out_ind, PAD=0, gpu=0, warn=True):
+def conv_ddata_buffers(filters_ind, imgs_ind, conv_out_ind, out_ind, PAD=2, gpu=0, warn=True):
 	assert isinstance(PAD,int)
 	assert isinstance(gpu,int)
 	assert isinstance(filters_ind,int)
@@ -27,21 +27,23 @@ def conv_ddata_buffers(filters_ind, imgs_ind, conv_out_ind, out_ind, PAD=0, gpu=
 	
 	return _cudnn_module.conv_ddata_buffers(filters_ind, imgs_ind, conv_out_ind, out_ind, PAD, gpu)
 
-def conv_dfilter_buffers(filters_ind, imgs_ind, conv_out_ind, out_ind, PAD=0,gpu=0,warn=True):
+def conv_dfilter_buffers(filters_ind, imgs_ind, conv_out_ind, out_ind, PAD=2,stream=0,gpu=0,warn=True):
 	assert isinstance(gpu,int)
 	assert isinstance(PAD,int)
 	assert isinstance(filters_ind,int)
 	assert isinstance(imgs_ind,int)
 	assert isinstance(conv_out_ind,int)
 	assert isinstance(out_ind,int)
+	assert isinstance(stream,int)
 
-	return _cudnn_module.conv_dfilter_buffers(filters_ind, imgs_ind, conv_out_ind, out_ind, PAD, gpu)
+	return _cudnn_module.conv_dfilter_buffers(filters_ind, imgs_ind, conv_out_ind, out_ind, PAD, stream, gpu)
 
-def return_buffer(buffer_ind, gpu=0, warn=True):
+def return_buffer(buffer_ind, gpu=0, stream=-1, warn=True):
 	assert isinstance(gpu,int)
 	assert isinstance(buffer_ind,int)
+	assert isinstance(stream,int)
 	
-	return _cudnn_module.return_buffer(buffer_ind, gpu)
+	return _cudnn_module.return_buffer(buffer_ind, stream, gpu)
 
 def set_buffer(data, buffer_ind, gpu=0, filter_flag=0, warn=True):
 	assert data.shape[-1] == data.shape[-2]
@@ -129,7 +131,7 @@ def max_pool_back_cudnn(srcData, srcDiffData, destData, gpu=0, warn=True):
 
 	return _cudnn_module.max_pool_back_cudnn(srcData, srcDiffData, destData, gpu)
 
-def conv_ddata(filters, imgs, conv_out, PAD=0, gpu=0, warn=True):
+def conv_ddata(filters, imgs, conv_out, PAD=2, gpu=0, warn=True):
 	n_filters, n_channels, filter_sz, filter_sz2  = filters.shape
 	n_imgs, n_channels2, img_sz, img_sz2 = imgs.shape
 	assert imgs.shape[0] == conv_out.shape[0]
@@ -153,7 +155,7 @@ def conv_ddata(filters, imgs, conv_out, PAD=0, gpu=0, warn=True):
 	
 	return _cudnn_module.conv_ddata(filters, imgs, conv_out, PAD, gpu)
 
-def conv_dfilter(filters, imgs, conv_out, PAD=0,gpu=0,warn=True):
+def conv_dfilter(filters, imgs, conv_out, PAD=2,gpu=0,warn=True):
 	n_filters, n_channels, filter_sz, filter_sz2  = filters.shape
 	n_imgs, n_channels2, img_sz, img_sz2 = imgs.shape
 	assert imgs.shape[0] == conv_out.shape[0]
@@ -180,7 +182,7 @@ def conv_dfilter(filters, imgs, conv_out, PAD=0,gpu=0,warn=True):
 # standard convolution, requires no pre-set buffers.
 # inputs: filters [n_filters, channels, filter_sz, filter_sz]
 #			imgs [n_imgs, channels, img_sz, img_sz]
-def conv(filters, imgs, PAD=0, gpu=0,warn=True):
+def conv(filters, imgs, PAD=2, gpu=0,warn=True):
 	n_filters, n_channels, filter_sz, filter_sz2  = filters.shape
 	n_imgs, n_channels2, img_sz, img_sz2 = imgs.shape
 	assert isinstance(gpu,int)

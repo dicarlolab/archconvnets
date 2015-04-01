@@ -5,9 +5,9 @@ static PyObject *conv_dfilter_buffers(PyObject *self, PyObject *args)  {
 	cudaError_t err;
 	cudnnStatus_t status;
 	
-	int dims[6], PAD, gpu_ind, filters_ind, imgs_ind, conv_out_ind, out_ind;
+	int dims[6], PAD, gpu_ind, filters_ind, imgs_ind, conv_out_ind, out_ind, stream_ind;
 	
-	if (!PyArg_ParseTuple(args, "iiiiii", &filters_ind, &imgs_ind, &conv_out_ind, &out_ind, &PAD, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iiiiiii", &filters_ind, &imgs_ind, &conv_out_ind, &out_ind, &PAD, &stream_ind, &gpu_ind)) 
 		return NULL;
 	
 	if(filters_ind >= N_BUFFERS || filters_ind < 0 || imgs_ind >= N_BUFFERS || imgs_ind < 0 || 
@@ -18,6 +18,11 @@ static PyObject *conv_dfilter_buffers(PyObject *self, PyObject *args)  {
 	
 	if(gpu_ind < 0 || gpu_ind > N_GPUS){
 		printf("invalid gpu index %i\n", gpu_ind);
+		return NULL;
+	}
+	
+	if(stream_ind < 0 || stream_ind > N_ALT_STREAMS){
+		printf("invalid stream index %i\n", stream_ind);
 		return NULL;
 	}
 	
@@ -34,7 +39,8 @@ static PyObject *conv_dfilter_buffers(PyObject *self, PyObject *args)  {
 	}
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
-	cudnnSetStream(handle, streams[gpu_ind]);
+	cudaStreamSynchronize(streams[gpu_ind]); // make sure the inputs are in the buffers first
+	cudnnSetStream(handle, alt_streams[gpu_ind][stream_ind]);
 		
 	int n_filters = data_dims[0][gpu_ind][filters_ind];
 	int n_channels = data_dims[1][gpu_ind][filters_ind];

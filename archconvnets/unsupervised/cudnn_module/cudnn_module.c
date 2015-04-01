@@ -66,6 +66,9 @@ void init_cudnn_module(){
 	for(int gpu = 0; gpu < N_GPUS; gpu++){
 		cudaSetDevice(gpu); CHECK_CUDA_ERR_R
 		cudaStreamCreate(&streams[gpu]); CHECK_CUDA_ERR_R
+		for(int alt_stream = 0; alt_stream < N_ALT_STREAMS; alt_stream++){
+			cudaStreamCreate(&alt_streams[gpu][alt_stream]); CHECK_CUDA_ERR_R
+		}
 	}
 	
 	//---------------------------------------

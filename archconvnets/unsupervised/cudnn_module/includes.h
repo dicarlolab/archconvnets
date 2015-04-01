@@ -31,6 +31,7 @@ cudnnDataType_t dataType = CUDNN_DATA_FLOAT;
 
 #define N_BUFFERS 100
 #define N_GPUS 4
+#define N_ALT_STREAMS 5
 
 cudnnTensor4dDescriptor_t desc_buffers[N_GPUS][N_BUFFERS];
 cudnnFilterDescriptor_t desc_filters[N_GPUS][N_BUFFERS];
@@ -39,3 +40,4 @@ float *data_buffers[N_GPUS][N_BUFFERS];
 int filter_flags[N_GPUS][N_BUFFERS];
 
 cudaStream_t streams[N_GPUS];
+cudaStream_t alt_streams[N_GPUS][N_ALT_STREAMS];
