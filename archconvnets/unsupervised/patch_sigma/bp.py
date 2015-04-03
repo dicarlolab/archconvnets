@@ -1,16 +1,18 @@
 from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 import time
 import numpy as np
-import numexpr as ne
-from archconvnets.unsupervised.sigma31_layers.sigma31_layers import max_pool_locs
 from scipy.io import savemat, loadmat
 import copy
 from scipy.stats import zscore
 import random
 import gnumpy as gpu
 
-#kernprof -l bp_cudnn_test1_pool.py
-#python -m line_profiler bp_cudnn_test1_pool.py.lprof  > p
+GPU_FORWARD = 0
+GPU_SUP = 1
+GPU_UNS = 0
+
+#kernprof -l bp.py
+#python -m line_profiler bp.py.lprof  > p
 #@profile
 #def sf():
 F1_scale = 0.001 # std of init normal distribution
@@ -18,20 +20,11 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS = 1e-2
-eps_F1 = EPS
-eps_F2 = EPS
-eps_F3 = EPS
-eps_FL = EPS
+EPS = 1e-3
 
-POOL_SZ = 3
-POOL_STRIDE = 2
-STRIDE1 = 1 # layer 1 stride
 N_IMGS = 100 # batch size
-N_TEST_IMGS = N_IMGS #N_SIGMA_IMGS #128*2
 IMG_SZ_CROP = 32 # input image size (px)
 IMG_SZ = 34 # input image size (px)
-img_train_offset = 2
 PAD = 2
 
 N = 4
@@ -60,6 +53,7 @@ t_start = time.time()
 epoch = 0
 err = []
 class_err = []
+
 while True:
 	for batch in range(1,6):
 		##################
@@ -120,29 +114,29 @@ while True:
 			FL_rep_imgs = np.tile(FL,(N_IMGS,1,1,1,1)).transpose((1,0,2,3,4)).reshape((N_C*N_IMGS, n3, max_output_sz3, max_output_sz3))
 			
 			
-			dc1_uns = max_pool_back_cudnn(max_output3, FL_pred, conv_output3,warn=False)
-			dc1_s = max_pool_back_cudnn(max_output3, -FL_Y, conv_output3,warn=False)
+			d_uns = max_pool_back_cudnn(max_output3, FL_pred, conv_output3, gpu=GPU_UNS)
+			d_s = max_pool_back_cudnn(max_output3, -FL_Y, conv_output3, gpu=GPU_SUP)
 
-			dF3_uns = conv_dfilter(F3, max_output2, dc1_uns, PAD=2,warn=False)
-			dF3_s = conv_dfilter(F3, max_output2, dc1_s, PAD=2,warn=False)
+			dF3_uns = conv_dfilter(F3, max_output2, d_uns, PAD=2, gpu=GPU_UNS)
+			dF3_s = conv_dfilter(F3, max_output2, d_s, PAD=2, gpu=GPU_SUP)
 			
-			dc1_uns = conv_ddata(F3, max_output2, dc1_uns, PAD=2,warn=False)
-			dc1_s = conv_ddata(F3, max_output2, dc1_s, PAD=2,warn=False)
+			d_uns = conv_ddata(F3, max_output2, d_uns, PAD=2, gpu=GPU_UNS)
+			d_s = conv_ddata(F3, max_output2, d_s, PAD=2, gpu=GPU_SUP)
 			
-			dc1_uns = max_pool_back_cudnn(max_output2, dc1_uns, conv_output2,warn=False)
-			dc1_s = max_pool_back_cudnn(max_output2, dc1_s, conv_output2,warn=False)
+			d_uns = max_pool_back_cudnn(max_output2, d_uns, conv_output2, gpu=GPU_UNS)
+			d_s = max_pool_back_cudnn(max_output2, d_s, conv_output2, gpu=GPU_SUP)
 			
-			dc1_uns = conv_ddata(F2, max_output1, dc1_uns, PAD=2,warn=False)
-			dc1_s = conv_ddata(F2, max_output1, dc1_s, PAD=2,warn=False)
+			d_uns = conv_ddata(F2, max_output1, d_uns, PAD=2, gpu=GPU_UNS)
+			d_s = conv_ddata(F2, max_output1, d_s, PAD=2, gpu=GPU_SUP)
 			
-			dF2_uns = conv_dfilter(F2, max_output1, dc1_uns, PAD=2,warn=False)
-			dF2_s = conv_dfilter(F2, max_output1, dc1_s, PAD=2,warn=False)
+			dF2_uns = conv_dfilter(F2, max_output1, d_uns, PAD=2, gpu=GPU_UNS)
+			dF2_s = conv_dfilter(F2, max_output1, d_s, PAD=2, gpu=GPU_SUP)
 			
-			dc1_uns = max_pool_back_cudnn(max_output1, dc1_uns, conv_output1,warn=False)
-			dc1_s = max_pool_back_cudnn(max_output1, dc1_s, conv_output1,warn=False)
+			d_uns = max_pool_back_cudnn(max_output1, d_uns, conv_output1, gpu=GPU_UNS)
+			d_s = max_pool_back_cudnn(max_output1, d_s, conv_output1, gpu=GPU_SUP)
 			
-			dF1_uns = conv_dfilter(F1, imgs_pads, dc1_uns, PAD=2,warn=False)
-			dF1_s = conv_dfilter(F1, imgs_pads, dc1_s, PAD=2,warn=False)
+			dF1_uns = conv_dfilter(F1, imgs_pads, d_uns, PAD=2, gpu=GPU_UNS)
+			dF1_s = conv_dfilter(F1, imgs_pads, d_s, PAD=2, gpu=GPU_SUP)
 
 			grad_F3 = 2*(dF3_uns + dF3_s)
 			grad_F2 = 2*(dF2_uns + dF2_s)

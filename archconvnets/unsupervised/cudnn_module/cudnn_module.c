@@ -7,36 +7,51 @@
 		printf("CUDA error: %s, %s, %i\n",cudaGetErrorString(err),__FILE__,__LINE__);return;}}
 
 #include "conv.c"
+#include "conv_buffers.c"
+
 #include "conv_dfilter.c"
-#include "conv_dfilter_stream.c"
+#include "conv_dfilter_buffers.c"
+
 #include "conv_ddata.c"
-#include "init_buffers.c"
-#include "set_img_buffer.c"
-#include "set_filter_buffer.c"
-#include "set_conv_buffer.c"
-#include "conv_from_buffers.c"
+#include "conv_ddata_buffers.c"
+
 #include "max_pool_locs_alt.c"
+
 #include "pool_alt_inds_opt_patches.c"
+
 #include "max_pool_cudnn.c"
+#include "max_pool_cudnn_buffers.c"
+
 #include "max_pool_back_cudnn.c"
+#include "max_pool_back_cudnn_buffers.c"
+
 #include "unpool.c"
+#include "set_buffer.c"
+#include "return_buffer.c"
 
 
 static PyMethodDef _cudnn_module[] = {
 	{"conv", conv, METH_VARARGS},
-	{"conv_dfilter_stream", conv_dfilter_stream, METH_VARARGS},
+	{"conv_buffers", conv_buffers, METH_VARARGS},
+	
 	{"conv_dfilter", conv_dfilter, METH_VARARGS},
+	{"conv_dfilter_buffers", conv_dfilter_buffers, METH_VARARGS},
+	
 	{"conv_ddata", conv_ddata, METH_VARARGS},
-	{"init_buffers", init_buffers, METH_VARARGS},
-	{"set_img_buffer", set_img_buffer, METH_VARARGS},
-	{"set_filter_buffer", set_filter_buffer, METH_VARARGS},
-	{"set_conv_buffer", set_conv_buffer, METH_VARARGS},
-	{"conv_from_buffers", conv_from_buffers, METH_VARARGS},
+    {"conv_ddata_buffers", conv_ddata_buffers, METH_VARARGS},
+    
 	{"max_pool_locs_alt", max_pool_locs_alt, METH_VARARGS},
 	{"max_pool_locs_alt_patches", max_pool_locs_alt_patches, METH_VARARGS},
+	
 	{"max_pool_cudnn", max_pool_cudnn, METH_VARARGS},
+	{"max_pool_cudnn_buffers", max_pool_cudnn_buffers, METH_VARARGS},
+	
 	{"max_pool_back_cudnn", max_pool_back_cudnn, METH_VARARGS},
+	{"max_pool_back_cudnn_buffers", max_pool_back_cudnn_buffers, METH_VARARGS},
+	
 	{"unpool", unpool, METH_VARARGS},
+	{"set_buffer", set_buffer, METH_VARARGS},
+	{"return_buffer", return_buffer, METH_VARARGS},
 	{NULL, NULL}
 };
 
@@ -51,6 +66,9 @@ void init_cudnn_module(){
 	for(int gpu = 0; gpu < N_GPUS; gpu++){
 		cudaSetDevice(gpu); CHECK_CUDA_ERR_R
 		cudaStreamCreate(&streams[gpu]); CHECK_CUDA_ERR_R
+		for(int alt_stream = 0; alt_stream < N_ALT_STREAMS; alt_stream++){
+			cudaStreamCreate(&alt_streams[gpu][alt_stream]); CHECK_CUDA_ERR_R
+		}
 	}
 	
 	//---------------------------------------
@@ -69,5 +87,12 @@ void init_cudnn_module(){
 	
 	status = cudnnSetPoolingDescriptor(poolingDesc, CUDNN_POOLING_MAX, POOL_WINDOW_SZ, POOL_WINDOW_SZ, POOL_STRIDE, POOL_STRIDE); ERR_CHECK_R
 	
+    /////////////////////////////////////////////////////////
+    for(int gpu = 0; gpu < N_GPUS; gpu++){
+		for(int buffer = 0; buffer < N_BUFFERS; buffer++){
+			data_buffers[gpu][buffer] = 0;
+		}
+	}
+    
 	return;
 } 
