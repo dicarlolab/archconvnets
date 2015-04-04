@@ -12,7 +12,7 @@ static PyObject *conv(PyObject *self, PyObject *args)  {
 	cudaError_t err;
 	PyArrayObject *filters_in, *imgs_in, *vecout;
 	float *filters, *imgs, *cout;
-	int i, dims[6], gpu_ind, PAD;
+	int dims[6], gpu_ind, PAD;
 	int n_channels, filter_sz, n_filters, img_sz, n_imgs;
 	
 	if (!PyArg_ParseTuple(args, "O!O!ii", &PyArray_Type, &filters_in, &PyArray_Type, &imgs_in, &PAD, &gpu_ind)) 

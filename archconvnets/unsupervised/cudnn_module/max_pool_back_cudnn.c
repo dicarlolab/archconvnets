@@ -3,9 +3,9 @@ cudnnTensor4dDescriptor_t destDiffDesc;
 
 static PyObject *max_pool_back_cudnn(PyObject *self, PyObject *args)  {
 	cudaError_t err;
-	PyArrayObject *vecout, *srcData_in, *srcDiffData_in, *destDiffData_in, *destData_in;
-	float *cout, *srcData_c, *srcData, *srcDiffData_c, *srcDiffData, *destDiffData_c, *destDiffData, *destData_c, *destData;
-	int i, dims[6], gpu_ind;
+	PyArrayObject *vecout, *srcData_in, *srcDiffData_in, *destData_in;
+	float *cout, *srcData_c, *srcData, *srcDiffData_c, *srcDiffData, *destDiffData_c, *destData_c, *destData;
+	int dims[6], gpu_ind;
 	int n_channels, out_sz, img_sz, n_imgs;
 	
 	if (!PyArg_ParseTuple(args, "O!O!O!i", &PyArray_Type, &srcData_in, &PyArray_Type, &srcDiffData_in, &PyArray_Type, &destData_in, &gpu_ind)) 

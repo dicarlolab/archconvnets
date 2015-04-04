@@ -1,5 +1,3 @@
-# todo: different stream for conv_dfilter_buffers
-# todo: conv gpu buffers/outputs
 from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 import time
 import numpy as np
@@ -12,8 +10,8 @@ import gnumpy as gpu
 def pinv(F):
 	return np.dot(np.linalg.inv(np.dot(F.T,F)), F.T)
 
-#kernprof -l bp_buffers.py
-#python -m line_profiler bp_buffers.py.lprof  > p
+#kernprof -l bp_movies.py
+#python -m line_profiler bp_movies.py.lprof  > p
 #@profile
 #def sf():
 
@@ -78,7 +76,8 @@ MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
 F1_IND = 4; IMGS_PAD = 5; DF1 = 6; F2_IND = 11
 D_UNPOOL2 = 12;F3_IND = 13; MAX_OUTPUT2 = 14; MAX_OUTPUT3 = 15
 CONV_OUTPUT1 = 19; CONV_OUTPUT2 = 20; CONV_OUTPUT3 = 21
-DF2 = 25; DPOOL2 = 26; DF3_DATA = 27; DPOOL3 = 28; DF3 = 29; FL_PRED = 30
+DF2 = 25; DPOOL2 = 26; DF3_DATA = 27; DPOOL3 = 28; DF3 = 29; FL_PRED = 30;
+FL_IND = 31; PRED = 32
 
 t_start = time.time()
 
@@ -196,6 +195,7 @@ while True:
 			set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_UNS)
 			set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_UNS)
 			set_buffer(F3, F3_IND, filter_flag=1, gpu=GPU_UNS)
+			set_buffer(FL, FL_IND, filter_flag=1, gpu=GPU_UNS)
 			
 			# forward pass imgs
 			conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_UNS)
@@ -205,11 +205,11 @@ while True:
 			conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_UNS)
 			max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_UNS)
 			
-			max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_UNS)
 			Ys = Y_train[batch][:,s*N_IMGS:(s+1)*N_IMGS]
 			
 			######## gradients:
-			pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4])
+			pred_buffer(FL_IND, MAX_OUTPUT3, PRED, gpu=GPU_UNS) # === np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4])
+			pred = return_2d_buffer(PRED, gpu=GPU_UNS)
 			
 			FL_pred = np.einsum(FL, range(4), pred - Ys, [0,4], [4,1,2,3])
 			set_buffer(FL_pred, FL_PRED, gpu=GPU_UNS) # summing across categories
@@ -226,6 +226,7 @@ while True:
 			conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, stream=1, gpu=GPU_UNS)
 
 			###
+			max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_UNS)
 			dFL = np.einsum(max_output3, range(4), pred - Ys, [4,0], [4,1,2,3]) #
 			
 			dF3 = return_buffer(DF3, stream=3, gpu=GPU_UNS)

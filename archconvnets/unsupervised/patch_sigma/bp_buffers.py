@@ -18,7 +18,7 @@ def pinv(F):
 #def sf():
 
 # mcc number of train/test imgs
-N_TEST_SET = 50
+N_TEST_SET = 1500
 N_TRAIN = np.int(N_TEST_SET*.9)
 TOP_N = 1
 
@@ -27,8 +27,8 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS_E = 4
-EPS = 10**(-EPS_E)
+EPS_E = 2
+EPS = 1*10**(-EPS_E)
 
 N_IMGS = 100 # batch size
 IMG_SZ_CROP = 32 # input image size (px)
@@ -36,21 +36,20 @@ IMG_SZ = 34 # input image size (px)
 PAD = 2
 
 # compute real BP or patch approx for s31
-REAL_BP = False
+REAL_BP = True
 if REAL_BP == True:
 	N_C = 10 # number of categories
-	N_REP_IMGS = N_IMGS
 	BP_STR = ''
-	GPU_SUP = 0
-	GPU_UNS = 1
+	GPU_SUP = 3
+	GPU_UNS = 2
+	s_scale = 1
 else:
-	N_C = 100 # number of patches
-	N_REP_IMGS = N_C
+	N_C = 750 # number of patches
 	BP_STR = 'patches'
 	GPU_SUP = 2
 	GPU_UNS = 3
+	s_scale = N_IMGS / np.single(N_C)
 
-GPU_FORWARD = GPU_SUP
 N = 16
 n1 = N # L1 filters
 n2 = N# ...
@@ -72,7 +71,7 @@ FL = np.single(np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, m
 
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
 
-s_scale = N_IMGS / np.single(N_C)
+
 
 # gpu buffer indices
 MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
@@ -128,19 +127,18 @@ class_err = []
 mcc_FL = []
 mcc_max3 = []
 
-random.seed(666)
-cat_inds = range(N_C)
 
 while True:
 	t_mcc = time.time()
-	'''###############################################
+	'''
+	###############################################
 	# test imgs
-	conv_output1 = conv(F1, imgs_pad_test, PAD=2, gpu=GPU_FORWARD)
-	max_output1 = max_pool_cudnn(conv_output1, gpu=GPU_FORWARD)
-	conv_output2 = conv(F2, max_output1, PAD=2, gpu=GPU_FORWARD)
-	max_output2 = max_pool_cudnn(conv_output2, gpu=GPU_FORWARD)
-	conv_output3 = conv(F3, max_output2, PAD=2, gpu=GPU_FORWARD)
-	max_output3 = max_pool_cudnn(conv_output3, gpu=GPU_FORWARD)
+	conv_output1 = conv(F1, imgs_pad_test[:N_TEST_SET], PAD=2, gpu=GPU_UNS)
+	max_output1 = max_pool_cudnn(conv_output1, gpu=GPU_UNS)
+	conv_output2 = conv(F2, max_output1, PAD=2, gpu=GPU_UNS)
+	max_output2 = max_pool_cudnn(conv_output2, gpu=GPU_UNS)
+	conv_output3 = conv(F3, max_output2, PAD=2, gpu=GPU_UNS)
+	max_output3 = max_pool_cudnn(conv_output3, gpu=GPU_UNS)
 	
 	pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4])
 	
@@ -164,9 +162,9 @@ while True:
 	hit = 0
 	for test_img in range(N_TEST_SET-N_TRAIN):
 		hit += np.max(labels_test[N_TRAIN + test_img] == labels_test[np.argsort(-test_corrs[test_img])[:TOP_N]])
-	mcc_max3.append(1-hit/np.single(N_TEST_SET-N_TRAIN))'''
+	mcc_max3.append(1-hit/np.single(N_TEST_SET-N_TRAIN))
 	
-	'''#########
+	#########
 	## least squares FC
 	pred_train = max_output3[:N_TRAIN].reshape((N_TRAIN, n3*max_output_sz3**2))
 	pred = max_output3[N_TRAIN:N_TEST_SET].reshape((N_TEST_SET-N_TRAIN, n3*max_output_sz3**2))
@@ -175,10 +173,10 @@ while True:
 	
 	pred_remap = np.dot(pred,w)
 	err.append(np.mean((pred_remap - Y_test.T[N_TRAIN:N_TEST_SET])**2))
-	class_err.append(1-(np.argmax(pred_remap,axis=1) == np.asarray(np.squeeze(labels_test))[N_TRAIN:N_TEST_SET]).mean())'''
-	
-	mcc_max3.append(1);mcc_FL.append(1)
-	class_err.append(1);err.append(1)
+	class_err.append(1-(np.argmax(pred_remap,axis=1) == np.asarray(np.squeeze(labels_test))[N_TRAIN:N_TEST_SET]).mean())
+	'''
+	#mcc_max3.append(1);mcc_FL.append(1)
+	#class_err.append(1);err.append(1)
 	
 	print epoch, 'mccFL:', mcc_FL[-1], 'mccMax3:', mcc_max3[-1], 'LSQclass:', class_err[-1], 'LSQerr:', err[-1], ' F1:', np.sum(np.abs(F1)), time.time() - t_mcc, time.time() - t_start, file_name
 	savemat(file_name, {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,'mcc_FL':mcc_FL, 'mcc_max3':mcc_max3,'F2':F2,'F3':F3,'FL':FL,
@@ -189,10 +187,6 @@ while True:
 	
 	for batch in range(1,6):
 		for s in range(100):
-			#F1 = zscore(F1,axis=None)
-			#F2 = zscore(F2,axis=None)
-			#F3 = zscore(F3,axis=None)
-			
 			grad_F1 = np.zeros_like(F1)
 			grad_F2 = np.zeros_like(F2)
 			grad_F3 = np.zeros_like(F3)
@@ -260,8 +254,8 @@ while True:
 			max_pool_back_cudnn_buffers(MAX_OUTPUT3, FL_PRED, CONV_OUTPUT3, DPOOL3, gpu=GPU_UNS)
 			max_pool_back_cudnn_buffers(MAX_OUTPUT3, FL_PRED, CONV_OUTPUT3, DPOOL3, gpu=GPU_SUP)
 			
-			conv_dfilter_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3, PAD=2, gpu=GPU_UNS)
-			conv_dfilter_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3, PAD=2, gpu=GPU_SUP)
+			conv_dfilter_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3, PAD=2, gpu=GPU_UNS) #
+			conv_dfilter_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3, PAD=2, gpu=GPU_SUP) #
 			
 			conv_ddata_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3_DATA, PAD=2, gpu=GPU_UNS)
 			conv_ddata_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3_DATA, PAD=2, gpu=GPU_SUP)
@@ -272,18 +266,18 @@ while True:
 			conv_ddata_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2_DATA, PAD=2, gpu=GPU_UNS)
 			conv_ddata_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2_DATA, PAD=2, gpu=GPU_SUP)
 			
-			conv_dfilter_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2, PAD=2, gpu=GPU_UNS)
-			conv_dfilter_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2, PAD=2, gpu=GPU_SUP)
+			conv_dfilter_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2, PAD=2, gpu=GPU_UNS) #
+			conv_dfilter_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2, PAD=2, gpu=GPU_SUP) #
 			
 			max_pool_back_cudnn_buffers(MAX_OUTPUT1, DF2_DATA, CONV_OUTPUT1, DPOOL1, gpu=GPU_UNS)
 			max_pool_back_cudnn_buffers(MAX_OUTPUT1, DF2_DATA, CONV_OUTPUT1, DPOOL1, gpu=GPU_SUP)
 			
-			conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, PAD=2, gpu=GPU_UNS)
-			conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, PAD=2, gpu=GPU_SUP)
+			conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, PAD=2, gpu=GPU_UNS) #
+			conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, PAD=2, gpu=GPU_SUP) #
 			
 			###
-			dFL_uns = np.einsum(max_output3, range(4), pred, [4,0], [4,1,2,3])
-			dFL_s = np.einsum(max_output3_patch, range(4), -Ys, [4,0], [4,1,2,3])
+			dFL_uns = np.einsum(max_output3, range(4), pred, [4,0], [4,1,2,3]) #
+			dFL_s = np.einsum(max_output3_patch, range(4), -Ys, [4,0], [4,1,2,3]) #
 			
 			grad_FL = 2*(dFL_uns + dFL_s*s_scale)
 			

@@ -1,6 +1,5 @@
 static PyObject *return_buffer(PyObject *self, PyObject *args){
     cudaError_t err;
-	cudnnStatus_t status;
 	PyArrayObject *data_in = NULL;
 	float *data;
 	int gpu_ind, buffer_ind, dims[5], stream_ind;

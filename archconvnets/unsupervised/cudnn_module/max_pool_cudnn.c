@@ -4,7 +4,7 @@ static PyObject *max_pool_cudnn(PyObject *self, PyObject *args)  {
 	cudaError_t err;
 	PyArrayObject *imgs_in, *vecout;
 	float *imgs, *cout;
-	int i, dims[6], gpu_ind;
+	int dims[6], gpu_ind;
 	int n_channels, img_sz, n_imgs;
 	
 	if (!PyArg_ParseTuple(args, "O!i", &PyArray_Type, &imgs_in, &gpu_ind)) 

@@ -1,10 +1,7 @@
-cudnnTensor4dDescriptor_t gradDesc_data;
-cudnnFilterDescriptor_t gradDesc_filter;
-
 static PyObject *conv_ddata_buffers(PyObject *self, PyObject *args)  {
 	cudaError_t err;
 	cudnnStatus_t status;
-	int i, dims[6], gpu_ind, PAD, filters_ind, imgs_ind, conv_out_ind, out_ind;
+	int gpu_ind, PAD, filters_ind, imgs_ind, conv_out_ind, out_ind;
 	
 	if (!PyArg_ParseTuple(args, "iiiiii", &filters_ind, &imgs_ind, &conv_out_ind, &out_ind, &PAD, &gpu_ind)) 
 		return NULL;

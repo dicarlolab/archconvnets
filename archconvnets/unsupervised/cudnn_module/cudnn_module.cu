@@ -15,20 +15,19 @@
 #include "conv_ddata.c"
 #include "conv_ddata_buffers.c"
 
-#include "max_pool_locs_alt.c"
-
-#include "pool_alt_inds_opt_patches.c"
-
 #include "max_pool_cudnn.c"
 #include "max_pool_cudnn_buffers.c"
 
 #include "max_pool_back_cudnn.c"
 #include "max_pool_back_cudnn_buffers.c"
 
-#include "unpool.c"
 #include "set_buffer.c"
-#include "return_buffer.c"
+#include "set_2d_buffer.c"
 
+#include "return_buffer.c"
+#include "return_2d_buffer.c"
+
+#include "pred_buffer.cu"
 
 static PyMethodDef _cudnn_module[] = {
 	{"conv", conv, METH_VARARGS},
@@ -40,22 +39,23 @@ static PyMethodDef _cudnn_module[] = {
 	{"conv_ddata", conv_ddata, METH_VARARGS},
     {"conv_ddata_buffers", conv_ddata_buffers, METH_VARARGS},
     
-	{"max_pool_locs_alt", max_pool_locs_alt, METH_VARARGS},
-	{"max_pool_locs_alt_patches", max_pool_locs_alt_patches, METH_VARARGS},
-	
 	{"max_pool_cudnn", max_pool_cudnn, METH_VARARGS},
 	{"max_pool_cudnn_buffers", max_pool_cudnn_buffers, METH_VARARGS},
 	
 	{"max_pool_back_cudnn", max_pool_back_cudnn, METH_VARARGS},
 	{"max_pool_back_cudnn_buffers", max_pool_back_cudnn_buffers, METH_VARARGS},
 	
-	{"unpool", unpool, METH_VARARGS},
 	{"set_buffer", set_buffer, METH_VARARGS},
+	{"set_2d_buffer", set_2d_buffer, METH_VARARGS},
+	
 	{"return_buffer", return_buffer, METH_VARARGS},
+	{"return_2d_buffer", return_2d_buffer, METH_VARARGS},
+	
+	{"pred_buffer", pred_buffer, METH_VARARGS},
 	{NULL, NULL}
 };
 
-void init_cudnn_module(){
+extern "C" void init_cudnn_module(){
 	(void) Py_InitModule("_cudnn_module", _cudnn_module);
 	import_array();
 	
@@ -91,6 +91,7 @@ void init_cudnn_module(){
     for(int gpu = 0; gpu < N_GPUS; gpu++){
 		for(int buffer = 0; buffer < N_BUFFERS; buffer++){
 			data_buffers[gpu][buffer] = 0;
+			data_2d_buffers[gpu][buffer] = 0;
 		}
 	}
     

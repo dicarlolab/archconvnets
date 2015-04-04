@@ -1,10 +1,7 @@
-cudnnTensor4dDescriptor_t srcDiffDesc;
-cudnnTensor4dDescriptor_t destDiffDesc;
-
 static PyObject *max_pool_back_cudnn_buffers(PyObject *self, PyObject *args)  {
 	cudaError_t err;
 	cudnnStatus_t status;
-	int dims[6], gpu_ind, src_ind, src_diff_ind, dest_ind, out_ind;
+	int gpu_ind, src_ind, src_diff_ind, dest_ind, out_ind;
 	
 	if (!PyArg_ParseTuple(args, "iiiii", &src_ind, &src_diff_ind, &dest_ind, &out_ind, &gpu_ind)) 
 		return NULL;

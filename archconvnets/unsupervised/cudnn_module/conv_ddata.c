@@ -1,11 +1,8 @@
-cudnnTensor4dDescriptor_t gradDesc_data;
-cudnnFilterDescriptor_t gradDesc_filter;
-
 static PyObject *conv_ddata(PyObject *self, PyObject *args)  {
 	cudaError_t err;
-	PyArrayObject *filters_in, *imgs_in, *conv_out_in, *grad_data_in, *grad_filter_in;
-	float *filters, *imgs, *conv_out;
-	int i, dims[6], gpu_ind, PAD;
+	PyArrayObject *filters_in, *imgs_in, *conv_out_in, *grad_data_in;
+	float *filters, *conv_out;
+	int dims[6], gpu_ind, PAD;
 	int n_channels, filter_sz, n_filters, img_sz, n_imgs;
 	
 	if (!PyArg_ParseTuple(args, "O!O!O!ii", &PyArray_Type, &filters_in, &PyArray_Type, &imgs_in, &PyArray_Type, &conv_out_in, &PAD, &gpu_ind)) 
@@ -16,7 +13,6 @@ static PyObject *conv_ddata(PyObject *self, PyObject *args)  {
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	filters = (float *) filters_in -> data;
-	imgs = (float *) imgs_in -> data;
 	conv_out = (float *) conv_out_in -> data;
 	
 	n_imgs = PyArray_DIM(imgs_in, 0);
@@ -31,14 +27,11 @@ static PyObject *conv_ddata(PyObject *self, PyObject *args)  {
 	int conv_out_sz_x;
 	int conv_out_sz_y;
 
-	float *srcData;
 	float *filterData;
 	float *destData;
 	float *gradData_data;
-	float *gradData_filter;
 	
 	float *grad_data;
-	float *grad_filter;
 	
 	cudnnStatus_t status;
 

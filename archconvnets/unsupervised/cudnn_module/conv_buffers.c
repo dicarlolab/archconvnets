@@ -1,7 +1,7 @@
 static PyObject *conv_buffers(PyObject *self, PyObject *args)  {
 	cudaError_t err;
 	cudnnStatus_t status;
-	int i, gpu_ind, PAD, filters_ind, imgs_ind, out_ind;
+	int gpu_ind, PAD, filters_ind, imgs_ind, out_ind;
 	
 	if (!PyArg_ParseTuple(args, "iiiii", &filters_ind, &imgs_ind, &out_ind, &PAD, &gpu_ind)) 
 		return NULL;
