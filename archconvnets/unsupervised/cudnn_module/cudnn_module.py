@@ -1,12 +1,27 @@
 import _cudnn_module
 import numpy as np
 
-def pred_buffer(FL_ind, max3_ind, out_ind, gpu=0, warn=True):
+def max_pred_buffer(max3_ind, pred_ind, out_ind, stream=0, gpu=0, warn=True):
+	assert isinstance(gpu,int)
+	assert isinstance(max3_ind,int)
+	assert isinstance(pred_ind,int)
+	assert isinstance(out_ind,int)
+	assert isinstance(stream,int)
+	
+	return _cudnn_module.max_pred_buffer(max3_ind, pred_ind, out_ind, stream, gpu)
+
+def pred_buffer(FL_ind, max3_ind, out_ind, Y, gpu=0, warn=True):
 	assert isinstance(gpu,int)
 	assert isinstance(max3_ind,int)
 	assert isinstance(out_ind,int)
+	assert len(Y.shape) == 2
+	assert Y.dtype == np.dtype('uint8')
 	
-	return _cudnn_module.pred_buffer(FL_ind, max3_ind, out_ind, gpu)
+	if not Y.flags.contiguous and warn:
+		print 'warning: input to pred_buffer not C-contiguous (Y)'
+		Y = np.ascontiguousarray(Y)
+	
+	return _cudnn_module.pred_buffer(FL_ind, max3_ind, out_ind, Y, gpu)
 
 def max_pool_cudnn_buffers(imgs_ind, out_ind, gpu=0):
 	assert isinstance(imgs_ind, int)

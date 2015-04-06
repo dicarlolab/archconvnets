@@ -28,6 +28,7 @@
 #include "return_2d_buffer.c"
 
 #include "pred_buffer.cu"
+#include "max_pred_buffer.cu"
 
 static PyMethodDef _cudnn_module[] = {
 	{"conv", conv, METH_VARARGS},
@@ -52,6 +53,7 @@ static PyMethodDef _cudnn_module[] = {
 	{"return_2d_buffer", return_2d_buffer, METH_VARARGS},
 	
 	{"pred_buffer", pred_buffer, METH_VARARGS},
+	{"max_pred_buffer", max_pred_buffer, METH_VARARGS},
 	{NULL, NULL}
 };
 

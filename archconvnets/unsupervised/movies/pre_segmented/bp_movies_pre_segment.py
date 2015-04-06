@@ -15,6 +15,7 @@ def pinv(F):
 #@profile
 #def sf():
 
+N_BP_IMGS = 28730
 # mcc number of train/test imgs
 N_TEST_SET = 1500
 N_TRAIN = np.int(N_TEST_SET*.9)
@@ -33,20 +34,11 @@ IMG_SZ_CROP = 32 # input image size (px)
 IMG_SZ = 34 # input image size (px)
 PAD = 2
 
-# compute real BP or patch approx for s31
-REAL_BP = True
-if REAL_BP == True:
-	N_C = 10 # number of categories
-	BP_STR = ''
-	GPU_SUP = 3
-	GPU_UNS = 2
-	s_scale = 1
-else:
-	N_C = 750 # number of patches
-	BP_STR = 'patches'
-	GPU_SUP = 2
-	GPU_UNS = 3
-	s_scale = N_IMGS / np.single(N_C)
+N_C = 221 # number of categories
+BP_STR = ''
+GPU_SUP = 3
+GPU_UNS = 2
+s_scale = 1
 
 N = 16
 n1 = N # L1 filters
@@ -57,7 +49,7 @@ s3 = 3 # L1 filter size (px)
 s2 = 5 # ...
 s1 = 5
 
-file_name = '/home/darren/F1_' + str(N_C) + BP_STR + '_' + str(EPS_E) + 'eps_' + str(N) + 'N.mat'
+file_name = '/home/darren/F1_' + str(N_C) + BP_STR + '_' + str(EPS_E) + 'eps_' + str(N) + 'N_nonrand.mat'
 
 max_output_sz3  = 5
 
@@ -77,7 +69,7 @@ F1_IND = 4; IMGS_PAD = 5; DF1 = 6; F2_IND = 11
 D_UNPOOL2 = 12;F3_IND = 13; MAX_OUTPUT2 = 14; MAX_OUTPUT3 = 15
 CONV_OUTPUT1 = 19; CONV_OUTPUT2 = 20; CONV_OUTPUT3 = 21
 DF2 = 25; DPOOL2 = 26; DF3_DATA = 27; DPOOL3 = 28; DF3 = 29; FL_PRED = 30;
-FL_IND = 31; PRED = 32
+FL_IND = 31; PRED = 32; DFL = 33
 
 t_start = time.time()
 
@@ -98,27 +90,27 @@ imgs_pad_test = np.ascontiguousarray(imgs_pad_test.transpose((3,0,1,2)))
 
 ##################
 # load train imgs into buffers
-imgs_pad = np.zeros((6, 10000, 3, IMG_SZ, IMG_SZ),dtype='single')
-Y_train = np.zeros((6, 10, 10000), dtype='single')
-for batch in range(1,6):
-	z = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(batch))
-	x = z['data'] - imgs_mean
-	x = x.reshape((3, 32, 32, 10000))
+imgs_pad = np.zeros((N_BP_IMGS, 3, IMG_SZ, IMG_SZ),dtype='single')
+Y_train = np.zeros((N_C, N_BP_IMGS), dtype='uint8')
+z = np.load('/home/darren/archconvnets/archconvnets/unsupervised/movies/pre_segmented/movies_batch')
 
-	labels = np.asarray(z['labels'])
+'''random.seed(666)
+inds = range(N_BP_IMGS)
+random.shuffle(inds)
+z['data'] = z['data'][:,inds]
+z['labels'] = z['labels'][inds]
+'''
+x = z['data'] - z['mean']
+x = x.reshape((3, 32, 32, N_BP_IMGS))
 
-	l = np.zeros((10000, 10),dtype='int')
-	l[np.arange(10000),np.asarray(z['labels']).astype(int)] = 1
-	Y_train[batch] = np.single(l.T)
+labels = np.asarray(z['labels'])
 
-	imgs_pad[batch,:,:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x.transpose((3,0,1,2))
+l = np.zeros((N_BP_IMGS, N_C),dtype='uint8')
+l[np.arange(N_BP_IMGS),np.asarray(z['labels']).astype(int)] = 1
+Y_train = l.T
+
+imgs_pad[:,:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x.transpose((3,0,1,2))
 imgs_pad = np.ascontiguousarray(imgs_pad)
-
-if REAL_BP == False:
-	imgs_pads_patch = copy.deepcopy(imgs_pad[batch][:N_C])
-	set_buffer(imgs_pads_patch[:N_C], IMGS_PAD, gpu=GPU_SUP)
-	
-	Ys = np.eye(N_C, dtype='single')
 
 epoch = 0
 err = []
@@ -183,60 +175,57 @@ while True:
 		
 	t_start = time.time()
 	
-	
-	for batch in range(1,6):
-		for s in range(100):
-			grad_F1 = np.zeros_like(F1)
-			grad_F2 = np.zeros_like(F2)
-			grad_F3 = np.zeros_like(F3)
-			
-			set_buffer(imgs_pad[batch][s*N_IMGS:(s+1)*N_IMGS], IMGS_PAD, gpu=GPU_UNS)
-			
-			set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_UNS)
-			set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_UNS)
-			set_buffer(F3, F3_IND, filter_flag=1, gpu=GPU_UNS)
-			set_buffer(FL, FL_IND, filter_flag=1, gpu=GPU_UNS)
-			
-			# forward pass imgs
-			conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_UNS)
-			max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_UNS)
-			conv_buffers(F2_IND, MAX_OUTPUT1, CONV_OUTPUT2, gpu=GPU_UNS)
-			max_pool_cudnn_buffers(CONV_OUTPUT2, MAX_OUTPUT2, gpu=GPU_UNS)
-			conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_UNS)
-			max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_UNS)
-			
-			Ys = Y_train[batch][:,s*N_IMGS:(s+1)*N_IMGS]
-			
-			######## gradients:
-			pred_buffer(FL_IND, MAX_OUTPUT3, PRED, gpu=GPU_UNS) # === np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4])
-			pred = return_2d_buffer(PRED, gpu=GPU_UNS)
-			
-			FL_pred = np.einsum(FL, range(4), pred - Ys, [0,4], [4,1,2,3])
-			set_buffer(FL_pred, FL_PRED, gpu=GPU_UNS) # summing across categories
-			
-			###########
+	#FL = np.single(np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, max_output_sz3)))
+	for s in range(287):
+		set_buffer(imgs_pad[s*N_IMGS:(s+1)*N_IMGS], IMGS_PAD, gpu=GPU_UNS)
+		
+		set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_UNS)
+		set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_UNS)
+		set_buffer(F3, F3_IND, filter_flag=1, gpu=GPU_UNS)
+		set_buffer(FL, FL_IND, filter_flag=1, gpu=GPU_UNS)
+		
+		# forward pass imgs
+		conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_UNS)
+		max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_UNS)
+		conv_buffers(F2_IND, MAX_OUTPUT1, CONV_OUTPUT2, gpu=GPU_UNS)
+		max_pool_cudnn_buffers(CONV_OUTPUT2, MAX_OUTPUT2, gpu=GPU_UNS)
+		conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_UNS)
+		max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_UNS)
+		
+		Ys = np.ascontiguousarray(Y_train[:,s*N_IMGS:(s+1)*N_IMGS])
+		
+		######## gradients:
+		pred_buffer(FL_IND, MAX_OUTPUT3, PRED, Ys, gpu=GPU_UNS) # === np.einsum(FL, range(4), max_output3, [4,1,2,3], [0,4]) - Ys
+		pred = return_2d_buffer(PRED, gpu=GPU_UNS)
+		
+		FL_pred = np.einsum(FL, range(4), pred, [0,4], [4,1,2,3])
+		set_buffer(FL_pred, FL_PRED, gpu=GPU_UNS) # summing across categories
+		
+		###########
+		#max_pred_buffer(MAX_OUTPUT3, PRED, DFL, stream=4, gpu=GPU_UNS)
+		max_pool_back_cudnn_buffers(MAX_OUTPUT3, FL_PRED, CONV_OUTPUT3, DPOOL3, gpu=GPU_UNS)
+		conv_dfilter_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3, stream=3, gpu=GPU_UNS)
+		conv_ddata_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3_DATA, gpu=GPU_UNS)
+		max_pool_back_cudnn_buffers(MAX_OUTPUT2, DF3_DATA, CONV_OUTPUT2, DPOOL2, gpu=GPU_UNS)
+		conv_ddata_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2_DATA, gpu=GPU_UNS)
+		conv_dfilter_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2, stream=2, gpu=GPU_UNS)
+		max_pool_back_cudnn_buffers(MAX_OUTPUT1, DF2_DATA, CONV_OUTPUT1, DPOOL1, gpu=GPU_UNS)
+		conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, stream=1, gpu=GPU_UNS)
 
-			max_pool_back_cudnn_buffers(MAX_OUTPUT3, FL_PRED, CONV_OUTPUT3, DPOOL3, gpu=GPU_UNS)
-			conv_dfilter_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3, stream=3, gpu=GPU_UNS)
-			conv_ddata_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3_DATA, gpu=GPU_UNS)
-			max_pool_back_cudnn_buffers(MAX_OUTPUT2, DF3_DATA, CONV_OUTPUT2, DPOOL2, gpu=GPU_UNS)
-			conv_ddata_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2_DATA, gpu=GPU_UNS)
-			conv_dfilter_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2, stream=2, gpu=GPU_UNS)
-			max_pool_back_cudnn_buffers(MAX_OUTPUT1, DF2_DATA, CONV_OUTPUT1, DPOOL1, gpu=GPU_UNS)
-			conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, stream=1, gpu=GPU_UNS)
-
-			###
-			max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_UNS)
-			dFL = np.einsum(max_output3, range(4), pred - Ys, [4,0], [4,1,2,3]) #
-			
-			dF3 = return_buffer(DF3, stream=3, gpu=GPU_UNS)
-			dF2 = return_buffer(DF2, stream=2, gpu=GPU_UNS)
-			dF1 = return_buffer(DF1, stream=1, gpu=GPU_UNS)
-			
-			F1 -= dF1*EPS / N_IMGS
-			F2 -= dF2*EPS / N_IMGS
-			F3 -= dF3*EPS / N_IMGS
-			FL -= dFL*EPS / N_IMGS
+		###
+		max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_UNS)
+		dFL = np.einsum(max_output3, range(4), pred - Ys, [4,0], [4,1,2,3]) 
+		
+		dF3 = return_buffer(DF3, stream=3, gpu=GPU_UNS)
+		dF2 = return_buffer(DF2, stream=2, gpu=GPU_UNS)
+		dF1 = return_buffer(DF1, stream=1, gpu=GPU_UNS)
+		#dFL = return_buffer(DFL, stream=4, gpu=GPU_UNS)
+		
+		
+		F1 -= dF1*EPS / N_IMGS
+		F2 -= dF2*EPS / N_IMGS
+		F3 -= dF3*EPS / N_IMGS
+		FL -= dFL*EPS / N_IMGS
 		
 	epoch += 1
 sf()
