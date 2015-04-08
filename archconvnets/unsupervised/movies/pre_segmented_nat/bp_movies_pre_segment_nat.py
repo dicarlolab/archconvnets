@@ -15,11 +15,7 @@ def pinv(F):
 #@profile
 #def sf():
 
-N_BP_IMGS = 28730
-# mcc number of train/test imgs
-N_TEST_SET = 1500
-N_TRAIN = np.int(N_TEST_SET*.9)
-TOP_N = 1
+N_BP_IMGS = 24309
 
 F1_scale = 0.001 # std of init normal distribution
 F2_scale = 0.01
@@ -34,14 +30,14 @@ IMG_SZ_CROP = 32 # input image size (px)
 IMG_SZ = 34 # input image size (px)
 PAD = 2
 
-N_C = 221 # number of categories
+N_C = 202 # number of categories
 BP_STR = ''
 GPU_S = 3
 GPU_S2 = 0
 GPU_UNS = 2
 s_scale = 1
 
-N = 16
+N = 32
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N
@@ -50,7 +46,7 @@ s3 = 3 # L1 filter size (px)
 s2 = 5 # ...
 s1 = 5
 
-file_name = '/home/darren/F1_' + str(N_C) + BP_STR + '_' + str(EPS_E) + 'eps_' + str(N) + 'N_nonrand.mat'
+file_name = '/home/darren/F1_' + str(N_C) + BP_STR + '_' + str(EPS_E) + 'eps_' + str(N) + 'N_nat_clips.mat'
 
 max_output_sz3  = 5
 
@@ -130,7 +126,7 @@ imgs_pad_test_imgnet = np.ascontiguousarray(imgs_pad_test_imgnet.transpose((3,0,
 # load train imgs into buffers
 imgs_pad = np.zeros((N_BP_IMGS, 3, IMG_SZ, IMG_SZ),dtype='single')
 Y_train = np.zeros((N_C, N_BP_IMGS), dtype='uint8')
-z = np.load('/home/darren/archconvnets/archconvnets/unsupervised/movies/pre_segmented/movies_batch')
+z = np.load('/home/darren/archconvnets/archconvnets/unsupervised/movies/pre_segmented_nat/movies_batch')
 
 random.seed(666)
 inds = range(N_BP_IMGS)
@@ -197,7 +193,7 @@ while True:
 		
 	t_start = time.time()
 	
-	for s in range(287):
+	for s in range(242):
 		s_cifar = global_step % 500
 		
 		s_imgnet = global_step % 100

@@ -27,7 +27,7 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS_E = 2
+EPS_E = 3
 EPS = 1*10**(-EPS_E)
 
 N_IMGS = 100 # batch size
@@ -50,7 +50,7 @@ else:
 	GPU_UNS = 3
 	s_scale = N_IMGS / np.single(N_C)
 
-N = 16
+N = 32
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N
@@ -130,7 +130,7 @@ mcc_max3 = []
 
 while True:
 	t_mcc = time.time()
-	'''
+	
 	###############################################
 	# test imgs
 	conv_output1 = conv(F1, imgs_pad_test[:N_TEST_SET], PAD=2, gpu=GPU_UNS)
@@ -164,7 +164,7 @@ while True:
 		hit += np.max(labels_test[N_TRAIN + test_img] == labels_test[np.argsort(-test_corrs[test_img])[:TOP_N]])
 	mcc_max3.append(1-hit/np.single(N_TEST_SET-N_TRAIN))
 	
-	#########
+	'''#########
 	## least squares FC
 	pred_train = max_output3[:N_TRAIN].reshape((N_TRAIN, n3*max_output_sz3**2))
 	pred = max_output3[N_TRAIN:N_TEST_SET].reshape((N_TEST_SET-N_TRAIN, n3*max_output_sz3**2))
@@ -176,7 +176,7 @@ while True:
 	class_err.append(1-(np.argmax(pred_remap,axis=1) == np.asarray(np.squeeze(labels_test))[N_TRAIN:N_TEST_SET]).mean())
 	'''
 	#mcc_max3.append(1);mcc_FL.append(1)
-	#class_err.append(1);err.append(1)
+	class_err.append(1);err.append(1)
 	
 	print epoch, 'mccFL:', mcc_FL[-1], 'mccMax3:', mcc_max3[-1], 'LSQclass:', class_err[-1], 'LSQerr:', err[-1], ' F1:', np.sum(np.abs(F1)), time.time() - t_mcc, time.time() - t_start, file_name
 	savemat(file_name, {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,'mcc_FL':mcc_FL, 'mcc_max3':mcc_max3,'F2':F2,'F3':F3,'FL':FL,
