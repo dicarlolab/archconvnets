@@ -39,9 +39,8 @@ BP_STR = ''
 GPU_S = 3
 GPU_S2 = 0
 GPU_UNS = 2
-s_scale = 1
 
-N = 16
+N = 32
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N
@@ -50,7 +49,7 @@ s3 = 3 # L1 filter size (px)
 s2 = 5 # ...
 s1 = 5
 
-file_name = '/home/darren/F1_' + str(N_C) + BP_STR + '_' + str(EPS_E) + 'eps_' + str(N) + 'N_nonrand.mat'
+file_name = '/home/darren/F1_' + str(N_C) + BP_STR + '_' + str(EPS_E) + 'eps_' + str(N) + 'N_synthetic.mat'
 
 max_output_sz3  = 5
 

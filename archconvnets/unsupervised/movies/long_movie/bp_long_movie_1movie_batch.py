@@ -5,7 +5,7 @@ from scipy.io import savemat, loadmat
 import copy
 from scipy.stats import zscore
 import random
-import gnumpy as gpu
+import os
 
 def pinv(F):
 	return np.dot(np.linalg.inv(np.dot(F.T,F)), F.T)
@@ -20,15 +20,15 @@ F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
 
-EPS_E = 3
-EPS = 2*10**(-EPS_E)
+EPS_E = 4
+EPS = 1*10**(-EPS_E)
 
 N_IMGS = 100 # batch size
 IMG_SZ_CROP = 32 # input image size (px)
 IMG_SZ = 34 # input image size (px)
 PAD = 2
 
-N_C = 101 # number of categories
+N_C = 64 # number of categories
 BP_STR = ''
 GPU_S = 3
 GPU_S2 = 1
@@ -43,7 +43,7 @@ s3 = 3 # L1 filter size (px)
 s2 = 5 # ...
 s1 = 5
 
-file_name = '/home/darren/F1_' + str(N_C) + BP_STR + '_' + str(EPS_E) + 'eps_' + str(N) + 'N_nat_clips_guess.mat'
+file_name = '/home/darren/F1_' + str(N_C) + BP_STR + '_' + str(EPS_E) + 'eps_' + str(N) + 'N_1movie_batch_obj.mat'
 
 max_output_sz3  = 5
 
@@ -54,11 +54,6 @@ F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
 FL = np.single(np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, max_output_sz3)))
 FL_cifar = np.single(np.random.normal(scale=FL_scale, size=(10, n3, max_output_sz3, max_output_sz3)))
 FL_imgnet = np.single(np.random.normal(scale=FL_scale, size=(999, n3, max_output_sz3, max_output_sz3)))
-
-F1_init = copy.deepcopy(F1)
-F2_init = copy.deepcopy(F2)
-F3_init = copy.deepcopy(F3)
-FL_init = copy.deepcopy(FL)
 
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
 
@@ -124,33 +119,6 @@ imgs_pad_test_imgnet = np.zeros((3, IMG_SZ, IMG_SZ, 10000),dtype='single')
 imgs_pad_test_imgnet[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x
 imgs_pad_test_imgnet = np.ascontiguousarray(imgs_pad_test_imgnet.transpose((3,0,1,2)))
 
-##################
-# load templates
-imgs_pad_templates = np.zeros((10000*2, 3, IMG_SZ, IMG_SZ),dtype='single')
-labels_templates = np.zeros(10000*2,dtype='int')
-
-b_i = 0
-for b in range(100-2, 100):
-	z2 = np.load('/export/storage/UCF101_80ex_per_cat/data_batch_' + str(b))
-	x = z2['data'] - z2['mean']
-	x = x.reshape((3, 32, 32, 10000))
-
-	imgs_pad_templates[b_i*10000:(b_i+1)*10000,:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x.transpose((3,0,1,2))
-
-	labels_templates[b_i*10000:(b_i+1)*10000] = np.asarray(z2['cat_inds'])
-	b_i += 1
-
-imgs_pad_templates = np.ascontiguousarray(imgs_pad_templates)
-
-###############################################
-# template imgs
-conv_output1 = conv(F1, imgs_pad_templates, gpu=GPU_UNS)
-max_output1 = max_pool_cudnn(conv_output1, gpu=GPU_UNS)
-conv_output2 = conv(F2, max_output1, gpu=GPU_UNS)
-max_output2 = max_pool_cudnn(conv_output2, gpu=GPU_UNS)
-conv_output3 = conv(F3, max_output2, gpu=GPU_UNS)
-max_output3_templates = max_pool_cudnn(conv_output3, gpu=GPU_UNS).reshape((10000*2, n3*max_output_sz3**2))
-max_output3_templates = zscore(max_output3_templates, axis=1)
 
 epoch = 0
 err = []
@@ -160,102 +128,77 @@ class_err_imgnet = []
 
 global_step = 0
 imgnet_batch = 1
-hits = 0
 while True:
-	for batch in range(1,100-5):
-		t_mcc = time.time()
-		
-		###############################################
-		# test imgs (cifar)
-		conv_output1 = conv(F1, imgs_pad_test, gpu=GPU_UNS)
-		max_output1 = max_pool_cudnn(conv_output1, gpu=GPU_UNS)
-		conv_output2 = conv(F2, max_output1, gpu=GPU_UNS)
-		max_output2 = max_pool_cudnn(conv_output2, gpu=GPU_UNS)
-		conv_output3 = conv(F3, max_output2, gpu=GPU_UNS)
-		max_output3 = max_pool_cudnn(conv_output3, gpu=GPU_UNS)
-		
-		pred = np.einsum(FL_cifar, range(4), max_output3, [4,1,2,3], [0,4])
-		
-		err.append(np.mean((pred - Y_test)**2))
-		class_err.append(1-(np.argmax(pred,axis=0) == np.asarray(np.squeeze(labels_test))).mean())
-		
-		###############################################
-		# test imgs (imgnet)
-		conv_output1 = conv(F1, imgs_pad_test_imgnet, gpu=GPU_UNS)
-		max_output1 = max_pool_cudnn(conv_output1, gpu=GPU_UNS)
-		conv_output2 = conv(F2, max_output1, gpu=GPU_UNS)
-		max_output2 = max_pool_cudnn(conv_output2, gpu=GPU_UNS)
-		conv_output3 = conv(F3, max_output2, gpu=GPU_UNS)
-		max_output3 = max_pool_cudnn(conv_output3, gpu=GPU_UNS)
-		
-		pred = np.einsum(FL_imgnet, range(4), max_output3, [4,1,2,3], [0,4])
-		
-		err_imgnet.append(np.mean((pred - Y_test_imgnet)**2))
-		class_err_imgnet.append(1-(np.argmax(pred,axis=0) == np.asarray(np.squeeze(labels_test_imgnet))).mean())
-		
-		print epoch, batch, 'class:', class_err[-1], 'err:', err[-1], ' F1:', np.sum(np.abs(F1)), time.time() - t_mcc, time.time() - t_start, file_name, hits/10000.0
-		print '       class imgnet:', class_err_imgnet[-1], 'err imgnet:', err_imgnet[-1]
-		savemat(file_name, {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,
-			'class_err_imgnet':class_err_imgnet, 'err':err_imgnet,
-			'F2':F2,'F3':F3,'FL':FL,'EPS':EPS,'err':err,'class_err':class_err})
+	for batch in range(1,10):
+		if batch % 1 == 0:
+			t_mcc = time.time()
 			
-		t_start = time.time()
-		
-		'''###############################################
-		# template imgs (imgnet)
-		conv_output1 = conv(F1, imgs_pad_templates, gpu=GPU_UNS)
-		max_output1 = max_pool_cudnn(conv_output1, gpu=GPU_UNS)
-		conv_output2 = conv(F2, max_output1, gpu=GPU_UNS)
-		max_output2 = max_pool_cudnn(conv_output2, gpu=GPU_UNS)
-		conv_output3 = conv(F3, max_output2, gpu=GPU_UNS)
-		max_output3_templates = max_pool_cudnn(conv_output3, gpu=GPU_UNS).reshape((N_TEMPLATES, n3*max_output_sz3**2))
-		max_output3_templates = zscore(max_output3_templates, axis=1)'''
+			###############################################
+			# test imgs (cifar)
+			conv_output1 = conv(F1, imgs_pad_test, gpu=GPU_UNS)
+			max_output1 = max_pool_cudnn(conv_output1, gpu=GPU_UNS)
+			conv_output2 = conv(F2, max_output1, gpu=GPU_UNS)
+			max_output2 = max_pool_cudnn(conv_output2, gpu=GPU_UNS)
+			conv_output3 = conv(F3, max_output2, gpu=GPU_UNS)
+			max_output3 = max_pool_cudnn(conv_output3, gpu=GPU_UNS)
+			
+			pred = np.einsum(FL_cifar, range(4), max_output3, [4,1,2,3], [0,4])
+			
+			err.append(np.mean((pred - Y_test)**2))
+			class_err.append(1-(np.argmax(pred,axis=0) == np.asarray(np.squeeze(labels_test))).mean())
+			
+			###############################################
+			# test imgs (imgnet)
+			conv_output1 = conv(F1, imgs_pad_test_imgnet, gpu=GPU_UNS)
+			max_output1 = max_pool_cudnn(conv_output1, gpu=GPU_UNS)
+			conv_output2 = conv(F2, max_output1, gpu=GPU_UNS)
+			max_output2 = max_pool_cudnn(conv_output2, gpu=GPU_UNS)
+			conv_output3 = conv(F3, max_output2, gpu=GPU_UNS)
+			max_output3 = max_pool_cudnn(conv_output3, gpu=GPU_UNS)
+			
+			pred = np.einsum(FL_imgnet, range(4), max_output3, [4,1,2,3], [0,4])
+			
+			err_imgnet.append(np.mean((pred - Y_test_imgnet)**2))
+			class_err_imgnet.append(1-(np.argmax(pred,axis=0) == np.asarray(np.squeeze(labels_test_imgnet))).mean())
+			
+			print epoch, batch, 'class:', class_err[-1], 'err:', err[-1], ' F1:', np.sum(np.abs(F1)), time.time() - t_mcc, time.time() - t_start, file_name
+			print '       class imgnet:', class_err_imgnet[-1], 'err imgnet:', err_imgnet[-1]
+			savemat(file_name, {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,
+				'class_err_imgnet':class_err_imgnet, 'err':err_imgnet,
+				'F2':F2,'F3':F3,'FL':FL,'EPS':EPS,'err':err,'class_err':class_err})
+				
+			t_start = time.time()
 		
 		##################
-		# load train imgs into buffers
-		imgs_pad = np.zeros((10000, 3, IMG_SZ, IMG_SZ),dtype='single')
-		Y_train = np.zeros((N_C, 10000), dtype='uint8')
-		z = np.load('/export/storage/UCF101_80ex_per_cat_scrambled_5heldout/data_batch_' + str(batch))
+		# load train imgs into buffers (movies)
+		z = np.load('/home/darren/long_movie_batch/1_movie_batch')
+		
+		z['labels'] = z['labels_obj']
+		z['mean'] = np.zeros((3*32*32,1), dtype='single')
 
-		random.seed(666)
-		inds = range(10000)
-		random.shuffle(inds)
-		z['data'] = z['data'][:,inds]
-		z['cat_inds'] = z['cat_inds'][inds]
+		imgs_pad = np.zeros((9600, 3, IMG_SZ, IMG_SZ),dtype='single')
+		Y_train = np.zeros((N_C, 9600), dtype='uint8')
 
 		x = z['data'] - z['mean']
-		x = x.reshape((3, 32, 32, 10000))
+		x = x.reshape((3, 32, 32, 9600))
 
-		labels_real = np.asarray(z['cat_inds'])
-		
+		labels = np.asarray(z['labels'])
+
+		l = np.zeros((9600, N_C),dtype='uint8')
+		l[np.arange(9600),np.asarray(z['labels']).astype(int)] = 1
+		Y_train = l.T
+
 		imgs_pad[:,:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x.transpose((3,0,1,2))
 		imgs_pad = np.ascontiguousarray(imgs_pad)
 		
-		# guess labels
-		conv_output1 = conv(F1_init, imgs_pad, gpu=GPU_UNS)
-		max_output1 = max_pool_cudnn(conv_output1, gpu=GPU_UNS)
-		conv_output2 = conv(F2_init, max_output1, gpu=GPU_UNS)
-		max_output2 = max_pool_cudnn(conv_output2, gpu=GPU_UNS)
-		conv_output3 = conv(F3_init, max_output2, gpu=GPU_UNS)
-		max_output3 = max_pool_cudnn(conv_output3, gpu=GPU_UNS).reshape((10000, n3*max_output_sz3**2))
-		max_output3 = zscore(max_output3, axis=1)
-		
-		corrs = np.einsum(max_output3, [0,2], max_output3_templates, [1,2], [0,1])
-		print np.mean(labels_templates[corrs.argmax(1)] == labels_real)
-		
-		l = np.zeros((10000, 101),dtype='uint8')
-		l[np.arange(10000), labels_templates[corrs.argmax(1)]] = 1
-		Y_batch = l.T
-		
-		
-		for s in range(100):
+		for s in range(9600 / N_IMGS):
 			s_cifar = global_step % 500
 			
 			s_imgnet = global_step % 100
 			
 			if s_imgnet == 0:
 				##################
-				# load train imgs into buffers
+				# load train imgs into buffers (imgnet)
 				z = np.load('/export/storage/imgnet32/data_batch_' + str(imgnet_batch))
 				
 				imgs_pad_imgnet = np.zeros((10000, 3, IMG_SZ, IMG_SZ),dtype='single')
@@ -319,23 +262,7 @@ while True:
 			conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_S2)
 			max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_S2)
 			
-			
-			# guess labels
-			'''max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_UNS)
-			
-			max_output3_batch = max_output3.reshape((N_IMGS, n3*max_output_sz3**2))
-			max_output3_batch = zscore(max_output3_batch, axis=1)
-			
-			corrs = np.einsum(max_output3_batch, [0,2], max_output3_templates, [1,2], [0,1])
-			hits += np.sum(labels_templates[corrs.argmax(1)] == labels_real[s*N_IMGS:(s+1)*N_IMGS])
-			
-			l = np.zeros((N_IMGS, 101),dtype='uint8')
-			l[np.arange(N_IMGS), labels_templates[corrs.argmax(1)]] = 1
-			Ys = np.ascontiguousarray(l.T)'''
-			
-			Ys = np.ascontiguousarray(Y_batch[:,s*N_IMGS:(s+1)*N_IMGS])
-			
-			
+			Ys = np.ascontiguousarray(Y_train[:,s*N_IMGS:(s+1)*N_IMGS])
 			Ys_cifar = np.ascontiguousarray(Y_cifar[:,s_cifar*N_IMGS:(s_cifar+1)*N_IMGS])
 			Ys_imgnet = np.ascontiguousarray(Y_imgnet[:,s_imgnet*N_IMGS:(s_imgnet+1)*N_IMGS])
 			
@@ -363,10 +290,9 @@ while True:
 			conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, stream=1, gpu=GPU_UNS)
 
 			###
+			max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_UNS)
 			max_output3_cifar = return_buffer(MAX_OUTPUT3, gpu=GPU_S)
 			max_output3_imgnet = return_buffer(MAX_OUTPUT3, gpu=GPU_S2)
-			
-			max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_UNS)
 			
 			dFL = np.einsum(max_output3, range(4), pred - Ys, [4,0], [4,1,2,3]) 
 			dFL_cifar = np.einsum(max_output3_cifar, range(4), pred_cifar - Ys_cifar, [4,0], [4,1,2,3]) 

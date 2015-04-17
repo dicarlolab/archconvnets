@@ -19,8 +19,8 @@ F2_scale = 0.001
 F3_scale = 0.001
 FL_scale = 0.001
 
-EPS_E = 4
-EPS = 2.5*10**(-EPS_E)
+EPS_E = 3
+EPS = 1*10**(-EPS_E)
 
 N_IMGS = 100 # batch size
 IMG_SZ_CROP = 32 # input image size (px)
@@ -30,7 +30,7 @@ PAD = 2
 GPU_S = 0
 GPU_UNS = 1
 
-N = 32
+N = 64#32
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N

@@ -44,7 +44,7 @@ s3 = 3 # L1 filter size (px)
 s2 = 5 # ...
 s1 = 5
 
-file_name = '/home/darren/F1_' + str(N_C) + BP_STR + '_' + str(EPS_E) + 'eps_' + str(N) + 'N_nat_clips_cat2_scrambled.mat'
+file_name = '/home/darren/F1_' + str(N_C) + BP_STR + '_' + str(EPS_E) + 'eps_' + str(N) + 'N_nat_clips_cat_2batches.mat'
 
 max_output_sz3  = 5
 
@@ -129,7 +129,7 @@ class_err_imgnet = []
 global_step = 0
 imgnet_batch = 1
 while True:
-	for batch in range(1,100):
+	for batch in range(100-2,100):
 		t_mcc = time.time()
 		
 		###############################################
@@ -172,7 +172,7 @@ while True:
 		# load train imgs into buffers
 		imgs_pad = np.zeros((10000, 3, IMG_SZ, IMG_SZ),dtype='single')
 		Y_train = np.zeros((N_C, 10000), dtype='uint8')
-		z = np.load('/export/storage/UCF101_80ex_per_cat_scrambled/data_batch_' + str(batch))
+		z = np.load('/export/storage/UCF101_80ex_per_cat/data_batch_' + str(batch))
 
 		random.seed(666)
 		inds = range(10000)
