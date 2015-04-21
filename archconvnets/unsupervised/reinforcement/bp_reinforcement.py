@@ -11,11 +11,13 @@ import scipy
 
 RAND_PERIOD = 10000
 MEM_SZ = 50000
-EPS_GREED = .75
+EPS_GREED_FINAL = .1
+EPS_GREED_FINAL_TIME = 1000000
 GAMMA = 0.99
-BATCH_SZ = 128
-NETWORK_UPDATE = 2000
-EPS = 1e-1
+BATCH_SZ = 32
+NETWORK_UPDATE = 5000
+EPS = 5e-3
+MOM_WEIGHT = 0.95
 
 SCALE = 4
 MAX_LOC = 32/SCALE
@@ -77,6 +79,11 @@ dF2 = np.zeros_like(F2)
 dF3 = np.zeros_like(F3)
 dFL = np.zeros_like(FL)
 
+dF1_mom = np.zeros_like(F1)
+dF2_mom = np.zeros_like(F2)
+dF3_mom = np.zeros_like(F3)
+dFL_mom = np.zeros_like(FL)
+
 r_total = 0
 r_total_plot = []
 network_updates = 0
@@ -115,7 +122,8 @@ while True:
 	y_network_ver[mem_loc] = -1
 	
 	# choose action
-	if (np.random.rand() <= EPS_GREED) or (step <= (MEM_SZ+RAND_PERIOD)):
+	CHANCE_RAND = np.min((1 - ((1-EPS_GREED_FINAL)/EPS_GREED_FINAL_TIME)*(step - (MEM_SZ+RAND_PERIOD)), 1))
+	if np.random.rand() <= CHANCE_RAND:
 		action = np.random.randint(4)
 	else:
 		# show blocks
@@ -257,15 +265,20 @@ while True:
 		
 		#### update filter weights
 		if(step - MEM_SZ) % BATCH_SZ == 0:
-			F1 += dF1*EPS / BATCH_SZ
-			F2 += dF2*EPS / BATCH_SZ
-			F3 += dF3*EPS / BATCH_SZ
-			FL += dFL*EPS / BATCH_SZ
+			F1 += (dF1 + MOM_WEIGHT*dF1_mom)*EPS / BATCH_SZ
+			F2 += (dF2 + MOM_WEIGHT*dF2_mom)*EPS / BATCH_SZ
+			F3 += (dF3 + MOM_WEIGHT*dF3_mom)*EPS / BATCH_SZ
+			FL += (dFL + MOM_WEIGHT*dFL_mom)*EPS / BATCH_SZ
 			
 			set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_CUR)
 			set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_CUR)
 			set_buffer(F3, F3_IND, filter_flag=1, gpu=GPU_CUR)
 			set_buffer(FL, FL_IND, filter_flag=1, gpu=GPU_CUR)
+			
+			dF1_mom = copy.deepcopy(dF1)
+			dF2_mom = copy.deepcopy(dF2)
+			dF3_mom = copy.deepcopy(dF3)
+			dFL_mom = copy.deepcopy(dFL)
 			
 			dF1 = np.zeros_like(dF1)
 			dF2 = np.zeros_like(dF2)
@@ -289,7 +302,7 @@ while True:
 		err_plot.append(err)
 		
 		savemat(file_name, {'F1': F1, 'r_total_plot': r_total_plot, 'F2': F2, 'F3': F3, 'FL':FL, 'F1_init': F1_init, 'step': step, 'img': img, 'err_plot': err_plot})
-		print step, err, r_total, network_updates, np.max(F1), time.time() - t_start, file_name
+		print 'step:', step, 'err:',err, 'r:',r_total, 'updates:',network_updates, 'eps:', CHANCE_RAND, 'F1:', np.max(F1), 't:',time.time() - t_start, file_name
 		
 		err = 0
 		r_total = 0
