@@ -9,13 +9,13 @@ import random
 import gnumpy as gpu
 import scipy
 
-RAND_PERIOD = 1000000
+RAND_PERIOD = 10000
 MEM_SZ = 50000
-EPS_GREED = .85
+EPS_GREED = .75
 GAMMA = 0.99
-BATCH_SZ = 64
-NETWORK_UPDATE = 100000
-EPS = 1e-5
+BATCH_SZ = 128
+NETWORK_UPDATE = 2000
+EPS = 1e-1
 
 SCALE = 4
 MAX_LOC = 32/SCALE
@@ -27,7 +27,7 @@ F2_scale = 1e-2
 F3_scale = 1e-2
 FL_scale = 1e-2
 
-N = 16
+N = 32
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N
@@ -92,6 +92,8 @@ player_input = np.zeros((MEM_SZ, 2), dtype='int')
 action_input = np.zeros(MEM_SZ, dtype='int')
 
 r_output = np.zeros(MEM_SZ)
+y_outputs = np.zeros(MEM_SZ)
+y_network_ver = -np.ones(MEM_SZ)
 reds_output = np.zeros((MEM_SZ, 2, N_REDS), dtype='int')
 blues_output = np.zeros((MEM_SZ, 2, N_BLUES), dtype='int')
 player_output = np.zeros((MEM_SZ, 2), dtype='int')
@@ -99,6 +101,8 @@ player_output = np.zeros((MEM_SZ, 2), dtype='int')
 reds = np.random.randint(0,MAX_LOC, size=(2,N_REDS))
 blues = np.random.randint(0,MAX_LOC, size=(2,N_BLUES))
 player = np.random.randint(0,MAX_LOC, size=2)
+
+img = np.zeros((1,3,32,32),dtype='single')
 
 t_start = time.time()
 while True:
@@ -108,32 +112,33 @@ while True:
 	reds_input[mem_loc] = copy.deepcopy(reds)
 	blues_input[mem_loc] = copy.deepcopy(blues)
 	player_input[mem_loc] = copy.deepcopy(player)
-	
-	# show blocks
-	img = np.zeros((1,3,32,32),dtype='single')
-	for b in range(N_REDS):
-		img[0,0,SCALE*reds[0,b]:SCALE*(reds[0,b]+1), SCALE*reds[1,b]:SCALE*(reds[1,b]+1)] = 255
-		img[0,2,SCALE*blues[0,b]:SCALE*(blues[0,b]+1), SCALE*blues[1,b]:SCALE*(blues[1,b]+1)] = 255
-	img[0,1,SCALE*player[0]:SCALE*(player[0]+1), SCALE*player[1]:SCALE*(player[1]+1)] = 255
-	
-	# forward pass
-	set_buffer(img, IMGS_PAD, gpu=GPU_CUR)
-		
-	conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_CUR)
-	max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_CUR)
-	conv_buffers(F2_IND, MAX_OUTPUT1, CONV_OUTPUT2, gpu=GPU_CUR)
-	max_pool_cudnn_buffers(CONV_OUTPUT2, MAX_OUTPUT2, gpu=GPU_CUR)
-	conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_CUR)
-	max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_CUR)
-	
-	max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_CUR)
-	
-	pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0])
+	y_network_ver[mem_loc] = -1
 	
 	# choose action
 	if (np.random.rand() <= EPS_GREED) or (step <= (MEM_SZ+RAND_PERIOD)):
 		action = np.random.randint(4)
 	else:
+		# show blocks
+		img = np.zeros((1,3,32,32),dtype='single')
+		for b in range(N_REDS):
+			img[0,0,SCALE*reds[0,b]:SCALE*(reds[0,b]+1), SCALE*reds[1,b]:SCALE*(reds[1,b]+1)] = 255
+			img[0,2,SCALE*blues[0,b]:SCALE*(blues[0,b]+1), SCALE*blues[1,b]:SCALE*(blues[1,b]+1)] = 255
+		img[0,1,SCALE*player[0]:SCALE*(player[0]+1), SCALE*player[1]:SCALE*(player[1]+1)] = 255
+		
+		# forward pass
+		set_buffer(img, IMGS_PAD, gpu=GPU_CUR)
+			
+		conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_CUR)
+		max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_CUR)
+		conv_buffers(F2_IND, MAX_OUTPUT1, CONV_OUTPUT2, gpu=GPU_CUR)
+		max_pool_cudnn_buffers(CONV_OUTPUT2, MAX_OUTPUT2, gpu=GPU_CUR)
+		conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_CUR)
+		max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_CUR)
+		
+		max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_CUR)
+		
+		pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0])
+		
 		action = np.argmax(pred)
 
 	# perform action
@@ -197,15 +202,6 @@ while True:
 			
 		
 		set_buffer(img_cur, IMGS_PAD, gpu=GPU_CUR)
-		set_buffer(img_prev, IMGS_PAD, gpu=GPU_PREV)
-		
-		# forward pass prev network
-		conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_PREV)
-		max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_PREV)
-		conv_buffers(F2_IND, MAX_OUTPUT1, CONV_OUTPUT2, gpu=GPU_PREV)
-		max_pool_cudnn_buffers(CONV_OUTPUT2, MAX_OUTPUT2, gpu=GPU_PREV)
-		conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_PREV)
-		max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_PREV)
 		
 		# forward pass current network
 		conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_CUR)
@@ -215,15 +211,27 @@ while True:
 		conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_CUR)
 		max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_CUR)
 		
-		# compute target
-		max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_PREV)
-		pred_prev = np.einsum(FL_prev, range(4), max_output3, [4,1,2,3], [0])
-		y = r_output[trans] + GAMMA * np.max(pred_prev)
+		# forward pass prev network
+		if y_network_ver[trans] != (network_updates % NETWORK_UPDATE):
+			set_buffer(img_prev, IMGS_PAD, gpu=GPU_PREV)
+		
+			conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_PREV)
+			max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_PREV)
+			conv_buffers(F2_IND, MAX_OUTPUT1, CONV_OUTPUT2, gpu=GPU_PREV)
+			max_pool_cudnn_buffers(CONV_OUTPUT2, MAX_OUTPUT2, gpu=GPU_PREV)
+			conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_PREV)
+			max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_PREV)
+		
+			# compute target
+			max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_PREV)
+			pred_prev = np.einsum(FL_prev, range(4), max_output3, [4,1,2,3], [0])
+			y_outputs[trans] = r_output[trans] + GAMMA * np.max(pred_prev)
+			y_network_ver[trans] = network_updates % NETWORK_UPDATE
 		
 		max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_CUR)
 		
 		pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0])
-		pred_m_Y = y - pred[action_input[trans]]
+		pred_m_Y = y_outputs[trans] - pred[action_input[trans]]
 		
 		err += pred_m_Y**2
 		
@@ -249,10 +257,10 @@ while True:
 		
 		#### update filter weights
 		if(step - MEM_SZ) % BATCH_SZ == 0:
-			F1 -= dF1*EPS / BATCH_SZ
-			F2 -= dF2*EPS / BATCH_SZ
-			F3 -= dF3*EPS / BATCH_SZ
-			FL -= dFL*EPS / BATCH_SZ
+			F1 += dF1*EPS / BATCH_SZ
+			F2 += dF2*EPS / BATCH_SZ
+			F3 += dF3*EPS / BATCH_SZ
+			FL += dFL*EPS / BATCH_SZ
 			
 			set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_CUR)
 			set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_CUR)
@@ -263,8 +271,6 @@ while True:
 			dF2 = np.zeros_like(dF2)
 			dF3 = np.zeros_like(dF3)
 			dFL = np.zeros_like(dFL)
-			
-			err = 0
 			
 			network_updates += 1
 			
@@ -278,9 +284,14 @@ while True:
 				
 	step += 1
 	
-	if step % 1000 == 0:
+	if step % 4000 == 0:
 		r_total_plot.append(r_total)
 		err_plot.append(err)
+		
 		savemat(file_name, {'F1': F1, 'r_total_plot': r_total_plot, 'F2': F2, 'F3': F3, 'FL':FL, 'F1_init': F1_init, 'step': step, 'img': img, 'err_plot': err_plot})
 		print step, err, r_total, network_updates, np.max(F1), time.time() - t_start, file_name
+		
+		err = 0
+		r_total = 0
+		
 		t_start = time.time()
