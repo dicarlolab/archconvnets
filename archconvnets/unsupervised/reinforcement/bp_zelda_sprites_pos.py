@@ -13,15 +13,15 @@ import Image
 
 SAVE_FREQ = 4000
 RAND_PERIOD = 0#10000
-MEM_SZ = 50000
+MEM_SZ = 500000
 EPS_GREED_FINAL = .1
 EPS_GREED_FINAL_TIME = 5000000
 GAMMA = 0.99
 BATCH_SZ = 32
-NETWORK_UPDATE = 5000
+NETWORK_UPDATE = 10000
 EPS = 5e-3
 MOM_WEIGHT = 0.95
-PLAYER_MOV_RATE = 9
+PLAYER_MOV_RATE = 8
 
 IMG_SZ = 92
 OBJ_SZ = 23
@@ -32,7 +32,7 @@ F2_scale = 1e-2
 F3_scale = 1e-2
 FL_scale = 1e-2
 
-N = 32
+N = 64#32
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N
@@ -43,12 +43,12 @@ s1 = 5
 
 N_C = 4 # directions L, R, U, D
 
-file_name = '/home/darren/reinforcement.mat'
+file_name = '/home/darren/reinforcement64.mat'
 
 max_output_sz3  = 12
 
-GPU_CUR = 0
-GPU_PREV = 1
+GPU_CUR = 2
+GPU_PREV = 3
 
 # gpu buffer indices
 MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
