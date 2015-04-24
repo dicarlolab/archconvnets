@@ -12,7 +12,7 @@ import PIL
 import Image
 
 SAVE_FREQ = 4000
-MEM_SZ = 500000
+MEM_SZ = 1000000
 EPS_GREED_FINAL = .1
 EPS_GREED_FINAL_TIME = 5000000
 GAMMA = 0.99
@@ -113,7 +113,7 @@ zelda_mask_inds = np.nonzero(255-zelda_mask.ravel())[0]
 
 ###########todo mean img
 
-PLAYER_MOV_RATE = 10
+PLAYER_MOV_RATE = 12
 PLAYER_ROT_RATE = 2.*np.pi/8.
 
 ZELDA_SZ_H = ZELDA_SZ/2
@@ -131,9 +131,9 @@ ROOM_SZ = 1024
 ######## initial positions
 N_DOGS = 200
 N_HEARTS = 200
-dogs = np.random.randint(ROOM_SZ-ZELDA_SZ, size=(2,N_DOGS))
 dog_show_flip = np.random.randint(2, size=N_DOGS)
-hearts = np.random.randint(ROOM_SZ-ZELDA_SZ, size=(2,N_HEARTS))
+dogs = np.random.randint(IMG_SZ_W+ZELDA_SZ, ROOM_SZ-(IMG_SZ_W+ZELDA_SZ), size=(2,N_DOGS))
+hearts = np.random.randint(IMG_SZ_W+ZELDA_SZ, ROOM_SZ-(IMG_SZ_W+ZELDA_SZ), size=(2,N_HEARTS))
 player = np.random.randint(IMG_SZ_W, ROOM_SZ-IMG_SZ_W, size=2)
 rotate = 0.
 
@@ -279,9 +279,9 @@ if __name__ == "__main__":
 	mean_img = np.zeros((1,3,IMG_SZ,IMG_SZ),dtype='single')
 
 	for i in range(N_MEAN_SAMPLES):
-		dogs = np.random.randint(ROOM_SZ-ZELDA_SZ, size=(2,N_DOGS))
 		dog_show_flip = np.random.randint(2, size=N_DOGS)
-		hearts = np.random.randint(ROOM_SZ-ZELDA_SZ, size=(2,N_HEARTS))
+		dogs = np.random.randint(IMG_SZ_W+ZELDA_SZ, ROOM_SZ-(IMG_SZ_W+ZELDA_SZ), size=(2,N_DOGS))
+		hearts = np.random.randint(IMG_SZ_W+ZELDA_SZ, ROOM_SZ-(IMG_SZ_W+ZELDA_SZ), size=(2,N_HEARTS))
 		player = np.random.randint(IMG_SZ_W, ROOM_SZ-IMG_SZ_W, size=2)
 		r = np.random.random()*2*np.pi
 		mean_img += render_scene(player, dogs, hearts, r)
@@ -305,7 +305,9 @@ if __name__ == "__main__":
 		# choose action
 		CHANCE_RAND = np.max((1 - ((1-EPS_GREED_FINAL)/EPS_GREED_FINAL_TIME)*(step - MEM_SZ), EPS_GREED_FINAL))
 		if np.random.rand() <= CHANCE_RAND:
-			action = np.random.randint(3)
+			action = np.random.randint(5)
+			if action > 3: # increase likelihood of movement
+				action = 0
 		else:
 			# forward pass
 			set_buffer(img - mean_img, IMGS_PAD, gpu=GPU_CUR)
@@ -346,7 +348,7 @@ if __name__ == "__main__":
 					(player[0] >= dogs[0]) * (player[0] <= (dogs[0]+ZELDA_SZ)) * ((player[1]+ZELDA_SZ) >= dogs[1]) * ((player[1]+ZELDA_SZ) <= (dogs[1]+ZELDA_SZ)))[0]
 		while len(collision) >= 1:
 			r = -1
-			dogs[:,collision] = np.random.randint(ROOM_SZ-ZELDA_SZ, size=(2,len(collision)))
+			dogs[:,collision] = np.random.randint(IMG_SZ_W+ZELDA_SZ, ROOM_SZ-(IMG_SZ_W+ZELDA_SZ), size=(2,len(collision)))
 			collision = np.nonzero(((player[0] >= dogs[0]) * (player[0] <= (dogs[0]+ZELDA_SZ)) * (player[1] >= dogs[1]) * (player[1] <= (dogs[1]+ZELDA_SZ))) + \
 					((player[0]+ZELDA_SZ) >= dogs[0]) * ((player[0]+ZELDA_SZ) <= (dogs[0]+ZELDA_SZ)) * (player[1] >= dogs[1]) * (player[1] <= (dogs[1]+ZELDA_SZ)) + \
 					((player[0]+ZELDA_SZ) >= dogs[0]) * ((player[0]+ZELDA_SZ) <= (dogs[0]+ZELDA_SZ)) * ((player[1]+ZELDA_SZ) >= dogs[1]) * ((player[1]+ZELDA_SZ) <= (dogs[1]+ZELDA_SZ)) + \
@@ -359,7 +361,7 @@ if __name__ == "__main__":
 					(player[0] >= hearts[0]) * (player[0] <= (hearts[0]+ZELDA_SZ)) * ((player[1]+ZELDA_SZ) >= hearts[1]) * ((player[1]+ZELDA_SZ) <= (hearts[1]+ZELDA_SZ)))[0]
 		while len(collision) >= 1:
 			r = 1
-			hearts[:,collision] = np.random.randint(ROOM_SZ-ZELDA_SZ, size=(2,len(collision)))
+			hearts[:,collision] = np.random.randint(IMG_SZ_W+ZELDA_SZ, ROOM_SZ-(IMG_SZ_W+ZELDA_SZ), size=(2,len(collision)))
 			collision = np.nonzero(((player[0] >= hearts[0]) * (player[0] <= (hearts[0]+ZELDA_SZ)) * (player[1] >= hearts[1]) * (player[1] <= (hearts[1]+ZELDA_SZ))) + \
 					((player[0]+ZELDA_SZ) >= hearts[0]) * ((player[0]+ZELDA_SZ) <= (hearts[0]+ZELDA_SZ)) * (player[1] >= hearts[1]) * (player[1] <= (hearts[1]+ZELDA_SZ)) + \
 					((player[0]+ZELDA_SZ) >= hearts[0]) * ((player[0]+ZELDA_SZ) <= (hearts[0]+ZELDA_SZ)) * ((player[1]+ZELDA_SZ) >= hearts[1]) * ((player[1]+ZELDA_SZ) <= (hearts[1]+ZELDA_SZ)) + \
