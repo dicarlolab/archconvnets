@@ -306,7 +306,7 @@ if __name__ == "__main__":
 		CHANCE_RAND = np.max((1 - ((1-EPS_GREED_FINAL)/EPS_GREED_FINAL_TIME)*(step - MEM_SZ), EPS_GREED_FINAL))
 		if np.random.rand() <= CHANCE_RAND:
 			action = np.random.randint(5)
-			if action > 3: # increase likelihood of movement
+			if action >= 3: # increase likelihood of movement
 				action = 0
 		else:
 			# forward pass
@@ -326,7 +326,7 @@ if __name__ == "__main__":
 			action = np.argmax(pred)
 
 		# perform action
-		if action == 0 and player[0] > PLAYER_MOV_RATE:
+		if action == 0:
 			dx = PLAYER_MOV_RATE * np.cos(-rotate - np.pi/2)
 			dy = PLAYER_MOV_RATE * np.sin(-rotate + np.pi/2)
 			if (player[0] + dx) < (ROOM_SZ-IMG_SZ_WH) and (player[1] + dy) < (ROOM_SZ-IMG_SZ_WH) and \
