@@ -98,14 +98,14 @@ loadPrcFileData("", "win-size " + str(IMG_SZ) + " " + str(IMG_SZ))
 loadPrcFileData("", "window-type offscreen")
 loadPrcFileData("", "require-window False")
 
-PANDA_SZ = 4.5
-KID_SZ = 3
+PANDA_SZ = 2.5
+KID_SZ = 1.25
 ROOM_SZ = 9
 ROOM_SZ_MV = 10
 N_KIDS = 6
 N_PANDAS = 6
 
-ROT_RATE = 30
+ROT_RATE = 7.75
 MOV_RATE = .75
 
 app = ShowBase()
@@ -304,7 +304,7 @@ while True:
 	network_outputs_computed = False
 	CHANCE_RAND = np.max((1 - ((1-EPS_GREED_FINAL)/EPS_GREED_FINAL_TIME)*(step - MEM_SZ), EPS_GREED_FINAL))
 	if np.random.rand() <= CHANCE_RAND:
-		action = np.random.randint(5)
+		action = np.random.randint(3)
 		if action >= 3: # increase likelihood of movement
 			action = 0
 	else:
