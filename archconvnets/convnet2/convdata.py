@@ -324,7 +324,7 @@ class CroppedGeneralDataProvider(DLDataProvider2):
         self.num_colors = 1 if preproc['mode'] in ['L', 'L_alpha'] else 3
         self.img_size = preproc['resize_to'][0]
 
-        self.border_size = dp_params['crop_border']
+        self.border_size = dp_params['crop_border'][0]
         self.inner_size = self.img_size - self.border_size*2
         self.multiview = dp_params['multiview_test'] and test
 

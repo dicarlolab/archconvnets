@@ -24,6 +24,8 @@ import collections
 
 import numpy as n
 
+from collections import OrderedDict
+
 TERM_BOLD_START = "\033[1m"
 TERM_BOLD_END = "\033[0m"
 
@@ -377,11 +379,22 @@ def opairshook(x):
         else:
             return x1
 
+def byteify(input):
+    if hasattr(input, 'keys'):
+        return OrderedDict([(byteify(key), byteify(value)) for key,value in input.iteritems()])
+    elif isinstance(input, list):
+        return [byteify(element) for element in input]
+    elif isinstance(input, unicode):
+        return input.encode('utf-8')
+    else:
+        return input
+
+
 class JSONOptionParser(OptionParser):
     @staticmethod
     def parse(value):
         try: 
-            return json.loads(value, object_pairs_hook=opairshook)
+            return byteify(json.loads(value, object_pairs_hook=opairshook))
             #return json.loads(value, object_hook=opairshook)
         except ValueError, e:
             raise OptionException(e)

@@ -799,6 +799,7 @@ class DLDataMapProvider(DLDataProvider):
         basedir = self.dset.home('cache')
         self.batch_meta_dict = {}
         for map, mname, pp in zip(map_list, mnames, map_preprocs):
+            print('PP:', mname, pp)
             self.stimarraylist.append(get_stimarray(map, mname, perm, perm_id, cache_type, basedir, read_mode))
             self.make_batch_meta(mname, self.stimarraylist[-1], pp)
 
