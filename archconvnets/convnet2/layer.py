@@ -1427,7 +1427,7 @@ class LogregCostParser(CostParser):
             raise LayerParsingError("Layer '%s': dimensionality of first input must be 1" % name)
         if dic['inputLayers'][1]['type'] != 'softmax':
             raise LayerParsingError("Layer '%s': second input must be softmax layer" % name)
-        dataIdx = dic['inputLayers'][1]['dataIdx']
+        dataIdx = dic['inputLayers'][0]['dataIdx']
         if dic['numInputs'][1] != model.train_data_provider.get_num_classes(dataIdx):
             raise LayerParsingError("Layer '%s': softmax input '%s' must produce %d outputs, because that is the number of classes in the dataset at index %d" \
                                     % (name, dic['inputs'][1], model.train_data_provider.get_num_classes(dataIdx), dataIdx))
