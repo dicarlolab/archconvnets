@@ -18,7 +18,8 @@ F1_scale = 0.01 # std of init normal distribution
 F2_scale = 0.01
 F3_scale = 0.01
 FL_scale = 0.01
-CEC_SCALE = 0.01
+CEC_SCALE = 0.001
+FCF_SCALE = 0.0001
 
 EPS_E = 2#3
 EPS = 1*10**(-EPS_E)
@@ -52,7 +53,7 @@ F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
 FCm = np.single(np.random.normal(scale=FL_scale, size=(n4, n3, max_output_sz3, max_output_sz3)))
 FCi = np.single(np.random.normal(scale=FL_scale, size=(n4, n3, max_output_sz3, max_output_sz3)))
 FCo = np.single(np.random.normal(scale=FL_scale, size=(n4, n3, max_output_sz3, max_output_sz3)))
-FCf = np.single(np.random.normal(scale=FL_scale, size=(n4, n3, max_output_sz3, max_output_sz3)))
+FCf = np.single(np.random.normal(scale=FCF_SCALE, size=(n4, n3, max_output_sz3, max_output_sz3)))
 CEC = np.single(np.random.normal(scale=CEC_SCALE, size=(N_IMGS, n4)))
 CEC2 = np.single(np.random.normal(scale=CEC_SCALE, size=(10000, n4)))
 

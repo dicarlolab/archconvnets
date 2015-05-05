@@ -9,13 +9,13 @@ import random
 import gnumpy as gpu
 import scipy
 
-RAND_PERIOD = 10000
-MEM_SZ = 50000
+RAND_PERIOD = 0
+MEM_SZ = 1000000
 EPS_GREED_FINAL = .1
-EPS_GREED_FINAL_TIME = 1000000
+EPS_GREED_FINAL_TIME = 2*1000000
 GAMMA = 0.99
 BATCH_SZ = 32
-NETWORK_UPDATE = 5000
+NETWORK_UPDATE = 10000
 EPS = 5e-3
 MOM_WEIGHT = 0.95
 
@@ -149,39 +149,39 @@ while True:
 	CEC_input[mem_loc] = copy.deepcopy(CEC)
 	y_network_ver[mem_loc] = -1
 	
+	# show blocks
+	img = np.zeros((1,3,32,32),dtype='single')
+	for b in range(N_REDS):
+		img[0,0,SCALE*reds[0,b]:SCALE*(reds[0,b]+1), SCALE*reds[1,b]:SCALE*(reds[1,b]+1)] = 255
+		img[0,2,SCALE*blues[0,b]:SCALE*(blues[0,b]+1), SCALE*blues[1,b]:SCALE*(blues[1,b]+1)] = 255
+	img[0,1,SCALE*player[0]:SCALE*(player[0]+1), SCALE*player[1]:SCALE*(player[1]+1)] = 255
+	
+	# forward pass
+	set_buffer(img, IMGS_PAD, gpu=GPU_CUR)
+		
+	conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_CUR)
+	max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_CUR)
+	conv_buffers(F2_IND, MAX_OUTPUT1, CONV_OUTPUT2, gpu=GPU_CUR)
+	max_pool_cudnn_buffers(CONV_OUTPUT2, MAX_OUTPUT2, gpu=GPU_CUR)
+	conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_CUR)
+	max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_CUR)
+	
+	max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_CUR)
+	
+	FCm_output = np.einsum(FCm, range(4), max_output3, [4, 1,2,3], [4, 0])
+	FCi_output = np.einsum(FCi, range(4), max_output3, [4, 1,2,3], [4, 0])
+	FCo_output = np.einsum(FCo, range(4), max_output3, [4, 1,2,3], [4, 0])
+	FCf_output = np.einsum(FCf, range(4), max_output3, [4, 1,2,3], [4, 0])
+	
+	FC_output = FCo_output*(CEC*FCf_output + FCi_output*FCm_output)
+	
+	CEC = CEC*FCf_output + FCi_output*FCm_output
+	
 	# choose action
-	CHANCE_RAND = np.min((1 - ((1-EPS_GREED_FINAL)/EPS_GREED_FINAL_TIME)*(step - (MEM_SZ+RAND_PERIOD)), 1))
+	CHANCE_RAND = np.max((1 - ((1-EPS_GREED_FINAL)/EPS_GREED_FINAL_TIME)*(step - MEM_SZ), EPS_GREED_FINAL))
 	if np.random.rand() <= CHANCE_RAND:
 		action = np.random.randint(4)
 	else:
-		# show blocks
-		img = np.zeros((1,3,32,32),dtype='single')
-		for b in range(N_REDS):
-			img[0,0,SCALE*reds[0,b]:SCALE*(reds[0,b]+1), SCALE*reds[1,b]:SCALE*(reds[1,b]+1)] = 255
-			img[0,2,SCALE*blues[0,b]:SCALE*(blues[0,b]+1), SCALE*blues[1,b]:SCALE*(blues[1,b]+1)] = 255
-		img[0,1,SCALE*player[0]:SCALE*(player[0]+1), SCALE*player[1]:SCALE*(player[1]+1)] = 255
-		
-		# forward pass
-		set_buffer(img, IMGS_PAD, gpu=GPU_CUR)
-			
-		conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_CUR)
-		max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_CUR)
-		conv_buffers(F2_IND, MAX_OUTPUT1, CONV_OUTPUT2, gpu=GPU_CUR)
-		max_pool_cudnn_buffers(CONV_OUTPUT2, MAX_OUTPUT2, gpu=GPU_CUR)
-		conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_CUR)
-		max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_CUR)
-		
-		max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_CUR)
-		
-		FCm_output = np.einsum(FCm, range(4), max_output3, [4, 1,2,3], [4, 0])
-		FCi_output = np.einsum(FCi, range(4), max_output3, [4, 1,2,3], [4, 0])
-		FCo_output = np.einsum(FCo, range(4), max_output3, [4, 1,2,3], [4, 0])
-		FCf_output = np.einsum(FCf, range(4), max_output3, [4, 1,2,3], [4, 0])
-		
-		FC_output = FCo_output*(CEC*FCf_output + FCi_output*FCm_output)
-		
-		CEC = CEC*FCf_output + FCi_output*FCm_output
-		
 		pred = np.einsum(FL, [0,1], FC_output, [2, 1], [0])
 		
 		action = np.argmax(pred)
@@ -376,11 +376,11 @@ while True:
 				
 	step += 1
 	
-	if step % 4000 == 0:
+	if step % 10000 == 0:
 		r_total_plot.append(r_total)
 		err_plot.append(err)
 		
-		savemat(file_name, {'F1': F1, 'r_total_plot': r_total_plot, 'F2': F2, 'F3': F3, 'FL':FL, 'F1_init': F1_init, 'step': step, 'img': img, 'err_plot': err_plot, 'CEC':CEC})
+		savemat(file_name, {'F1': F1, 'r_total_plot': r_total_plot, 'F2': F2, 'F3': F3, 'FL':FL, 'F1_init': F1_init, 'step': step, 'img': img, 'err_plot': err_plot, 'CEC':CEC, 'CEC_input': CEC_input, 'CEC_output':CEC_output})
 		print 'step:', step, 'err:',err, 'r:',r_total, 'updates:',network_updates, 'eps:', CHANCE_RAND, 'F1:', np.max(F1), 't:',time.time() - t_start, file_name, np.min(CEC), np.max(CEC)
 		
 		err = 0
