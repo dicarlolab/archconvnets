@@ -193,7 +193,7 @@ while True:
 		conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, stream=1, gpu=GPU_UNS)
 
 		###
-		dFL = np.dot(pred_m_Y.T, FC_output*FCo_output)
+		dFL = np.dot(pred_m_Y.T, FC_output)
 		dFCf = np.einsum(max_output3, range(4), FL_pred*FCo_output*CEC, [0,4], [4,1,2,3])
 		dFCo = np.einsum(max_output3, range(4), FL_pred*(CEC*FCf_output + FCi_output*FCm_output), [0,4], [4,1,2,3])
 		dFCm = np.einsum(max_output3, range(4), FCi_output*FL_pred*FCo_output, [0,4], [4,1,2,3])

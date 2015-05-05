@@ -9,11 +9,11 @@ import random
 import gnumpy as gpu
 import scipy
 
-F1_scale = 1e-7 # std of init normal distribution
-F2_scale = 0.000001
-F3_scale = 0.000001
-FL_scale = 0.000001
-CEC_SCALE = 1e-7
+F1_scale = 1e-1 # std of init normal distribution
+F2_scale = 1e-1
+F3_scale = 1e-1
+FL_scale = 1e-1
+CEC_SCALE = 1e-1
 
 
 POOL_SZ = 3
@@ -84,7 +84,9 @@ def f(y):
 	FCi_output = np.einsum(FCi, range(4), conv_output1, [4, 1,2,3], [4, 0])
 	FCo_output = np.einsum(FCo, range(4), conv_output1, [4, 1,2,3], [4, 0])
 	FCf_output = np.einsum(FCf, range(4), conv_output1, [4, 1,2,3], [4, 0])
-	pred = np.einsum(FL, [0,1], FCo_output*(CEC*FCf_output + FCi_output*FCm_output), [2, 1], [2,0])
+	
+	FC_output = FCo_output*(CEC*FCf_output + FCi_output*FCm_output)
+	pred = np.einsum(FL, [0,1], FC_output, [2, 1], [2,0])
 	
 	err = np.sum((pred[:,cat_i] - sc*Y_test[cat_i])**2) # across imgs
 	
@@ -104,7 +106,9 @@ def g(y):
 	FCi_output = np.einsum(FCi, range(4), conv_output1, [4, 1,2,3], [4, 0])
 	FCo_output = np.einsum(FCo, range(4), conv_output1, [4, 1,2,3], [4, 0])
 	FCf_output = np.einsum(FCf, range(4), conv_output1, [4, 1,2,3], [4, 0])
-	pred = np.einsum(FL, [0,1], FCo_output*(CEC*FCf_output + FCi_output*FCm_output), [2, 1], [2,0])
+	
+	FC_output = FCo_output*(CEC*FCf_output + FCi_output*FCm_output)
+	pred = np.einsum(FL, [0,1], FC_output, [2, 1], [2,0])
 	
 	pred_m_Y = pred[:,cat_i] - sc*Y_test[cat_i]
 	
@@ -134,7 +138,7 @@ def g(y):
 	
 np.random.seed(np.int64(time.time()))
 #eps = np.sqrt(np.finfo(np.float).eps)*1e15
-eps = np.sqrt(np.finfo(np.float).eps)*1e13
+eps = np.sqrt(np.finfo(np.float).eps)*1e7
 
 
 N_SAMPLES = 25
@@ -144,6 +148,8 @@ for sample in range(N_SAMPLES):
 	j_ind = np.random.randint(F1.shape[1])
 	k_ind = np.random.randint(F1.shape[2])
 	l_ind = np.random.randint(F1.shape[3])
+	#y = -2e0*F1[i_ind,j_ind,k_ind,l_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps); print gt, gtx, gtx/gt
+	#y = -1e1*F1[i_ind,j_ind,k_ind,l_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps); print gt, gtx, gtx/gt
 	y = -2e0*F1[i_ind,j_ind,k_ind,l_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps); print gt, gtx, gtx/gt
 	y = -1e1*F1[i_ind,j_ind,k_ind,l_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps); print gt, gtx, gtx/gt
 	ratios[sample] = gtx/gt
