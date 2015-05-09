@@ -40,7 +40,7 @@ s1 = 5
 
 N_C = 4 # directions L, R, U, D
 
-file_name = '/home/darren/reinforcement_blocks_moving_CEC64.mat'
+file_name = '/home/darren/reinforcement_blocks_moving_simple_CEC64.mat'
 
 PLAYER_MOV_RATE = 3
 RED_MOV_RATE = 1
@@ -48,8 +48,8 @@ BLUE_MOV_RATE = 1
 
 max_output_sz3  = 5
 
-GPU_CUR = 0
-GPU_PREV = 1
+GPU_CUR = 2
+GPU_PREV = 3
 
 # gpu buffer indices
 MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
@@ -126,7 +126,6 @@ err_plot = []
 ###########
 # init scene
 reds_input = np.zeros((MEM_SZ, 2), dtype='single')
-blues_input = np.zeros((MEM_SZ, 2), dtype='single')
 player_input = np.zeros((MEM_SZ, 2), dtype='int')
 action_input = np.zeros(MEM_SZ, dtype='int')
 CEC_input = np.zeros((MEM_SZ, n4), dtype='single')
@@ -135,24 +134,19 @@ r_output = np.zeros(MEM_SZ)
 y_outputs = np.zeros(MEM_SZ)
 y_network_ver = -np.ones(MEM_SZ)
 reds_output = np.zeros((MEM_SZ, 2), dtype='single')
-blues_output = np.zeros((MEM_SZ, 2), dtype='single')
 player_output = np.zeros((MEM_SZ, 2), dtype='int')
 CEC_output = np.zeros((MEM_SZ, n4), dtype='single')
 
 red_direction = np.random.randint(2)
-blue_direction = np.random.randint(2)
+
+reward_phase = 1
 
 red_axis = 1
-blue_axis = 0
 
 reds = np.zeros(2, dtype='single')
-blues = np.zeros(2, dtype='single')
 
 reds[0] = (32+SCALE) * np.random.random() - SCALE
-blues[1] = (32+SCALE) * np.random.random() - SCALE
-
 reds[1] = (32+SCALE) * np.random.random() - SCALE
-blues[0] = (32+SCALE) * np.random.random() - SCALE
 
 player = np.random.randint(0,MAX_LOC, size=2)
 
@@ -163,7 +157,6 @@ action_recent = np.zeros(MEM_SZ, dtype='int')
 r_recent = np.zeros(MEM_SZ, dtype='int')
 
 imgs_mean_red = np.zeros((32,32))
-imgs_mean_blue = np.zeros((32,32))
 imgs_mean_player = np.zeros((32,32))
 
 t_start = time.time()
@@ -172,7 +165,6 @@ while True:
 	
 	# copy current state
 	reds_input[mem_loc] = copy.deepcopy(reds)
-	blues_input[mem_loc] = copy.deepcopy(blues)
 	player_input[mem_loc] = copy.deepcopy(player)
 	CEC_input[mem_loc] = copy.deepcopy(CEC)
 	y_network_ver[mem_loc] = -1
@@ -180,16 +172,11 @@ while True:
 	# show blocks
 	img = np.zeros((1,3,32,32),dtype='single')
 	img[0,2,np.max((np.round(reds[0]),0)):np.round(reds[0]+SCALE), np.max((np.round(reds[1]),0)):np.round(reds[1]+SCALE)] = 255
-	img[0,2,np.max((np.round(blues[0]),0)):np.round(blues[0]+SCALE), np.max((np.round(blues[1]),0)):np.round(blues[1]+SCALE)] = 255
 	img[0,1,player[0]:(player[0]+SCALE), player[1]:player[1]+SCALE] = 255
 	
 	# debug/visualizations
-	imgs_mean_blue[np.max((np.round(blues[0]),0)):np.round(blues[0]+SCALE), np.max((np.round(blues[1]),0)):np.round(blues[1]+SCALE)] += 1
 	imgs_mean_red[np.max((np.round(reds[0]),0)):np.round(reds[0]+SCALE), np.max((np.round(reds[1]),0)):np.round(reds[1]+SCALE)] += 1
 	imgs_mean_player[player[0]:(player[0]+SCALE), player[1]:player[1]+SCALE] += 1
-	
-	img_key = copy.deepcopy(img)
-	img_key[0,0,np.max((np.round(blues[0]),0)):np.round(blues[0]+SCALE), np.max((np.round(blues[1]),0)):np.round(blues[1]+SCALE)] = 255
 	
 	# forward pass
 	set_buffer(img, IMGS_PAD, gpu=GPU_CUR)
@@ -249,49 +236,36 @@ while True:
 		(player[0] <= reds[0]) * ((player[0] + SCALE) >= reds[0]) * (player[1] >= reds[1]) * (player[1] <= (reds[1] + SCALE)) + \
 		(player[0] >= reds[0]) * (player[0] <= (reds[0] + SCALE)) * (player[1] <= reds[1]) * ((player[1] + SCALE) >= reds[1]) + \
 		(player[0] <= reds[0]) * ((player[0] + SCALE) >= reds[0]) * (player[1] <= reds[1]) * ((player[1] + SCALE) >= reds[1]):
-			r += -1
+			r += reward_phase
+			if reward_phase == 1:
+				reward_phase = -1
+			else:
+				reward_phase = 1
 			red_direction = np.random.randint(2)
-			red_axis = 1 - red_axis
+			red_axis = np.random.randint(2)
 			
 			reds[0] = (32+SCALE) * np.random.random() - SCALE
 			reds[1] = (32+SCALE) * np.random.random() - SCALE
-
-	# blue collision, place new blue block
-	if (player[0] >= blues[0]) * (player[0] <= (blues[0] + SCALE)) * (player[1] >= blues[1]) * (player[1] <= (blues[1] + SCALE)) + \
-		(player[0] <= blues[0]) * ((player[0] + SCALE) >= blues[0]) * (player[1] >= blues[1]) * (player[1] <= (blues[1] + SCALE)) + \
-		(player[0] >= blues[0]) * (player[0] <= (blues[0] + SCALE)) * (player[1] <= blues[1]) * ((player[1] + SCALE) >= blues[1]) + \
-		(player[0] <= blues[0]) * ((player[0] + SCALE) >= blues[0]) * (player[1] <= blues[1]) * ((player[1] + SCALE) >= blues[1]):
-			r += 1
-			blue_direction = np.random.randint(2)
-			blue_axis = 1 - blue_axis
-			
-			blues[1] = (32+SCALE) * np.random.random() - SCALE
-			blues[0] = (32+SCALE) * np.random.random() - SCALE
 
 	r_total += r
 	
 	# move blocks
 	reds[red_axis] -= RED_MOV_RATE * (2*red_direction - 1)
-	blues[blue_axis] -= BLUE_MOV_RATE * (2*blue_direction - 1)
 	
 	# have any blocks moved off screen?
 	if reds[red_axis] < -SCALE or reds[red_axis] > 32:
+		if reward_phase == 1:
+			reward_phase = -1
+		else:
+			reward_phase = 1
 		red_direction = np.random.randint(2)
-		red_axis = 1 - red_axis
+		red_axis = np.random.randint(2)
 			
 		reds[0] = (32+SCALE) * np.random.random() - SCALE
 		reds[1] = (32+SCALE) * np.random.random() - SCALE
 		
-	if blues[blue_axis] < -SCALE or blues[blue_axis] > 32:
-		blue_direction = np.random.randint(2)
-		blue_axis = 1 - blue_axis
-			
-		blues[1] = (32+SCALE) * np.random.random() - SCALE
-		blues[0] = (32+SCALE) * np.random.random() - SCALE
-	
 	# copy current state
 	reds_output[mem_loc] = copy.deepcopy(reds)
-	blues_output[mem_loc] = copy.deepcopy(blues)
 	player_output[mem_loc] = copy.deepcopy(player)
 	r_output[mem_loc] = r
 	CEC_output[mem_loc] = copy.deepcopy(CEC)
@@ -304,7 +278,6 @@ while True:
 	action_recent[save_loc] = action
 	r_recent[save_loc] = r
 	imgs_recent[save_loc] = copy.deepcopy(img[0])
-	imgs_recent_key[save_loc] = copy.deepcopy(img_key[0])
 	
 	if step == MEM_SZ:
 		print 'beginning gradient computations'
@@ -324,11 +297,8 @@ while True:
 		img_cur[0,1,player_input[trans][0]:(player_input[trans][0]+SCALE), player_input[trans][1]:(player_input[trans][1]+SCALE)] = 255
 		
 		img_prev[0,2,np.max((np.round(reds_output[trans][0]),0)):np.round(reds_output[trans][0]+SCALE), np.max((np.round(reds_output[trans][1]),0)):np.round(reds_output[trans][1]+SCALE)] = 255
-		img_prev[0,2,np.max((np.round(blues_output[trans][0]),0)):np.round(blues_output[trans][0]+SCALE), np.max((np.round(blues_output[trans][1]),0)):np.round(blues_output[trans][1]+SCALE)] = 255
 		
 		img_cur[0,2,np.max((np.round(reds_input[trans][0]),0)):np.round(reds_input[trans][0]+SCALE), np.max((np.round(reds_input[trans][1]),0)):np.round(reds_input[trans][1]+SCALE)] = 255
-		img_cur[0,2,np.max((np.round(blues_input[trans][0]),0)):np.round(blues_input[trans][0]+SCALE), np.max((np.round(blues_input[trans][1]),0)):np.round(blues_input[trans][1]+SCALE)] = 255
-			
 		
 		set_buffer(img_cur, IMGS_PAD, gpu=GPU_CUR)
 		
@@ -503,9 +473,9 @@ while True:
 		err_plot.append(err)
 		
 		savemat(file_name, {'F1': F1, 'r_total_plot': r_total_plot, 'F2': F2, 'F3': F3, 'FL':FL, 'F1_init': F1_init, 'step': step, 'img': img, 'err_plot': err_plot, 'CEC':CEC, 'CEC_input': CEC_input, 'imgs_mean_player': imgs_mean_player, 'imgs_mean_red': imgs_mean_red, \
-				'imgs_mean_blue': imgs_mean_blue, 'CEC_recent':CEC_recent, \
+				'CEC_recent':CEC_recent, \
 				'CEC_output':CEC_output, 'action_recent': action_recent, 'r_recent':r_recent,\
-				'imgs_recent': imgs_recent, 'imgs_recent_key': imgs_recent_key})
+				'imgs_recent': imgs_recent})
 		
 		conv_output1 = return_buffer(CONV_OUTPUT1, gpu=GPU_CUR)
 		conv_output2 = return_buffer(CONV_OUTPUT2, gpu=GPU_CUR)

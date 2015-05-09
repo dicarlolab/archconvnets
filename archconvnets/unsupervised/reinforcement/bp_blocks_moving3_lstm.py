@@ -25,8 +25,8 @@ F1_scale = 1e-2
 F2_scale = 1e-2
 F3_scale = 1e-2
 FL_scale = 1e-2
-CEC_SCALE = 1e-3
-FCF_SCALE = 1e-4
+CEC_SCALE = 1e-1
+FCF_SCALE = 1e-1
 
 N = 32
 n1 = N # L1 filters
@@ -40,7 +40,7 @@ s1 = 5
 
 N_C = 4 # directions L, R, U, D
 
-file_name = '/home/darren/reinforcement_blocks_moving2_nCEC64.mat'
+file_name = '/home/darren/reinforcement_blocks_moving2_CEC64.mat'
 
 PLAYER_MOV_RATE = 3
 RED_MOV_RATE = 1
@@ -48,8 +48,8 @@ BLUE_MOV_RATE = 1
 
 max_output_sz3  = 5
 
-GPU_CUR = 0
-GPU_PREV = 1
+GPU_CUR = 2
+GPU_PREV = 3
 
 # gpu buffer indices
 MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
@@ -113,6 +113,8 @@ dFCm_mom = np.zeros_like(FCm)
 dFCi_mom = np.zeros_like(FCi)
 dFCo_mom = np.zeros_like(FCo)
 dFCf_mom = np.zeros_like(FCf)
+
+mem_contrib = 0; curr_contrib = 0
 
 r_total = 0
 r_total_plot = []
@@ -208,7 +210,10 @@ while True:
 	
 	FC_output = FCo_output*(CEC*FCf_output + FCi_output*FCm_output)
 	
-	#CEC = CEC*FCf_output + FCi_output*FCm_output
+	CEC_kept = CEC*FCf_output
+        CEC_new = FCi_output*FCm_output	
+	
+	CEC = CEC*FCf_output + FCi_output*FCm_output
 	
 	# choose action
 	CHANCE_RAND = np.max((1 - ((1-EPS_GREED_FINAL)/EPS_GREED_FINAL_TIME)*(step - MEM_SZ), EPS_GREED_FINAL))
@@ -366,8 +371,10 @@ while True:
 		
 		FC_output = FCo_output*(CEC_input[trans]*FCf_output + FCi_output*FCm_output)
 		
-		pred = np.einsum(FL, [0,1], FC_output, [2, 1], [0])
-		pred += np.einsum(FL_bypass, range(4), max_output3, [4,1,2,3], [0])
+		mem_contrib = np.einsum(FL, [0,1], FC_output, [2, 1], [0])
+                curr_contrib = np.einsum(FL_bypass, range(4), max_output3, [4,1,2,3], [0])
+
+                pred = mem_contrib + curr_contrib
 		
 		pred_m_Y = y_outputs[trans] - pred[action_input[trans]]
 		
@@ -415,10 +422,10 @@ while True:
 			FL += (dFL + MOM_WEIGHT*dFL_mom)*EPS / BATCH_SZ
 			FL_bypass += (dFL_bypass + MOM_WEIGHT*dFL_bypass_mom)*EPS / BATCH_SZ
 			
-			dFCf += (dFCf + MOM_WEIGHT*dFCf_mom)*EPS / BATCH_SZ
-			dFCo += (dFCo + MOM_WEIGHT*dFCo_mom)*EPS / BATCH_SZ
-			dFCm += (dFCm + MOM_WEIGHT*dFCm_mom)*EPS / BATCH_SZ
-			dFCi += (dFCi + MOM_WEIGHT*dFCi_mom)*EPS / BATCH_SZ
+			FCf += (dFCf + MOM_WEIGHT*dFCf_mom)*EPS / BATCH_SZ
+			FCo += (dFCo + MOM_WEIGHT*dFCo_mom)*EPS / BATCH_SZ
+			FCm += (dFCm + MOM_WEIGHT*dFCm_mom)*EPS / BATCH_SZ
+			FCi += (dFCi + MOM_WEIGHT*dFCi_mom)*EPS / BATCH_SZ
 			
 			set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_CUR)
 			set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_CUR)
@@ -472,8 +479,36 @@ while True:
 				'imgs_mean_blue': imgs_mean_blue, 'CEC_recent':CEC_recent, \
 				'CEC_output':CEC_output, 'action_recent': action_recent, 'r_recent':r_recent,\
 				'imgs_recent': imgs_recent, 'imgs_recent_key': imgs_recent_key})
-		print step, 'err:',err, 'r:',r_total, 'updates:',network_updates, 'eps:', CHANCE_RAND, 'F1:', np.max(F1), 't:',time.time() - t_start, file_name, np.min(CEC), np.max(CEC)
-		
+		conv_output1 = return_buffer(CONV_OUTPUT1, gpu=GPU_CUR)
+                conv_output2 = return_buffer(CONV_OUTPUT2, gpu=GPU_CUR)
+                conv_output3 = return_buffer(CONV_OUTPUT3, gpu=GPU_CUR)
+                print '---------------------------------------------'
+                print step, 'err:',err, 'r:',r_total, 'updates:',network_updates, 'eps:', CHANCE_RAND, 't:',time.time() - t_start, file_name
+                ft = EPS/BATCH_SZ
+                print 'F1: %f %f (%f);   layer: %f %f' % (np.min(F1), np.max(F1), np.median(np.abs(ft*dF1.ravel())/np.abs(F1.ravel())),\
+                                                np.min(conv_output1), np.max(conv_output1))
+                print 'F2: %f %f (%f)   layer: %f %f' % (np.min(F2), np.max(F2), np.median(np.abs(ft*dF2.ravel())/np.abs(F2.ravel())),\
+                                                np.min(conv_output2), np.max(conv_output2))
+                print 'F3: %f %f (%f)   layer: %f %f' % (np.min(F3), np.max(F3), np.median(np.abs(ft*dF3.ravel())/np.abs(F3.ravel())),\
+                                                np.min(conv_output3), np.max(conv_output3))
+                print 'FCm: %f %f (%f)   layer: %f %f (%f)' % (np.min(FCm), np.max(FCm), np.median(np.abs(ft*dFCm.ravel())/np.abs(FCm.ravel())),\
+                                                np.min(FCm_output), np.max(FCm_output), np.median(FCm_output))
+                print 'FCf: %f %f (%f)   layer: %f %f (%f)' % (np.min(FCf), np.max(FCf), np.median(np.abs(ft*dFCf.ravel())/np.abs(FCf.ravel())),\
+                                                np.min(FCf_output), np.max(FCf_output), np.median(FCf_output))
+                print 'FCi: %f %f (%f)   layer: %f %f (%f)' % (np.min(FCi), np.max(FCi), np.median(np.abs(ft*dFCi.ravel())/np.abs(FCi.ravel())),\
+                                                np.min(FCi_output), np.max(FCi_output), np.median(FCi_output))
+                print 'FCo: %f %f (%f)   layer: %f %f (%f)' % (np.min(FCo), np.max(FCo), np.median(np.abs(ft*dFCo.ravel())/np.abs(FCo.ravel())),\
+                                                np.min(FCo_output), np.max(FCo_output), np.median(FCo_output))
+                print 'CEC: %f %f, kept: %f %f, new: %f %f' % (np.min(CEC), np.max(CEC), np.min(CEC_kept), np.max(CEC_kept), \
+                                                np.min(CEC_new), np.max(CEC_new))
+                print 'FC.: %f %f' % (np.min(FC_output), np.max(FC_output))
+                print 'FLmem: %f %f (%f)   layer: %f %f' % (np.min(FL), np.max(FL), np.median(np.abs(ft*dFL.ravel())/np.abs(FL.ravel())),\
+                                                np.min(mem_contrib), np.max(mem_contrib))
+                if np.max(curr_contrib) != 0:
+                        print 'FLbypass: %f %f (%f)   layer: %f %f (contrib %f)' % (np.min(FL_bypass), np.max(FL_bypass), \
+                                                np.median(np.abs(ft*dFL_bypass.ravel())/np.abs(FL_bypass.ravel())),\
+                                                np.min(curr_contrib), np.max(curr_contrib), np.median(np.abs(mem_contrib)/np.abs(curr_contrib)))
+
 		err = 0
 		r_total = 0
 		
