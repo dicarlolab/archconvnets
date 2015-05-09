@@ -58,8 +58,8 @@ CEC2 = np.single(np.random.normal(scale=CEC_SCALE, size=(10000, n4)))
 
 FL = np.single(np.random.normal(scale=FL_scale, size=(10, n4)))
 
-CEC = np.zeros_like(CEC)
-CEC2 = np.zeros_like(CEC2)
+#CEC = np.zeros_like(CEC)
+#CEC2 = np.zeros_like(CEC2)
 
 CEC_kept = 0; CEC_new = 0
 dF1 = np.zeros_like(F1)
@@ -160,8 +160,6 @@ while True:
 			print '---------------------------------------------'
 			print epoch, batch, 'class:', class_err[-1], 'err:', err[-1], ' F1:', np.sum(np.abs(F1)), time.time() - t_mcc, time.time() - t_start, file_name
 			ft = EPS/N_IMGS
-			print 'CEC: %f %f, kept: %f %f, new: %f %f' % (np.min(CEC), np.max(CEC), np.min(CEC_kept), np.max(CEC_kept), \
-							np.min(CEC_new), np.max(CEC_new))
 			print 'F1: %f %f (%f);   layer: %f %f' % (np.min(F1), np.max(F1), np.median(np.abs(ft*dF1.ravel())/np.abs(F1.ravel())),\
 							np.min(conv_output1), np.max(conv_output1))
 			print 'F2: %f %f (%f)   layer: %f %f' % (np.min(F2), np.max(F2), np.median(np.abs(ft*dF2.ravel())/np.abs(F2.ravel())),\
@@ -176,6 +174,8 @@ while True:
 							np.min(FCi_output), np.max(FCi_output), np.median(FCi_output))
 			print 'FCo: %f %f (%f)   layer: %f %f (%f)' % (np.min(FCo), np.max(FCo), np.median(np.abs(ft*dFCo.ravel())/np.abs(FCo.ravel())),\
 							np.min(FCo_output), np.max(FCo_output), np.median(FCo_output))
+			print 'CEC: %f %f, kept: %f %f, new: %f %f' % (np.min(CEC), np.max(CEC), np.min(CEC_kept), np.max(CEC_kept), \
+							np.min(CEC_new), np.max(CEC_new))
 			print 'FC.: %f %f' % (np.min(FC_output), np.max(FC_output))
 			
 			savemat(file_name, {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,'F2':F2,'F3':F3,'EPS':EPS})
