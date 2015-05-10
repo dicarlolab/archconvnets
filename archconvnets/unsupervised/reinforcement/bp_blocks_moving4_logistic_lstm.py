@@ -8,7 +8,7 @@ import random
 import scipy
 
 RAND_PERIOD = 0
-MEM_SZ = 1000000
+MEM_SZ = 500000#00
 EPS_GREED_FINAL = .1
 EPS_GREED_FINAL_TIME = 10000000
 GAMMA = 0.99
@@ -152,6 +152,8 @@ player_input = np.zeros((MEM_SZ, 2), dtype='int')
 action_input = np.zeros(MEM_SZ, dtype='int')
 CEC_input = np.zeros((MEM_SZ, n4), dtype='single')
 CEC2_input = np.zeros((MEM_SZ, n5), dtype='single')
+show_transition_input = np.zeros(MEM_SZ, dtype='int')
+show_transition_c_input = np.zeros(MEM_SZ, dtype='int')
 
 r_output = np.zeros(MEM_SZ)
 y_outputs = np.zeros(MEM_SZ,dtype='single')
@@ -160,17 +162,23 @@ reds_output = np.zeros((MEM_SZ, 2), dtype='single')
 player_output = np.zeros((MEM_SZ, 2), dtype='int')
 CEC_output = np.zeros((MEM_SZ, n4), dtype='single')
 CEC2_output = np.zeros((MEM_SZ, n5), dtype='single')
-
-red_direction = np.random.randint(2)
-
-reward_phase = 1
-
-red_axis = 1
+show_transition_output = np.zeros(MEM_SZ, dtype='int')
+show_transition_c_output = np.zeros(MEM_SZ, dtype='int')
 
 reds = np.zeros(2, dtype='single')
+reward_phase = 1
 
-reds[0] = (32+SCALE) * np.random.random() - SCALE
-reds[1] = (32+SCALE) * np.random.random() - SCALE
+show_transition = 255
+
+red_axis = np.random.randint(2)
+red_direction = np.random.randint(2)
+
+if red_direction == 1:
+	reds[red_axis] = 32
+else:
+	reds[red_axis] = -SCALE
+
+reds[1 - red_axis] = (32+SCALE) * np.random.random() - SCALE
 
 player = np.random.randint(0,MAX_LOC, size=2)
 
@@ -178,7 +186,7 @@ imgs_recent = np.zeros((SAVE_FREQ, 3, 32, 32), dtype='single')
 imgs_recent_key = np.zeros((SAVE_FREQ, 3, 32, 32), dtype='single')
 CEC_recent = np.zeros((SAVE_FREQ, n4), dtype='single')
 action_recent = np.zeros(MEM_SZ, dtype='int')
-r_recent = np.zeros(MEM_SZ, dtype='int')
+r_recent = np.zeros(MEM_SZ, dtype='single')
 
 imgs_mean_red = np.zeros((32,32))
 imgs_mean_player = np.zeros((32,32))
@@ -192,12 +200,17 @@ while True:
 	player_input[mem_loc] = copy.deepcopy(player)
 	CEC_input[mem_loc] = copy.deepcopy(CEC)
 	CEC2_input[mem_loc] = copy.deepcopy(CEC2)
+	show_transition_input[mem_loc] = copy.deepcopy(show_transition)
 	y_network_ver[mem_loc] = -1
+	show_transition_c_input[mem_loc] = copy.deepcopy(reward_phase+1)
 	
 	# show blocks
 	img = np.zeros((1,3,32,32),dtype='single')
 	img[0,2,np.max((np.round(reds[0]),0)):np.round(reds[0]+SCALE), np.max((np.round(reds[1]),0)):np.round(reds[1]+SCALE)] = 255
 	img[0,1,player[0]:(player[0]+SCALE), player[1]:player[1]+SCALE] = 255
+	img[0,reward_phase+1,player[0]:(player[0]+SCALE), player[1]:player[1]+SCALE] = show_transition
+	
+	show_transition = 0
 	
 	# debug/visualizations
 	imgs_mean_red[np.max((np.round(reds[0]),0)):np.round(reds[0]+SCALE), np.max((np.round(reds[1]),0)):np.round(reds[1]+SCALE)] += 1
@@ -283,35 +296,50 @@ while True:
 				reward_phase = -1
 			else:
 				reward_phase = 1
-			red_direction = np.random.randint(2)
-			red_axis = np.random.randint(2)
 			
-			reds[0] = (32+SCALE) * np.random.random() - SCALE
-			reds[1] = (32+SCALE) * np.random.random() - SCALE
+			red_axis = np.random.randint(2)
+			red_direction = np.random.randint(2)
 
-	r_total += r
-	
+			if red_direction == 1:
+				reds[red_axis] = 32
+			else:
+				reds[red_axis] = -SCALE
+
+			reds[1 - red_axis] = (32+SCALE) * np.random.random() - SCALE
+			show_transition = 255
+
 	# move blocks
 	reds[red_axis] -= RED_MOV_RATE * (2*red_direction - 1)
 	
 	# have any blocks moved off screen?
 	if reds[red_axis] < -SCALE or reds[red_axis] > 32:
+		r += reward_phase/4.
 		if reward_phase == 1:
 			reward_phase = -1
 		else:
 			reward_phase = 1
-		red_direction = np.random.randint(2)
-		red_axis = np.random.randint(2)
-			
-		reds[0] = (32+SCALE) * np.random.random() - SCALE
-		reds[1] = (32+SCALE) * np.random.random() - SCALE
 		
+		red_axis = np.random.randint(2)
+		red_direction = np.random.randint(2)
+
+		if red_direction == 1:
+			reds[red_axis] = 32
+		else:
+			reds[red_axis] = -SCALE
+
+		reds[1 - red_axis] = (32+SCALE) * np.random.random() - SCALE
+		show_transition = 255
+	
+	r_total += r
+	
 	# copy current state
 	reds_output[mem_loc] = copy.deepcopy(reds)
 	player_output[mem_loc] = copy.deepcopy(player)
 	r_output[mem_loc] = r
 	CEC_output[mem_loc] = copy.deepcopy(CEC)
 	CEC2_output[mem_loc] = copy.deepcopy(CEC2)
+	show_transition_output[mem_loc] = copy.deepcopy(show_transition)
+	show_transition_c_output[mem_loc] = copy.deepcopy(reward_phase+1)
 	action_input[mem_loc] = action
 	
 	# debug/visualization
@@ -338,6 +366,9 @@ while True:
 		
 		img_prev[0,1,player_output[trans][0]:(player_output[trans][0]+SCALE), player_output[trans][1]:(player_output[trans][1]+SCALE)] = 255
 		img_cur[0,1,player_input[trans][0]:(player_input[trans][0]+SCALE), player_input[trans][1]:(player_input[trans][1]+SCALE)] = 255
+		
+		img_prev[0,show_transition_c_output[trans],player_output[trans][0]:(player_output[trans][0]+SCALE), player_output[trans][1]:(player_output[trans][1]+SCALE)] = show_transition_output[trans]
+		img_cur[0,show_transition_c_input[trans],player_input[trans][0]:(player_input[trans][0]+SCALE), player_input[trans][1]:(player_input[trans][1]+SCALE)] = show_transition_input[trans]
 		
 		img_prev[0,2,np.max((np.round(reds_output[trans][0]),0)):np.round(reds_output[trans][0]+SCALE), np.max((np.round(reds_output[trans][1]),0)):np.round(reds_output[trans][1]+SCALE)] = 255
 		
@@ -457,10 +488,10 @@ while True:
 		FC2m_output_rev_sig = above_w * FC2o_output * (FC2i_output * FC2m_output_rev)
 		FC2o_output_rev_sig = above_w * FC2o_output_rev * (FC2f_output * CEC2 + FC2i_output * FC2m_output)
 		
-		dFC2f += 1e3*np.einsum(FC_output, [0,1], FC2f_output_rev_sig, [0,2], [2,1])
-		dFC2i += 1e3*np.einsum(FC_output, [0,1], FC2i_output_rev_sig, [0,2], [2,1])
-		dFC2m += 1e3*np.einsum(FC_output, [0,1], FC2m_output_rev_sig, [0,2], [2,1])
-		dFC2o += 1e3*np.einsum(FC_output, [0,1], FC2o_output_rev_sig, [0,2], [2,1])
+		dFC2f += 1e1*np.einsum(FC_output, [0,1], FC2f_output_rev_sig, [0,2], [2,1])
+		dFC2i += 1e1*np.einsum(FC_output, [0,1], FC2i_output_rev_sig, [0,2], [2,1])
+		dFC2m += 1e1*np.einsum(FC_output, [0,1], FC2m_output_rev_sig, [0,2], [2,1])
+		dFC2o += 1e1*np.einsum(FC_output, [0,1], FC2o_output_rev_sig, [0,2], [2,1])
 		
 		above_w = np.einsum(FC2o, [0,1], FC2o_output_rev_sig, [2,0], [2,1])
 		above_w += np.einsum(FC2f, [0,1], FC2f_output_rev_sig, [2,0], [2,1])
@@ -474,10 +505,10 @@ while True:
 		FCm_output_rev_sig = above_w * FCo_output * (FCi_output * FCm_output_rev)
 		FCo_output_rev_sig = above_w * FCo_output_rev * (FCf_output * CEC + FCi_output * FCm_output)
 		
-		dFCf += 1e3*np.einsum(max_output3, range(4), FCf_output_rev_sig, [0,4], [4,1,2,3])
-		dFCi += 1e3*np.einsum(max_output3, range(4), FCi_output_rev_sig, [0,4], [4,1,2,3])
-		dFCm += 1e3*np.einsum(max_output3, range(4), FCm_output_rev_sig, [0,4], [4,1,2,3])
-		dFCo += 1e3*np.einsum(max_output3, range(4), FCo_output_rev_sig, [0,4], [4,1,2,3])
+		dFCf += 1e1*np.einsum(max_output3, range(4), FCf_output_rev_sig, [0,4], [4,1,2,3])
+		dFCi += 1e1*np.einsum(max_output3, range(4), FCi_output_rev_sig, [0,4], [4,1,2,3])
+		dFCm += 1e1*np.einsum(max_output3, range(4), FCm_output_rev_sig, [0,4], [4,1,2,3])
+		dFCo += 1e1*np.einsum(max_output3, range(4), FCo_output_rev_sig, [0,4], [4,1,2,3])
 		
 		above_w = np.einsum(FCo, range(4), FCo_output_rev_sig, [4,0], [4,1,2,3])
 		above_w += np.einsum(FCi, range(4), FCi_output_rev_sig, [4,0], [4,1,2,3])
