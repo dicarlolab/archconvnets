@@ -40,7 +40,7 @@ s1 = 5
 
 N_C = 4 # directions L, R, U, D
 
-file_name = '/home/darren/reinforcement_blocks_moving_simple_CEC64.mat'
+file_name = '/home/darren/reinforcement_blocks_moving_simple_CEC.mat'
 
 PLAYER_MOV_RATE = 3
 RED_MOV_RATE = 1
@@ -586,10 +586,10 @@ while True:
 		r_total_plot.append(r_total)
 		err_plot.append(err)
 		
-		savemat(file_name, {'F1': F1, 'r_total_plot': r_total_plot, 'F2': F2, 'F3': F3, 'FL':FL, 'F1_init': F1_init, 'step': step, 'img': img, 'err_plot': err_plot, 'CEC':CEC, 'CEC_input': CEC_input, 'imgs_mean_player': imgs_mean_player, 'imgs_mean_red': imgs_mean_red, \
-				'CEC_recent':CEC_recent, \
-				'CEC_output':CEC_output, 'action_recent': action_recent, 'r_recent':r_recent,\
-				'imgs_recent': imgs_recent})
+		savemat(file_name, {'F1': F1, 'r_total_plot': r_total_plot, 'F2': F2, 'F3': F3, 'FL':FL, 'F1_init': F1_init, 'step': step, 'img': img, 'err_plot': err_plot, 'CEC':CEC, 'imgs_mean_player': imgs_mean_player, 'imgs_mean_red': imgs_mean_red, \
+				'CEC_recent':CEC_recent, 'action_recent': action_recent, 'r_recent':r_recent,'SAVE_FREQ':SAVE_FREQ,\
+				'imgs_recent': imgs_recent, 'FCi': FCi, 'FCm': FCm, 'FCf': FCf, 'FCo': FCo, 'EPS':EPS, 'NETWORK_UPDATE':NETWORK_UPDATE,\
+				'FC2i': FCi, 'FC2m': FC2m, 'FC2f': FC2f, 'FC2o': FC2o,'MEM_SZ':MEM_SZ,'EPS_GREED_FINAL_TIME':EPS_GREED_FINAL_TIME})
 		
 		conv_output1 = return_buffer(CONV_OUTPUT1, gpu=GPU_CUR)
 		conv_output2 = return_buffer(CONV_OUTPUT2, gpu=GPU_CUR)
