@@ -8,9 +8,9 @@ import random
 import scipy
 
 RAND_PERIOD = 0
-MEM_SZ = 100000
+MEM_SZ = 1000000
 EPS_GREED_FINAL = .1
-EPS_GREED_FINAL_TIME = 2*1000000
+EPS_GREED_FINAL_TIME = 10000000
 GAMMA = 0.99
 BATCH_SZ = 32
 NETWORK_UPDATE = 10000
@@ -25,14 +25,14 @@ F1_scale = 1e-2
 F2_scale = 1e-2
 F3_scale = 1e-2
 FL_scale = 1e-2
-CEC_SCALE = 1e-1
-FCF_SCALE = 1e-1
+CEC_SCALE = 1e-2
 
 N = 32
 n1 = N # L1 filters
 n2 = N # ...
 n3 = N
-n4 = 64
+n4 = 128
+n5 = 128
 
 s3 = 3 # L1 filter size (px)
 s2 = 4 # ...
@@ -66,20 +66,31 @@ F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
 F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
 F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
 
-FCm = np.single(np.random.normal(scale=FCF_SCALE, size=(n4, n3, max_output_sz3, max_output_sz3)))
-FCi = np.single(np.random.normal(scale=FCF_SCALE, size=(n4, n3, max_output_sz3, max_output_sz3)))
-FCo = np.single(np.random.normal(scale=FCF_SCALE, size=(n4, n3, max_output_sz3, max_output_sz3)))
-FCf = np.single(np.random.normal(scale=FCF_SCALE, size=(n4, n3, max_output_sz3, max_output_sz3)))
+FCm = np.single(np.random.normal(scale=FL_scale, size=(n4, n3, max_output_sz3, max_output_sz3)))
+FCi = np.single(np.random.normal(scale=FL_scale, size=(n4, n3, max_output_sz3, max_output_sz3)))
+FCo = np.single(np.random.normal(scale=FL_scale, size=(n4, n3, max_output_sz3, max_output_sz3)))
+FCf = np.single(np.random.normal(scale=FL_scale, size=(n4, n3, max_output_sz3, max_output_sz3)))
 CEC = np.single(np.random.normal(scale=CEC_SCALE, size=(n4)))
 
-FL = np.single(np.random.normal(scale=FCF_SCALE, size=(N_C, n4)))
+FC2f = np.single(np.random.normal(scale=1, size=(n5, n4)))
+FC2o = np.single(np.random.normal(scale=1, size=(n5, n4)))
+FC2i = np.single(np.random.normal(scale=1, size=(n5, n4)))
+FC2m = np.single(np.random.normal(scale=1, size=(n5, n4)))
+CEC2 = np.single(np.random.normal(scale=1, size=(n5)))
+
+FL = np.single(np.random.normal(scale=FL_scale, size=(N_C, n5)))
 FL_bypass = np.single(np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, max_output_sz3)))
 
 FCm_prev = copy.deepcopy(FCm)
 FCi_prev = copy.deepcopy(FCi)
 FCo_prev = copy.deepcopy(FCo)
 FCf_prev = copy.deepcopy(FCf)
-CEC_prev = copy.deepcopy(CEC)
+
+FC2m_prev = copy.deepcopy(FC2m)
+FC2i_prev = copy.deepcopy(FC2i)
+FC2o_prev = copy.deepcopy(FC2o)
+FC2f_prev = copy.deepcopy(FC2f)
+
 
 FL_prev = copy.deepcopy(FL)
 FL_bypass_prev = copy.deepcopy(FL_bypass)
@@ -105,6 +116,11 @@ dFCi = np.zeros_like(FCi)
 dFCo = np.zeros_like(FCo)
 dFCf = np.zeros_like(FCf)
 
+dFC2m = np.zeros_like(FC2m)
+dFC2i = np.zeros_like(FC2i)
+dFC2o = np.zeros_like(FC2o)
+dFC2f = np.zeros_like(FC2f)
+
 dF1_mom = np.zeros_like(F1)
 dF2_mom = np.zeros_like(F2)
 dF3_mom = np.zeros_like(F3)
@@ -115,6 +131,12 @@ dFCm_mom = np.zeros_like(FCm)
 dFCi_mom = np.zeros_like(FCi)
 dFCo_mom = np.zeros_like(FCo)
 dFCf_mom = np.zeros_like(FCf)
+
+dFC2m_mom = np.zeros_like(FC2m)
+dFC2i_mom = np.zeros_like(FC2i)
+dFC2o_mom = np.zeros_like(FC2o)
+dFC2f_mom = np.zeros_like(FC2f)
+
 
 r_total = 0
 r_total_plot = []
@@ -129,13 +151,15 @@ reds_input = np.zeros((MEM_SZ, 2), dtype='single')
 player_input = np.zeros((MEM_SZ, 2), dtype='int')
 action_input = np.zeros(MEM_SZ, dtype='int')
 CEC_input = np.zeros((MEM_SZ, n4), dtype='single')
+CEC2_input = np.zeros((MEM_SZ, n5), dtype='single')
 
 r_output = np.zeros(MEM_SZ)
-y_outputs = np.zeros(MEM_SZ)
+y_outputs = np.zeros(MEM_SZ,dtype='single')
 y_network_ver = -np.ones(MEM_SZ)
 reds_output = np.zeros((MEM_SZ, 2), dtype='single')
 player_output = np.zeros((MEM_SZ, 2), dtype='int')
 CEC_output = np.zeros((MEM_SZ, n4), dtype='single')
+CEC2_output = np.zeros((MEM_SZ, n5), dtype='single')
 
 red_direction = np.random.randint(2)
 
@@ -167,6 +191,7 @@ while True:
 	reds_input[mem_loc] = copy.deepcopy(reds)
 	player_input[mem_loc] = copy.deepcopy(player)
 	CEC_input[mem_loc] = copy.deepcopy(CEC)
+	CEC2_input[mem_loc] = copy.deepcopy(CEC2)
 	y_network_ver[mem_loc] = -1
 	
 	# show blocks
@@ -207,12 +232,29 @@ while True:
 	
 	CEC = CEC*FCf_output + FCi_output*FCm_output
 	
+	FC2f_output_pre = np.einsum(FC2f, [0,1], FC_output, [2,1], [2,0])
+	FC2o_output_pre = np.einsum(FC2o, [0,1], FC_output, [2,1], [2,0])
+	FC2i_output_pre = np.einsum(FC2i, [0,1], FC_output, [2,1], [2,0])
+	FC2m_output_pre = np.einsum(FC2m, [0,1], FC_output, [2,1], [2,0])
+	
+	FC2f_output = 1 / (1 + np.exp(-FC2f_output_pre))
+	FC2o_output = 1 / (1 + np.exp(-FC2o_output_pre))
+	FC2i_output = 1 / (1 + np.exp(-FC2i_output_pre))
+	FC2m_output = FC2m_output_pre
+	
+	FC2_output = FC2o_output * (FC2f_output * CEC2 + FC2i_output * FC2m_output)
+	
+	CEC2_kept = CEC2*FC2f_output
+	CEC2_new = FC2i_output*FC2m_output
+	
+	CEC2 = CEC2*FC2f_output + FC2i_output*FC2m_output
+	
 	# choose action
 	CHANCE_RAND = np.max((1 - ((1-EPS_GREED_FINAL)/EPS_GREED_FINAL_TIME)*(step - MEM_SZ), EPS_GREED_FINAL))
 	if np.random.rand() <= CHANCE_RAND:
 		action = np.random.randint(4)
 	else:
-		pred = np.einsum(FL, [0,1], FC_output, [2, 1], [0])
+		pred = np.einsum(FL, [0,1], FC2_output, [2, 1], [0])
 		#pred += np.einsum(FL_bypass, range(4), max_output3, [4,1,2,3], [0])
 		
 		action = np.argmax(pred)
@@ -269,6 +311,7 @@ while True:
 	player_output[mem_loc] = copy.deepcopy(player)
 	r_output[mem_loc] = r
 	CEC_output[mem_loc] = copy.deepcopy(CEC)
+	CEC2_output[mem_loc] = copy.deepcopy(CEC2)
 	action_input[mem_loc] = action
 	
 	# debug/visualization
@@ -336,7 +379,19 @@ while True:
 			
 			FC_output = FCo_output * (FCf_output * CEC_output[trans] + FCi_output * FCm_output)
 			
-			pred_prev = np.einsum(FL_prev, [0,1], FC_output, [2, 1], [0])
+			FC2f_output_pre = np.einsum(FC2f_prev, [0,1], FC_output, [2,1], [2,0])
+			FC2o_output_pre = np.einsum(FC2o_prev, [0,1], FC_output, [2,1], [2,0])
+			FC2i_output_pre = np.einsum(FC2i_prev, [0,1], FC_output, [2,1], [2,0])
+			FC2m_output_pre = np.einsum(FC2m_prev, [0,1], FC_output, [2,1], [2,0])
+			
+			FC2f_output = 1 / (1 + np.exp(-FC2f_output_pre))
+			FC2o_output = 1 / (1 + np.exp(-FC2o_output_pre))
+			FC2i_output = 1 / (1 + np.exp(-FC2i_output_pre))
+			FC2m_output = FC2m_output_pre
+			
+			FC2_output = FC2o_output * (FC2f_output * CEC2_output[trans] + FC2i_output * FC2m_output)
+			
+			pred_prev = np.einsum(FL_prev, [0,1], FC2_output, [2, 1], [0])
 			#pred_prev += np.einsum(FL_bypass_prev, range(4), max_output3, [4,1,2,3], [0])
 			
 			y_outputs[trans] = r_output[trans] + GAMMA * np.max(pred_prev)
@@ -356,7 +411,19 @@ while True:
 		
 		FC_output = FCo_output * (FCf_output * CEC_input[trans] + FCi_output * FCm_output)
 		
-		mem_contrib = np.einsum(FL, [0,1], FC_output, [2, 1], [0])
+		FC2f_output_pre = np.einsum(FC2f, [0,1], FC_output, [2,1], [2,0])
+		FC2o_output_pre = np.einsum(FC2o, [0,1], FC_output, [2,1], [2,0])
+		FC2i_output_pre = np.einsum(FC2i, [0,1], FC_output, [2,1], [2,0])
+		FC2m_output_pre = np.einsum(FC2m, [0,1], FC_output, [2,1], [2,0])
+		
+		FC2f_output = 1 / (1 + np.exp(-FC2f_output_pre))
+		FC2o_output = 1 / (1 + np.exp(-FC2o_output_pre))
+		FC2i_output = 1 / (1 + np.exp(-FC2i_output_pre))
+		FC2m_output = FC2m_output_pre
+		
+		FC2_output = FC2o_output * (FC2f_output * CEC2_input[trans] + FC2i_output * FC2m_output)
+		
+		mem_contrib = np.einsum(FL, [0,1], FC2_output, [2, 1], [0])
 		#curr_contrib = np.einsum(FL_bypass, range(4), max_output3, [4,1,2,3], [0])
 		
 		pred = mem_contrib + curr_contrib
@@ -365,28 +432,60 @@ while True:
 		
 		err += pred_m_Y**2
 		
+		############### reverse pointwise
+	
+		FC2f_output_rev = np.exp(FC2f_output_pre)/((np.exp(FC2f_output_pre) + 1)**2)
+		FC2o_output_rev = np.exp(FC2o_output_pre)/((np.exp(FC2o_output_pre) + 1)**2)
+		FC2i_output_rev = np.exp(FC2i_output_pre)/((np.exp(FC2i_output_pre) + 1)**2)
+		FC2m_output_rev = 1
+		
 		FCf_output_rev = np.exp(FCf_output_pre)/((np.exp(FCf_output_pre) + 1)**2)
 		FCi_output_rev = np.exp(FCi_output_pre)/((np.exp(FCi_output_pre) + 1)**2)
 		FCo_output_rev = np.exp(FCo_output_pre)/((np.exp(FCo_output_pre) + 1)**2)
 		FCm_output_rev = 1
 		
-		#### gradients:
-		FL_pred = (FL[action_input[trans]] * pred_m_Y)[np.newaxis]
+		############ FL
 		
-		FCf_output_rev_sig = FL_pred * FCo_output * (FCf_output_rev * CEC_input[trans])
-		FCi_output_rev_sig = FL_pred * FCo_output * (FCi_output_rev * FCm_output)
-		FCm_output_rev_sig = FL_pred * FCo_output * (FCi_output * FCm_output_rev)
-		FCo_output_rev_sig = FL_pred * FCo_output_rev * (FCf_output * CEC_input[trans] + FCi_output * FCm_output)
+		#dFL = np.einsum(pred_m_Y, [0,1], FC2_output, [0,2], [1,2])
+		
+		above_w = np.dot(pred_m_Y, FL[action_input[trans]])
+		
+		######################### mem 2 gradients:
+		
+		FC2f_output_rev_sig = above_w * FC2o_output * (FC2f_output_rev * CEC2)
+		FC2i_output_rev_sig = above_w * FC2o_output * (FC2i_output_rev * FC2m_output)
+		FC2m_output_rev_sig = above_w * FC2o_output * (FC2i_output * FC2m_output_rev)
+		FC2o_output_rev_sig = above_w * FC2o_output_rev * (FC2f_output * CEC2 + FC2i_output * FC2m_output)
+		
+		dFC2f += 1e3*np.einsum(FC_output, [0,1], FC2f_output_rev_sig, [0,2], [2,1])
+		dFC2i += 1e3*np.einsum(FC_output, [0,1], FC2i_output_rev_sig, [0,2], [2,1])
+		dFC2m += 1e3*np.einsum(FC_output, [0,1], FC2m_output_rev_sig, [0,2], [2,1])
+		dFC2o += 1e3*np.einsum(FC_output, [0,1], FC2o_output_rev_sig, [0,2], [2,1])
+		
+		above_w = np.einsum(FC2o, [0,1], FC2o_output_rev_sig, [2,0], [2,1])
+		above_w += np.einsum(FC2f, [0,1], FC2f_output_rev_sig, [2,0], [2,1])
+		above_w += np.einsum(FC2i, [0,1], FC2i_output_rev_sig, [2,0], [2,1])
+		above_w += np.einsum(FC2m, [0,1], FC2m_output_rev_sig, [2,0], [2,1])
+		
+		########################## mem 1 gradients:
+	
+		FCf_output_rev_sig = above_w * FCo_output * (FCf_output_rev * CEC)
+		FCi_output_rev_sig = above_w * FCo_output * (FCi_output_rev * FCm_output)
+		FCm_output_rev_sig = above_w * FCo_output * (FCi_output * FCm_output_rev)
+		FCo_output_rev_sig = above_w * FCo_output_rev * (FCf_output * CEC + FCi_output * FCm_output)
+		
+		dFCf += 1e3*np.einsum(max_output3, range(4), FCf_output_rev_sig, [0,4], [4,1,2,3])
+		dFCi += 1e3*np.einsum(max_output3, range(4), FCi_output_rev_sig, [0,4], [4,1,2,3])
+		dFCm += 1e3*np.einsum(max_output3, range(4), FCm_output_rev_sig, [0,4], [4,1,2,3])
+		dFCo += 1e3*np.einsum(max_output3, range(4), FCo_output_rev_sig, [0,4], [4,1,2,3])
+		
+		above_w = np.einsum(FCo, range(4), FCo_output_rev_sig, [4,0], [4,1,2,3])
+		above_w += np.einsum(FCi, range(4), FCi_output_rev_sig, [4,0], [4,1,2,3])
+		above_w += np.einsum(FCm, range(4), FCm_output_rev_sig, [4,0], [4,1,2,3])
+		above_w += np.einsum(FCf, range(4), FCf_output_rev_sig, [4,0], [4,1,2,3])
 		
 		
-		FLFC_pred = np.einsum(FCo, range(4), FCo_output_rev_sig, [4,0], [4,1,2,3])
-		FLFC_pred += np.einsum(FCi, range(4),FCi_output_rev_sig, [4,0], [4,1,2,3])
-		FLFC_pred += np.einsum(FCm, range(4),FCm_output_rev_sig, [4,0], [4,1,2,3])
-		FLFC_pred += np.einsum(FCf, range(4),FCf_output_rev_sig, [4,0], [4,1,2,3])
-		
-		#FLFC_pred += np.ascontiguousarray((FL_bypass[action_input[trans]] * pred_m_Y)[np.newaxis])
-		
-		set_buffer(FLFC_pred, FL_PRED, gpu=GPU_CUR)
+		set_buffer(above_w, FL_PRED, gpu=GPU_CUR)
 		
 		########### backprop
 		max_pool_back_cudnn_buffers(MAX_OUTPUT3, FL_PRED, CONV_OUTPUT3, DPOOL3, gpu=GPU_CUR)
@@ -399,13 +498,8 @@ while True:
 		conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, stream=1, gpu=GPU_CUR)
 
 		### return
-		dFL[action_input[trans]] += FC_output[0]*pred_m_Y
+		dFL[action_input[trans]] += FC2_output[0]*pred_m_Y
 		dFL_bypass[action_input[trans]] += max_output3[0]*pred_m_Y
-		
-		dFCf += 1e3*np.einsum(max_output3, range(4), FCf_output_rev_sig, [0,4], [4,1,2,3])
-		dFCi += 1e3*np.einsum(max_output3, range(4), FCi_output_rev_sig, [0,4], [4,1,2,3])
-		dFCm += 1e3*np.einsum(max_output3, range(4), FCm_output_rev_sig, [0,4], [4,1,2,3])
-		dFCo += 1e3*np.einsum(max_output3, range(4), FCo_output_rev_sig, [0,4], [4,1,2,3])
 		
 		dF3 += return_buffer(DF3, stream=3, gpu=GPU_CUR)
 		dF2 += return_buffer(DF2, stream=2, gpu=GPU_CUR)
@@ -424,6 +518,11 @@ while True:
 			FCm += (dFCm + MOM_WEIGHT*dFCm_mom)*EPS / BATCH_SZ
 			FCi += (dFCi + MOM_WEIGHT*dFCi_mom)*EPS / BATCH_SZ
 			
+			FC2f += (dFC2f + MOM_WEIGHT*dFC2f_mom)*EPS / BATCH_SZ
+			FC2o += (dFC2o + MOM_WEIGHT*dFC2o_mom)*EPS / BATCH_SZ
+			FC2m += (dFC2m + MOM_WEIGHT*dFC2m_mom)*EPS / BATCH_SZ
+			FC2i += (dFC2i + MOM_WEIGHT*dFC2i_mom)*EPS / BATCH_SZ
+			
 			set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_CUR)
 			set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_CUR)
 			set_buffer(F3, F3_IND, filter_flag=1, gpu=GPU_CUR)
@@ -439,6 +538,11 @@ while True:
 			dFCm_mom = copy.deepcopy(dFCm)
 			dFCi_mom = copy.deepcopy(dFCi)
 			
+			dFC2f_mom = copy.deepcopy(dFC2f)
+			dFC2o_mom = copy.deepcopy(dFC2o)
+			dFC2m_mom = copy.deepcopy(dFC2m)
+			dFC2i_mom = copy.deepcopy(dFC2i)
+			
 			dF1 = np.zeros_like(dF1)
 			dF2 = np.zeros_like(dF2)
 			dF3 = np.zeros_like(dF3)
@@ -449,6 +553,11 @@ while True:
 			dFCo = np.zeros_like(dFCo)
 			dFCm = np.zeros_like(dFCm)
 			dFCi = np.zeros_like(dFCi)
+			
+			dFC2f = np.zeros_like(dFC2f)
+			dFC2o = np.zeros_like(dFC2o)
+			dFC2m = np.zeros_like(dFC2m)
+			dFC2i = np.zeros_like(dFC2i)
 			
 			network_updates += 1
 			
@@ -461,6 +570,11 @@ while True:
 				FCo_prev = copy.deepcopy(FCo)
 				FCm_prev = copy.deepcopy(FCm)
 				FCi_prev = copy.deepcopy(FCi)
+				
+				FC2f_prev = copy.deepcopy(FC2f)
+				FC2o_prev = copy.deepcopy(FC2o)
+				FC2m_prev = copy.deepcopy(FC2m)
+				FC2i_prev = copy.deepcopy(FC2i)
 				
 				set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_PREV)
 				set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_PREV)
@@ -489,6 +603,7 @@ while True:
 						np.min(conv_output2), np.max(conv_output2))
 		print 'F3: %f %f (%f)   layer: %f %f' % (np.min(F3), np.max(F3), np.median(np.abs(ft*dF3.ravel())/np.abs(F3.ravel())),\
 						np.min(conv_output3), np.max(conv_output3))
+		print
 		print 'FCm: %f %f (%f)   layer: %f %f (%f)' % (np.min(FCm), np.max(FCm), np.median(np.abs(ft*dFCm.ravel())/np.abs(FCm.ravel())),\
 						np.min(FCm_output), np.max(FCm_output), np.median(FCm_output))
 		print 'FCf: %f %f (%f)   layer: %f %f (%f)' % (np.min(FCf), np.max(FCf), np.median(np.abs(ft*dFCf.ravel())/np.abs(FCf.ravel())),\
@@ -500,6 +615,19 @@ while True:
 		print 'CEC: %f %f, kept: %f %f, new: %f %f' % (np.min(CEC), np.max(CEC), np.min(CEC_kept), np.max(CEC_kept), \
 						np.min(CEC_new), np.max(CEC_new))
 		print 'FC.: %f %f' % (np.min(FC_output), np.max(FC_output))
+		print
+		print 'FC2m: %f %f (%f)   layer: %f %f (%f)' % (np.min(FC2m), np.max(FC2m), np.median(np.abs(ft*dFC2m.ravel())/np.abs(FC2m.ravel())),\
+						np.min(FC2m_output), np.max(FC2m_output), np.median(FC2m_output))
+		print 'FC2f: %f %f (%f)   layer: %f %f (%f)' % (np.min(FC2f), np.max(FC2f), np.median(np.abs(ft*dFC2f.ravel())/np.abs(FC2f.ravel())),\
+						np.min(FC2f_output), np.max(FC2f_output), np.median(FC2f_output))
+		print 'FC2i: %f %f (%f)   layer: %f %f (%f)' % (np.min(FC2i), np.max(FC2i), np.median(np.abs(ft*dFC2i.ravel())/np.abs(FC2i.ravel())),\
+						np.min(FC2i_output), np.max(FC2i_output), np.median(FC2i_output))
+		print 'FC2o: %f %f (%f)   layer: %f %f (%f)' % (np.min(FC2o), np.max(FC2o), np.median(np.abs(ft*dFC2o.ravel())/np.abs(FC2o.ravel())),\
+						np.min(FC2o_output), np.max(FC2o_output), np.median(FC2o_output))
+		print 'CEC2: %f %f, kept: %f %f, new: %f %f' % (np.min(CEC2), np.max(CEC2), np.min(CEC2_kept), np.max(CEC2_kept), \
+						np.min(CEC2_new), np.max(CEC2_new))
+		print 'FC2.: %f %f' % (np.min(FC2_output), np.max(FC2_output))
+		
 		print 'FLmem: %f %f (%f)   layer: %f %f' % (np.min(FL), np.max(FL), np.median(np.abs(ft*dFL.ravel())/np.abs(FL.ravel())),\
 						np.min(mem_contrib), np.max(mem_contrib))
 		if np.max(curr_contrib) != 0:
