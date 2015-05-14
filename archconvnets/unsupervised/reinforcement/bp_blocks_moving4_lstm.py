@@ -8,25 +8,24 @@ import random
 import scipy
 
 RAND_PERIOD = 0
-MEM_SZ = 50000#00#00
+MEM_SZ = 500000#00
 EPS_GREED_FINAL = .1
-EPS_GREED_FINAL_TIME = 2000000
+EPS_GREED_FINAL_TIME = 10000000
 GAMMA = 0.99
 BATCH_SZ = 32
 NETWORK_UPDATE = 10000
-EPS = 2e-3
+EPS = 5e-1
 MOM_WEIGHT = 0.95
 SAVE_FREQ = 5000
 
 SCALE = 4
 MAX_LOC = 32 - SCALE
 
-F1_scale = 0.001 # std of init normal distribution
-F2_scale = 0.01
-F3_scale = 0.01
-FL_scale = .1
-FL2_scale = .1
-CEC_SCALE = 0.01
+F1_scale = 2e-2
+F2_scale = 1e-2
+F3_scale = 1e-2
+FL_scale = 1e-2
+CEC_SCALE = 1e-2
 
 N = 32
 n1 = N # L1 filters
@@ -41,7 +40,7 @@ s1 = 5
 
 N_C = 4 # directions L, R, U, D
 
-file_name = '/home/darren/reinforcement_blocks_moving_CEC_FLm.mat'
+file_name = '/home/darren/reinforcement_blocks_moving_simple_CEC_linear.mat'
 
 PLAYER_MOV_RATE = 3
 RED_MOV_RATE = 1
@@ -49,8 +48,8 @@ BLUE_MOV_RATE = 1
 
 max_output_sz3  = 5
 
-GPU_CUR = 2
-GPU_PREV = 3
+GPU_CUR = 1
+GPU_PREV = 0
 
 # gpu buffer indices
 MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
@@ -73,14 +72,13 @@ FCo = np.single(np.random.normal(scale=FL_scale, size=(n4, n3, max_output_sz3, m
 FCf = np.single(np.random.normal(scale=FL_scale, size=(n4, n3, max_output_sz3, max_output_sz3)))
 CEC = np.single(np.random.normal(scale=CEC_SCALE, size=(n4)))
 
-FC2f = np.single(np.random.normal(scale=FL2_scale, size=(n5, n4)))
-FC2o = np.single(np.random.normal(scale=FL2_scale, size=(n5, n4)))
-FC2i = np.single(np.random.normal(scale=FL2_scale, size=(n5, n4)))
-FC2m = np.single(np.random.normal(scale=FL2_scale, size=(n5, n4)))
+FC2f = np.single(np.random.normal(scale=2, size=(n5, n4)))
+FC2o = np.single(np.random.normal(scale=2, size=(n5, n4)))
+FC2i = np.single(np.random.normal(scale=2, size=(n5, n4)))
+FC2m = np.single(np.random.normal(scale=2, size=(n5, n4)))
+CEC2 = np.single(np.random.normal(scale=1, size=(n5)))
 
-CEC2 = np.single(np.random.normal(scale=CEC_SCALE, size=(n5)))
-
-FL = np.single(np.random.normal(scale=1, size=(N_C, n5)))
+FL = np.single(np.random.normal(scale=1.5, size=(N_C, n5)))
 FL_bypass = np.single(np.random.normal(scale=FL_scale, size=(N_C, n3, max_output_sz3, max_output_sz3)))
 
 FCm_prev = copy.deepcopy(FCm)
@@ -194,26 +192,6 @@ imgs_mean_red = np.zeros((32,32))
 imgs_mean_player = np.zeros((32,32))
 
 t_start = time.time()
-
-######## mean img
-N_MEAN = 500000
-img_mean = np.zeros((1,3,32,32),dtype='single')
-for sample in range(N_MEAN):
-	red_axis = np.random.randint(2)
-	red_direction = np.random.randint(2)
-
-	if red_direction == 1:
-		reds[red_axis] = 32
-	else:
-		reds[red_axis] = -SCALE
-
-	reds[1 - red_axis] = (32+SCALE) * np.random.random() - SCALE
-
-	player = np.random.randint(0,MAX_LOC, size=2)
-	img_mean[0,2,np.max((np.round(reds[0]),0)):np.round(reds[0]+SCALE), np.max((np.round(reds[1]),0)):np.round(reds[1]+SCALE)] += 255
-	img_mean[0,1,player[0]:(player[0]+SCALE), player[1]:player[1]+SCALE] += 255
-img_mean /= N_MEAN
-
 while True:
 	mem_loc  = step % MEM_SZ
 	
@@ -239,7 +217,7 @@ while True:
 	imgs_mean_player[player[0]:(player[0]+SCALE), player[1]:player[1]+SCALE] += 1
 	
 	# forward pass
-	set_buffer(img - img_mean, IMGS_PAD, gpu=GPU_CUR)
+	set_buffer(img, IMGS_PAD, gpu=GPU_CUR)
 		
 	conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_CUR)
 	max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_CUR)
@@ -255,9 +233,9 @@ while True:
 	FCo_output_pre = np.einsum(FCo, range(4), max_output3, [4, 1,2,3], [4, 0])
 	FCf_output_pre = np.einsum(FCf, range(4), max_output3, [4, 1,2,3], [4, 0])
 	
-	FCf_output = 1 / (1 + np.exp(-FCf_output_pre))
-	FCi_output = 1 / (1 + np.exp(-FCi_output_pre))
-	FCo_output = 1 / (1 + np.exp(-FCo_output_pre))
+	FCf_output = FCf_output_pre#1 / (1 + np.exp(-FCf_output_pre))
+	FCi_output = FCi_output_pre#1 / (1 + np.exp(-FCi_output_pre))
+	FCo_output = FCo_output_pre#1 / (1 + np.exp(-FCo_output_pre))
 	FCm_output = FCm_output_pre
 	
 	FC_output = FCo_output * (FCf_output * CEC + FCi_output * FCm_output)
@@ -272,9 +250,9 @@ while True:
 	FC2i_output_pre = np.einsum(FC2i, [0,1], FC_output, [2,1], [2,0])
 	FC2m_output_pre = np.einsum(FC2m, [0,1], FC_output, [2,1], [2,0])
 	
-	FC2f_output = 1 / (1 + np.exp(-FC2f_output_pre))
-	FC2o_output = 1 / (1 + np.exp(-FC2o_output_pre))
-	FC2i_output = 1 / (1 + np.exp(-FC2i_output_pre))
+	FC2f_output = FC2f_output_pre#1 / (1 + np.exp(-FC2f_output_pre))
+	FC2o_output = FC2o_output_pre#1 / (1 + np.exp(-FC2o_output_pre))
+	FC2i_output = FC2i_output_pre#1 / (1 + np.exp(-FC2i_output_pre))
 	FC2m_output = FC2m_output_pre
 	
 	FC2_output = FC2o_output * (FC2f_output * CEC2 + FC2i_output * FC2m_output)
@@ -396,7 +374,7 @@ while True:
 		
 		img_cur[0,2,np.max((np.round(reds_input[trans][0]),0)):np.round(reds_input[trans][0]+SCALE), np.max((np.round(reds_input[trans][1]),0)):np.round(reds_input[trans][1]+SCALE)] = 255
 		
-		set_buffer(img_cur - img_mean, IMGS_PAD, gpu=GPU_CUR)
+		set_buffer(img_cur, IMGS_PAD, gpu=GPU_CUR)
 		
 		# forward pass current network
 		conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_CUR)
@@ -408,7 +386,7 @@ while True:
 		
 		# forward pass prev network
 		if y_network_ver[trans] != (network_updates % NETWORK_UPDATE):
-			set_buffer(img_prev - img_mean, IMGS_PAD, gpu=GPU_PREV)
+			set_buffer(img_prev, IMGS_PAD, gpu=GPU_PREV)
 		
 			conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_PREV)
 			max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_PREV)
@@ -425,9 +403,9 @@ while True:
 			FCo_output_pre = np.einsum(FCo_prev, range(4), max_output3, [4, 1,2,3], [4, 0])
 			FCf_output_pre = np.einsum(FCf_prev, range(4), max_output3, [4, 1,2,3], [4, 0])
 			
-			FCf_output = 1 / (1 + np.exp(-FCf_output_pre))
-			FCi_output = 1 / (1 + np.exp(-FCi_output_pre))
-			FCo_output = 1 / (1 + np.exp(-FCo_output_pre))
+			FCf_output = FCf_output_pre#1 / (1 + np.exp(-FCf_output_pre))
+			FCi_output = FCi_output_pre#1 / (1 + np.exp(-FCi_output_pre))
+			FCo_output = FCo_output_pre#1 / (1 + np.exp(-FCo_output_pre))
 			FCm_output = FCm_output_pre
 			
 			FC_output = FCo_output * (FCf_output * CEC_output[trans] + FCi_output * FCm_output)
@@ -437,9 +415,9 @@ while True:
 			FC2i_output_pre = np.einsum(FC2i_prev, [0,1], FC_output, [2,1], [2,0])
 			FC2m_output_pre = np.einsum(FC2m_prev, [0,1], FC_output, [2,1], [2,0])
 			
-			FC2f_output = 1 / (1 + np.exp(-FC2f_output_pre))
-			FC2o_output = 1 / (1 + np.exp(-FC2o_output_pre))
-			FC2i_output = 1 / (1 + np.exp(-FC2i_output_pre))
+			FC2f_output = FC2f_output_pre#1 / (1 + np.exp(-FC2f_output_pre))
+			FC2o_output = FC2o_output_pre#1 / (1 + np.exp(-FC2o_output_pre))
+			FC2i_output = FC2i_output_pre#1 / (1 + np.exp(-FC2i_output_pre))
 			FC2m_output = FC2m_output_pre
 			
 			FC2_output = FC2o_output * (FC2f_output * CEC2_output[trans] + FC2i_output * FC2m_output)
@@ -457,9 +435,9 @@ while True:
 		FCo_output_pre = np.einsum(FCo, range(4), max_output3, [4, 1,2,3], [4, 0])
 		FCf_output_pre = np.einsum(FCf, range(4), max_output3, [4, 1,2,3], [4, 0])
 		
-		FCf_output = 1 / (1 + np.exp(-FCf_output_pre))
-		FCi_output = 1 / (1 + np.exp(-FCi_output_pre))
-		FCo_output = 1 / (1 + np.exp(-FCo_output_pre))
+		FCf_output = FCf_output_pre#1 / (1 + np.exp(-FCf_output_pre))
+		FCi_output = FCi_output_pre#1 / (1 + np.exp(-FCi_output_pre))
+		FCo_output = FCo_output_pre#1 / (1 + np.exp(-FCo_output_pre))
 		FCm_output = FCm_output_pre
 		
 		FC_output = FCo_output * (FCf_output * CEC_input[trans] + FCi_output * FCm_output)
@@ -469,9 +447,9 @@ while True:
 		FC2i_output_pre = np.einsum(FC2i, [0,1], FC_output, [2,1], [2,0])
 		FC2m_output_pre = np.einsum(FC2m, [0,1], FC_output, [2,1], [2,0])
 		
-		FC2f_output = 1 / (1 + np.exp(-FC2f_output_pre))
-		FC2o_output = 1 / (1 + np.exp(-FC2o_output_pre))
-		FC2i_output = 1 / (1 + np.exp(-FC2i_output_pre))
+		FC2f_output = FC2f_output_pre#1 / (1 + np.exp(-FC2f_output_pre))
+		FC2o_output = FC2o_output_pre#1 / (1 + np.exp(-FC2o_output_pre))
+		FC2i_output = FC2i_output_pre#1 / (1 + np.exp(-FC2i_output_pre))
 		FC2m_output = FC2m_output_pre
 		
 		FC2_output = FC2o_output * (FC2f_output * CEC2_input[trans] + FC2i_output * FC2m_output)
@@ -487,14 +465,14 @@ while True:
 		
 		############### reverse pointwise
 	
-		FC2f_output_rev = np.exp(FC2f_output_pre)/((np.exp(FC2f_output_pre) + 1)**2)
-		FC2o_output_rev = np.exp(FC2o_output_pre)/((np.exp(FC2o_output_pre) + 1)**2)
-		FC2i_output_rev = np.exp(FC2i_output_pre)/((np.exp(FC2i_output_pre) + 1)**2)
+		FC2f_output_rev = 1#np.exp(FC2f_output_pre)/((np.exp(FC2f_output_pre) + 1)**2)
+		FC2o_output_rev = 1#np.exp(FC2o_output_pre)/((np.exp(FC2o_output_pre) + 1)**2)
+		FC2i_output_rev = 1#np.exp(FC2i_output_pre)/((np.exp(FC2i_output_pre) + 1)**2)
 		FC2m_output_rev = 1
 		
-		FCf_output_rev = np.exp(FCf_output_pre)/((np.exp(FCf_output_pre) + 1)**2)
-		FCi_output_rev = np.exp(FCi_output_pre)/((np.exp(FCi_output_pre) + 1)**2)
-		FCo_output_rev = np.exp(FCo_output_pre)/((np.exp(FCo_output_pre) + 1)**2)
+		FCf_output_rev = 1#np.exp(FCf_output_pre)/((np.exp(FCf_output_pre) + 1)**2)
+		FCi_output_rev = 1#np.exp(FCi_output_pre)/((np.exp(FCi_output_pre) + 1)**2)
+		FCo_output_rev = 1#np.exp(FCo_output_pre)/((np.exp(FCo_output_pre) + 1)**2)
 		FCm_output_rev = 1
 		
 		############ FL
@@ -510,10 +488,10 @@ while True:
 		FC2m_output_rev_sig = above_w * FC2o_output * (FC2i_output * FC2m_output_rev)
 		FC2o_output_rev_sig = above_w * FC2o_output_rev * (FC2f_output * CEC2 + FC2i_output * FC2m_output)
 		
-		dFC2f += np.einsum(FC_output, [0,1], FC2f_output_rev_sig, [0,2], [2,1])*1e4
-		dFC2i += np.einsum(FC_output, [0,1], FC2i_output_rev_sig, [0,2], [2,1])*1e4
-		dFC2m += np.einsum(FC_output, [0,1], FC2m_output_rev_sig, [0,2], [2,1])*5e2
-		dFC2o += np.einsum(FC_output, [0,1], FC2o_output_rev_sig, [0,2], [2,1])*1e4
+		dFC2f += 1e1*np.einsum(FC_output, [0,1], FC2f_output_rev_sig, [0,2], [2,1])
+		dFC2i += 1e1*np.einsum(FC_output, [0,1], FC2i_output_rev_sig, [0,2], [2,1])
+		dFC2m += 1e1*np.einsum(FC_output, [0,1], FC2m_output_rev_sig, [0,2], [2,1])
+		dFC2o += 1e1*np.einsum(FC_output, [0,1], FC2o_output_rev_sig, [0,2], [2,1])
 		
 		above_w = np.einsum(FC2o, [0,1], FC2o_output_rev_sig, [2,0], [2,1])
 		above_w += np.einsum(FC2f, [0,1], FC2f_output_rev_sig, [2,0], [2,1])
@@ -527,10 +505,10 @@ while True:
 		FCm_output_rev_sig = above_w * FCo_output * (FCi_output * FCm_output_rev)
 		FCo_output_rev_sig = above_w * FCo_output_rev * (FCf_output * CEC + FCi_output * FCm_output)
 		
-		dFCf += np.einsum(max_output3, range(4), FCf_output_rev_sig, [0,4], [4,1,2,3])*1e5
-		dFCi += np.einsum(max_output3, range(4), FCi_output_rev_sig, [0,4], [4,1,2,3])*1e5
-		dFCm += np.einsum(max_output3, range(4), FCm_output_rev_sig, [0,4], [4,1,2,3])*5e3
-		dFCo += np.einsum(max_output3, range(4), FCo_output_rev_sig, [0,4], [4,1,2,3])*1e5
+		dFCf += 1e1*np.einsum(max_output3, range(4), FCf_output_rev_sig, [0,4], [4,1,2,3])
+		dFCi += 1e1*np.einsum(max_output3, range(4), FCi_output_rev_sig, [0,4], [4,1,2,3])
+		dFCm += 1e1*np.einsum(max_output3, range(4), FCm_output_rev_sig, [0,4], [4,1,2,3])
+		dFCo += 1e1*np.einsum(max_output3, range(4), FCo_output_rev_sig, [0,4], [4,1,2,3])
 		
 		above_w = np.einsum(FCo, range(4), FCo_output_rev_sig, [4,0], [4,1,2,3])
 		above_w += np.einsum(FCi, range(4), FCi_output_rev_sig, [4,0], [4,1,2,3])
@@ -551,7 +529,7 @@ while True:
 		conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, stream=1, gpu=GPU_CUR)
 
 		### return
-		dFL[action_input[trans]] += FC2_output[0]*pred_m_Y*1e3
+		dFL[action_input[trans]] += FC2_output[0]*pred_m_Y
 		dFL_bypass[action_input[trans]] += max_output3[0]*pred_m_Y
 		
 		dF3 += return_buffer(DF3, stream=3, gpu=GPU_CUR)

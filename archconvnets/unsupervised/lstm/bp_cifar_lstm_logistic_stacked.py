@@ -14,13 +14,14 @@ import gnumpy as gpu
 
 N_C = 999
 
-F1_scale = 0.01 # std of init normal distribution
+F1_scale = 0.001 # std of init normal distribution
 F2_scale = 0.01
 F3_scale = 0.01
-FL_scale = 0.01
+FL_scale = .1
+FL2_scale = .1
 CEC_SCALE = 0.01
 
-EPS_E = 2#3
+EPS_E = 2
 EPS = 1*10**(-EPS_E)
 
 N_IMGS = 100 # batch size
@@ -57,20 +58,21 @@ FCf = np.single(np.random.normal(scale=FL_scale, size=(n4, n3, max_output_sz3, m
 CEC = np.single(np.random.normal(scale=CEC_SCALE, size=(N_IMGS, n4)))
 CECt = np.single(np.random.normal(scale=CEC_SCALE, size=(10000, n4)))
 
-FC2f = np.single(np.random.normal(scale=1, size=(n5, n4)))
-FC2o = np.single(np.random.normal(scale=1, size=(n5, n4)))
-FC2i = np.single(np.random.normal(scale=1, size=(n5, n4)))
-FC2m = np.single(np.random.normal(scale=1, size=(n5, n4)))
+FC2f = np.single(np.random.normal(scale=FL2_scale, size=(n5, n4)))
+FC2o = np.single(np.random.normal(scale=FL2_scale, size=(n5, n4)))
+FC2i = np.single(np.random.normal(scale=FL2_scale, size=(n5, n4)))
+FC2m = np.single(np.random.normal(scale=FL2_scale, size=(n5, n4)))
 
-CEC2 = np.single(np.random.normal(scale=1, size=(N_IMGS, n5)))
-CEC2t = np.single(np.random.normal(scale=1, size=(10000, n5)))
+CEC2 = np.single(np.random.normal(scale=CEC_SCALE, size=(N_IMGS, n5)))
+CEC2t = np.single(np.random.normal(scale=CEC_SCALE, size=(10000, n5)))
 
-FL = np.single(np.random.normal(scale=FL_scale, size=(10, n5)))
+FL = np.single(np.random.normal(scale=1, size=(10, n5)))
 
 #CEC = np.zeros_like(CEC)
 #CEC2 = np.zeros_like(CEC2)
 
 CEC_kept = 0; CEC_new = 0
+CEC2_kept = 0; CEC2_new = 0
 dF1 = np.zeros_like(F1)
 dF2 = np.zeros_like(F2)
 dF3 = np.zeros_like(F3)
@@ -79,6 +81,10 @@ dFCm = np.zeros_like(FCm)
 dFCi = np.zeros_like(FCi)
 dFCo = np.zeros_like(FCo)
 dFCf = np.zeros_like(FCf)
+dFC2m = np.zeros_like(FC2m)
+dFC2i = np.zeros_like(FC2i)
+dFC2o = np.zeros_like(FC2o)
+dFC2f = np.zeros_like(FC2f)
 
 
 imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
@@ -201,7 +207,18 @@ while True:
 			print 'CEC: %f %f, kept: %f %f, new: %f %f' % (np.min(CEC), np.max(CEC), np.min(CEC_kept), np.max(CEC_kept), \
 							np.min(CEC_new), np.max(CEC_new))
 			print 'FC.: %f %f' % (np.min(FC_output), np.max(FC_output))
-			
+			print
+			print 'FC2m: %f %f (%f)   layer: %f %f (%f)' % (np.min(FC2m), np.max(FC2m), np.median(np.abs(ft*dFC2m.ravel())/np.abs(FC2m.ravel())),\
+							np.min(FC2m_output), np.max(FC2m_output), np.median(FC2m_output))
+			print 'FC2f: %f %f (%f)   layer: %f %f (%f)' % (np.min(FC2f), np.max(FC2f), np.median(np.abs(ft*dFC2f.ravel())/np.abs(FC2f.ravel())),\
+							np.min(FC2f_output), np.max(FC2f_output), np.median(FC2f_output))
+			print 'FC2i: %f %f (%f)   layer: %f %f (%f)' % (np.min(FC2i), np.max(FC2i), np.median(np.abs(ft*dFC2i.ravel())/np.abs(FC2i.ravel())),\
+							np.min(FC2i_output), np.max(FC2i_output), np.median(FC2i_output))
+			print 'FC2o: %f %f (%f)   layer: %f %f (%f)' % (np.min(FC2o), np.max(FC2o), np.median(np.abs(ft*dFC2o.ravel())/np.abs(FC2o.ravel())),\
+							np.min(FC2o_output), np.max(FC2o_output), np.median(FC2o_output))
+			print 'CEC2: %f %f, kept: %f %f, new: %f %f' % (np.min(CEC2), np.max(CEC2), np.min(CEC2_kept), np.max(CEC2_kept), \
+							np.min(CEC2_new), np.max(CEC2_new))
+			print 'FC2.: %f %f' % (np.min(FC2_output), np.max(FC2_output))
 			savemat(file_name, {'F1':F1, 'epoch':epoch, 'class_err':class_err, 'err':err,'F2':F2,'F3':F3,'EPS':EPS})
 			
 			t_start = time.time()
@@ -286,10 +303,10 @@ while True:
 		FC2m_output_rev_sig = above_w * FC2o_output * (FC2i_output * FC2m_output_rev)
 		FC2o_output_rev_sig = above_w * FC2o_output_rev * (FC2f_output * CEC2 + FC2i_output * FC2m_output)
 		
-		dFC2f = np.einsum(FC_output, [0,1], FC2f_output_rev_sig, [0,2], [2,1])
-		dFC2i = np.einsum(FC_output, [0,1], FC2i_output_rev_sig, [0,2], [2,1])
+		dFC2f = np.einsum(FC_output, [0,1], FC2f_output_rev_sig, [0,2], [2,1])*1e3
+		dFC2i = np.einsum(FC_output, [0,1], FC2i_output_rev_sig, [0,2], [2,1])*1e3
 		dFC2m = np.einsum(FC_output, [0,1], FC2m_output_rev_sig, [0,2], [2,1])
-		dFC2o = np.einsum(FC_output, [0,1], FC2o_output_rev_sig, [0,2], [2,1])
+		dFC2o = np.einsum(FC_output, [0,1], FC2o_output_rev_sig, [0,2], [2,1])*1e3
 		
 		above_w = np.einsum(FC2o, [0,1], FC2o_output_rev_sig, [2,0], [2,1])
 		above_w += np.einsum(FC2f, [0,1], FC2f_output_rev_sig, [2,0], [2,1])
@@ -303,10 +320,10 @@ while True:
 		FCm_output_rev_sig = above_w * FCo_output * (FCi_output * FCm_output_rev)
 		FCo_output_rev_sig = above_w * FCo_output_rev * (FCf_output * CEC + FCi_output * FCm_output)
 		
-		dFCf = np.einsum(max_output3, range(4), FCf_output_rev_sig, [0,4], [4,1,2,3])
-		dFCi = np.einsum(max_output3, range(4), FCi_output_rev_sig, [0,4], [4,1,2,3])
+		dFCf = np.einsum(max_output3, range(4), FCf_output_rev_sig, [0,4], [4,1,2,3])*1e3
+		dFCi = np.einsum(max_output3, range(4), FCi_output_rev_sig, [0,4], [4,1,2,3])*1e3
 		dFCm = np.einsum(max_output3, range(4), FCm_output_rev_sig, [0,4], [4,1,2,3])
-		dFCo = np.einsum(max_output3, range(4), FCo_output_rev_sig, [0,4], [4,1,2,3])
+		dFCo = np.einsum(max_output3, range(4), FCo_output_rev_sig, [0,4], [4,1,2,3])*1e3
 		
 		above_w = np.einsum(FCo, range(4), FCo_output_rev_sig, [4,0], [4,1,2,3])
 		above_w += np.einsum(FCi, range(4), FCi_output_rev_sig, [4,0], [4,1,2,3])
@@ -325,18 +342,14 @@ while True:
 		max_pool_back_cudnn_buffers(MAX_OUTPUT1, DF2_DATA, CONV_OUTPUT1, DPOOL1, gpu=GPU_UNS)
 		conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, stream=1, gpu=GPU_UNS)
 
-		dFCf = np.einsum(max_output3, range(4), FCf_output_rev_sig, [0,4], [4,1,2,3])
-		dFCi = np.einsum(max_output3, range(4), FCi_output_rev_sig, [0,4], [4,1,2,3])
-		dFCm = np.einsum(max_output3, range(4), FCm_output_rev_sig, [0,4], [4,1,2,3])
-		dFCo = np.einsum(max_output3, range(4), FCo_output_rev_sig, [0,4], [4,1,2,3])
-		
+
 		dF3 = return_buffer(DF3, stream=3, gpu=GPU_UNS)
 		dF2 = return_buffer(DF2, stream=2, gpu=GPU_UNS)
 		dF1 = return_buffer(DF1, stream=1, gpu=GPU_UNS)
 		
-		#F1 -= dF1*EPS / N_IMGS
-		#F2 -= dF2*EPS / N_IMGS
-		#F3 -= dF3*EPS / N_IMGS
+		F1 -= dF1*EPS / N_IMGS
+		F2 -= dF2*EPS / N_IMGS
+		F3 -= dF3*EPS / N_IMGS
 		
 		FCf -= dFCf*EPS / N_IMGS
 		FCo -= dFCo*EPS / N_IMGS
@@ -348,7 +361,7 @@ while True:
 		FC2m -= dFC2m*EPS / N_IMGS
 		FC2i -= dFC2i*EPS / N_IMGS
 		
-		#FL -= dFL*EPS / N_IMGS
+		FL -= dFL*EPS / N_IMGS
 		
 		global_step += 1
 		

@@ -41,6 +41,8 @@ max_output_sz3  = 18
 np.random.seed(6666)
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, 4, 4)))
 
+Bf = np.single(np.random.normal(scale=1, size=n4))*1e-8
+
 FCf = np.single(np.random.normal(scale=1e-8, size=(n4, n1, 33, 33)))
 FCo = np.single(np.random.normal(scale=1e-8, size=(n4, n1, 33, 33)))
 FCi = np.single(np.random.normal(scale=1e-8, size=(n4, n1, 33, 33)))
@@ -74,13 +76,13 @@ imgs_pad = np.zeros((3, IMG_SZ, IMG_SZ, N_TEST_IMGS),dtype='single')
 imgs_pad[:,PAD:PAD+IMG_SZ_CROP,PAD:PAD+IMG_SZ_CROP] = x[:,img_train_offset:img_train_offset+IMG_SZ_CROP,img_train_offset:img_train_offset+IMG_SZ_CROP]
 imgs_pad = np.ascontiguousarray(imgs_pad.transpose((3,0,1,2)))
 
-cat_i = 9
 sc = 1*1e3
 
 def f(y):
 	#FC2m[i_ind, j_ind] = y
-	#F1[i_ind, j_ind, k_ind, l_ind] = y
-	FL[i_ind] = y
+	#Bf[i_ind] = y
+	F1[i_ind, j_ind, k_ind, l_ind] = y
+	#FL[i_ind] = y
 	#FCf[i_ind, j_ind, k_ind, l_ind] = y
 	#FCi[i_ind, j_ind, k_ind, l_ind] = y
 	#FCo[i_ind, j_ind, k_ind, l_ind] = y
@@ -88,12 +90,12 @@ def f(y):
 	
 	conv_output1 = conv(F1, imgs_pad, PAD=2)
 	
-	FCf_output_pre = np.einsum(FCf, range(4), conv_output1, [4, 1,2,3], [0])
+	FCf_output_pre = np.einsum(FCf, range(4), conv_output1, [4, 1,2,3], [0]) + Bf
 	FCi_output_pre = np.einsum(FCi, range(4), conv_output1, [4, 1,2,3], [0])
 	FCo_output_pre = np.einsum(FCo, range(4), conv_output1, [4, 1,2,3], [0])
 	FCm_output_pre = np.einsum(FCm, range(4), conv_output1, [4, 1,2,3], [0])
 	
-	FCf_output = 1 / (1 + np.exp(-FCf_output_pre))
+	FCf_output = 1 / (1 + np.exp(-FCf_output_pre)) - 10
 	FCi_output = 1 / (1 + np.exp(-FCi_output_pre))
 	FCo_output = 1 / (1 + np.exp(-FCo_output_pre))
 	FCm_output = FCm_output_pre
@@ -120,9 +122,10 @@ def f(y):
 	return err
 
 def g(y):
-	#F1[i_ind, j_ind, k_ind, l_ind] = y
+	#Bf[i_ind] = y
+	F1[i_ind, j_ind, k_ind, l_ind] = y
 	#FC2m[i_ind, j_ind] = y
-	FL[i_ind] = y
+	#FL[i_ind] = y
 	#FCf[i_ind, j_ind, k_ind, l_ind] = y
 	#FCi[i_ind, j_ind, k_ind, l_ind] = y
 	#FCm[i_ind, j_ind, k_ind, l_ind] = y
@@ -132,12 +135,12 @@ def g(y):
 	
 	conv_output1 = conv(F1, imgs_pad, PAD=2)
 	
-	FCf_output_pre = np.einsum(FCf, range(4), conv_output1, [4, 1,2,3], [0])
+	FCf_output_pre = np.einsum(FCf, range(4), conv_output1, [4, 1,2,3], [0]) + Bf
 	FCi_output_pre = np.einsum(FCi, range(4), conv_output1, [4, 1,2,3], [0])
 	FCo_output_pre = np.einsum(FCo, range(4), conv_output1, [4, 1,2,3], [0])
 	FCm_output_pre = np.einsum(FCm, range(4), conv_output1, [4, 1,2,3], [0])
 	
-	FCf_output = 1 / (1 + np.exp(-FCf_output_pre))
+	FCf_output = 1 / (1 + np.exp(-FCf_output_pre)) - 10
 	FCi_output = 1 / (1 + np.exp(-FCi_output_pre))
 	FCo_output = 1 / (1 + np.exp(-FCo_output_pre))
 	FCm_output = FCm_output_pre
@@ -201,6 +204,8 @@ def g(y):
 	FCm_output_rev_sig = above_w * FCo_output * (FCi_output * FCm_output_rev)
 	FCo_output_rev_sig = above_w * FCo_output_rev * (FCf_output * CEC + FCi_output * FCm_output)
 	
+	dBf = FCf_output_rev_sig
+	
 	dFCf = np.einsum(conv_output1, range(4), FCf_output_rev_sig, [4], [4,1,2,3])
 	dFCi = np.einsum(conv_output1, range(4), FCi_output_rev_sig, [4], [4,1,2,3])
 	dFCm = np.einsum(conv_output1, range(4), FCm_output_rev_sig, [4], [4,1,2,3])
@@ -219,22 +224,23 @@ def g(y):
 	#return dFCm[i_ind, j_ind, k_ind, l_ind]
 	#return dFCf[i_ind, j_ind, k_ind, l_ind]
 	#return dFCi[i_ind, j_ind, k_ind, l_ind]
-	return dFL[i_ind]
-	#return dF1[i_ind, j_ind, k_ind, l_ind]
+	#return dFL[i_ind]
+	return dF1[i_ind, j_ind, k_ind, l_ind]
 	#return dFC2m[i_ind, j_ind]
+	#return dBf[i_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e4
+eps = np.sqrt(np.finfo(np.float).eps)*1e10
 
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
-	'''i_ind = np.random.randint(F1.shape[0])
+	i_ind = np.random.randint(F1.shape[0])
 	j_ind = np.random.randint(F1.shape[1])
 	k_ind = np.random.randint(F1.shape[2])
 	l_ind = np.random.randint(F1.shape[3])
-	y = -1e0*F1[i_ind,j_ind,k_ind,l_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);'''
+	y = -1e0*F1[i_ind,j_ind,k_ind,l_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
 	
 	'''i_ind = np.random.randint(FC2f.shape[0])
 	j_ind = np.random.randint(FC2f.shape[1])
@@ -246,8 +252,11 @@ for sample in range(N_SAMPLES):
 	l_ind = np.random.randint(FCf.shape[3])
 	y = -1e0*FCf[i_ind,j_ind,k_ind,l_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);'''
 	
-	i_ind = np.random.randint(FL.shape[0])
-	y = -1e0*FL[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
+	'''i_ind = np.random.randint(FL.shape[0])
+	y = -1e0*FL[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);'''
+	
+	'''i_ind = np.random.randint(Bf.shape[0])
+	y = -1e0*Bf[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);'''
 	
 	if gtx == 0:
 		ratios[sample] = 1

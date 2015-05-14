@@ -10,18 +10,18 @@ SAVE_FREQ = 500
 
 BATCH_SZ = 1
 
-FL_scale = .01
-FL2_scale = .01
-FL3_scale = .02
+FL_scale = .02
+FL2_scale = .02
+FL3_scale = .1
 CEC_SCALE = 0.001
 
-EPS_E = 4
+EPS_E = 6
 EPS = 1*10**(-EPS_E)
 
 n_in = 2
-n1 = 128#*4*2
-n2 = 128#*4*2
-n3 = 128+1#*4*2
+n1 = 2*128#*4*2
+n2 = 2*128 +2#+ 2#*4*2
+n3 = 2*128 +1#+ 3#*4*2
 
 np.random.seed(6166)
 
@@ -163,7 +163,7 @@ while True:
 	CEC_kept = CEC*FCf_output
 	CEC_new = FCi_output*FCm_output
 	
-	CEC = CEC*FCf_output + FCi_output*FCm_output
+	#CEC = CEC*FCf_output + FCi_output*FCm_output
 	
 	FC2f_output_pre = np.dot(FC2f, FC_output) + B2f
 	FC2o_output_pre = np.dot(FC2o, FC_output) + B2o
@@ -184,7 +184,7 @@ while True:
 	CEC2_kept = CEC2*FC2f_output
 	CEC2_new = FC2i_output*FC2m_output
 	
-	CEC2 = CEC2*FC2f_output + FC2i_output*FC2m_output
+	#CEC2 = CEC2*FC2f_output + FC2i_output*FC2m_output
 	
 	FC3f_output_pre = np.dot(FC3f, FC2_output) + B3f
 	FC3o_output_pre = np.dot(FC3o, FC2_output) + B3o
@@ -205,7 +205,7 @@ while True:
 	CEC3_kept = CEC3*FC3f_output
 	CEC3_new = FC3i_output*FC3m_output
 	
-	CEC3 = CEC3*FC3f_output + FC3i_output*FC3m_output
+	#CEC3 = CEC3*FC3f_output + FC3i_output*FC3m_output
 	
 	pred = np.dot(FL, FC3_output)
 	
@@ -264,10 +264,10 @@ while True:
 	dB3m += FC3m_output_rev_sig
 	dB3o += FC3o_output_rev_sig
 	
-	dFC3f += np.einsum(FC_output, [0], FC3f_output_rev_sig, [1], [1,0])
-	dFC3i += np.einsum(FC_output, [0], FC3i_output_rev_sig, [1], [1,0])
-	dFC3m += np.einsum(FC_output, [0], FC3m_output_rev_sig, [1], [1,0])
-	dFC3o += np.einsum(FC_output, [0], FC3o_output_rev_sig, [1], [1,0])
+	dFC3f += np.einsum(FC2_output, [0], FC3f_output_rev_sig, [1], [1,0])
+	dFC3i += np.einsum(FC2_output, [0], FC3i_output_rev_sig, [1], [1,0])
+	dFC3m += np.einsum(FC2_output, [0], FC3m_output_rev_sig, [1], [1,0])
+	dFC3o += np.einsum(FC2_output, [0], FC3o_output_rev_sig, [1], [1,0])
 	
 	above_w = np.einsum(FC3o, [0,1], FC3o_output_rev_sig, [0], [1])
 	above_w += np.einsum(FC3f, [0,1], FC3f_output_rev_sig, [0], [1])
@@ -321,6 +321,10 @@ while True:
 	dFCi += np.einsum(inputs, [0], FCi_output_rev_sig, [1], [1,0])
 	dFCm += np.einsum(inputs, [0], FCm_output_rev_sig, [1], [1,0])
 	dFCo += np.einsum(inputs, [0], FCo_output_rev_sig, [1], [1,0])
+	
+	CEC = CEC*FCf_output + FCi_output*FCm_output
+	CEC2 = CEC2*FC2f_output + FC2i_output*FC2m_output
+	CEC3 = CEC3*FC3f_output + FC3i_output*FC3m_output
 	
 	if global_step % BATCH_SZ == 0:
 		FCf -= dFCf*EPS/BATCH_SZ
