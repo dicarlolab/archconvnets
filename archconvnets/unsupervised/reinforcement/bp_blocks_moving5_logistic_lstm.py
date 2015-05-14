@@ -14,7 +14,7 @@ GAMMA = 0.99
 BATCH_SZ = 1
 NETWORK_UPDATE = 10000
 EPS = 2e-3
-SAVE_FREQ = 5000
+SAVE_FREQ = 500
 
 SCALE = 4
 MAX_LOC = 32 - SCALE
@@ -486,7 +486,7 @@ while True:
 	
 	pred_prev = np.einsum(FL_prev, [0,1], FC3_output_prev, [2, 1], [0])
 	
-	y_output = r + GAMMA * np.max(pred_prev)
+	y_output = np.single(r + GAMMA * np.max(pred_prev))
 		
 	############## backprop
 	
@@ -721,11 +721,12 @@ while True:
 		r_total_plot.append(r_total)
 		err_plot.append(err)
 		
-		savemat(file_name, {'F1': F1, 'r_total_plot': r_total_plot, 'F2': F2, 'F3': F3, 'FL':FL, 'F1_init': F1_init, 'step': step, 'img': img, 'err_plot': err_plot, 'CEC':CEC, 'imgs_mean_player': imgs_mean_player, 'imgs_mean_red': imgs_mean_red, \
+		savemat(file_name, {'F1': F1, 'r_total_plot': r_total_plot, 'F2': F2, 'F3': F3, 'FL':FL, 'F1_init': F1_init, 'step': step, 'img': img, 'err_plot': err_plot, 'CEC':CEC, 'imgs_mean_player': imgs_mean_player,\
+				'imgs_mean_red': imgs_mean_red, \
 				'CEC_recent':CEC_recent, 'action_recent': action_recent, 'r_recent':r_recent,'SAVE_FREQ':SAVE_FREQ,\
 				'imgs_recent': imgs_recent, 'FCi': FCi, 'FCm': FCm, 'FCf': FCf, 'FCo': FCo, 'EPS':EPS, 'NETWORK_UPDATE':NETWORK_UPDATE,\
 				'FC2i': FCi, 'FC2m': FC2m, 'FC2f': FC2f, 'FC2o': FC2o,\
-				'FC3i': FCi, 'FC3m': FC3m, 'FC3f': FC3f, 'FC3o': FC3o,'MEM_SZ':MEM_SZ,'EPS_GREED_FINAL_TIME':EPS_GREED_FINAL_TIME})
+				'FC3i': FCi, 'FC3m': FC3m, 'FC3f': FC3f, 'FC3o': FC3o,'EPS_GREED_FINAL_TIME':EPS_GREED_FINAL_TIME})
 		
 		conv_output1 = return_buffer(CONV_OUTPUT1, gpu=GPU_CUR)
 		conv_output2 = return_buffer(CONV_OUTPUT2, gpu=GPU_CUR)
@@ -772,8 +773,8 @@ while True:
 						np.min(FC3i_output), np.max(FC3i_output), np.median(FC3i_output))
 		print 'FC3o: %f %f (%f)   layer: %f %f (%f)' % (np.min(FC3o), np.max(FC3o), np.median(np.abs(ft*dFC3o.ravel())/np.abs(FC3o.ravel())),\
 						np.min(FC3o_output), np.max(FC3o_output), np.median(FC3o_output))
-		print 'CEC3: %f %f, kept: %f %f, new: %f %f' % (np.min(CEC3), np.max(CEC3), np.min(CEC3_kept), np.max(CEC3_kept), \
-						np.min(CEC3_new), np.max(CEC3_new))
+		#print 'CEC3: %f %f, kept: %f %f, new: %f %f' % (np.min(CEC3), np.max(CEC3), np.min(CEC3_kept), np.max(CEC3_kept), \
+		#				np.min(CEC3_new), np.max(CEC3_new))
 		print 'FC3.: %f %f' % (np.min(FC3_output), np.max(FC3_output))
 		print
 		print 'FL: %f %f (%f)   layer: %f %f' % (np.min(FL), np.max(FL), np.median(np.abs(ft*dFL.ravel())/np.abs(FL.ravel())),\
