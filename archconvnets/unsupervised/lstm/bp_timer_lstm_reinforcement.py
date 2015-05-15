@@ -6,16 +6,21 @@ import copy
 from scipy.stats import zscore
 import random
 
+EPS_GREED_FINAL = 0.#.1
+EPS_GREED_FINAL_TIME = 5*2000000/150#4
 SAVE_FREQ = 500
+GAMMA = 0.99
+BATCH_SZ = 1
+NETWORK_UPDATE = 5000
 
 BATCH_SZ = 1
 
-FL_scale = .000002
+FL_scale = .02
 FL2_scale = .02
-FL3_scale = .1
+FL3_scale = .01
 CEC_SCALE = 0.001
 
-EPS_E = 6
+EPS_E = 5
 EPS = 1*10**(-EPS_E)
 
 n_in = 2
@@ -73,7 +78,7 @@ CEC_dFCm = np.zeros_like(CEC)
 CEC_dFCi = np.zeros_like(CEC)
 CEC_dFCf = np.zeros_like(CEC)
 
-FL = np.single(np.random.normal(scale=5, size=n3))
+FL = np.single(np.random.normal(scale=5, size=(2,n3)))
 
 CEC_kept = 0; CEC_new = 0
 CEC2_kept = 0; CEC2_new = 0
@@ -114,9 +119,47 @@ dB3i = np.zeros_like(B3i)
 dB3o = np.zeros_like(B3o)
 dB3f = np.zeros_like(B3f)
 
+###
+CEC_prev = copy.deepcopy(CEC)
+CEC2_prev = copy.deepcopy(CEC2)
+CEC3_prev = copy.deepcopy(CEC3)
+
+FCm_prev = copy.deepcopy(FCm)
+FCi_prev = copy.deepcopy(FCi)
+FCo_prev = copy.deepcopy(FCo)
+FCf_prev = copy.deepcopy(FCf)
+
+Bm_prev = copy.deepcopy(Bm)
+Bi_prev = copy.deepcopy(Bi)
+Bo_prev = copy.deepcopy(Bo)
+Bf_prev = copy.deepcopy(Bf)
+
+FC2m_prev = copy.deepcopy(FC2m)
+FC2i_prev = copy.deepcopy(FC2i)
+FC2o_prev = copy.deepcopy(FC2o)
+FC2f_prev = copy.deepcopy(FC2f)
+
+B2m_prev = copy.deepcopy(B2m)
+B2i_prev = copy.deepcopy(B2i)
+B2o_prev = copy.deepcopy(B2o)
+B2f_prev = copy.deepcopy(B2f)
+
+FC3m_prev = copy.deepcopy(FC3m)
+FC3i_prev = copy.deepcopy(FC3i)
+FC3o_prev = copy.deepcopy(FC3o)
+FC3f_prev = copy.deepcopy(FC3f)
+
+B3m_prev = copy.deepcopy(B3m)
+B3i_prev = copy.deepcopy(B3i)
+B3o_prev = copy.deepcopy(B3o)
+B3f_prev = copy.deepcopy(B3f)
+
+FL_prev = copy.deepcopy(FL)
+
+
 t_start = time.time()
 
-MAX_TIME = 100
+MAX_TIME = 70
 
 time_length = np.random.randint(MAX_TIME-1) + 1
 elapsed_time = 0
@@ -128,21 +171,25 @@ inputs_recent = np.zeros((SAVE_FREQ, n_in))
 targets_recent = np.zeros(SAVE_FREQ)
 preds_recent = np.zeros(SAVE_FREQ)
 
-err_t = 0
-err = []
+err = 0
+err_plot = []
+r_total_plot = []
+r_total = 0
 
 global_step = 0
-while True:
-	if random.random() < p_start and elapsed_time > time_length:
-		time_length = np.random.randint(MAX_TIME)
-		elapsed_time = 0
-		inputs[0] = 1
-		inputs[1] = time_length
-	else:
-		inputs[0] = 0
-		
-	target = 1 - (time_length < elapsed_time)
+network_updates = 0
+
+if random.random() < p_start and elapsed_time > time_length:
+	time_length = np.random.randint(MAX_TIME)
+	elapsed_time = 0
+	inputs[0] = 1
+	inputs[1] = time_length
+else:
+	inputs[0] = 0
 	
+target = 1 - (time_length < elapsed_time)
+
+while True:
 	# forward pass
 	FCm_output_pre = np.dot(FCm, inputs) + Bm
 	FCi_output_pre = np.dot(FCi, inputs) + Bi
@@ -152,11 +199,7 @@ while True:
 	FCf_output = 1 / (1 + np.exp(-FCf_output_pre))
 	FCi_output = 1 / (1 + np.exp(-FCi_output_pre))
 	FCo_output = 1 / (1 + np.exp(-FCo_output_pre))
-	#FCm_output = 1 / (1 + np.exp(-FCm_output_pre)) - .5
 	FCm_output = FCm_output_pre
-	#FCi_output = FCi_output_pre
-	#FCf_output = FCf_output_pre
-	#FCo_output = FCo_output_pre
 	
 	FC_output = FCo_output * (FCf_output * CEC + FCi_output * FCm_output)
 	
@@ -173,11 +216,7 @@ while True:
 	FC2f_output = 1 / (1 + np.exp(-FC2f_output_pre))
 	FC2o_output = 1 / (1 + np.exp(-FC2o_output_pre))
 	FC2i_output = 1 / (1 + np.exp(-FC2i_output_pre))
-	#FC2m_output = 1 / (1 + np.exp(-FC2m_output_pre)) - .5
 	FC2m_output = FC2m_output_pre
-	#FC2i_output = FC2i_output_pre
-	#FC2o_output = FC2o_output_pre
-	#FC2f_output = FC2f_output_pre
 	
 	FC2_output = FC2o_output * (FC2f_output * CEC2 + FC2i_output * FC2m_output)
 	
@@ -194,11 +233,7 @@ while True:
 	FC3f_output = 1 / (1 + np.exp(-FC3f_output_pre))
 	FC3o_output = 1 / (1 + np.exp(-FC3o_output_pre))
 	FC3i_output = 1 / (1 + np.exp(-FC3i_output_pre))
-	#FC3m_output = 1 / (1 + np.exp(-FC3m_output_pre)) - .5
 	FC3m_output = FC3m_output_pre
-	#FC3f_output = FC3f_output_pre
-	#FC3o_output = FC3o_output_pre
-	#FC3i_output = FC3i_output_pre
 	
 	FC3_output = FC3o_output * (FC3f_output * CEC3 + FC3i_output * FC3m_output)
 	
@@ -209,44 +244,101 @@ while True:
 	
 	pred = np.dot(FL, FC3_output)
 	
-	pred_m_Y = pred - target
-	
-	err_t += pred_m_Y**2
-	
 	############### reverse pointwise
 	FC3f_output_rev = np.exp(FC3f_output_pre)/((np.exp(FC3f_output_pre) + 1)**2)
 	FC3o_output_rev = np.exp(FC3o_output_pre)/((np.exp(FC3o_output_pre) + 1)**2)
 	FC3i_output_rev = np.exp(FC3i_output_pre)/((np.exp(FC3i_output_pre) + 1)**2)
-	#FC3m_output_rev = np.exp(FC3m_output_pre)/((np.exp(FC3m_output_pre) + 1)**2)
 	FC3m_output_rev = 1
-	#FC3i_output_rev = 1
-	#FC3o_output_rev = 1
-	#FC3f_output_rev = 1
 	
 	FC2f_output_rev = np.exp(FC2f_output_pre)/((np.exp(FC2f_output_pre) + 1)**2)
 	FC2o_output_rev = np.exp(FC2o_output_pre)/((np.exp(FC2o_output_pre) + 1)**2)
 	FC2i_output_rev = np.exp(FC2i_output_pre)/((np.exp(FC2i_output_pre) + 1)**2)
-	#FC2m_output_rev = np.exp(FC2m_output_pre)/((np.exp(FC2m_output_pre) + 1)**2)
 	FC2m_output_rev = 1
-	#FC2f_output_rev = 1
-	#FC2o_output_rev = 1
-	#FC2i_output_rev = 1
 	
 	FCf_output_rev = np.exp(FCf_output_pre)/((np.exp(FCf_output_pre) + 1)**2)
 	FCi_output_rev = np.exp(FCi_output_pre)/((np.exp(FCi_output_pre) + 1)**2)
 	FCo_output_rev = np.exp(FCo_output_pre)/((np.exp(FCo_output_pre) + 1)**2)
-	#FCm_output_rev = np.exp(FCm_output_pre)/((np.exp(FCm_output_pre) + 1)**2)
 	FCm_output_rev = 1
-	#FCo_output_rev = 1
-	#FCi_output_rev = 1
-	#FCf_output_rev = 1
 	
+	# choose action
+	CHANCE_RAND = np.max((1 - ((1-EPS_GREED_FINAL)/EPS_GREED_FINAL_TIME)*global_step, EPS_GREED_FINAL))
+	if np.random.rand() <= CHANCE_RAND:
+		action = np.random.randint(2)
+	else:
+		action = np.argmax(pred)
+
+	r = 2*(((target - action)**2) < .01) - 1
+	r_total += r
+	
+	# create next inputs/targets
+	if random.random() < p_start and elapsed_time > time_length:
+		time_length = np.random.randint(MAX_TIME)
+		elapsed_time = 0
+		inputs[0] = 1
+		inputs[1] = time_length
+	else:
+		inputs[0] = 0
+		
+	target = 1 - (time_length < elapsed_time)
+	
+	# forward pass prev network
+	FCm_output_pre = np.dot(FCm_prev, inputs) + Bm_prev
+	FCi_output_pre = np.dot(FCi_prev, inputs) + Bi_prev
+	FCo_output_pre = np.dot(FCo_prev, inputs) + Bo_prev
+	FCf_output_pre = np.dot(FCf_prev, inputs) + Bf_prev
+	
+	FCf_output_prev = 1 / (1 + np.exp(-FCf_output_pre))
+	FCi_output_prev = 1 / (1 + np.exp(-FCi_output_pre))
+	FCo_output_prev = 1 / (1 + np.exp(-FCo_output_pre))
+	FCm_output_prev = FCm_output_pre
+	
+	FC_output_prev = FCo_output_prev * (FCf_output_prev * CEC_prev + FCi_output_prev * FCm_output_prev)
+	
+	CEC_prev = CEC_prev*FCf_output_prev + FCi_output_prev*FCm_output_prev
+	
+	FC2f_output_pre = np.dot(FC2f_prev, FC_output_prev) + B2f_prev
+	FC2o_output_pre = np.dot(FC2o_prev, FC_output_prev) + B2o_prev
+	FC2i_output_pre = np.dot(FC2i_prev, FC_output_prev) + B2i_prev
+	FC2m_output_pre = np.dot(FC2m_prev, FC_output_prev) + B2m_prev
+	
+	FC2f_output_prev = 1 / (1 + np.exp(-FC2f_output_pre))
+	FC2o_output_prev = 1 / (1 + np.exp(-FC2o_output_pre))
+	FC2i_output_prev = 1 / (1 + np.exp(-FC2i_output_pre))
+	FC2m_output_prev = FC2m_output_pre
+	
+	FC2_output_prev = FC2o_output_prev * (FC2f_output_prev * CEC2_prev + FC2i_output_prev * FC2m_output_prev)
+	
+	CEC2_prev = CEC2_prev*FC2f_output_prev + FC2i_output_prev*FC2m_output_prev
+	
+	FC3f_output_pre = np.dot(FC3f_prev, FC2_output) + B3f_prev
+	FC3o_output_pre = np.dot(FC3o_prev, FC2_output) + B3o_prev
+	FC3i_output_pre = np.dot(FC3i_prev, FC2_output) + B3i_prev
+	FC3m_output_pre = np.dot(FC3m_prev, FC2_output) + B3m_prev
+	
+	FC3f_output_prev = 1 / (1 + np.exp(-FC3f_output_pre))
+	FC3o_output_prev = 1 / (1 + np.exp(-FC3o_output_pre))
+	FC3i_output_prev = 1 / (1 + np.exp(-FC3i_output_pre))
+	FC3m_output_prev = FC3m_output_pre
+	
+	FC3_output_prev = FC3o_output_prev * (FC3f_output_prev * CEC3_prev + FC3i_output_prev * FC3m_output_prev)
+	
+	CEC3_prev = CEC3_prev*FC3f_output_prev + FC3i_output_prev*FC3m_output_prev
+	
+	pred_prev = np.dot(FL_prev, FC3_output_prev)
+	
+	y_output = np.single(r + GAMMA * np.max(pred_prev))
+	
+	############################ backprop
+	
+	pred_m_Y = y_output - pred[action]
+	
+	err += pred_m_Y**2
 	
 	############ FL
 	
-	dFL = pred_m_Y * FC3_output
+	dFL[action] = pred_m_Y * FC3_output
 	
-	above_w = pred_m_Y * FL
+	above_w = pred_m_Y * FL[action]
 	
 	######################### mem 3 gradients:
 	
@@ -259,10 +351,10 @@ while True:
 	CEC3_dFC3m = CEC3_dFC3m * FC3f_output + FC3i_output * FC3m_output_rev
 	CEC3_dFC3i = CEC3_dFC3i * FC3f_output + FC3i_output_rev * FC3m_output
 	
-	dB3f += FC3f_output_rev_sig
-	dB3i += FC3i_output_rev_sig
-	dB3m += FC3m_output_rev_sig
-	dB3o += FC3o_output_rev_sig
+	dB3f += np.squeeze(FC3f_output_rev_sig)
+	dB3i += np.squeeze(FC3i_output_rev_sig)
+	dB3m += np.squeeze(FC3m_output_rev_sig)
+	dB3o += np.squeeze(FC3o_output_rev_sig)
 	
 	dFC3f += np.einsum(FC2_output, [0], FC3f_output_rev_sig, [1], [1,0])
 	dFC3i += np.einsum(FC2_output, [0], FC3i_output_rev_sig, [1], [1,0])
@@ -324,37 +416,37 @@ while True:
 	
 
 	if global_step % BATCH_SZ == 0:
-		FCf -= dFCf*EPS/BATCH_SZ
-		FCo -= dFCo*EPS/BATCH_SZ
-		FCm -= dFCm*EPS/BATCH_SZ
-		FCi -= dFCi*EPS/BATCH_SZ
+		FCf += dFCf*EPS/BATCH_SZ
+		FCo += dFCo*EPS/BATCH_SZ
+		FCm += dFCm*EPS/BATCH_SZ
+		FCi += dFCi*EPS/BATCH_SZ
 		
-		Bf -= dBf*EPS/BATCH_SZ
-		Bo -= dBo*EPS/BATCH_SZ
-		Bm -= dBm*EPS/BATCH_SZ
-		Bi -= dBi*EPS/BATCH_SZ
+		Bf += dBf*EPS/BATCH_SZ
+		Bo += dBo*EPS/BATCH_SZ
+		Bm += dBm*EPS/BATCH_SZ
+		Bi += dBi*EPS/BATCH_SZ
 		
-		FC2f -= dFC2f*EPS/BATCH_SZ
-		FC2o -= dFC2o*EPS/BATCH_SZ
-		FC2m -= dFC2m*EPS/BATCH_SZ
-		FC2i -= dFC2i*EPS/BATCH_SZ
+		FC2f += dFC2f*EPS/BATCH_SZ
+		FC2o += dFC2o*EPS/BATCH_SZ
+		FC2m += dFC2m*EPS/BATCH_SZ
+		FC2i += dFC2i*EPS/BATCH_SZ
 		
-		B2f -= dB2f*EPS/BATCH_SZ
-		B2o -= dB2o*EPS/BATCH_SZ
-		B2m -= dB2m*EPS/BATCH_SZ
-		B2i -= dB2i*EPS/BATCH_SZ
+		B2f += dB2f*EPS/BATCH_SZ
+		B2o += dB2o*EPS/BATCH_SZ
+		B2m += dB2m*EPS/BATCH_SZ
+		B2i += dB2i*EPS/BATCH_SZ
 		
-		FC3f -= dFC3f*EPS/BATCH_SZ
-		FC3o -= dFC3o*EPS/BATCH_SZ
-		FC3m -= dFC3m*EPS/BATCH_SZ
-		FC3i -= dFC3i*EPS/BATCH_SZ
+		FC3f += dFC3f*EPS/BATCH_SZ
+		FC3o += dFC3o*EPS/BATCH_SZ
+		FC3m += dFC3m*EPS/BATCH_SZ
+		FC3i += dFC3i*EPS/BATCH_SZ
 		
-		B3f -= dB3f*EPS/BATCH_SZ
-		B3o -= dB3o*EPS/BATCH_SZ
-		B3m -= dB3m*EPS/BATCH_SZ
-		B3i -= dB3i*EPS/BATCH_SZ
+		B3f += dB3f*EPS/BATCH_SZ
+		B3o += dB3o*EPS/BATCH_SZ
+		B3m += dB3m*EPS/BATCH_SZ
+		B3i += dB3i*EPS/BATCH_SZ
 		
-		FL -= dFL*EPS/BATCH_SZ
+		FL += dFL*EPS/BATCH_SZ
 		
 		dFCf = np.zeros_like(FCf)
 		dFCo = np.zeros_like(FCo)
@@ -385,17 +477,54 @@ while True:
 		dB3o = np.zeros_like(B3o)
 		dB3m = np.zeros_like(B3m)
 		dB3i = np.zeros_like(B3i)
+		
+		network_updates += 1
+		
+		if network_updates % NETWORK_UPDATE == 0:
+			print 'updating network'
+			FCm_prev = copy.deepcopy(FCm)
+			FCi_prev = copy.deepcopy(FCi)
+			FCo_prev = copy.deepcopy(FCo)
+			FCf_prev = copy.deepcopy(FCf)
+
+			Bm_prev = copy.deepcopy(Bm)
+			Bi_prev = copy.deepcopy(Bi)
+			Bo_prev = copy.deepcopy(Bo)
+			Bf_prev = copy.deepcopy(Bf)
+
+			FC2m_prev = copy.deepcopy(FC2m)
+			FC2i_prev = copy.deepcopy(FC2i)
+			FC2o_prev = copy.deepcopy(FC2o)
+			FC2f_prev = copy.deepcopy(FC2f)
+
+			B2m_prev = copy.deepcopy(B2m)
+			B2i_prev = copy.deepcopy(B2i)
+			B2o_prev = copy.deepcopy(B2o)
+			B2f_prev = copy.deepcopy(B2f)
+
+			FC3m_prev = copy.deepcopy(FC3m)
+			FC3i_prev = copy.deepcopy(FC3i)
+			FC3o_prev = copy.deepcopy(FC3o)
+			FC3f_prev = copy.deepcopy(FC3f)
+
+			B3m_prev = copy.deepcopy(B3m)
+			B3i_prev = copy.deepcopy(B3i)
+			B3o_prev = copy.deepcopy(B3o)
+			B3f_prev = copy.deepcopy(B3f)
+
+			FL_prev = copy.deepcopy(FL)
 	
 	s_loc = global_step % SAVE_FREQ
 	
 	inputs_recent[s_loc] = copy.deepcopy(inputs)
 	targets_recent[s_loc] = target
-	preds_recent[s_loc] = pred
+	preds_recent[s_loc] = action
 	
 	if global_step % SAVE_FREQ == 0:
-		err.append(err_t)
+		err_plot.append(err)
+		r_total_plot.append(r_total)
 		print '---------------------------------------------'
-		print global_step, 'err:', err[-1], time.time() - t_start
+		print global_step, 'err:', err_plot[-1], 'r:', r_total_plot[-1], time.time() - t_start, 'eps:', CHANCE_RAND
 		ft = EPS
 		print 'FCm: %f %f (%f)   layer: %f %f (%f)' % (np.min(FCm), np.max(FCm), np.median(np.abs(ft*dFCm.ravel())/np.abs(FCm.ravel())),\
 						np.min(FCm_output), np.max(FCm_output), np.median(FCm_output))
@@ -433,10 +562,11 @@ while True:
 						np.min(CEC3_new), np.max(CEC3_new))
 		print 'FC3.: %f %f' % (np.min(FC3_output), np.max(FC3_output))
 		savemat('/home/darren/timer_linear.mat', {'inputs_recent': inputs_recent, 'targets_recent': targets_recent, \
-			'preds_recent': preds_recent, 'err': err})
+			'preds_recent': preds_recent, 'err': err_plot, 'r_total_plot':r_total_plot})
 	
 		t_start = time.time()
-		err_t = 0
+		err = 0
+		r_total = 0
 	
 	global_step += 1
 	elapsed_time += 1
