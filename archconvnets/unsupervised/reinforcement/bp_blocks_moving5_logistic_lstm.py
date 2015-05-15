@@ -9,11 +9,12 @@ import random
 import scipy
 
 EPS_GREED_FINAL = .1
-EPS_GREED_FINAL_TIME = 2000000
+EPS_GREED_FINAL_TIME = 2000000/10#4
 GAMMA = 0.99
 BATCH_SZ = 1
 NETWORK_UPDATE = 10000
-EPS = 2e-3
+EPS = 1e-3
+EPS_F = 1e-3
 SAVE_FREQ = 500
 
 SCALE = 4
@@ -22,8 +23,8 @@ MAX_LOC = 32 - SCALE
 F1_scale = 0.001 # std of init normal distribution
 F2_scale = 0.01
 F3_scale = 0.01
-FL_scale = .01
-FL2_scale = .01
+FL_scale = .03
+FL2_scale = .02
 FL3_scale = .02
 CEC_SCALE = 0.001
 
@@ -41,7 +42,7 @@ s1 = 5
 
 N_C = 4 # directions L, R, U, D
 
-file_name = '/home/darren/reinforcement_blocks_moving_CEC_FLm.mat'
+file_name = '/home/darren/reinforcement_blocks_moving_CEC_faster2.mat'
 
 PLAYER_MOV_RATE = 3
 RED_MOV_RATE = 1
@@ -327,6 +328,8 @@ while True:
 	
 	FC3_output = FC3o_output * (FC3f_output * CEC3 + FC3i_output * FC3m_output)
 	
+	CEC3 = CEC3*FC3f_output + FC3i_output*FC3m_output
+	
 	pred = np.einsum(FL, [0,1], FC3_output, [2, 1], [0])
 	
 	############### reverse pointwise
@@ -601,9 +604,9 @@ while True:
 	
 	#### update filter weights
 	if step % BATCH_SZ == 0:
-		F1 += dF1*EPS / BATCH_SZ
-		F2 += dF2*EPS / BATCH_SZ
-		F3 += dF3*EPS / BATCH_SZ
+		F1 += dF1*EPS_F / BATCH_SZ
+		F2 += dF2*EPS_F / BATCH_SZ
+		F3 += dF3*EPS_F / BATCH_SZ
 		FL += dFL*EPS / BATCH_SZ
 		
 		FCf += dFCf*EPS / BATCH_SZ
