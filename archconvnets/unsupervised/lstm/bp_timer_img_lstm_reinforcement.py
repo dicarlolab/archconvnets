@@ -6,38 +6,45 @@ import copy
 from scipy.stats import zscore
 import random
 
+use_time = True
+if use_time:
+	filename = '/home/darren/timer_linear_1024.mat'
+	GPU_CUR = 0
+	GPU_PREV = 1
+else:
+	filename = '/home/darren/timer_linear_nt.mat'
+	GPU_CUR = 2
+	GPU_PREV = 3
+
 EPS_GREED_FINAL = .1
-EPS_GREED_FINAL_TIME = 3*5*2000000/150#4
-SAVE_FREQ = 500
+EPS_GREED_FINAL_TIME = 3*5*2000000/150#4#200000*3
+SAVE_FREQ = 1000
 GAMMA = 0.99
 BATCH_SZ = 1
-NETWORK_UPDATE = 5000
+NETWORK_UPDATE = 10000
 
 BATCH_SZ = 1
 
 F1_scale = .1
-FL_scale = .02
-FL2_scale = .02
+FL_scale = .01
+FL2_scale = .01
 FL3_scale = .01
 CEC_SCALE = 0.001
 
-EPS_E = 4
-EPS = 1*10**(-EPS_E)
+EPS_E = 5
+EPS = 5*10**(-EPS_E)
 
-EPS_E = 3
+EPS_E = 4
 EPS_F = 1*10**(-EPS_E)
 
 n_in = 2
-n1 = 2*128#*4*2
-n2 = 2*128 +2#+ 2#*4*2
-n3 = 2*128 +1#+ 3#*4*2
+n1 = 128#1024#32#2*128#*4*2
+n2 = 128#1024#32#2*128 +2#+ 2#*4*2
+n3 = 128#1024#32#2*128 +1#+ 3#*4*2
 
 n1f = 32
 s1 = 5
 
-
-GPU_CUR = 1
-GPU_PREV = 0
 
 # gpu buffer indices
 MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
@@ -205,7 +212,8 @@ while True:
 	CEC_kept = CEC*FCf_output
 	CEC_new = FCi_output*FCm_output
 	
-	CEC = CEC*FCf_output + FCi_output*FCm_output
+	if use_time:
+		CEC = CEC*FCf_output + FCi_output*FCm_output
 	
 	FC2f_output_pre = np.dot(FC2f, np.squeeze(FC_output)) + B2f
 	FC2o_output_pre = np.dot(FC2o, np.squeeze(FC_output)) + B2o
@@ -222,7 +230,8 @@ while True:
 	CEC2_kept = CEC2*FC2f_output
 	CEC2_new = FC2i_output*FC2m_output
 	
-	CEC2 = CEC2*FC2f_output + FC2i_output*FC2m_output
+	if use_time:
+		CEC2 = CEC2*FC2f_output + FC2i_output*FC2m_output
 	
 	FC3f_output_pre = np.dot(FC3f, FC2_output) + B3f
 	FC3o_output_pre = np.dot(FC3o, FC2_output) + B3o
@@ -239,7 +248,8 @@ while True:
 	CEC3_kept = CEC3*FC3f_output
 	CEC3_new = FC3i_output*FC3m_output
 	
-	CEC3 = CEC3*FC3f_output + FC3i_output*FC3m_output
+	if use_time:
+		CEC3 = CEC3*FC3f_output + FC3i_output*FC3m_output
 	
 	pred = np.dot(FL, FC3_output)
 	
@@ -301,7 +311,8 @@ while True:
 	
 	FC_output_prev = FCo_output_prev * (FCf_output_prev * CEC_prev + FCi_output_prev * FCm_output_prev)
 	
-	CEC_prev = CEC_prev*FCf_output_prev + FCi_output_prev*FCm_output_prev
+	if use_time:
+		CEC_prev = CEC_prev*FCf_output_prev + FCi_output_prev*FCm_output_prev
 	
 	FC2f_output_pre = np.dot(FC2f_prev, np.squeeze(FC_output_prev)) + B2f_prev
 	FC2o_output_pre = np.dot(FC2o_prev, np.squeeze(FC_output_prev)) + B2o_prev
@@ -315,7 +326,8 @@ while True:
 	
 	FC2_output_prev = FC2o_output_prev * (FC2f_output_prev * CEC2_prev + FC2i_output_prev * FC2m_output_prev)
 	
-	CEC2_prev = CEC2_prev*FC2f_output_prev + FC2i_output_prev*FC2m_output_prev
+	if use_time:
+		CEC2_prev = CEC2_prev*FC2f_output_prev + FC2i_output_prev*FC2m_output_prev
 	
 	FC3f_output_pre = np.dot(FC3f_prev, FC2_output) + B3f_prev
 	FC3o_output_pre = np.dot(FC3o_prev, FC2_output) + B3o_prev
@@ -329,7 +341,8 @@ while True:
 	
 	FC3_output_prev = FC3o_output_prev * (FC3f_output_prev * CEC3_prev + FC3i_output_prev * FC3m_output_prev)
 	
-	CEC3_prev = CEC3_prev*FC3f_output_prev + FC3i_output_prev*FC3m_output_prev
+	if use_time:
+		CEC3_prev = CEC3_prev*FC3f_output_prev + FC3i_output_prev*FC3m_output_prev
 	
 	pred_prev = np.dot(FL_prev, FC3_output_prev)
 	
@@ -355,9 +368,10 @@ while True:
 	FC3m_output_rev_sig = above_w * FC3o_output * (CEC3_dFC3m * FC3f_output + FC3i_output * FC3m_output_rev)
 	FC3o_output_rev_sig = above_w * FC3o_output_rev * (FC3f_output * CEC3 + FC3i_output * FC3m_output)
 	
-	CEC3_dFC3f = CEC3_dFC3f * FC3f_output + FC3f_output_rev * CEC3
-	CEC3_dFC3m = CEC3_dFC3m * FC3f_output + FC3i_output * FC3m_output_rev
-	CEC3_dFC3i = CEC3_dFC3i * FC3f_output + FC3i_output_rev * FC3m_output
+	if use_time:
+		CEC3_dFC3f = CEC3_dFC3f * FC3f_output + FC3f_output_rev * CEC3
+		CEC3_dFC3m = CEC3_dFC3m * FC3f_output + FC3i_output * FC3m_output_rev
+		CEC3_dFC3i = CEC3_dFC3i * FC3f_output + FC3i_output_rev * FC3m_output
 	
 	dB3f = np.squeeze(FC3f_output_rev_sig)
 	dB3i = np.squeeze(FC3i_output_rev_sig)
@@ -381,9 +395,10 @@ while True:
 	FC2m_output_rev_sig = above_w * FC2o_output * (CEC2_dFC2m * FC2f_output + FC2i_output * FC2m_output_rev)
 	FC2o_output_rev_sig = above_w * FC2o_output_rev * (FC2f_output * CEC2 + FC2i_output * FC2m_output)
 	
-	CEC2_dFC2f = CEC2_dFC2f * FC2f_output + FC2f_output_rev * CEC2
-	CEC2_dFC2m = CEC2_dFC2m * FC2f_output + FC2i_output * FC2m_output_rev
-	CEC2_dFC2i = CEC2_dFC2i * FC2f_output + FC2i_output_rev * FC2m_output
+	if use_time:
+		CEC2_dFC2f = CEC2_dFC2f * FC2f_output + FC2f_output_rev * CEC2
+		CEC2_dFC2m = CEC2_dFC2m * FC2f_output + FC2i_output * FC2m_output_rev
+		CEC2_dFC2i = CEC2_dFC2i * FC2f_output + FC2i_output_rev * FC2m_output
 	
 	dB2f = np.squeeze(FC2f_output_rev_sig)
 	dB2i = np.squeeze(FC2i_output_rev_sig)
@@ -408,9 +423,10 @@ while True:
 	FCm_output_rev_sig = above_w * FCo_output * (CEC_dFCm * FCf_output + FCi_output * FCm_output_rev)
 	FCo_output_rev_sig = above_w * FCo_output_rev * (FCf_output * CEC + FCi_output * FCm_output)
 	
-	CEC_dFCf = CEC_dFCf * FCf_output + FCf_output_rev * CEC
-	CEC_dFCm = CEC_dFCm * FCf_output + FCi_output * FCm_output_rev
-	CEC_dFCi = CEC_dFCi * FCf_output + FCi_output_rev * FCm_output
+	if use_time:
+		CEC_dFCf = CEC_dFCf * FCf_output + FCf_output_rev * CEC
+		CEC_dFCm = CEC_dFCm * FCf_output + FCi_output * FCm_output_rev
+		CEC_dFCi = CEC_dFCi * FCf_output + FCi_output_rev * FCm_output
 	
 	dBf = np.squeeze(FCf_output_rev_sig)
 	dBi = np.squeeze(FCi_output_rev_sig)
@@ -518,7 +534,7 @@ while True:
 		err_plot.append(err)
 		r_total_plot.append(r_total)
 		conv_output1 = return_buffer(CONV_OUTPUT1, gpu=GPU_CUR)
-		print '---------------------------------------------'
+		print '---------------------------------------------', filename
 		print global_step, 'err:', err_plot[-1], 'r:', r_total_plot[-1], time.time() - t_start, 'eps:', CHANCE_RAND
 		ft = EPS
 		print 'F1: %f %f (%f);   layer: %f %f' % (np.min(F1), np.max(F1), np.median(np.abs(ft*dF1.ravel())/np.abs(F1.ravel())),\
@@ -558,7 +574,7 @@ while True:
 		print 'CEC3: %f %f, kept: %f %f, new: %f %f' % (np.min(CEC3), np.max(CEC3), np.min(CEC3_kept), np.max(CEC3_kept), \
 						np.min(CEC3_new), np.max(CEC3_new))
 		print 'FC3.: %f %f' % (np.min(FC3_output), np.max(FC3_output))
-		savemat('/home/darren/timer_linear.mat', {'inputs_recent': inputs_recent, 'targets_recent': targets_recent, \
+		savemat(filename, {'inputs_recent': inputs_recent, 'targets_recent': targets_recent, \
 			'preds_recent': preds_recent, 'err': err_plot, 'r_total_plot':r_total_plot,'F1':F1})
 	
 		t_start = time.time()

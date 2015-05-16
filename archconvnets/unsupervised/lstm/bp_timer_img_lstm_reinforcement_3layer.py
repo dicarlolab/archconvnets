@@ -6,7 +6,7 @@ import copy
 from scipy.stats import zscore
 import random
 
-use_time = False
+use_time = True
 if use_time:
 	filename = '/home/darren/timer_linear.mat'
 	GPU_CUR = 0
@@ -17,7 +17,7 @@ else:
 	GPU_PREV = 3
 
 EPS_GREED_FINAL = .1
-EPS_GREED_FINAL_TIME = 3*5*2000000/150#4#200000*3
+EPS_GREED_FINAL_TIME = 5*3*5*2000000/150#4#200000*3
 SAVE_FREQ = 1000
 GAMMA = 0.99
 BATCH_SZ = 1
@@ -33,10 +33,10 @@ FL2_scale = .01
 FL3_scale = .01
 CEC_SCALE = 0.001
 
-EPS_E = 5
+EPS_E = 6
 EPS = 5*10**(-EPS_E)
 
-EPS_E = 4
+EPS_E = 5
 EPS_F = 1*10**(-EPS_E)
 
 n_in = 2
