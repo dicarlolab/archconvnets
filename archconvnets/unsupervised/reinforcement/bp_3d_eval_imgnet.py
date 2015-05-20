@@ -12,7 +12,8 @@ from pandac.PandaModules import loadPrcFileData
 import PIL
 import PIL.Image
 
-SAVE_FREQ = 1000
+SAVE_FREQ = 2000
+SAVE_CHECK_FREQ = 1000000
 MEM_SZ = 1000000
 EPS_GREED_FINAL = .1
 EPS_GREED_FINAL_TIME = 4*5000000
@@ -748,9 +749,9 @@ while True:
 			'F1_sup':F1_sup, 'F2_sup':F2_sup,'F3_sup':F3_sup,'FL_sup': FL_sup, 'FL_sup_imgnet':FL_sup_imgnet,\
 			'r_recent': r_recent,'err_imgnet':err_imgnet,'err_sup_plot':err_sup_plot,'err_sup_imgnet_test_plot':err_sup_imgnet_test_plot})
 			
-		savemat(file_name + str(step) + '.mat', {'F1': F1, 'r_total_plot': r_total_plot, 'F2': F2, 'F3': F3, 'FL':FL, 'FL_imgnet':FL_imgnet,'F1_init': F1_init, 'step': step, 'err_sup_plot': err_sup_plot,\
-		'F1_sup':F1_sup, 'F2_sup':F2_sup,'F3_sup':F3_sup,'FL_sup': FL_sup, 'FL_sup_imgnet':FL_sup_imgnet,\
-			'img': img, 'err_plot': err_plot,'err_imgnet':err_imgnet})
+		if step % SAVE_CHECK_FREQ == 0 :
+			savemat(file_name + str(step) + '.mat', {'F1': F1, 'F2': F2, 'F3': F3, 'FL':FL, 'FL_imgnet':FL_imgnet,'F1_init': F1_init, 'step': step, \
+				'F1_sup':F1_sup, 'F2_sup':F2_sup,'F3_sup':F3_sup,'FL_sup': FL_sup, 'FL_sup_imgnet':FL_sup_imgnet})
 		
 		print file_name + str(step) + '.mat'
 		print 'step:', step, 'err:',err, 'r:',r_total, 'updates:',network_updates, 'eps:', CHANCE_RAND, 'F1:', np.max(F1), 't:',time.time() - t_start
