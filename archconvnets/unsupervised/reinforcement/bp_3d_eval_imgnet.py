@@ -314,13 +314,13 @@ imgs_pad_test_imgnet = np.zeros((3, IMG_SZ, IMG_SZ, N_TRAIN_IMGNET),dtype='singl
 Y_test_imgnet = np.zeros((N_TRAIN_IMGNET, 999),dtype='single')
 labels_test_imgnet = np.zeros(N_TRAIN_IMGNET, dtype='int')
 
-for batch in range(1,N_BATCHES_IMGNET_TEST):
+for batch in range(1,N_BATCHES_IMGNET_TEST+1):
 	z2 = np.load('/export/storage/imgnet92/data_batch_' + str(batch))
 	x2 = z2['data'].reshape((3, 92, 92, IMGNET_BATCH_SZ))
 
 	labels_temp = np.asarray(z2['labels']).astype(int)
 	
-	Y_test_imgnet[(batch-1)*IMGNET_BATCH_SZ:batch*IMGNET_BATCH_SZ, labels_temp] = 1
+	Y_test_imgnet[(batch-1)*IMGNET_BATCH_SZ:batch*IMGNET_BATCH_SZ][range(IMGNET_BATCH_SZ), labels_temp] = 1
 	labels_test_imgnet[(batch-1)*IMGNET_BATCH_SZ:batch*IMGNET_BATCH_SZ] = copy.deepcopy(labels_temp)
 
 	imgs_pad_test_imgnet[:,:,:,(batch-1)*IMGNET_BATCH_SZ:batch*IMGNET_BATCH_SZ] = x2

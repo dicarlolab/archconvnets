@@ -43,11 +43,17 @@ F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, 4, 4)))
 
 Bf = np.single(np.random.normal(scale=1, size=n4))*1e-8
 
+Boo = np.single(np.random.normal(scale=1, size=n4))*1
+
+FC_output_prev = np.single(np.random.normal(scale=1, size=n4))
+
+FCfr = np.single(np.random.normal(scale=1, size=n4))
+
 FCf = np.single(np.random.normal(scale=1e-8, size=(n4, n1, 33, 33)))
 FCo = np.single(np.random.normal(scale=1e-8, size=(n4, n1, 33, 33)))
 FCi = np.single(np.random.normal(scale=1e-8, size=(n4, n1, 33, 33)))
 FCm = np.single(np.random.normal(scale=1e-8, size=(n4, n1, 33, 33)))
-CEC = np.single(np.random.normal(scale=FL_scale, size=(n4)))
+CEC = np.single(np.random.normal(scale=.5, size=(n4)))
 
 FC2f = np.single(np.random.normal(scale=1, size=(n5, n4)))
 FC2o = np.single(np.random.normal(scale=1, size=(n5, n4)))
@@ -81,7 +87,9 @@ sc = 1*1e3
 def f(y):
 	#FC2m[i_ind, j_ind] = y
 	#Bf[i_ind] = y
-	F1[i_ind, j_ind, k_ind, l_ind] = y
+	#FCfr[i_ind] = y
+	#F1[i_ind, j_ind, k_ind, l_ind] = y
+	Boo[i_ind] = y
 	#FL[i_ind] = y
 	#FCf[i_ind, j_ind, k_ind, l_ind] = y
 	#FCi[i_ind, j_ind, k_ind, l_ind] = y
@@ -90,7 +98,7 @@ def f(y):
 	
 	conv_output1 = conv(F1, imgs_pad, PAD=2)
 	
-	FCf_output_pre = np.einsum(FCf, range(4), conv_output1, [4, 1,2,3], [0]) + Bf
+	FCf_output_pre = np.einsum(FCf, range(4), conv_output1, [4, 1,2,3], [0]) + Bf + FCfr*CEC
 	FCi_output_pre = np.einsum(FCi, range(4), conv_output1, [4, 1,2,3], [0])
 	FCo_output_pre = np.einsum(FCo, range(4), conv_output1, [4, 1,2,3], [0])
 	FCm_output_pre = np.einsum(FCm, range(4), conv_output1, [4, 1,2,3], [0])
@@ -100,7 +108,7 @@ def f(y):
 	FCo_output = 1 / (1 + np.exp(-FCo_output_pre))
 	FCm_output = FCm_output_pre
 	
-	FC_output = FCo_output * (FCf_output * CEC + FCi_output * FCm_output)
+	FC_output = FCo_output * (FCf_output * CEC + FCi_output * FCm_output) + Boo
 	
 	FC2f_output_pre = np.squeeze(np.dot(FC2f, FC_output[:,np.newaxis]))
 	FC2o_output_pre = np.squeeze(np.dot(FC2o, FC_output[:,np.newaxis]))
@@ -123,7 +131,9 @@ def f(y):
 
 def g(y):
 	#Bf[i_ind] = y
-	F1[i_ind, j_ind, k_ind, l_ind] = y
+	Boo[i_ind] = y
+	#F1[i_ind, j_ind, k_ind, l_ind] = y
+	#FCfr[i_ind] = y
 	#FC2m[i_ind, j_ind] = y
 	#FL[i_ind] = y
 	#FCf[i_ind, j_ind, k_ind, l_ind] = y
@@ -135,7 +145,7 @@ def g(y):
 	
 	conv_output1 = conv(F1, imgs_pad, PAD=2)
 	
-	FCf_output_pre = np.einsum(FCf, range(4), conv_output1, [4, 1,2,3], [0]) + Bf
+	FCf_output_pre = np.einsum(FCf, range(4), conv_output1, [4, 1,2,3], [0]) + Bf + FCfr*CEC
 	FCi_output_pre = np.einsum(FCi, range(4), conv_output1, [4, 1,2,3], [0])
 	FCo_output_pre = np.einsum(FCo, range(4), conv_output1, [4, 1,2,3], [0])
 	FCm_output_pre = np.einsum(FCm, range(4), conv_output1, [4, 1,2,3], [0])
@@ -145,7 +155,7 @@ def g(y):
 	FCo_output = 1 / (1 + np.exp(-FCo_output_pre))
 	FCm_output = FCm_output_pre
 	
-	FC_output = FCo_output * (FCf_output * CEC + FCi_output * FCm_output)
+	FC_output = FCo_output * (FCf_output * CEC + FCi_output * FCm_output) + Boo
 	
 	FC2f_output_pre = np.squeeze(np.dot(FC2f, FC_output[:,np.newaxis]))
 	FC2o_output_pre = np.squeeze(np.dot(FC2o, FC_output[:,np.newaxis]))
@@ -199,12 +209,15 @@ def g(y):
 	
 	########################## mem 1 gradients:
 	
+	dBoo = copy.deepcopy(above_w)
+	
 	FCf_output_rev_sig = above_w * FCo_output * (FCf_output_rev * CEC)
 	FCi_output_rev_sig = above_w * FCo_output * (FCi_output_rev * FCm_output)
 	FCm_output_rev_sig = above_w * FCo_output * (FCi_output * FCm_output_rev)
 	FCo_output_rev_sig = above_w * FCo_output_rev * (FCf_output * CEC + FCi_output * FCm_output)
 	
 	dBf = FCf_output_rev_sig
+	dFCfr = FCf_output_rev_sig*CEC
 	
 	dFCf = np.einsum(conv_output1, range(4), FCf_output_rev_sig, [4], [4,1,2,3])
 	dFCi = np.einsum(conv_output1, range(4), FCi_output_rev_sig, [4], [4,1,2,3])
@@ -225,22 +238,24 @@ def g(y):
 	#return dFCf[i_ind, j_ind, k_ind, l_ind]
 	#return dFCi[i_ind, j_ind, k_ind, l_ind]
 	#return dFL[i_ind]
-	return dF1[i_ind, j_ind, k_ind, l_ind]
+	#return dF1[i_ind, j_ind, k_ind, l_ind]
 	#return dFC2m[i_ind, j_ind]
 	#return dBf[i_ind]
+	#return dFCfr[i_ind]
+	return dBoo[i_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e10
+eps = np.sqrt(np.finfo(np.float).eps)*1e5#9#10#10
 
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
-	i_ind = np.random.randint(F1.shape[0])
+	'''i_ind = np.random.randint(F1.shape[0])
 	j_ind = np.random.randint(F1.shape[1])
 	k_ind = np.random.randint(F1.shape[2])
 	l_ind = np.random.randint(F1.shape[3])
-	y = -1e0*F1[i_ind,j_ind,k_ind,l_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
+	y = -1e0*F1[i_ind,j_ind,k_ind,l_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);'''
 	
 	'''i_ind = np.random.randint(FC2f.shape[0])
 	j_ind = np.random.randint(FC2f.shape[1])
@@ -255,7 +270,13 @@ for sample in range(N_SAMPLES):
 	'''i_ind = np.random.randint(FL.shape[0])
 	y = -1e0*FL[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);'''
 	
+	i_ind = np.random.randint(Boo.shape[0])
+	y = -1e0*Boo[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
+	
 	'''i_ind = np.random.randint(Bf.shape[0])
+	y = -1e0*Bf[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);'''
+	
+	'''i_ind = np.random.randint(FCfr.shape[0])
 	y = -1e0*Bf[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);'''
 	
 	if gtx == 0:

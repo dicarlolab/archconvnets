@@ -10,11 +10,11 @@ SAVE_FREQ = 5000
 
 BATCH_SZ = 5000
 
-FL_scale = .1
-FL2_scale = .1
+FL_scale = .01
+FL2_scale = .01
 CEC_SCALE = 0.01
 
-EPS_E = 4
+EPS_E = 6
 EPS = 1*10**(-EPS_E)
 
 n_in = 2
@@ -96,8 +96,8 @@ while True:
 	FCf_output = 1 / (1 + np.exp(-FCf_output_pre))
 	FCi_output = 1 / (1 + np.exp(-FCi_output_pre))
 	FCo_output = 1 / (1 + np.exp(-FCo_output_pre))
-	FCm_output = 1 / (1 + np.exp(-FCm_output_pre))
-	#FCm_output = FCm_output_pre
+	#FCm_output = 1 / (1 + np.exp(-FCm_output_pre))
+	FCm_output = FCm_output_pre
 	
 	FC_output = FCo_output * (FCf_output * CEC + FCi_output * FCm_output)
 	
@@ -114,8 +114,8 @@ while True:
 	FC2f_output = 1 / (1 + np.exp(-FC2f_output_pre))
 	FC2o_output = 1 / (1 + np.exp(-FC2o_output_pre))
 	FC2i_output = 1 / (1 + np.exp(-FC2i_output_pre))
-	FC2m_output = 1 / (1 + np.exp(-FC2m_output_pre))
-	#FC2m_output = FC2m_output_pre
+	#FC2m_output = 1 / (1 + np.exp(-FC2m_output_pre))
+	FC2m_output = FC2m_output_pre
 	
 	FC2_output = FC2o_output * (FC2f_output * CEC2 + FC2i_output * FC2m_output)
 	
@@ -135,14 +135,14 @@ while True:
 	FC2f_output_rev = np.exp(FC2f_output_pre)/((np.exp(FC2f_output_pre) + 1)**2)
 	FC2o_output_rev = np.exp(FC2o_output_pre)/((np.exp(FC2o_output_pre) + 1)**2)
 	FC2i_output_rev = np.exp(FC2i_output_pre)/((np.exp(FC2i_output_pre) + 1)**2)
-	FC2m_output_rev = np.exp(FC2m_output_pre)/((np.exp(FC2m_output_pre) + 1)**2)
-	#FC2m_output_rev = 1
+	#FC2m_output_rev = np.exp(FC2m_output_pre)/((np.exp(FC2m_output_pre) + 1)**2)
+	FC2m_output_rev = 1
 	
 	FCf_output_rev = np.exp(FCf_output_pre)/((np.exp(FCf_output_pre) + 1)**2)
 	FCi_output_rev = np.exp(FCi_output_pre)/((np.exp(FCi_output_pre) + 1)**2)
 	FCo_output_rev = np.exp(FCo_output_pre)/((np.exp(FCo_output_pre) + 1)**2)
-	FCm_output_rev = np.exp(FCm_output_pre)/((np.exp(FCm_output_pre) + 1)**2)
-	#FCm_output_rev = 1
+	#FCm_output_rev = np.exp(FCm_output_pre)/((np.exp(FCm_output_pre) + 1)**2)
+	FCm_output_rev = 1
 	
 	
 	############ FL
