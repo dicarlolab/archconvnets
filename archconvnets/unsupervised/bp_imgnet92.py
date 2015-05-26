@@ -14,14 +14,14 @@ import PIL.Image
 
 SAVE_FREQ = 10
 
-EPS = 1e-3
+EPS = 2e-3
 MOM_WEIGHT = 0.95
 
 IMG_SZ = 92
 
-F1_scale = 1e-2
-F2_scale = 1e-2
-F3_scale = 1e-2
+F1_scale = 1e-3
+F2_scale = 1e-3
+F3_scale = 1e-3
 FL_imgnet_scale = 1e-4
 
 N = 64#32
@@ -33,14 +33,11 @@ s3 = 3 # L1 filter size (px)
 s2 = 4 # ...
 s1 = 5
 
-N_C = 3 # directions M, L, R
-
 file_name = '/home/darren/imgnet_92_model.mat'
 
 max_output_sz3  = 12
 
-# these should all be different values:
-GPU_CUR = 2
+GPU_CUR = 1
 
 # gpu buffer indices
 MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
@@ -50,14 +47,14 @@ CONV_OUTPUT1 = 19; CONV_OUTPUT2 = 20; CONV_OUTPUT3 = 21
 DF2 = 25; DPOOL2 = 26; DF3_DATA = 27; DPOOL3 = 28; DF3 = 29; FL_PRED = 30;
 FL_IND = 31; PRED = 32; DFL = 33; IMGS_PAD_IMGNET = 34
 
-MAX_OUTPUT1_IMGNET = 35; CONV_OUTPUT1_IMGNET = 36
-MAX_OUTPUT2_IMGNET = 37; MAX_OUTPUT3_IMGNET = 38
+MAX_OUTPUT1_IMGNET = 35; MAX_OUTPUT2_IMGNET = 37; MAX_OUTPUT3_IMGNET = 38
+CONVA_OUTPUT1_IMGNET = 39; CONVA_OUTPUT2_IMGNET = 40; CONVA_OUTPUT3_IMGNET = 41
 CONV_OUTPUT1_IMGNET = 39; CONV_OUTPUT2_IMGNET = 40; CONV_OUTPUT3_IMGNET = 41
 IMGS_PAD_IMGNET_TEST = 42
 
-MAX_OUTPUT1_IMGNET_TEST = 43; CONV_OUTPUT1_IMGNET_TEST = 44
-MAX_OUTPUT2_IMGNET_TEST = 45; MAX_OUTPUT3_IMGNET_TEST = 46
+MAX_OUTPUT1_IMGNET_TEST = 43; MAX_OUTPUT2_IMGNET_TEST = 45; MAX_OUTPUT3_IMGNET_TEST = 46
 CONV_OUTPUT1_IMGNET_TEST = 47; CONV_OUTPUT2_IMGNET_TEST = 48; CONV_OUTPUT3_IMGNET_TEST = 49
+DA1 = 50; DA2 = 51; DA3 = 52
 
 np.random.seed(6666)
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
@@ -154,11 +151,16 @@ while True:
 	
 	############# forward
 	conv_buffers(F1_IND, IMGS_PAD_IMGNET, CONV_OUTPUT1_IMGNET, gpu=GPU_CUR)
-	max_pool_cudnn_buffers(CONV_OUTPUT1_IMGNET, MAX_OUTPUT1_IMGNET, gpu=GPU_CUR)
+	activation_buffers(CONV_OUTPUT1_IMGNET, CONVA_OUTPUT1_IMGNET, gpu=GPU_CUR)
+	max_pool_cudnn_buffers(CONVA_OUTPUT1_IMGNET, MAX_OUTPUT1_IMGNET, gpu=GPU_CUR)
+	
 	conv_buffers(F2_IND, MAX_OUTPUT1_IMGNET, CONV_OUTPUT2_IMGNET, gpu=GPU_CUR)
-	max_pool_cudnn_buffers(CONV_OUTPUT2_IMGNET, MAX_OUTPUT2_IMGNET, gpu=GPU_CUR)
+	activation_buffers(CONV_OUTPUT2_IMGNET, CONVA_OUTPUT2_IMGNET, gpu=GPU_CUR)
+	max_pool_cudnn_buffers(CONVA_OUTPUT2_IMGNET, MAX_OUTPUT2_IMGNET, gpu=GPU_CUR)
+	
 	conv_buffers(F3_IND, MAX_OUTPUT2_IMGNET, CONV_OUTPUT3_IMGNET, gpu=GPU_CUR)
-	max_pool_cudnn_buffers(CONV_OUTPUT3_IMGNET, MAX_OUTPUT3_IMGNET, gpu=GPU_CUR)
+	activation_buffers(CONV_OUTPUT3_IMGNET, CONVA_OUTPUT3_IMGNET, gpu=GPU_CUR)
+	max_pool_cudnn_buffers(CONVA_OUTPUT3_IMGNET, MAX_OUTPUT3_IMGNET, gpu=GPU_CUR)
 	
 	max_output3 = return_buffer(MAX_OUTPUT3_IMGNET, gpu=GPU_CUR)
 	
@@ -171,14 +173,19 @@ while True:
 	set_buffer(FL_pred, FL_PRED, gpu=GPU_CUR)
 	
 	########### backward
-	max_pool_back_cudnn_buffers(MAX_OUTPUT3_IMGNET, FL_PRED, CONV_OUTPUT3_IMGNET, DPOOL3, gpu=GPU_CUR)
-	conv_dfilter_buffers(F3_IND, MAX_OUTPUT2_IMGNET, DPOOL3, DF3, stream=3, gpu=GPU_CUR)
-	conv_ddata_buffers(F3_IND, MAX_OUTPUT2_IMGNET, DPOOL3, DF3_DATA, gpu=GPU_CUR)
+	max_pool_back_cudnn_buffers(MAX_OUTPUT3_IMGNET, FL_PRED, CONVA_OUTPUT3_IMGNET, DPOOL3, gpu=GPU_CUR)
+	activation_back_buffers(CONVA_OUTPUT3_IMGNET, DPOOL3, CONV_OUTPUT3_IMGNET, DA3, gpu=GPU_CUR)
+	conv_dfilter_buffers(F3_IND, MAX_OUTPUT2_IMGNET, DA3, DF3, stream=3, gpu=GPU_CUR)
+	conv_ddata_buffers(F3_IND, MAX_OUTPUT2_IMGNET, DA3, DF3_DATA, gpu=GPU_CUR)
+	
 	max_pool_back_cudnn_buffers(MAX_OUTPUT2_IMGNET, DF3_DATA, CONV_OUTPUT2_IMGNET, DPOOL2, gpu=GPU_CUR)
-	conv_ddata_buffers(F2_IND, MAX_OUTPUT1_IMGNET, DPOOL2, DF2_DATA, gpu=GPU_CUR)
-	conv_dfilter_buffers(F2_IND, MAX_OUTPUT1_IMGNET, DPOOL2, DF2, stream=2, gpu=GPU_CUR)
+	activation_back_buffers(CONVA_OUTPUT2_IMGNET, DPOOL2, CONV_OUTPUT2_IMGNET, DA2, gpu=GPU_CUR)
+	conv_dfilter_buffers(F2_IND, MAX_OUTPUT1_IMGNET, DA2, DF2, stream=2, gpu=GPU_CUR)
+	conv_ddata_buffers(F2_IND, MAX_OUTPUT1_IMGNET, DA2, DF2_DATA, gpu=GPU_CUR)
+	
 	max_pool_back_cudnn_buffers(MAX_OUTPUT1_IMGNET, DF2_DATA, CONV_OUTPUT1_IMGNET, DPOOL1, gpu=GPU_CUR)
-	conv_dfilter_buffers(F1_IND, IMGS_PAD_IMGNET, DPOOL1, DF1, stream=1, gpu=GPU_CUR)
+	activation_back_buffers(CONVA_OUTPUT1_IMGNET, DPOOL1, CONV_OUTPUT1_IMGNET, DA1, gpu=GPU_CUR)
+	conv_dfilter_buffers(F1_IND, IMGS_PAD_IMGNET, DA1, DF1, stream=1, gpu=GPU_CUR)
 	
 	
 	### return
@@ -214,10 +221,15 @@ while True:
 		###############################################
 		# test imgs (imgnet); both action-based and control models
 		conv_buffers(F1_IND, IMGS_PAD_IMGNET_TEST, CONV_OUTPUT1_IMGNET_TEST, gpu=GPU_CUR)
+		activation_buffers(CONV_OUTPUT1_IMGNET_TEST, CONV_OUTPUT1_IMGNET_TEST, gpu=GPU_CUR)
 		max_pool_cudnn_buffers(CONV_OUTPUT1_IMGNET_TEST, MAX_OUTPUT1_IMGNET_TEST, gpu=GPU_CUR)
+		
 		conv_buffers(F2_IND, MAX_OUTPUT1_IMGNET_TEST, CONV_OUTPUT2_IMGNET_TEST, gpu=GPU_CUR)
+		activation_buffers(CONV_OUTPUT2_IMGNET_TEST, CONV_OUTPUT2_IMGNET_TEST, gpu=GPU_CUR)
 		max_pool_cudnn_buffers(CONV_OUTPUT2_IMGNET_TEST, MAX_OUTPUT2_IMGNET_TEST, gpu=GPU_CUR)
+		
 		conv_buffers(F3_IND, MAX_OUTPUT2_IMGNET_TEST, CONV_OUTPUT3_IMGNET_TEST, gpu=GPU_CUR)
+		activation_buffers(CONV_OUTPUT3_IMGNET_TEST, CONV_OUTPUT3_IMGNET_TEST, gpu=GPU_CUR)
 		max_pool_cudnn_buffers(CONV_OUTPUT3_IMGNET_TEST, MAX_OUTPUT3_IMGNET_TEST, gpu=GPU_CUR)
 		
 		max_output3 = return_buffer(MAX_OUTPUT3_IMGNET_TEST, gpu=GPU_CUR)

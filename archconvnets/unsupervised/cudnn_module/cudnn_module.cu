@@ -9,6 +9,9 @@
 #include "conv.c"
 #include "conv_buffers.c"
 
+#include "activation_buffers.c"
+#include "activation_back_buffers.c"
+
 #include "conv_dfilter.c"
 #include "conv_dfilter_buffers.c"
 
@@ -39,6 +42,9 @@ static PyMethodDef _cudnn_module[] = {
 	
 	{"conv_ddata", conv_ddata, METH_VARARGS},
     {"conv_ddata_buffers", conv_ddata_buffers, METH_VARARGS},
+	
+	{"activation_buffers", activation_buffers, METH_VARARGS},
+	{"activation_back_buffers", activation_back_buffers, METH_VARARGS},
     
 	{"max_pool_cudnn", max_pool_cudnn, METH_VARARGS},
 	{"max_pool_cudnn_buffers", max_pool_cudnn_buffers, METH_VARARGS},
