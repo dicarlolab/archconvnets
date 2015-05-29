@@ -12,14 +12,14 @@ from pandac.PandaModules import loadPrcFileData
 import PIL
 import PIL.Image
 
-load = False
+load = True
 file_name = '/home/darren/reinforcement3d_saves/reinforcement_'
 
 #######################
 # load/initialize variables
 step_load = 0
 if load == True:
-	step_load = 112000
+	step_load = 2000000
 	z = loadmat(file_name + str(step_load) + '.mat')
 	r_output = np.ascontiguousarray(np.squeeze(z['r_output']))
 	y_outputs = np.ascontiguousarray(np.squeeze(z['y_outputs']))
@@ -351,7 +351,7 @@ def init_pos_vars():
 
 
 ############################################ render
-def render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, filename='tmp2.png'):	
+def render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, filename='tmp1.png'):	
 	app.camera.setPos(x,y,h)
 	app.camera.setHpr(direction,0,0)
 	
