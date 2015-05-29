@@ -189,6 +189,11 @@ for batch in range(1,N_BATCHES+1):
 			
 		img = render(xo,yo, direction, panda, kid, kid_coordso, panda_coordso, kid_directionso, panda_directionso)
 		
+		if r > 1:
+			r = 1
+		elif r < -1:
+			r = -1
+		
 		imgs_new[:,img_local] = img[0].ravel()
 		data_mean += imgs_new[:,img_local]
 		labels[img_local] = (r + 1)/2
