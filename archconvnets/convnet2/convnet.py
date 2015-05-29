@@ -136,9 +136,25 @@ class ConvNet(IGPUModel):
         
     def init_model_state(self):
         ms = self.model_state
-        layers = ms['layers'] if self.loaded_from_checkpoint else OrderedDict([])
+        load_layers = self.load_layers
+        if self.loaded_from_checkpoint:
+            layers = ms['layers']
+            if load_layers is not None:
+                pop_keys = []
+                for _n in layers:
+                    if '_neuron' in _n:
+                        if _n.split('_neuron')[0] not in load_layers:
+                            pop_keys.append(_n)
+                    elif _n not in load_layers:
+                        pop_keys.append(_n)
+                for name in pop_keys:
+                    print('Popping layer %s because it is not in load_layers' % name)
+                    layers.pop(name)
+        else:
+            layers = OrderedDict([])
         ms['layers'] = lay.LayerParser.parse_layers(os.path.join(self.layer_path, self.layer_def),
-                                                    os.path.join(self.layer_path, self.layer_params), self, layers=layers)
+                                                    os.path.join(self.layer_path, self.layer_params),
+                                                    self, layers=layers, load_layers=load_layers)
         
         self.do_decouple_conv()
         self.do_unshare_weights()
@@ -294,6 +310,9 @@ class ConvNet(IGPUModel):
               "Write features from given layer(s)", default="", requires=['feature-path'])                    
         op.add_option("feature-path", "feature_path", StringOptionParser,
               "Write features to this path (to be used with --write-features)", default="")
+
+        op.add_option('load-layers', "load_layers", ListOptionParser(StringOptionParser), 
+                      "Load these layers", default="")
 
         op.add_option("img-flip", "img_flip", BooleanOptionParser,
                 "Whether flip training image", default=True )

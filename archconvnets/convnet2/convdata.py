@@ -463,6 +463,7 @@ class CroppedGeneralDataRandomProvider( CroppedGeneralDataProvider ):
                img_size, num_colors,
                batch_range,
                init_epoch, init_batchnum, dp_params, test )
+
     def get_next_batch(self):
         epoch,batchnum, datadic = CroppedGeneralDataProvider.get_next_batch(self)
         # shuffle only training data,never do on testing
@@ -498,6 +499,11 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
             cache_type='hdf5', read_mode='r'):
             
         DLDataMapProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test, cache_type=cache_type, read_mode=read_mode)
+
+        if hasattr(self.metacol, 'keys'):
+            self.num_meta_attrs = len(self.metacol)
+        else:
+            self.num_meta_attrs = 1
 
         self.batches_generated = 0
         
@@ -545,14 +551,22 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
 
     def get_next_batch(self):
         epoch, batchnum, datadic = DLDataMapProvider.get_next_batch(self)
-        datadic['labels'] = n.require(n.tile(datadic['labels'],
-                                      (1, self.data_mult)),
-                                      requirements='C')
-
         map_names = self.mnames
+        if hasattr(datadic['labels'], 'keys'):
+            for k in datadic['labels']:
+                datadic['labels'][k] = n.require(n.tile(datadic['labels'][k].reshape((1,
+                                                    datadic[map_names[0]].shape[1])),
+                                                    (1, self.data_mult)),
+                                                 requirements='C')
+        else:
+            datadic['labels'] = n.require(n.tile(datadic['labels'].reshape((1,
+                                                    datadic[map_names[0]].shape[1])),
+                                                    (1, self.data_mult)),
+                                          requirements='C')
+                                      
         crop_seed = epoch * self.num_batches + batchnum
         for idx, mname in enumerate(map_names):
-            ddims = self.get_data_dims(idx if idx == 0 else idx + 1)
+            ddims = self.get_data_dims(idx if idx == 0 else idx + self.num_meta_attrs)
             cropped = n.zeros((ddims,
                                datadic[mname].shape[1]*self.data_mult), 
                                dtype=n.single)
@@ -572,16 +586,19 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
             cropped -= self.data_mean_list[idx]
             datadic[mname] = cropped
 
-        data_list = [datadic[map_names[0]], datadic['labels']] + [datadic[mn] for mn in map_names[1:]]
+        data_list = [datadic[map_names[0]]] + \
+                    (datadic['labels'].values() if hasattr(datadic['labels'], 'keys') else [datadic['labels']]) + \
+                    [datadic[mn] for mn in map_names[1:]]
+
         self.batches_generated += 1
         return epoch, batchnum, data_list
 
     def get_data_dims(self, idx=0):
-        if idx == 1:
+        if (1 <= idx < self.num_meta_attrs + 1):
             return 1
         else:
-            if idx > 1:
-                idx = idx - 1
+            if idx >= 1 + self.num_meta_attrs:
+                idx = idx - self.num_meta_attrs
             return self.inner_size_list[idx]**2 * self.num_colors_list[idx] 
 
     def get_out_img_size( self ): 
