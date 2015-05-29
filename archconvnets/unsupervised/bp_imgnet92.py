@@ -14,7 +14,7 @@ import PIL.Image
 
 SAVE_FREQ = 10
 
-EPS = 2e-3
+EPS = 1e-1
 MOM_WEIGHT = 0.95
 
 IMG_SZ = 92
@@ -24,7 +24,7 @@ F2_scale = 1e-3
 F3_scale = 1e-3
 FL_imgnet_scale = 1e-4
 
-N = 64#32
+N = 2*64#32
 n1 = N # L1 filters
 n2 = N# ...
 n3 = N
@@ -33,11 +33,11 @@ s3 = 3 # L1 filter size (px)
 s2 = 4 # ...
 s1 = 5
 
-file_name = '/home/darren/imgnet_92_model.mat'
+file_name = '/home/darren/imgnet_92_128model_faster.mat'
 
 max_output_sz3  = 12
 
-GPU_CUR = 1
+GPU_CUR = 0
 
 # gpu buffer indices
 MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
@@ -93,7 +93,7 @@ mean_img = loadmat('/home/darren/archconvnets/archconvnets/unsupervised/reinforc
 ##################
 # load test imgs into buffers (imgnet).. total: 4687 batches
 N_BATCHES_IMGNET = 4687
-N_BATCHES_IMGNET_TEST = 5
+N_BATCHES_IMGNET_TEST = 2#5
 IMGNET_BATCH_SZ = 256
 N_TRAIN_IMGNET = N_BATCHES_IMGNET_TEST*IMGNET_BATCH_SZ
 

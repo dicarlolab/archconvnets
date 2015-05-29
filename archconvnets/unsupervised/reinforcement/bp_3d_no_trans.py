@@ -19,8 +19,8 @@ EPS_GREED_FINAL_TIME = 4*5000000
 GAMMA = 0.99
 BATCH_SZ = 32
 NETWORK_UPDATE = 10000
-EPS = 1e-1
-EPS_IMGNET = 1e-1
+EPS = 1e-2
+EPS_IMGNET = 1e-2
 MOM_WEIGHT = 0.95
 IMGNET_UPDATE_FREQ = 128 # run gradient descent once for this # of game steps
 
