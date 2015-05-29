@@ -187,6 +187,9 @@ class IGPUModel:
                 idval = model_name + "_" + '_'.join(['%s_%s' % (char, self.options[opt].get_str_value()) for opt, char in filename_options]) + '_' + strftime('%Y-%m-%d_%H.%M.%S')
                 self.experiment_data = collections.OrderedDict([('experiment_id', idval)])
     
+        if not self.options["load_layers"].value_given:
+            self.load_layers = None
+
         self.init_data_providers()
         if load_dic: 
             self.train_data_provider.advance_batch()

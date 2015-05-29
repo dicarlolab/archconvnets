@@ -303,15 +303,18 @@ class LayerParser:
                 NeuronLayerParser().detach_neuron_layer(name, layers)
 
     @staticmethod
-    def parse_layers(layer_cfg_path, param_cfg_path, model, layers={}):
+    def parse_layers(layer_cfg_path, param_cfg_path, model, layers={}, load_layers=None):
         try:
             if (not model.loaded_from_checkpoint) and (not os.path.exists(layer_cfg_path)):
                 raise LayerParsingError("Layer definition file '%s' does not exist" % layer_cfg_path)
 
             if os.path.exists(layer_cfg_path):
+                print('lcp', layer_cfg_path)
                 mcp = MyConfigParser(dict_type=OrderedDict)
                 mcp.readfp(open(layer_cfg_path))
                 for name in mcp.sections():
+                    if load_layers is not None and name not in load_layers:
+                        continue
                     if name not in layers:
                         if not mcp.has_option(name, 'type'):
                             raise LayerParsingError("Layer '%s': no type given" % name)
