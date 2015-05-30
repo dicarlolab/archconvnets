@@ -12,7 +12,7 @@ from pandac.PandaModules import loadPrcFileData
 import PIL
 import PIL.Image
 
-load = True
+load = False
 file_name = '/home/darren/reinforcement3d_saves/reinforcement_'
 
 #######################
@@ -129,26 +129,26 @@ if load == True:
 else:
 	SAVE_FREQ = 2000
 	MEM_SZ = 1000000
-	SAVE_CHECK_FREQ = 250000
+	SAVE_CHECK_FREQ = 150000
 	EPS_GREED_FINAL = .1
 	EPS_GREED_FINAL_TIME = 5000000
 	GAMMA = 0.99
 	BATCH_SZ = 32
 	NETWORK_UPDATE = 10000
-	EPS = 1e-3
-	EPS_IMGNET = 1e-3
+	EPS = 2.5e-3
+	EPS_IMGNET = 5e-4
 	MOM_WEIGHT = 0.95
-	IMGNET_UPDATE_FREQ = 128 # run gradient descent once for this # of game steps
+	IMGNET_UPDATE_FREQ = 128*2 # run gradient descent once for this # of game steps
 
 	IMG_SZ = 92
 
 	N_MEAN_SAMPLES = 1000 # for mean image
 
-	F1_scale = 1e-3
-	F2_scale = 1e-3
-	F3_scale = 1e-3
-	FL_scale = 1e-4
-	FL_imgnet_scale = 1e-4
+	F1_scale = 1e-2
+	F2_scale = 1e-2
+	F3_scale = 1e-2
+	FL_scale = 1e-2
+	FL_imgnet_scale = 1e-3
 
 	N = 64#32
 	n1 = N # L1 filters
@@ -240,9 +240,10 @@ else:
 	y_network_ver = -np.ones(MEM_SZ)
 
 # these should all be different values:
-GPU_CUR = 2
-GPU_PREV = 3
+GPU_CUR = 3
+GPU_PREV = 2
 
+tmp_filename = 'tmp' + str(GPU_CUR) + str(GPU_PREV) + '.png' # panda
 # gpu buffer indices
 MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
 F1_IND = 4; IMGS_PAD = 5; DF1 = 6; F2_IND = 11; 
@@ -351,7 +352,7 @@ def init_pos_vars():
 
 
 ############################################ render
-def render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, filename='tmp1.png'):	
+def render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, filename=tmp_filename):	
 	app.camera.setPos(x,y,h)
 	app.camera.setHpr(direction,0,0)
 	
@@ -556,6 +557,7 @@ while True:
 	# update gradient?
 	if step >= MEM_SZ:
 		trans = np.random.randint(MEM_SZ)
+		#trans = mem_loc
 	
 		img_cur = render(x_input[trans],y_input[trans], direction_input[trans], panda, kid, kid_coords_input[trans], \
 			panda_coords_input[trans], kid_directions_input[trans], panda_directions_input[trans])
@@ -636,7 +638,7 @@ while True:
 		#########################################################
 		# imgnet learning: both action model and control model gradients
 		if step % IMGNET_UPDATE_FREQ == 0:
-			s_imgnet = step_imgnet % 4
+			s_imgnet = step_imgnet % 2
 			
 			if s_imgnet == 0 or imgnet_loaded == False:
 				imgnet_loaded = True
@@ -661,7 +663,7 @@ while True:
 				if imgnet_batch > N_BATCHES_IMGNET:
 					imgnet_batch = N_BATCHES_IMGNET_TEST + 1
 			
-			set_buffer(imgs_pad[s_imgnet*64:(s_imgnet+1)*64] - mean_img, IMGS_PAD_IMGNET, gpu=GPU_CUR)
+			set_buffer(imgs_pad[s_imgnet*128:(s_imgnet+1)*128] - mean_img, IMGS_PAD_IMGNET, gpu=GPU_CUR)
 			
 			conv_buffers(F1_IND, IMGS_PAD_IMGNET, CONV_OUTPUT1_IMGNET, gpu=GPU_CUR)
 			activation_buffers(CONV_OUTPUT1_IMGNET, CONV_OUTPUT1_IMGNET, gpu=GPU_CUR)
@@ -679,13 +681,13 @@ while True:
 			
 			pred = np.einsum(FL_imgnet, range(4), max_output3, [4,1,2,3], [0,4])
 			
-			pred_m_Y = Y_train[:,s_imgnet*64:(s_imgnet+1)*64] - pred
+			pred_m_Y = Y_train[:,s_imgnet*128:(s_imgnet+1)*128] - pred
 			
 			err_imgnet += np.mean(pred_m_Y**2)
 			
 			dFL_imgnet = np.einsum(max_output3, range(4), pred_m_Y, [4,0], [4,1,2,3])
 			
-			FL_imgnet += (dFL_imgnet + MOM_WEIGHT*dFL_imgnet_mom)*EPS_IMGNET / 64
+			FL_imgnet += (dFL_imgnet + MOM_WEIGHT*dFL_imgnet_mom)*EPS_IMGNET / 128
 			
 			dFL_imgnet_mom = copy.deepcopy(dFL_imgnet)
 			

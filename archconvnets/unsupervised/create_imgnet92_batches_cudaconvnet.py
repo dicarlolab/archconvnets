@@ -1,4 +1,7 @@
-# python convnet.py --data-path=/export/storage/imgnet92_cudaconvnet --crop=0 --save-path=/home/darren/imgnet92_64 --test-range=1-2 --train-range=3-15 --layer-def=/home/darren/archconvnets/archconvnets/convnet/ut_model_full/layer64.cfg --layer-params=/home/darren/archconvnets/archconvnets/convnet/ut_model_full/layer-params64.cfg --data-provider=general-cropped --test-freq=5 --conserve-mem=1 --gpu=3 --scale-rate=0.01
+# python convnet.py --data-path=/export/storage/imgnet92_cudaconvnet --crop=0 --save-path=/home/darren/imgnet92_64 --test-range=1-2 --train-range=3-15 --layer-def=/home/darren/archconvnets/archconvnets/convnet/ut_model_full/layer64.cfg --layer-params=/home/darren/archconvnets/archconvnets/convnet/ut_model_full/layer-params64.cfg --data-provider=general-cropped --test-freq=25 --conserve-mem=1 --gpu=3 --scale-rate=0.01
+
+# python convnet.py --data-path=/export/storage/panda_environ_cudaconvnet --crop=0 --save-path=/home/darren/panda92_64 --test-range=1-2 --train-range=3-1549 --layer-def=/home/darren/archconvnets/archconvnets/convnet/ut_model_full/layer64.cfg --layer-params=/home/darren/archconvnets/archconvnets/convnet/ut_model_full/layer-params64.cfg --data-provider=general-cropped --test-freq=25 --conserve-mem=1 --gpu=1 --scale-rate=.1
+
 import os
 import numpy as np
 from os import listdir
