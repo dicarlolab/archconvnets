@@ -12,14 +12,14 @@ from pandac.PandaModules import loadPrcFileData
 import PIL
 import PIL.Image
 
-load = True
-file_name = '/export/storage2/reinforcement3d_saves/reinforcement_'
+load = False
+file_name = '/export/storage2/reinforcement3d_more_objs_saves/reinforcement_'
 
 #######################
 # load/initialize variables
 step_load = 0
 if load == True:
-	step_load = 7800000
+	step_load = 6000
 	z = loadmat(file_name + str(step_load) + '.mat')
 	r_output = np.ascontiguousarray(np.squeeze(z['r_output']))
 	y_outputs = np.ascontiguousarray(np.squeeze(z['y_outputs']))
@@ -28,7 +28,9 @@ if load == True:
 	y_output = np.ascontiguousarray(np.squeeze(z['y_output']))
 	direction_output = np.ascontiguousarray(np.squeeze(z['direction_output']))
 	kid_directions_output = np.ascontiguousarray(np.squeeze(z['kid_directions_output']))
+	kid_idents_output = np.ascontiguousarray(np.squeeze(z['kid_idents_output']))
 	panda_directions_output = np.ascontiguousarray(np.squeeze(z['panda_directions_output']))
+	panda_idents_output = np.ascontiguousarray(np.squeeze(z['panda_idents_output']))
 	panda_coords_output = np.ascontiguousarray(np.squeeze(z['panda_coords_output']))
 	kid_coords_output = np.ascontiguousarray(np.squeeze(z['kid_coords_output']))
 	action_input = np.ascontiguousarray(np.squeeze(z['action_input']))
@@ -36,7 +38,9 @@ if load == True:
 	y_input = np.ascontiguousarray(np.squeeze(z['y_input']))
 	x_input = np.ascontiguousarray(np.squeeze(z['x_input']))
 	kid_directions_input = np.ascontiguousarray(np.squeeze(z['kid_directions_input']))
+	kid_idents_input = np.ascontiguousarray(np.squeeze(z['kid_idents_input']))
 	panda_directions_input = np.ascontiguousarray(np.squeeze(z['panda_directions_input']))
+	panda_idents_input = np.ascontiguousarray(np.squeeze(z['panda_idents_input']))
 	kid_coords_input = np.ascontiguousarray(np.squeeze(z['kid_coords_input']))
 	panda_coords_input = np.ascontiguousarray(np.squeeze(z['panda_coords_input']))
 	
@@ -45,7 +49,7 @@ if load == True:
 	F3 = np.ascontiguousarray(z['F3'])
 	FL = np.ascontiguousarray(z['FL'])
 	FL_imgnet = np.ascontiguousarray(z['FL_imgnet'])
-	FL_imgnet_scale = 1e-3#np.ascontiguousarray(z['FL_imgnet_scale'])
+	FL_imgnet_scale = np.ascontiguousarray(z['FL_imgnet_scale'])
 	F1_init = np.ascontiguousarray(z['F1_init'])
 	step = np.int(z['step'])
 	step_imgnet = np.int(z['step_imgnet'])
@@ -58,7 +62,9 @@ if load == True:
 	ROOM_SZ_MV = float(z['ROOM_SZ_MV'])
 	ROOM_SZ = np.int(z['ROOM_SZ'])
 	panda_directions_recent = np.ascontiguousarray(np.squeeze(z['panda_directions_recent']))
+	panda_idents_recent = np.ascontiguousarray(np.squeeze(z['panda_idents_recent']))
 	kid_directions_recent = np.ascontiguousarray(np.squeeze(z['kid_directions_recent']))
+	kid_idents_recent = np.ascontiguousarray(np.squeeze(z['kid_idents_recent']))
 	KID_SZ = np.int(z['KID_SZ'])
 	PANDA_SZ = np.int(z['PANDA_SZ'])
 	max_output_sz3 = np.int(z['max_output_sz3'])
@@ -66,35 +72,7 @@ if load == True:
 	y_recent = np.ascontiguousarray(np.squeeze(z['y_recent']))
 	direction_recent = np.ascontiguousarray(np.squeeze(z['direction_recent']))
 	action_recent = np.ascontiguousarray(np.squeeze(z['action_recent']))
-	
-	# replay buffers
-	panda_coords_input = np.ascontiguousarray(np.squeeze(z['panda_coords_input']))
-	kid_coords_input = np.ascontiguousarray(np.squeeze(z['kid_coords_input']))
 
-	panda_directions_input = np.ascontiguousarray(np.squeeze(z['panda_directions_input']))
-	kid_directions_input = np.ascontiguousarray(np.squeeze(z['kid_directions_input']))
-
-	x_input = np.ascontiguousarray(np.squeeze(z['x_input']))
-	y_input = np.ascontiguousarray(np.squeeze(z['y_input']))
-	direction_input = np.ascontiguousarray(np.squeeze(z['direction_input']))
-
-	action_input = np.ascontiguousarray(np.squeeze(z['action_input']))
-	
-	##
-	panda_coords_output = np.ascontiguousarray(np.squeeze(z['panda_coords_output']))
-	kid_coords_output = np.ascontiguousarray(np.squeeze(z['kid_coords_output']))
-
-	panda_directions_output = np.ascontiguousarray(np.squeeze(z['panda_directions_output']))
-	kid_directions_output = np.ascontiguousarray(np.squeeze(z['kid_directions_output']))
-
-	x_output = np.ascontiguousarray(np.squeeze(z['x_output']))
-	y_output = np.ascontiguousarray(np.squeeze(z['y_output']))
-	direction_output = np.ascontiguousarray(np.squeeze(z['direction_output']))
-
-	##
-	r_output = np.ascontiguousarray(np.squeeze(z['r_output']))
-	y_outputs = np.ascontiguousarray(np.squeeze(z['y_outputs']))
-	y_network_ver = np.ascontiguousarray(np.squeeze(z['y_network_ver']))
 	#########
 	
 	r_recent = np.ascontiguousarray(np.squeeze(z['r_recent']))
@@ -182,7 +160,7 @@ else:
 	class_err_imgnet_test = []
 
 	# panda/world variables
-	PANDA_SZ = 2.5
+	PANDA_SZ = 1.25
 	KID_SZ = 1.25
 	ROOM_SZ = 9
 	ROOM_SZ_MV = 10
@@ -203,6 +181,9 @@ else:
 
 	panda_directions_recent = np.zeros((SAVE_FREQ, N_PANDAS))
 	kid_directions_recent = np.zeros((SAVE_FREQ, N_KIDS))
+	
+	panda_idents_recent = np.zeros((SAVE_FREQ, N_PANDAS),dtype='int')
+	kid_idents_recent = np.zeros((SAVE_FREQ, N_KIDS),dtype='int')
 
 	x_recent = np.zeros(SAVE_FREQ)
 	y_recent = np.zeros(SAVE_FREQ)
@@ -217,6 +198,9 @@ else:
 
 	panda_directions_input = np.zeros((MEM_SZ, N_PANDAS))
 	kid_directions_input = np.zeros((MEM_SZ, N_KIDS))
+	
+	panda_idents_input = np.zeros((MEM_SZ, N_PANDAS),dtype='int')
+	kid_idents_input = np.zeros((MEM_SZ, N_KIDS),dtype='int')
 
 	x_input = np.zeros(MEM_SZ)
 	y_input = np.zeros(MEM_SZ)
@@ -230,6 +214,9 @@ else:
 
 	panda_directions_output = np.zeros((MEM_SZ, N_PANDAS))
 	kid_directions_output = np.zeros((MEM_SZ, N_KIDS))
+	
+	panda_idents_output = np.zeros((MEM_SZ, N_PANDAS),dtype='int')
+	kid_idents_output = np.zeros((MEM_SZ, N_KIDS),dtype='int')
 
 	x_output = np.zeros(MEM_SZ)
 	y_output = np.zeros(MEM_SZ)
@@ -241,10 +228,22 @@ else:
 	y_network_ver = -np.ones(MEM_SZ)
 
 # these should all be different values:
-GPU_CUR = 2
-GPU_PREV = 3
+GPU_CUR = 0
+GPU_PREV = 1
 
-tmp_filename = 'tmp' + str(GPU_CUR) + str(GPU_PREV) + '.png' # panda
+animate = ['foreign_cat','jaguar','longhair_cat','tiger','lion','semilonghair_cat','shorthair_cat',
+	'leopard','oriental','coyote','pug','doberman','dalmatian','schnauzer',
+	'bloodhound','bullmastiff','chihuahua','goldenretriever','weimaraner',
+	'fieldmouse','hare', 'MB30418','crocodile', 'elephant','goat',	'elk', 
+	'lion','lo_poly_animal_TRTL_B','lo_poly_animal_ELE_AS1', 'lo_poly_animal_TRANTULA',
+	'lo_poly_animal_HRS_ARBN','lo_poly_animal_CHICKDEE',   'lo_poly_animal_PENGUIN',
+	'Air_hostess_pose01','Engineer_pose01', 'Fireman_pose01',  'Medic_pose11',
+	'Professor_pose04','Soldier_pose01',  'Soldier_pose08','Workman_pose01',   'Workman_pose10']
+
+inanimate = ['001M', '002M', '003M', '004M','082M', '087M', '093M', '051M','076M',
+	 '054M','07_guitar', '17_el_guitar', '15_violin', '21_violin', 'single_melon','single_cucumber']
+
+tmp_filename = 'tmp' + str(GPU_CUR) + str(GPU_PREV) + '2.png' # panda
 # gpu buffer indices
 MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
 F1_IND = 4; IMGS_PAD = 5; DF1 = 6; F2_IND = 11; 
@@ -309,19 +308,88 @@ environ.setPos(-8, 42, 0)
 
 h = 1
 
-panda = []
-for f in range(N_PANDAS):
-	panda.append(app.loader.loadModel('/home/darren/panda_inst/share/panda3d/models/panda-model'))
-	panda[f].setScale(.0015,.0015,.0025)
-	panda[f].reparentTo(app.render)
+print 'loading models'
 
-kid = []
-for f in range(N_KIDS):
-	kid.append(app.loader.loadModel('/home/darren/models/ralph'))
-	kid[f].setScale(0.25, 0.25, 0.25)
-	kid[f].reparentTo(app.render)
+#### canonical model scaling/orientation
+rotations_animate = np.zeros(len(animate))
+model_scales_animate = 3*np.ones(len(animate))
+rotate_animate = np.zeros(len(animate))
+offset_animate = np.zeros(len(animate))
 
-################### random sample of initial conditions
+model_scales_animate[6:9] = 2
+offset_animate[6:9] = .5
+
+model_scales_animate[11:16] = 2
+offset_animate[11:16] = .5
+
+model_scales_animate[19] = 22
+
+model_scales_animate[20] = 8
+
+model_scales_animate[23] = 1
+
+model_scales_animate[25] = 1.5
+
+offset_animate[21] = .2
+offset_animate[22] = .2
+
+offset_animate[27] = .3
+model_scales_animate[27] = 10
+rotate_animate[27:29] = -90
+
+model_scales_animate[28] = .45
+
+model_scales_animate[29] = 10
+rotate_animate[29] = -90
+
+model_scales_animate[33-3] = .8
+rotate_animate[33-3:36-3] = -90
+
+model_scales_animate[34-3] = 24
+
+model_scales_animate[36-3:45-3] = .025
+rotate_animate[36-3:45-3] = -90
+offset_animate[36-3:45-3] = 1
+
+rotations_inanimate = np.zeros(len(inanimate))
+model_scales_inanimate = 2*np.ones(len(inanimate))
+rotate_inanimate = np.zeros(len(inanimate))
+offset_inanimate = np.zeros(len(inanimate))
+
+model_scales_inanimate[10:14] = .01
+rotate_inanimate[10:14] = -90
+offset_inanimate[10:14] = 1
+
+model_scales_inanimate[14] = .25
+rotate_inanimate[14] = -90
+
+model_scales_inanimate[15] = .2
+rotate_inanimate[15] = -90
+offset_inanimate[15] = .1
+
+model_scales_inanimate[11] = .002
+
+model_scales_inanimate[10] = .014
+offset_inanimate[10] = 1
+
+animate_models = []
+for ind in range(len(animate)):
+	animate_models.append(app.loader.loadModel('/home/darren/.skdata/genthor/resources/eggs/' + animate[ind] + '/' + animate[ind] + '.egg'))
+	animate_models[ind].reparentTo(app.render)
+	animate_models[ind].setPos(-50.6, 70.5, -10)
+	animate_models[ind].setScale(model_scales_animate[ind], model_scales_animate[ind], model_scales_animate[ind])
+
+inanimate_models = []
+for ind in range(len(inanimate)):
+	inanimate_models.append(app.loader.loadModel('/home/darren/.skdata/genthor/resources/eggs/' + inanimate[ind] + '/' + inanimate[ind] + '.egg'))
+	inanimate_models[ind].reparentTo(app.render)
+	inanimate_models[ind].setPos(-50.6, 70.5, -10)
+	inanimate_models[ind].setScale(model_scales_inanimate[ind], model_scales_inanimate[ind], model_scales_inanimate[ind])
+
+
+print 'done'
+
+################## random sample of initial conditions
 def init_pos_vars():
 	direction = 360*np.random.random()	
 	kid_directions = 360*np.random.random(size=N_KIDS)
@@ -348,22 +416,37 @@ def init_pos_vars():
 			((x_new+KID_SZ) >= kid_coords[:,0]) * ((x_new+KID_SZ) <= (kid_coords[:,0]+KID_SZ)) * ((y_new+KID_SZ) >= kid_coords[:,1]) * ((y_new+KID_SZ) <= (kid_coords[:,1]+KID_SZ)) + \
 			(x_new >= kid_coords[:,0]) * (x_new <= (kid_coords[:,0]+KID_SZ)) * ((y_new+KID_SZ) >= kid_coords[:,1]) * ((y_new+KID_SZ) <= (kid_coords[:,1]+KID_SZ)))[0]
 	
-	return x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions
+	panda_idents = np.arange(len(inanimate))
+	kid_idents = np.arange(len(animate))
+	random.shuffle(panda_idents)
+	random.shuffle(kid_idents)
+	panda_idents = panda_idents[:N_PANDAS]
+	kid_idents = kid_idents[:N_KIDS]
+	
+	return x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, panda_idents, kid_idents
 
 
 
 ############################################ render
-def render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, filename=tmp_filename):	
+def render(x,y, direction, animate_models, inanimate_models, kid_coords, panda_coords, kid_directions, panda_directions, panda_idents, kid_idents, filename=tmp_filename):	
 	app.camera.setPos(x,y,h)
 	app.camera.setHpr(direction,0,0)
 	
+	# reset poses
+	for f in range(len(inanimate)):
+		inanimate_models[f].setPos(0, 0, -10)
+		
+	for f in range(len(animate)):
+		animate_models[f].setPos(0, 0, -10)
+	
+	# of the shown models, update their poses
 	for f in range(N_PANDAS):
-		panda[f].setPos(panda_coords[f,0], panda_coords[f,1], 0)
-		panda[f].setHpr(panda_directions[f],0,0)
+		inanimate_models[panda_idents[f]].setPos(panda_coords[f,0], panda_coords[f,1], offset_inanimate[panda_idents[f]])
+		inanimate_models[panda_idents[f]].setHpr(panda_directions[f],rotate_inanimate[panda_idents[f]],0)
 
 	for f in range(N_KIDS):
-		kid[f].setPos(kid_coords[f,0], kid_coords[f,1], 0)
-		kid[f].setHpr(kid_directions[f],0,0)
+		animate_models[kid_idents[f]].setPos(kid_coords[f,0], kid_coords[f,1], offset_animate[kid_idents[f]])
+		animate_models[kid_idents[f]].setHpr(kid_directions[f],rotate_animate[kid_idents[f]],0)
 		
 	base.graphicsEngine.render_frame()
 	base.screenshot(namePrefix=filename,defaultFilename = 0,source=app.win)
@@ -371,7 +454,7 @@ def render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions,
 	return np.ascontiguousarray(np.asarray(PIL.Image.open(filename))[:,:,:3].transpose((2,0,1))[np.newaxis])
 
 ########################################## movement
-def move(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions):
+def move(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, panda_idents, kid_idents):
 	dx = -MOV_RATE*sin(pi*direction/180)
 	dy = MOV_RATE*cos(pi*direction/180)
 	
@@ -388,11 +471,14 @@ def move(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directi
 	
 	r -= len(collision)
 	
-	while len(collision) != 0:
+	collision2 = copy.deepcopy(collision)
+	
+	while (len(collision2) != 0) or (len(np.unique(kid_idents)) != N_KIDS):
 		kid_coords[collision] = 2*ROOM_SZ*np.random.random(size=(len(collision),2)) - ROOM_SZ
 		kid_directions[collision] = 360*np.random.random(size=len(collision))
+		kid_idents[collision] = np.random.randint(len(animate), size=len(collision))
 		
-		collision = np.nonzero(((x_new >= kid_coords[:,0]) * (x_new <= (kid_coords[:,0]+KID_SZ)) * (y_new >= kid_coords[:,1]) * (y_new <= (kid_coords[:,1]+KID_SZ))) + \
+		collision2 = np.nonzero(((x_new >= kid_coords[:,0]) * (x_new <= (kid_coords[:,0]+KID_SZ)) * (y_new >= kid_coords[:,1]) * (y_new <= (kid_coords[:,1]+KID_SZ))) + \
 			((x_new+KID_SZ) >= kid_coords[:,0]) * ((x_new+KID_SZ) <= (kid_coords[:,0]+KID_SZ)) * (y_new >= kid_coords[:,1]) * (y_new <= (kid_coords[:,1]+KID_SZ)) + \
 			((x_new+KID_SZ) >= kid_coords[:,0]) * ((x_new+KID_SZ) <= (kid_coords[:,0]+KID_SZ)) * ((y_new+KID_SZ) >= kid_coords[:,1]) * ((y_new+KID_SZ) <= (kid_coords[:,1]+KID_SZ)) + \
 			(x_new >= kid_coords[:,0]) * (x_new <= (kid_coords[:,0]+KID_SZ)) * ((y_new+KID_SZ) >= kid_coords[:,1]) * ((y_new+KID_SZ) <= (kid_coords[:,1]+KID_SZ)))[0]
@@ -405,11 +491,14 @@ def move(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directi
 
 	r += len(collision)
 	
-	while len(collision) != 0:
+	collision2 = copy.deepcopy(collision)
+	
+	while (len(collision2) != 0) or (len(np.unique(panda_idents)) != N_PANDAS):
 		panda_coords[collision] = 2*ROOM_SZ*np.random.random(size=(len(collision),2)) - ROOM_SZ
 		panda_directions[collision] = 360*np.random.random(size=len(collision))
+		panda_idents[collision] = np.random.randint(len(inanimate), size=len(collision))
 		
-		collision = np.nonzero(((x_new >= panda_coords[:,0]) * (x_new <= (panda_coords[:,0]+PANDA_SZ)) * (y_new >= panda_coords[:,1]) * (y_new <= (panda_coords[:,1]+PANDA_SZ))) + \
+		collision2 = np.nonzero(((x_new >= panda_coords[:,0]) * (x_new <= (panda_coords[:,0]+PANDA_SZ)) * (y_new >= panda_coords[:,1]) * (y_new <= (panda_coords[:,1]+PANDA_SZ))) + \
 			((x_new+PANDA_SZ) >= panda_coords[:,0]) * ((x_new+PANDA_SZ) <= (panda_coords[:,0]+PANDA_SZ)) * (y_new >= panda_coords[:,1]) * (y_new <= (panda_coords[:,1]+PANDA_SZ)) + \
 			((x_new+PANDA_SZ) >= panda_coords[:,0]) * ((x_new+PANDA_SZ) <= (panda_coords[:,0]+PANDA_SZ)) * ((y_new+PANDA_SZ) >= panda_coords[:,1]) * ((y_new+PANDA_SZ) <= (panda_coords[:,1]+PANDA_SZ)) + \
 			(x_new >= panda_coords[:,0]) * (x_new <= (panda_coords[:,0]+PANDA_SZ)) * ((y_new+PANDA_SZ) >= panda_coords[:,1]) * ((y_new+PANDA_SZ) <= (panda_coords[:,1]+PANDA_SZ)))[0]
@@ -419,14 +508,14 @@ def move(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directi
 		x += dx
 		y += dy
 		
-	return r, x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions
+	return r, x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, panda_idents, kid_idents
 
 
 #################################### mean image
 mean_img = np.zeros((1,3, IMG_SZ,IMG_SZ), dtype='single')
 for i in range(N_MEAN_SAMPLES):
-	x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions = init_pos_vars()
-	mean_img += render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions)
+	x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, panda_idents, kid_idents = init_pos_vars()
+	mean_img += render(x,y, direction, animate_models, inanimate_models, kid_coords, panda_coords, kid_directions, panda_directions, panda_idents, kid_idents)
 mean_img /= N_MEAN_SAMPLES
 
 ##################
@@ -455,7 +544,7 @@ Y_test_imgnet = Y_test_imgnet.T
 imgnet_loaded = False
 
 #########################################################################
-
+print 'starting'
 t_start = time.time()
 
 while True:
@@ -467,6 +556,9 @@ while True:
 
 	panda_directions_input[mem_loc] = copy.deepcopy(panda_directions)
 	kid_directions_input[mem_loc] = copy.deepcopy(kid_directions)
+	
+	panda_idents_input[mem_loc] = copy.deepcopy(panda_idents)
+	kid_idents_input[mem_loc] = copy.deepcopy(kid_idents)
 
 	x_input[mem_loc] = x
 	y_input[mem_loc] = y
@@ -480,7 +572,7 @@ while True:
 		if action >= 3: # increase likelihood of movement
 			action = 0
 	else:
-		img = render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions)
+		img = render(x,y, direction, animate_models, inanimate_models, kid_coords, panda_coords, kid_directions, panda_directions, panda_idents, kid_idents)
 		network_outputs_computed = True
 		
 		# forward pass
@@ -507,7 +599,7 @@ while True:
 	# perform action
 	r = 0
 	if action == 0:
-		r, x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions = move(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions)
+		r, x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, panda_idents, kid_idents = move(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, panda_idents, kid_idents)
 	elif action == 1:
 		direction += ROT_RATE
 	elif action == 2:
@@ -521,6 +613,9 @@ while True:
 
 	panda_directions_output[mem_loc] = copy.deepcopy(panda_directions)
 	kid_directions_output[mem_loc] = copy.deepcopy(kid_directions)
+	
+	panda_idents_output[mem_loc] = copy.deepcopy(panda_idents)
+	kid_idents_output[mem_loc] = copy.deepcopy(kid_idents)
 
 	x_output[mem_loc] = x
 	y_output[mem_loc] = y
@@ -543,6 +638,9 @@ while True:
 
 	panda_directions_recent[save_loc] = copy.deepcopy(panda_directions)
 	kid_directions_recent[save_loc] = copy.deepcopy(kid_directions)
+	
+	panda_idents_recent[save_loc] = copy.deepcopy(panda_idents)
+	kid_idents_recent[save_loc] = copy.deepcopy(kid_idents)
 
 	x_recent[save_loc] = x
 	y_recent[save_loc] = y
@@ -560,8 +658,9 @@ while True:
 		trans = np.random.randint(MEM_SZ)
 		#trans = mem_loc
 	
-		img_cur = render(x_input[trans],y_input[trans], direction_input[trans], panda, kid, kid_coords_input[trans], \
-			panda_coords_input[trans], kid_directions_input[trans], panda_directions_input[trans])
+		img_cur = render(x_input[trans],y_input[trans], direction_input[trans], animate_models, inanimate_models, kid_coords_input[trans], \
+			panda_coords_input[trans], kid_directions_input[trans], panda_directions_input[trans],\
+			panda_idents_input[trans], kid_idents_input[trans])
 		
 		set_buffer(img_cur - mean_img, IMGS_PAD, gpu=GPU_CUR)
 		
@@ -582,8 +681,9 @@ while True:
 		# forward pass prev network
 		# (only compute if we have not already computed the output for this version of the network)
 		if y_network_ver[trans] != (network_updates % NETWORK_UPDATE):
-			img_prev = render(x_output[trans],y_output[trans], direction_output[trans], panda, kid, kid_coords_output[trans], \
-				panda_coords_output[trans], kid_directions_output[trans], panda_directions_output[trans])
+			img_prev = render(x_output[trans],y_output[trans], direction_output[trans], animate_models, inanimate_models, kid_coords_output[trans], \
+				panda_coords_output[trans], kid_directions_output[trans], panda_directions_output[trans],\
+				panda_idents_output[trans], kid_idents_output[trans])
 			set_buffer(img_prev - mean_img, IMGS_PAD, gpu=GPU_PREV)
 			
 			conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_PREV)
@@ -756,7 +856,7 @@ while True:
 		err_plot.append(err)
 		err_imgnet_plot.append(err_imgnet)
 		
-		img = render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions)
+		img = render(x,y, direction, animate_models, inanimate_models, kid_coords, panda_coords, kid_directions, panda_directions, panda_idents, kid_idents)
 		
 		dic = {'F1': F1, 'r_total_plot': r_total_plot, 'F2': F2, 'F3': F3, 'FL':FL, \
 			'F1_init': F1_init, 'err_imgnet_plot':err_imgnet_plot,\
@@ -771,8 +871,8 @@ while True:
 			'IMGNET_UPDATE_FREQ':IMGNET_UPDATE_FREQ,'N':N,'max_output_sz3':max_output_sz3,\
 			'panda_coords_recent': panda_coords_recent, \
 			'kid_coords_recent': kid_coords_recent, \
-			'panda_directions_recent': panda_directions_recent, \
-			'kid_directions_recent': kid_directions_recent,
+			'panda_directions_recent': panda_directions_recent,'panda_idents_recent': panda_idents_recent, \
+			'kid_directions_recent': kid_directions_recent,'kid_idents_recent': kid_idents_recent,\
 			'x_recent': x_recent, 'y_recent': y_recent, 'direction_recent': direction_recent, \
 			'action_recent': action_recent,'err_imgnet_test_plot':err_imgnet_test_plot,\
 			'class_err_imgnet_test':class_err_imgnet_test,'IMG_SZ':IMG_SZ,\
@@ -789,13 +889,17 @@ while True:
 			dic.update({'panda_coords_input': panda_coords_input, \
 				'kid_coords_input':kid_coords_input,\
 				'panda_directions_input':panda_directions_input, \
+				'panda_idents_input':panda_idents_input, \
 				'kid_directions_input':kid_directions_input,\
+				'kid_idents_input':kid_idents_input,\
 				'x_input':x_input,'y_input':y_input,'direction_input':direction_input,\
 				'action_input':action_input,\
 				'panda_coords_output':panda_coords_output,\
 				'kid_coords_output':kid_coords_output,\
-				'panda_directions_output':panda_directions_output,
+				'panda_directions_output':panda_directions_output,\
+				'panda_idents_output':panda_idents_output,
 				'kid_directions_output':kid_directions_output,\
+				'kid_idents_output':kid_idents_output,\
 				'x_output':x_output,'y_output':y_output,'direction_output':direction_output,\
 				'r_output':r_output,'y_outputs':y_outputs,'y_network_ver':y_network_ver})
 			savemat(file_name + str(step) + '.mat', dic)
