@@ -13,13 +13,13 @@ import PIL
 import PIL.Image
 
 load = True
-file_name = '/export/storage2/reinforcement3d_saves/reinforcement_'
+file_name = '/export/imgnet_storage_full/reinforcement3d_saves/reinforcement_'
 
 #######################
 # load/initialize variables
 step_load = 0
 if load == True:
-	step_load = 7800000
+	step_load = 9150000
 	z = loadmat(file_name + str(step_load) + '.mat')
 	r_output = np.ascontiguousarray(np.squeeze(z['r_output']))
 	y_outputs = np.ascontiguousarray(np.squeeze(z['y_outputs']))
