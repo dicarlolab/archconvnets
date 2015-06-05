@@ -113,7 +113,7 @@ else:
 
 	N_MEAN_SAMPLES = 1000 # for mean image
 
-	F1_scale = 1e-2
+	F1_scale = 1e-3
 	F2_scale = 1e-2
 	F3_scale = 1e-2
 	FL_scale = 1e-2
@@ -446,6 +446,8 @@ def move_animate(kid_coords, kid_directions):
 			(kid_coords[f,1] + dy) > -ROOM_SZ_MV and (kid_coords[f,1] + dy) < ROOM_SZ_MV:
 			kid_coords[f,0] += dx
 			kid_coords[f,1] += dy
+		else:
+			kid_directions[f] = 360*np.random.random()
 			
 	return kid_coords
 
@@ -562,7 +564,7 @@ while True:
 			action = 0
 	else:
 		# forward pass
-		set_buffer(img - mean_img, IMGS_PAD, gpu=GPU_CUR)
+		set_buffer(img_buffer - mean_img, IMGS_PAD, gpu=GPU_CUR)
 			
 		conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_CUR)
 		activation_buffers(CONV_OUTPUT1, CONVA_OUTPUT1, gpu=GPU_CUR)
@@ -692,13 +694,13 @@ while True:
 		# compute target
 		max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_PREV)
 		pred_prev = np.einsum(FL_prev, range(4), max_output3, [4,1,2,3], [0])
-		y = r_mem[trans] + GAMMA * np.max(pred_prev)
+		Y_target = r_mem[trans] + GAMMA * np.max(pred_prev)
 		
 		# current frame:
 		max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_CUR)
 		
 		pred = np.einsum(FL, range(4), max_output3, [4,1,2,3], [0])
-		pred_m_Y = y - pred[action_mem[trans]]
+		pred_m_Y = Y_target - pred[action_mem[trans]]
 		
 		err += pred_m_Y**2
 		
