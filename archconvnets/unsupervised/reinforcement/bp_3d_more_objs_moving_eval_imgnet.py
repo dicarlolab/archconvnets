@@ -12,14 +12,14 @@ from pandac.PandaModules import loadPrcFileData
 import PIL
 import PIL.Image
 
-load = False
+load = True#False
 file_name = '/export/imgnet_storage_full/reinforcement3d_more_objs_moving_saves/reinforcement_'
 
 #######################
 # load/initialize variables
 step_load = 0
 if load == True:
-	step_load = 1585
+	step_load = 2850000#2100000#1200000#1585
 	z = loadmat(file_name + str(step_load) + '.mat')
 	r_mem = np.ascontiguousarray(np.squeeze(z['r_mem']))
 	action_mem = np.ascontiguousarray(np.squeeze(z['action_mem']))
@@ -41,6 +41,9 @@ if load == True:
 	FL_imgnet_scale = np.ascontiguousarray(z['FL_imgnet_scale'])
 	F1_init = np.ascontiguousarray(z['F1_init'])
 	step = np.int(z['step'])
+	N_TIME = np.int(z['N_TIME'])
+	img_trans_buffer = np.ascontiguousarray(z['img_trans_buffer'])
+	img_buffer = np.ascontiguousarray(z['img_buffer'])
 	step_imgnet = np.int(z['step_imgnet'])
 	MOV_RATE = float(z['MOV_RATE'])
 	MOV_ANIMATE_RATE = float(z['MOV_ANIMATE_RATE'])
@@ -871,7 +874,8 @@ while True:
 			'class_err_imgnet_test':class_err_imgnet_test,'IMG_SZ':IMG_SZ,\
 			'r_recent': r_recent,'err_imgnet':err_imgnet,'network_updates':network_updates,\
 			'N_BATCHES_IMGNET':N_BATCHES_IMGNET,'MEM_SZ':MEM_SZ,\
-			'N_BATCHES_IMGNET_TEST':N_BATCHES_IMGNET_TEST,\
+			'N_BATCHES_IMGNET_TEST':N_BATCHES_IMGNET_TEST,'N_TIME':N_TIME,\
+			'img_trans_buffer':img_trans_buffer, 'img_buffer':img_trans_buffer,\
 			'IMGNET_BATCH_SZ':IMGNET_BATCH_SZ,'SAVE_CHECK_FREQ':SAVE_CHECK_FREQ}
 		
 		savemat(file_name + 'recent.mat', dic)
