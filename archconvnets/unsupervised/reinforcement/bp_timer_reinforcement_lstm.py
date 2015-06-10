@@ -6,14 +6,14 @@ import copy
 from scipy.stats import zscore
 import random
 
-file_name = '/home/darren/reinforcement_blocks_lstm_slower.mat'
+file_name = '/home/darren/reinforcement_timer_lstm.mat'
 
 EPS_GREED_FINAL = .1
-EPS_GREED_FINAL_TIME = 5000000/10
+EPS_GREED_FINAL_TIME = 1000000/4
 GAMMA = 0.99
 
 NETWORK_UPDATE = 10000
-EPS = 1e-2
+EPS = 1e-3
 EPS_F = 1e-3
 SAVE_FREQ = 1000
 
@@ -26,11 +26,6 @@ F2_scale = 0.001
 F3_scale = 0.001
 FL_scale = .03
 
-N = 32
-n1 = N # L1 filters
-n2 = N # ...
-n3 = N
-
 n1m = 128
 n2m = 128+1
 n3m = 128+2
@@ -39,32 +34,11 @@ s3 = 3 # L1 filter size (px)
 s2 = 4 # ...
 s1 = 5
 
-N_C = 4 # directions L, R, U, D
-
-PLAYER_MOV_RATE = 3
-RED_MOV_RATE = 2
-BLUE_MOV_RATE = 2
-
-max_output_sz3  = 5
-
-GPU_CUR = 2
-GPU_PREV = 3
-
-# gpu buffer indices
-MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
-F1_IND = 4; IMGS_PAD = 5; DF1 = 6; F2_IND = 11
-D_UNPOOL2 = 12;F3_IND = 13; MAX_OUTPUT2 = 14; MAX_OUTPUT3 = 15
-CONV_OUTPUT1 = 19; CONV_OUTPUT2 = 20; CONV_OUTPUT3 = 21
-DF2 = 25; DPOOL2 = 26; DF3_DATA = 27; DPOOL3 = 28; DF3 = 29; FL_PRED = 30;
-FL_IND = 31; PRED = 32; DFL = 33
-
+N_C = 2 # 0/1
 
 np.random.seed(6666)
-F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
-F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
-F3 = np.single(np.random.normal(scale=F3_scale, size=(n3, n2, s3, s3)))
 
-n_in = n3*max_output_sz3**2
+n_in = 2
 
 ## l1
 FCm = 2*np.single(np.random.random(size=(n1m, n_in))) - 1
@@ -117,7 +91,7 @@ CEC3_dFCm3 = np.zeros_like(CEC3)
 CEC3_dFCi3 = np.zeros_like(CEC3)
 CEC3_dFCf3 = np.zeros_like(CEC3)
 
-FL = np.single(np.random.normal(scale=1, size=(4,n3m)))
+FL = np.single(np.random.normal(scale=1, size=(2,n3m)))
 
 CEC_kept = 0; CEC_new = 0
 CEC_kept2 = 0; CEC_new2 = 0
@@ -163,16 +137,6 @@ Bf3_prev = copy.deepcopy(Bf3)
 
 FL_prev = copy.deepcopy(FL)
 
-set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_PREV)
-set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_PREV)
-set_buffer(F3, F3_IND, filter_flag=1, gpu=GPU_PREV)
-
-set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_CUR)
-set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_CUR)
-set_buffer(F3, F3_IND, filter_flag=1, gpu=GPU_CUR)
-
-F1_init = copy.deepcopy(F1)
-
 r_total = 0
 r_total_plot = []
 network_updates = 0
@@ -180,79 +144,32 @@ step = 0
 err = 0
 err_plot = []
 
-###########
-# init scene
-reds = np.zeros(2, dtype='single')
-reward_phase = 1
-
-show_transition = 255
-
-red_axis = np.random.randint(2)
-red_direction = np.random.randint(2)
-
-if red_direction == 1:
-	reds[red_axis] = 32
-else:
-	reds[red_axis] = -SCALE
-
-reds[1 - red_axis] = (32+SCALE) * np.random.random() - SCALE
-
-player = np.random.randint(0,MAX_LOC, size=2)
-
-imgs_recent = np.zeros((SAVE_FREQ, 3, 32, 32), dtype='single')
-imgs_recent_key = np.zeros((SAVE_FREQ, 3, 32, 32), dtype='single')
+inputs_recent = np.zeros((SAVE_FREQ, 2), dtype='single')
+targets_recent = np.zeros(SAVE_FREQ, dtype='single')
 action_recent = np.zeros(SAVE_FREQ, dtype='int')
 r_recent = np.zeros(SAVE_FREQ, dtype='single')
 
-imgs_mean_red = np.zeros((32,32))
-imgs_mean_player = np.zeros((32,32))
+inputs_prev = np.zeros(n_in)
+
+time_length = np.random.randint(6-1) + 1
+elapsed_time = 0
+p_start = .1
 
 t_start = time.time()
 
-######## mean img
-img_mean = np.zeros((1,3,32,32),dtype='single')
-for sample in range(N_MEAN):
-	red_axis = np.random.randint(2)
-	red_direction = np.random.randint(2)
+###
+if random.random() < p_start and elapsed_time > time_length:
+	time_length = np.random.randint(2*12)
+	elapsed_time = 0
+	inputs_prev[0] = 1
+	inputs_prev[1] = time_length/(2*6.)
+else:
+	inputs_prev[0] = 0
 
-	if red_direction == 1:
-		reds[red_axis] = 32
-	else:
-		reds[red_axis] = -SCALE
-
-	reds[1 - red_axis] = (32+SCALE) * np.random.random() - SCALE
-
-	player = np.random.randint(0,MAX_LOC, size=2)
-	img_mean[0,2,np.max((np.round(reds[0]),0)):np.round(reds[0]+SCALE), np.max((np.round(reds[1]),0)):np.round(reds[1]+SCALE)] += 255
-	img_mean[0,1,player[0]:(player[0]+SCALE), player[1]:player[1]+SCALE] += 255
-img_mean /= N_MEAN
-
-# show blocks
-img = np.zeros((1,3,32,32),dtype='single')
-img[0,2,np.max((np.round(reds[0]),0)):np.round(reds[0]+SCALE), np.max((np.round(reds[1]),0)):np.round(reds[1]+SCALE)] = 255
-img[0,1,player[0]:(player[0]+SCALE), player[1]:player[1]+SCALE] = 255
-img[0,reward_phase+1,player[0]:(player[0]+SCALE), player[1]:player[1]+SCALE] = show_transition
-
-show_transition = 0
+target = 1 - (time_length < elapsed_time)
 
 while True:
-	# debug/visualizations
-	imgs_mean_red[np.max((np.round(reds[0]),0)):np.round(reds[0]+SCALE), np.max((np.round(reds[1]),0)):np.round(reds[1]+SCALE)] += 1
-	imgs_mean_player[player[0]:(player[0]+SCALE), player[1]:player[1]+SCALE] += 1
-	
-	# forward pass
-	set_buffer(img - img_mean, IMGS_PAD, gpu=GPU_CUR)
-		
-	conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_CUR)
-	max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_CUR)
-	conv_buffers(F2_IND, MAX_OUTPUT1, CONV_OUTPUT2, gpu=GPU_CUR)
-	max_pool_cudnn_buffers(CONV_OUTPUT2, MAX_OUTPUT2, gpu=GPU_CUR)
-	conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_CUR)
-	max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_CUR)
-	
-	max_output3 = return_buffer(MAX_OUTPUT3, gpu=GPU_CUR)
-	
-	inputs = max_output3.ravel()
+	inputs = copy.deepcopy(inputs_prev)
 	
 	## forward pass
 	
@@ -337,67 +254,15 @@ while True:
 	# choose action
 	CHANCE_RAND = np.max((1 - ((1-EPS_GREED_FINAL)/EPS_GREED_FINAL_TIME)*step, EPS_GREED_FINAL))
 	if np.random.rand() <= CHANCE_RAND:
-		action = np.random.randint(4)
+		action = np.random.randint(2)
 	else:
 		action = np.argmax(pred)
-
-	# perform action
-	if action == 0 and player[0] >= PLAYER_MOV_RATE:
-		player[0] -= PLAYER_MOV_RATE
-	elif action == 1 and (player[0]) <= (MAX_LOC-1):
-		player[0] += PLAYER_MOV_RATE
-	elif action == 2 and (player[1]) >= PLAYER_MOV_RATE:
-		player[1] -= PLAYER_MOV_RATE
-	elif action == 3 and (player[1]) <= (MAX_LOC-1):
-		player[1] += PLAYER_MOV_RATE
-
 	
 	# determine reward, choose new block locations
-	r = 0
-
-	# red collision, place new red block
-	if (player[0] >= reds[0]) * (player[0] <= (reds[0] + SCALE)) * (player[1] >= reds[1]) * (player[1] <= (reds[1] + SCALE)) + \
-		(player[0] <= reds[0]) * ((player[0] + SCALE) >= reds[0]) * (player[1] >= reds[1]) * (player[1] <= (reds[1] + SCALE)) + \
-		(player[0] >= reds[0]) * (player[0] <= (reds[0] + SCALE)) * (player[1] <= reds[1]) * ((player[1] + SCALE) >= reds[1]) + \
-		(player[0] <= reds[0]) * ((player[0] + SCALE) >= reds[0]) * (player[1] <= reds[1]) * ((player[1] + SCALE) >= reds[1]):
-			r += reward_phase
-			if reward_phase == 1:
-				reward_phase = -1
-			else:
-				reward_phase = 1
-			
-			red_axis = np.random.randint(2)
-			red_direction = np.random.randint(2)
-
-			if red_direction == 1:
-				reds[red_axis] = 32
-			else:
-				reds[red_axis] = -SCALE
-
-			reds[1 - red_axis] = (32+SCALE) * np.random.random() - SCALE
-			show_transition = 255
-
-	# move blocks
-	reds[red_axis] -= RED_MOV_RATE * (2*red_direction - 1)
-	
-	# have any blocks moved off screen?
-	if reds[red_axis] < -SCALE or reds[red_axis] > 32:
-		r += reward_phase/4.
-		if reward_phase == 1:
-			reward_phase = -1
-		else:
-			reward_phase = 1
-		
-		red_axis = np.random.randint(2)
-		red_direction = np.random.randint(2)
-
-		if red_direction == 1:
-			reds[red_axis] = 32
-		else:
-			reds[red_axis] = -SCALE
-
-		reds[1 - red_axis] = (32+SCALE) * np.random.random() - SCALE
-		show_transition = 255
+	if target == action:
+		r = 1
+	else:
+		r = -1
 	
 	r_total += r
 	
@@ -406,31 +271,22 @@ while True:
 	
 	action_recent[save_loc] = action
 	r_recent[save_loc] = r
-	imgs_recent[save_loc] = copy.deepcopy(img[0])
+	targets_recent[save_loc] = target
+	
 	
 	# show blocks
-	img = np.zeros((1,3,32,32),dtype='single')
-	img[0,2,np.max((np.round(reds[0]),0)):np.round(reds[0]+SCALE), np.max((np.round(reds[1]),0)):np.round(reds[1]+SCALE)] = 255
-	img[0,1,player[0]:(player[0]+SCALE), player[1]:player[1]+SCALE] = 255
-	img[0,reward_phase+1,player[0]:(player[0]+SCALE), player[1]:player[1]+SCALE] = show_transition
-
-	show_transition = 0
+	if random.random() < p_start and elapsed_time > time_length:
+		time_length = np.random.randint(2*12)
+		elapsed_time = 0
+		inputs_prev[0] = 1
+		inputs_prev[1] = time_length/(2*6.)
+	else:
+		inputs_prev[0] = 0
+	
+	target = 1 - (time_length < elapsed_time)
 	
 	##################
 	# forward pass prev network
-	set_buffer(img - img_mean, IMGS_PAD, gpu=GPU_PREV)
-	
-	conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_PREV)
-	max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_PREV)
-	conv_buffers(F2_IND, MAX_OUTPUT1, CONV_OUTPUT2, gpu=GPU_PREV)
-	max_pool_cudnn_buffers(CONV_OUTPUT2, MAX_OUTPUT2, gpu=GPU_PREV)
-	conv_buffers(F3_IND, MAX_OUTPUT2, CONV_OUTPUT3, gpu=GPU_PREV)
-	max_pool_cudnn_buffers(CONV_OUTPUT3, MAX_OUTPUT3, gpu=GPU_PREV)
-
-	# compute target
-	max_output3_prev = return_buffer(MAX_OUTPUT3, gpu=GPU_PREV)
-	
-	inputs_prev = max_output3_prev.ravel()
 	
 	## mem 1
 	FCi_output_pre = np.dot(FCi_prev, inputs_prev) + Bi_prev
@@ -571,36 +427,8 @@ while True:
 	dFCm = np.einsum(inputs, [0], FCm_output_rev_sig, [1], [1,0])
 	dFCo = np.einsum(inputs, [0], FCo_output_rev_sig, [1], [1,0])
 	
-	above_w = np.einsum(FCo, [0,1], FCo_output_rev_sig, [0], [1])
-	above_w += np.einsum(FCf, [0,1], FCf_output_rev_sig, [0], [1])
-	above_w += np.einsum(FCi, [0,1], FCi_output_rev_sig, [0], [1])
-	above_w += np.einsum(FCm, [0,1], FCm_output_rev_sig, [0], [1])
-	
-	above_w = above_w.reshape(max_output3.shape)
-	set_buffer(above_w, FL_PRED, gpu=GPU_CUR)
-	
-	########### backprop
-	max_pool_back_cudnn_buffers(MAX_OUTPUT3, FL_PRED, CONV_OUTPUT3, DPOOL3, gpu=GPU_CUR)
-	conv_dfilter_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3, stream=3, gpu=GPU_CUR)
-	conv_ddata_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3_DATA, gpu=GPU_CUR)
-	max_pool_back_cudnn_buffers(MAX_OUTPUT2, DF3_DATA, CONV_OUTPUT2, DPOOL2, gpu=GPU_CUR)
-	conv_ddata_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2_DATA, gpu=GPU_CUR)
-	conv_dfilter_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2, stream=2, gpu=GPU_CUR)
-	max_pool_back_cudnn_buffers(MAX_OUTPUT1, DF2_DATA, CONV_OUTPUT1, DPOOL1, gpu=GPU_CUR)
-	conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, stream=1, gpu=GPU_CUR)
-	
 	### return
 	dFL = FC3_output[0]*pred_m_Y # for 'action' (FL[action])
-	
-	dF3 = return_buffer(DF3, stream=3, gpu=GPU_CUR)
-	dF2 = return_buffer(DF2, stream=2, gpu=GPU_CUR)
-	dF1 = return_buffer(DF1, stream=1, gpu=GPU_CUR)
-	
-	## update
-	F1 += dF1*EPS_F
-	F2 += dF2*EPS_F
-	F3 += dF3*EPS_F
-	FL[action] += dFL*EPS
 	
 	FCf += dFCf*EPS
 	FCo += dFCo*EPS
@@ -634,10 +462,6 @@ while True:
 	Bo3 += dBo3*EPS
 	Bm3 += dBm3*EPS
 	Bi3 += dBi3*EPS
-	
-	set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_CUR)
-	set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_CUR)
-	set_buffer(F3, F3_IND, filter_flag=1, gpu=GPU_CUR)
 	
 	if step % NETWORK_UPDATE == 0:
 		print 'updating network'
@@ -675,35 +499,22 @@ while True:
 		Bf3_prev = copy.deepcopy(Bf3)
 
 		FL_prev = copy.deepcopy(FL)
-		
-		set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_PREV)
-		set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_PREV)
-		set_buffer(F3, F3_IND, filter_flag=1, gpu=GPU_PREV)
 	
 	if step % SAVE_FREQ == 0:
 		r_total_plot.append(r_total)
 		err_plot.append(err)
 		
-		savemat(file_name, {'F1': F1, 'r_total_plot': r_total_plot, 'F2': F2, 'F3': F3, 'FL':FL, 'F1_init': F1_init, 'step': step, 'img': img,\
-				'err_plot': err_plot, 'CEC':CEC, 'imgs_mean_player': imgs_mean_player,\
-				'imgs_mean_red': imgs_mean_red,\
+		savemat(file_name, {'r_total_plot': r_total_plot, 'step': step,\
+				'err_plot': err_plot, 'CEC':CEC,\
 				'action_recent': action_recent, 'r_recent':r_recent,'SAVE_FREQ':SAVE_FREQ,\
-				'imgs_recent': imgs_recent, 'FCi': FCi, 'FCm': FCm, 'FCf': FCf, 'FCo': FCo, 'EPS':EPS, 'NETWORK_UPDATE':NETWORK_UPDATE,\
+				'FCi': FCi, 'FCm': FCm, 'FCf': FCf, 'FCo': FCo, 'EPS':EPS, 'NETWORK_UPDATE':NETWORK_UPDATE,\
 				'FCi2': FCi2, 'FCm2': FCm2, 'FCf2': FCf2, 'FCo2': FCo2,\
 				'FCi3': FCi3, 'FCm3': FCm3, 'FCf3': FCf3, 'FCo3': FCo3,'EPS_GREED_FINAL_TIME':EPS_GREED_FINAL_TIME})
 		
-		conv_output1 = return_buffer(CONV_OUTPUT1, gpu=GPU_CUR)
-		conv_output2 = return_buffer(CONV_OUTPUT2, gpu=GPU_CUR)
-		conv_output3 = return_buffer(CONV_OUTPUT3, gpu=GPU_CUR)
 		print '---------------------------------------------'
 		print step, 'err:',err, 'r:',r_total, 'updates:',network_updates, 'eps:', CHANCE_RAND, 't:',time.time() - t_start, file_name
 		ft = EPS
-		print 'F1: %f %f (%f);   layer: %f %f' % (np.min(F1), np.max(F1), np.median(np.abs(ft*dF1.ravel())/np.abs(F1.ravel())),\
-						np.min(conv_output1), np.max(conv_output1))
-		print 'F2: %f %f (%f)   layer: %f %f' % (np.min(F2), np.max(F2), np.median(np.abs(ft*dF2.ravel())/np.abs(F2.ravel())),\
-						np.min(conv_output2), np.max(conv_output2))
-		print 'F3: %f %f (%f)   layer: %f %f' % (np.min(F3), np.max(F3), np.median(np.abs(ft*dF3.ravel())/np.abs(F3.ravel())),\
-						np.min(conv_output3), np.max(conv_output3))
+		
 		print
 		print 'FCm: %f %f (%f)   layer: %f %f (%f)' % (np.min(FCm), np.max(FCm), np.median(np.abs(ft*dFCm.ravel())/np.abs(FCm.ravel())),\
 						np.min(FCm_output), np.max(FCm_output), np.median(FCm_output))
@@ -749,5 +560,6 @@ while True:
 		
 		t_start = time.time()
 	step += 1
+	elapsed_time += 1
 	
 	

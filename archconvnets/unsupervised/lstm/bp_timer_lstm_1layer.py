@@ -18,43 +18,21 @@ FL2_scale = .05
 FL3_scale = .05
 CEC_SCALE = 0.001
 
-EPS_E = 2
-EPS = 2*10**(-EPS_E)
+EPS_E = 3
+EPS = 1*10**(-EPS_E)
 
-#EPSs = np.linspace(0,EPS, N_TRAIN)[::-1]
-
-n_in = 1
-n1 = 128#5#2*2*256#*4*2
+n_in = 2
+n1 = 2*128#5#2*2*256#*4*2
 n2 = 1+2*256#*4*2
 n3 = 2+2*256#*4*2
 
 np.random.seed(6166)
 
 ## l1
-'''FCm = np.single(np.random.normal(scale=FL_scale, size=(n1, n_in)))
-FCi = np.single(np.random.normal(scale=FL_scale, size=(n1, n_in)))
-FCo = np.single(np.random.normal(scale=FL_scale, size=(n1, n_in)))
-FCf = np.single(np.random.normal(scale=FL_scale, size=(n1, n_in)))
-
-FCir = np.single(np.random.normal(scale=FL_scale, size=n1))
-FCor = np.single(np.random.normal(scale=FL_scale, size=n1))
-FCfr = np.single(np.random.normal(scale=FL_scale, size=n1))
-
-Bm = np.single(np.random.normal(scale=FL_scale, size=n1))
-Bi = np.single(np.random.normal(scale=FL_scale, size=n1))
-Bo = np.single(np.random.normal(scale=FL_scale, size=n1))
-Boo = np.single(np.random.normal(scale=FL_scale, size=n1))
-Bf = np.single(np.random.normal(scale=FL_scale, size=n1))
-CEC = np.zeros_like(np.single(np.random.normal(scale=CEC_SCALE, size=n1)))'''
-
 FCm = 2*np.single(np.random.random(size=(n1, n_in))) - 1
 FCi = 2*np.single(np.random.random(size=(n1, n_in))) - 1
 FCo = 2*np.single(np.random.random(size=(n1, n_in))) - 1
 FCf = 2*np.single(np.random.random(size=(n1, n_in))) - 1
-
-FCir = 2*np.single(np.random.random(size=n1)) - 1
-FCor = 2*np.single(np.random.random(size=n1)) - 1
-FCfr = 2*np.single(np.random.random(size=n1)) - 1
 
 Bm = np.zeros_like(2*np.single(np.random.random(size=n1)) - 1) ##
 Bi = np.zeros_like(2*np.single(np.random.random(size=n1)) - 1)
@@ -80,10 +58,6 @@ dFCm = np.zeros_like(FCm)
 dFCi = np.zeros_like(FCi)
 dFCo = np.zeros_like(FCo)
 dFCf = np.zeros_like(FCf)
-
-dFCir = np.zeros_like(FCir)
-dFCor = np.zeros_like(FCor)
-dFCfr = np.zeros_like(FCfr)
 
 dBm = np.zeros_like(Bm)
 dBi = np.zeros_like(Bi)
@@ -112,10 +86,10 @@ err = []
 global_step = 0
 while True:
 	if random.random() < p_start and elapsed_time > time_length:
-		time_length = 3#np.random.randint(MAX_TIME)
+		time_length = np.random.randint(6)
 		elapsed_time = 0
 		inputs[0] = 1
-		#inputs[1] = time_length
+		inputs[1] = time_length/3.
 	else:
 		inputs[0] = 0
 		
@@ -124,14 +98,13 @@ while True:
 	## forward pass
 	
 	## mem 1
-	FCi_output_pre = np.dot(FCi, inputs) + Bi + FCir*CEC
-	FCf_output_pre = np.dot(FCf, inputs) + Bf + FCfr*CEC
+	FCi_output_pre = np.dot(FCi, inputs) + Bi
+	FCf_output_pre = np.dot(FCf, inputs) + Bf
 	FCm_output_pre = np.dot(FCm, inputs) + Bm
 	
 	FCf_output = 1 / (1 + np.exp(-FCf_output_pre))
 	FCi_output = 1 / (1 + np.exp(-FCi_output_pre))
 	FCm_output = 1 / (1 + np.exp(-FCm_output_pre)) - .5
-	#FCm_output = FCm_output_pre
 	
 	CEC_kept = CEC*FCf_output
 	CEC_new = FCi_output*FCm_output
@@ -139,12 +112,10 @@ while True:
 	CEC_prev = copy.deepcopy(CEC)
 	CEC = CEC*FCf_output + FCi_output*FCm_output
 	
-	FCo_output_pre = np.dot(FCo, inputs) + Bo + FCor*CEC
+	FCo_output_pre = np.dot(FCo, inputs) + Bo
 	FCo_output = 1 / (1 + np.exp(-FCo_output_pre))
 	
 	FC_output = FCo_output * CEC + Boo
-	
-	
 	
 	pred = np.dot(FL, FC_output)
 	
@@ -157,8 +128,6 @@ while True:
 	FCi_output_rev = np.exp(FCi_output_pre)/((np.exp(FCi_output_pre) + 1)**2)
 	FCo_output_rev = np.exp(FCo_output_pre)/((np.exp(FCo_output_pre) + 1)**2)
 	FCm_output_rev = np.exp(FCm_output_pre)/((np.exp(FCm_output_pre) + 1)**2)
-	#FCm_output_rev = 1
-	
 	
 	############ FL
 	
@@ -179,19 +148,15 @@ while True:
 	CEC_dFCm = CEC_dFCm * FCf_output + FCi_output * FCm_output_rev
 	CEC_dFCi = CEC_dFCi * FCf_output + FCi_output_rev * FCm_output
 	
-	dFCfr += FCf_output_rev_sig*CEC_prev
-	dFCir += FCi_output_rev_sig*CEC_prev
-	dFCor += FCo_output_rev_sig*CEC
+	dBf = FCf_output_rev_sig
+	dBi = FCi_output_rev_sig
+	dBm = FCm_output_rev_sig
+	dBo = FCo_output_rev_sig
 	
-	dBf += FCf_output_rev_sig
-	dBi += FCi_output_rev_sig
-	dBm += FCm_output_rev_sig
-	dBo += FCo_output_rev_sig
-	
-	dFCf += np.einsum(inputs, [0], FCf_output_rev_sig, [1], [1,0])
-	dFCi += np.einsum(inputs, [0], FCi_output_rev_sig, [1], [1,0])
-	dFCm += np.einsum(inputs, [0], FCm_output_rev_sig, [1], [1,0])
-	dFCo += np.einsum(inputs, [0], FCo_output_rev_sig, [1], [1,0])
+	dFCf = np.einsum(inputs, [0], FCf_output_rev_sig, [1], [1,0])
+	dFCi = np.einsum(inputs, [0], FCi_output_rev_sig, [1], [1,0])
+	dFCm = np.einsum(inputs, [0], FCm_output_rev_sig, [1], [1,0])
+	dFCo = np.einsum(inputs, [0], FCo_output_rev_sig, [1], [1,0])
 	
 	if global_step % SAVE_FREQ == 0:
 		err.append(err_t)
@@ -225,10 +190,6 @@ while True:
 		FCm -= dFCm*EPS/BATCH_SZ
 		FCi -= dFCi*EPS/BATCH_SZ
 		
-		FCfr -= dFCfr*EPS/BATCH_SZ
-		FCor -= dFCor*EPS/BATCH_SZ
-		FCir -= dFCir*EPS/BATCH_SZ
-		
 		Bf -= dBf*EPS/BATCH_SZ
 		Bo -= dBo*EPS/BATCH_SZ
 		Bm -= dBm*EPS/BATCH_SZ
@@ -236,28 +197,6 @@ while True:
 		Boo -= dBoo*EPS/BATCH_SZ
 		
 		FL -= dFL*EPS/BATCH_SZ
-		
-		# reset
-		dFCf = np.zeros_like(FCf)
-		dFCo = np.zeros_like(FCo)
-		dFCm = np.zeros_like(FCm)
-		dFCi = np.zeros_like(FCi)
-		
-		dFCfr = np.zeros_like(FCfr)
-		dFCor = np.zeros_like(FCor)
-		dFCir = np.zeros_like(FCir)
-		
-		dBf = np.zeros_like(Bf)
-		dBo = np.zeros_like(Bo)
-		dBm = np.zeros_like(Bm)
-		dBi = np.zeros_like(Bi)
-		dBoo = np.zeros_like(Boo)
-		
-		#CEC = np.zeros_like(np.single(np.random.normal(scale=CEC_SCALE, size=n1)))
-
-		#CEC_dFCm = np.zeros_like(CEC)
-		#CEC_dFCi = np.zeros_like(CEC)
-		#CEC_dFCf = np.zeros_like(CEC)
 
 	
 	s_loc = global_step % SAVE_FREQ

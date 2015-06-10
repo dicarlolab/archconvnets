@@ -19,7 +19,7 @@ file_name = '/export/imgnet_storage_full/reinforcement3d_more_objs_moving_saves/
 # load/initialize variables
 step_load = 0
 if load == True:
-	step_load = 2850000#2100000#1200000#1585
+	step_load = 3750000#3150000#2850000#2100000#1200000#1585
 	z = loadmat(file_name + str(step_load) + '.mat')
 	r_mem = np.ascontiguousarray(np.squeeze(z['r_mem']))
 	action_mem = np.ascontiguousarray(np.squeeze(z['action_mem']))

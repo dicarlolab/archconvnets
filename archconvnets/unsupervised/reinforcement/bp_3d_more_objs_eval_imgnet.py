@@ -19,7 +19,7 @@ file_name = '/export/imgnet_storage_full/reinforcement3d_more_objs_saves/reinfor
 # load/initialize variables
 step_load = 0
 if load == True:
-	step_load = 4050000 #2250000
+	step_load = 8700000#7650000#5700000#4050000 #2250000
 	z = loadmat(file_name + str(step_load) + '.mat')
 	r_output = np.ascontiguousarray(np.squeeze(z['r_output']))
 	y_outputs = np.ascontiguousarray(np.squeeze(z['y_outputs']))

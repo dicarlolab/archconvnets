@@ -87,10 +87,10 @@ err = []
 global_step = 0
 while True:
 	if random.random() < p_start and elapsed_time > time_length:
-		time_length = np.random.randint(6)
+		time_length = np.random.randint(12)
 		elapsed_time = 0
 		inputs[0] = 1
-		inputs[1] = time_length/3.
+		inputs[1] = time_length/6.
 	else:
 		inputs[0] = 0
 		
