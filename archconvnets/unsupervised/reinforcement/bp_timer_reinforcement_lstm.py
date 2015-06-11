@@ -6,7 +6,12 @@ import copy
 from scipy.stats import zscore
 import random
 
-file_name = '/home/darren/reinforcement_timer_lstm.mat'
+static = True
+
+if static == True:
+	file_name = '/home/darren/reinforcement_timer_lstm_ncec_double_only20.mat'
+else:
+	file_name = '/home/darren/reinforcement_timer_lstm_sparse_double_only20.mat'
 
 EPS_GREED_FINAL = .1
 EPS_GREED_FINAL_TIME = 1000000/4
@@ -167,6 +172,7 @@ else:
 	inputs_prev[0] = 0
 
 target = 1 - (time_length < elapsed_time)
+r_interval = 0
 
 while True:
 	inputs = copy.deepcopy(inputs_prev)
@@ -186,7 +192,8 @@ while True:
 	CEC_new = FCi_output*FCm_output
 	
 	CEC_prev = copy.deepcopy(CEC)
-	CEC = CEC*FCf_output + FCi_output*FCm_output
+	if static == False:
+		CEC = CEC*FCf_output + FCi_output*FCm_output
 	
 	FCo_output_pre = np.dot(FCo, inputs) + Bo
 	FCo_output = 1 / (1 + np.exp(-FCo_output_pre))
@@ -206,7 +213,8 @@ while True:
 	CEC_new2 = FCi2_output*FCm2_output
 	
 	CEC2_prev = copy.deepcopy(CEC2)
-	CEC2 = CEC2*FCf2_output + FCi2_output*FCm2_output
+	if static == False:
+		CEC2 = CEC2*FCf2_output + FCi2_output*FCm2_output
 	
 	FCo2_output_pre = np.dot(FCo2, FC_output) + Bo2
 	FCo2_output = 1 / (1 + np.exp(-FCo2_output_pre))
@@ -226,7 +234,8 @@ while True:
 	CEC_new3 = FCi3_output*FCm3_output
 	
 	CEC3_prev = copy.deepcopy(CEC3)
-	CEC3 = CEC3*FCf3_output + FCi3_output*FCm3_output
+	if static == False:
+		CEC3 = CEC3*FCf3_output + FCi3_output*FCm3_output
 	
 	FCo3_output_pre = np.dot(FCo3, FC2_output) + Bo3
 	FCo3_output = 1 / (1 + np.exp(-FCo3_output_pre))
@@ -259,10 +268,23 @@ while True:
 		action = np.argmax(pred)
 	
 	# determine reward, choose new block locations
-	if target == action:
+	r = 0
+	
+	'''if action == target:
 		r = 1
 	else:
 		r = -1
+	'''
+	if (elapsed_time+1) == time_length:
+		if action == 1:
+			r = 20.
+		else:
+			r = -20.
+	if (elapsed_time+3) == time_length:
+		if action == 0:
+			r = 20.
+		else:
+			r = -20.
 	
 	r_total += r
 	
@@ -276,10 +298,11 @@ while True:
 	
 	# show blocks
 	if random.random() < p_start and elapsed_time > time_length:
-		time_length = np.random.randint(2*12)
+		time_length = np.random.randint(20)#2*12)
 		elapsed_time = 0
 		inputs_prev[0] = 1
-		inputs_prev[1] = time_length/(2*6.)
+		inputs_prev[1] = time_length/(20.)
+		r_interval = 0
 	else:
 		inputs_prev[0] = 0
 	
@@ -297,7 +320,8 @@ while True:
 	FCi_output_prev = 1 / (1 + np.exp(-FCi_output_pre))
 	FCm_output_prev = 1 / (1 + np.exp(-FCm_output_pre)) - .5
 	
-	CEC_prev_prev = CEC_prev_prev*FCf_output_prev + FCi_output_prev*FCm_output_prev
+	if static == False:
+		CEC_prev_prev = CEC_prev_prev*FCf_output_prev + FCi_output_prev*FCm_output_prev
 	
 	FCo_output_pre = np.dot(FCo_prev, inputs_prev) + Bo_prev
 	FCo_output_prev = 1 / (1 + np.exp(-FCo_output_pre))
@@ -313,7 +337,8 @@ while True:
 	FCi2_output_prev = 1 / (1 + np.exp(-FCi2_output_pre))
 	FCm2_output_prev = 1 / (1 + np.exp(-FCm2_output_pre)) - .5
 	
-	CEC2_prev_prev = CEC2_prev_prev*FCf2_output_prev + FCi2_output_prev*FCm2_output_prev
+	if static == False:
+		CEC2_prev_prev = CEC2_prev_prev*FCf2_output_prev + FCi2_output_prev*FCm2_output_prev
 	
 	FCo2_output_pre = np.dot(FCo2_prev, FC_output_prev) + Bo2_prev
 	FCo2_output_prev = 1 / (1 + np.exp(-FCo2_output_pre))
@@ -329,7 +354,8 @@ while True:
 	FCi3_output_prev = 1 / (1 + np.exp(-FCi3_output_pre))
 	FCm3_output_prev = 1 / (1 + np.exp(-FCm3_output_pre)) - .5
 	
-	CEC3_prev_prev = CEC3_prev_prev*FCf3_output_prev + FCi3_output_prev*FCm3_output_prev
+	if static == False:
+		CEC3_prev_prev = CEC3_prev_prev*FCf3_output_prev + FCi3_output_prev*FCm3_output_prev
 	
 	FCo3_output_pre = np.dot(FCo3_prev, FC2_output_prev) + Bo3_prev
 	FCo3_output_prev = 1 / (1 + np.exp(-FCo3_output_pre))
