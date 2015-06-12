@@ -32,6 +32,7 @@ import copy
 import collections
 import pymongo as pm
 import gridfs
+import hashlib
 from yamutils.mongo import SONify
 
 
@@ -88,7 +89,6 @@ def read_checkpoint_from_file(go, cachefile):
     return data.read()
 
 def get_md5(file):
-    import hashlib
     BLOCKSIZE = 65536
     hasher = hashlib.md5()
     with open(file, 'rb') as f:
@@ -500,7 +500,7 @@ class IGPUModel:
             # new code - save to cache
             go = fs_to_use.get_last_version(_id=rec['_id'])
              from skdata.data_home import get_data_home
-             cachedir = os.path.join(get_data_home(), 'checkpoint')
+             cachedir = os.path.join(get_data_home(), 'checkpoint_cache')
              if not os.path.exists(cachedir):
                  os.makedirs(cachedir)
              cachefile = os.path.join(cachedir, str(rec['_id']) + ".pkl")
