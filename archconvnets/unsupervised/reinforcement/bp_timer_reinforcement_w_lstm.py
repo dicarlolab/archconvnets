@@ -17,6 +17,7 @@ if static == True:
 else:
 	file_name = '/home/darren/reinforcement_timer_lstm.mat'
 
+TRAIN_STEPS =  278000#242000000
 EPS_GREED_FINAL = .1
 EPS_GREED_FINAL_TIME = 10000#00/4#1000000/4
 GAMMA = 0.99
@@ -44,7 +45,7 @@ N_C = 2 # 0/1
 
 np.random.seed(666)
 
-n_in = 2
+n_in = 400
 
 ## l1
 FCm = 2*np.single(np.random.random(size=(n1m, n_in))) - 1
@@ -155,13 +156,15 @@ targets_recent = np.zeros(SAVE_FREQ, dtype='single')
 action_recent = np.zeros(SAVE_FREQ, dtype='int')
 r_recent = np.zeros(SAVE_FREQ, dtype='single')
 
-inputs_prev = np.zeros(n_in)
+inputs_prev = np.zeros(2)
 
 time_length = np.random.randint(6-1) + 1
 elapsed_time = 0
 p_start = .1
 
 t_start = time.time()
+
+w = np.single(np.random.normal(scale=0.1, size=(n_in,2)))
 
 ###
 if random.random() < p_start and elapsed_time > time_length:
@@ -171,6 +174,8 @@ if random.random() < p_start and elapsed_time > time_length:
 	inputs_prev[1] = time_length/(2*6.)
 else:
 	inputs_prev[0] = 0
+
+inputs_prev_w = np.dot(w,inputs_prev)
 
 target = 1 - (time_length < elapsed_time)
 r_interval = 0
@@ -194,7 +199,7 @@ while True:
 		CEC2 = np.zeros_like(CEC2)
 		CEC = np.zeros_like(CEC)'''
 	
-	inputs = copy.deepcopy(inputs_prev)
+	inputs = np.dot(w,inputs_prev)
 	
 	## forward pass
 	
@@ -326,14 +331,15 @@ while True:
 		inputs_prev[0] = 0
 	
 	target = 1 - (time_length < elapsed_time)
+	inputs_prev_w = np.dot(w,inputs_prev)
 	
 	##################
 	# forward pass prev network
 	
 	## mem 1
-	FCi_output_pre = np.dot(FCi_prev, inputs_prev) + Bi_prev
-	FCf_output_pre = np.dot(FCf_prev, inputs_prev) + Bf_prev
-	FCm_output_pre = np.dot(FCm_prev, inputs_prev) + Bm_prev
+	FCi_output_pre = np.dot(FCi_prev, inputs_prev_w) + Bi_prev
+	FCf_output_pre = np.dot(FCf_prev, inputs_prev_w) + Bf_prev
+	FCm_output_pre = np.dot(FCm_prev, inputs_prev_w) + Bm_prev
 	
 	FCf_output_prev = 1 / (1 + np.exp(-FCf_output_pre))
 	FCi_output_prev = 1 / (1 + np.exp(-FCi_output_pre))
@@ -342,7 +348,7 @@ while True:
 	if static == False:
 		CEC_prev_prev = CEC_prev_prev*FCf_output_prev + FCi_output_prev*FCm_output_prev
 	
-	FCo_output_pre = np.dot(FCo_prev, inputs_prev) + Bo_prev
+	FCo_output_pre = np.dot(FCo_prev, inputs_prev_w) + Bo_prev
 	FCo_output_prev = 1 / (1 + np.exp(-FCo_output_pre))
 	
 	FC_output_prev = FCo_output_prev * CEC_prev_prev + Boo_prev
@@ -475,7 +481,7 @@ while True:
 	### return
 	dFL = FC3_output[0]*pred_m_Y # for 'action' (FL[action])
 	
-	if step < 242000:
+	if step < TRAIN_STEPS:
 		FL += dFL*EPS
 		
 		FCf += dFCf*EPS
@@ -566,7 +572,7 @@ while True:
 		CEC = np.zeros_like(CEC)
 	
 	if step % SAVE_FREQ == 0:
-		if step < 242000:
+		if step < TRAIN_STEPS:
 			print 'updated'
 		else:
 			print 'not updated'

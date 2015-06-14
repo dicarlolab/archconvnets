@@ -6,6 +6,10 @@ import copy
 from scipy.stats import zscore
 import random
 
+#kernprof -l bp_cudnn.py
+#python -m line_profiler bp_cudnn.py.lprof  > p
+#@profile
+#def sf():
 file_name = '/home/darren/reinforcement_blocks_lstm_slower.mat'
 
 EPS_GREED_FINAL = .1
