@@ -12,12 +12,12 @@ import random
 #def sf():
 
 static = False
-#static = True
+static = True
 
 if static == True:
 	file_name = '/home/darren/reinforcement_timer_lstm_ncec_F1.mat'
 else:
-	file_name = '/home/darren/reinforcement_timer_lstm_F1_eps3.mat'
+	file_name = '/home/darren/reinforcement_timer_lstm_F1.mat'
 
 TRAIN_STEPS =  278000#242000000
 EPS_GREED_FINAL = .1
@@ -29,8 +29,8 @@ EPS = 1e-3
 EPS_F = 1e-4
 SAVE_FREQ = 2000
 
-F1_scale = 0.025 # std of init normal distribution
-F2_scale = 0.001
+F1_scale = 0.03 # std of init normal distribution
+F2_scale = 0.05
 F3_scale = 0.001
 FL_scale = .03
 
@@ -48,9 +48,10 @@ np.random.seed(6666)
 
 N = 32
 n1 = N # L1 filters
+n2 = N + 1
 
 s3 = 3 # L1 filter size (px)
-s2 = 4 # ...
+s2 = 3 # ...
 s1 = 5
 
 GPU_CUR = 2
@@ -64,12 +65,13 @@ CONV_OUTPUT1 = 19; CONV_OUTPUT2 = 20; CONV_OUTPUT3 = 21
 DF2 = 25; DPOOL2 = 26; DF3_DATA = 27; DPOOL3 = 28; DF3 = 29; FL_PRED = 30;
 FL_IND = 31; PRED = 32; DFL = 33
 
-IMG_SZ = 10
+IMG_SZ = 32
 img = np.zeros((1,3, IMG_SZ,IMG_SZ), dtype='single')
 
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
+F2 = np.single(np.random.normal(scale=F2_scale, size=(n2, n1, s2, s2)))
 
-n_in = 3200
+n_in = 2673
 
 ## l1
 FCm = 2*np.single(np.random.random(size=(n1m, n_in))) - 1
@@ -188,43 +190,38 @@ p_start = .1
 
 t_start = time.time()
 
-#w = np.single(np.random.normal(scale=0.1, size=(n_in,2)))
-w = np.single(np.random.normal(scale=0.01, size=(n_in,n_in)))
-
 ###
 if random.random() < p_start and elapsed_time > time_length:
 	time_length = np.random.randint(2*12)
 	elapsed_time = 0
 	img[0,0,:4,:4] = 1
 	img[0,1,4:,4:] = time_length/(2*6.)
-	
-	inputs_prev[0] = 1
-	inputs_prev[1] = time_length/(2*6.)
 else:
 	img[0,0,:4,:4] = 0
-	
-	inputs_prev[0] = 0
-
-#inputs_prev_w = np.dot(w,img.ravel())#inputs_prev)
 	
 target = 1 - (time_length < elapsed_time)
 r_interval = 0
 
 set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_CUR)
 set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_PREV)
-set_buffer(img, IMGS_PAD, gpu=GPU_CUR)
 
-conv_shape = (1, n1, 10,10)
+set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_CUR)
+set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_PREV)
+set_buffer(img, IMGS_PAD, gpu=GPU_CUR)
 
 while True:
 	set_buffer(img, IMGS_PAD, gpu=GPU_CUR)
 	
 	conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_CUR)
+	max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_CUR)
+	conv_buffers(F2_IND, MAX_OUTPUT1, CONV_OUTPUT2, gpu=GPU_CUR)
+	max_pool_cudnn_buffers(CONV_OUTPUT2, MAX_OUTPUT2, gpu=GPU_CUR)
 	
-	inputs = return_buffer(CONV_OUTPUT1, gpu=GPU_CUR).ravel()
+	inputs_shaped = return_buffer(MAX_OUTPUT2, gpu=GPU_CUR)
+	max2_shape = inputs_shaped.shape
 	
-	###
-	#inputs = np.dot(w,img.ravel())#inputs_prev)
+	inputs = inputs_shaped.ravel()
+
 	
 	## forward pass
 	
@@ -350,26 +347,23 @@ while True:
 		elapsed_time = 0
 		r_interval = 0
 		
-		img[0,0,:4,:4] = 1
-		img[0,1,4:,4:] = time_length/(5.)
-		
-		inputs_prev[0] = 1
-		inputs_prev[1] = time_length/(5.)
+		img[0,0,:4,:4] = .5
+		img[0,1,4:,4:] = time_length/(5.) -.5
 	else:
-		img[0,0,:4,:4] = 0
-		
-		inputs_prev[0] = 0
+		img[0,0,:4,:4] = -.5
 	
 	target = 1 - (time_length < elapsed_time)
-	#inputs_prev_w = np.dot(w,img.ravel())#inputs_prev)
 	
 	set_buffer(img, IMGS_PAD, gpu=GPU_PREV)
 	
 	##################
 	# forward pass prev network
 	conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_PREV)
+	max_pool_cudnn_buffers(CONV_OUTPUT1, MAX_OUTPUT1, gpu=GPU_PREV)
+	conv_buffers(F2_IND, MAX_OUTPUT1, CONV_OUTPUT2, gpu=GPU_PREV)
+	max_pool_cudnn_buffers(CONV_OUTPUT2, MAX_OUTPUT2, gpu=GPU_PREV)
 	
-	inputs_prev_w = return_buffer(CONV_OUTPUT1, gpu=GPU_PREV).ravel()
+	inputs_prev_w = return_buffer(MAX_OUTPUT2, gpu=GPU_PREV).ravel()
 	
 	## mem 1
 	FCi_output_pre = np.dot(FCi_prev, inputs_prev_w) + Bi_prev
@@ -518,8 +512,13 @@ while True:
 	above_w += np.einsum(FCi, [0,1], FCi_output_rev_sig, [0], [1])
 	above_w += np.einsum(FCm, [0,1], FCm_output_rev_sig, [0], [1])
 	
-	set_buffer(above_w.reshape(conv_shape), FL_PRED, gpu=GPU_CUR)
-	conv_dfilter_buffers(F1_IND, IMGS_PAD, FL_PRED, DF1, stream=1, gpu=GPU_CUR)
+	set_buffer(above_w.reshape(max2_shape), FL_PRED, gpu=GPU_CUR)
+	
+	max_pool_back_cudnn_buffers(MAX_OUTPUT2, FL_PRED, CONV_OUTPUT2, DPOOL2, gpu=GPU_CUR)
+	conv_ddata_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2_DATA, gpu=GPU_CUR)
+	conv_dfilter_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2, stream=2, gpu=GPU_CUR)
+	max_pool_back_cudnn_buffers(MAX_OUTPUT1, DF2_DATA, CONV_OUTPUT1, DPOOL1, gpu=GPU_CUR)
+	conv_dfilter_buffers(F1_IND, IMGS_PAD, DPOOL1, DF1, stream=1, gpu=GPU_CUR)
 	
 	### return
 	dFL = FC3_output[0]*pred_m_Y # for 'action' (FL[action])
@@ -560,10 +559,15 @@ while True:
 		Bm3 += dBm3*EPS
 		Bi3 += dBi3*EPS
 		
-		dF1 = np.zeros_like(F1)
+		dF2 = return_buffer(DF2, stream=2, gpu=GPU_CUR)
+		
+		F2 += dF2*EPS_F
+		
+		#dF1 = np.zeros_like(F1)
 		dF1 = return_buffer(DF1, stream=1, gpu=GPU_CUR)
 		
 		F1 += dF1*EPS_F
+		
 	
 	if step % NETWORK_UPDATE == 0:
 		print 'updating network'
@@ -636,6 +640,8 @@ while True:
 		print step, 'err:',err, 'r:',r_total, 'eps:', CHANCE_RAND, 't:',time.time() - t_start, file_name
 		ft = EPS
 		print 'F1: %f %f (%f)   layer: %f %f (%f)' % (np.min(F1), np.max(F1), np.median(np.abs(ft*dF1.ravel())/np.abs(F1.ravel())),\
+						np.min(inputs), np.max(inputs), np.median(inputs))
+		print 'F1: %f %f (%f)   layer: %f %f (%f)' % (np.min(F2), np.max(F2), np.median(np.abs(ft*dF2.ravel())/np.abs(F2.ravel())),\
 						np.min(inputs), np.max(inputs), np.median(inputs))
 		
 		print
