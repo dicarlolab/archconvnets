@@ -10,23 +10,26 @@ import random
 #python -m line_profiler bp_timer_reinforcement_lstm.py.lprof  > p
 #@profile
 #def sf():
+
 static = False
+#static = True
 
 if static == True:
 	file_name = '/home/darren/reinforcement_timer_lstm_ncec_F1.mat'
 else:
-	file_name = '/home/darren/reinforcement_timer_lstm_F1.mat'
+	file_name = '/home/darren/reinforcement_timer_lstm_F1_eps3.mat'
 
+TRAIN_STEPS =  278000#242000000
 EPS_GREED_FINAL = .1
 EPS_GREED_FINAL_TIME = 10000#3*1000000/4
 GAMMA = 0.99
 
 NETWORK_UPDATE = 5*5*10000
-EPS = 2e-2
-EPS_F = 1e-1
-SAVE_FREQ = 1000
+EPS = 1e-3
+EPS_F = 1e-4
+SAVE_FREQ = 2000
 
-F1_scale = 0.001 # std of init normal distribution
+F1_scale = 0.025 # std of init normal distribution
 F2_scale = 0.001
 F3_scale = 0.001
 FL_scale = .03
@@ -43,9 +46,7 @@ N_C = 2 # 0/1
 
 np.random.seed(6666)
 
-n_in = 400
-
-N = 4
+N = 32
 n1 = N # L1 filters
 
 s3 = 3 # L1 filter size (px)
@@ -63,11 +64,12 @@ CONV_OUTPUT1 = 19; CONV_OUTPUT2 = 20; CONV_OUTPUT3 = 21
 DF2 = 25; DPOOL2 = 26; DF3_DATA = 27; DPOOL3 = 28; DF3 = 29; FL_PRED = 30;
 FL_IND = 31; PRED = 32; DFL = 33
 
-F1_scale = 1e-2
 IMG_SZ = 10
 img = np.zeros((1,3, IMG_SZ,IMG_SZ), dtype='single')
 
 F1 = np.single(np.random.normal(scale=F1_scale, size=(n1, 3, s1, s1)))
+
+n_in = 3200
 
 ## l1
 FCm = 2*np.single(np.random.random(size=(n1m, n_in))) - 1
@@ -178,21 +180,33 @@ targets_recent = np.zeros(SAVE_FREQ, dtype='single')
 action_recent = np.zeros(SAVE_FREQ, dtype='int')
 r_recent = np.zeros(SAVE_FREQ, dtype='single')
 
+inputs_prev = np.zeros(2)
+
 time_length = np.random.randint(6-1) + 1
 elapsed_time = 0
 p_start = .1
 
 t_start = time.time()
 
+#w = np.single(np.random.normal(scale=0.1, size=(n_in,2)))
+w = np.single(np.random.normal(scale=0.01, size=(n_in,n_in)))
+
 ###
 if random.random() < p_start and elapsed_time > time_length:
 	time_length = np.random.randint(2*12)
 	elapsed_time = 0
 	img[0,0,:4,:4] = 1
-	img[0,1,5:,5:] = time_length/(2*6.)
+	img[0,1,4:,4:] = time_length/(2*6.)
+	
+	inputs_prev[0] = 1
+	inputs_prev[1] = time_length/(2*6.)
 else:
 	img[0,0,:4,:4] = 0
+	
+	inputs_prev[0] = 0
 
+#inputs_prev_w = np.dot(w,img.ravel())#inputs_prev)
+	
 target = 1 - (time_length < elapsed_time)
 r_interval = 0
 
@@ -208,6 +222,9 @@ while True:
 	conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_CUR)
 	
 	inputs = return_buffer(CONV_OUTPUT1, gpu=GPU_CUR).ravel()
+	
+	###
+	#inputs = np.dot(w,img.ravel())#inputs_prev)
 	
 	## forward pass
 	
@@ -334,11 +351,17 @@ while True:
 		r_interval = 0
 		
 		img[0,0,:4,:4] = 1
-		img[0,1,5:,5:] = time_length/(5.)
+		img[0,1,4:,4:] = time_length/(5.)
+		
+		inputs_prev[0] = 1
+		inputs_prev[1] = time_length/(5.)
 	else:
 		img[0,0,:4,:4] = 0
+		
+		inputs_prev[0] = 0
 	
 	target = 1 - (time_length < elapsed_time)
+	#inputs_prev_w = np.dot(w,img.ravel())#inputs_prev)
 	
 	set_buffer(img, IMGS_PAD, gpu=GPU_PREV)
 	
@@ -346,12 +369,12 @@ while True:
 	# forward pass prev network
 	conv_buffers(F1_IND, IMGS_PAD, CONV_OUTPUT1, gpu=GPU_PREV)
 	
-	inputs_prev = return_buffer(CONV_OUTPUT1, gpu=GPU_PREV).ravel()
+	inputs_prev_w = return_buffer(CONV_OUTPUT1, gpu=GPU_PREV).ravel()
 	
 	## mem 1
-	FCi_output_pre = np.dot(FCi_prev, inputs_prev) + Bi_prev
-	FCf_output_pre = np.dot(FCf_prev, inputs_prev) + Bf_prev
-	FCm_output_pre = np.dot(FCm_prev, inputs_prev) + Bm_prev
+	FCi_output_pre = np.dot(FCi_prev, inputs_prev_w) + Bi_prev
+	FCf_output_pre = np.dot(FCf_prev, inputs_prev_w) + Bf_prev
+	FCm_output_pre = np.dot(FCm_prev, inputs_prev_w) + Bm_prev
 	
 	FCf_output_prev = 1 / (1 + np.exp(-FCf_output_pre))
 	FCi_output_prev = 1 / (1 + np.exp(-FCi_output_pre))
@@ -360,7 +383,7 @@ while True:
 	if static == False:
 		CEC_prev_prev = CEC_prev_prev*FCf_output_prev + FCi_output_prev*FCm_output_prev
 	
-	FCo_output_pre = np.dot(FCo_prev, inputs_prev) + Bo_prev
+	FCo_output_pre = np.dot(FCo_prev, inputs_prev_w) + Bo_prev
 	FCo_output_prev = 1 / (1 + np.exp(-FCo_output_pre))
 	
 	FC_output_prev = FCo_output_prev * CEC_prev_prev + Boo_prev
@@ -501,44 +524,46 @@ while True:
 	### return
 	dFL = FC3_output[0]*pred_m_Y # for 'action' (FL[action])
 	
-	FL += dFL*EPS
-	
-	FCf += dFCf*EPS
-	FCo += dFCo*EPS
-	FCm += dFCm*EPS
-	FCi += dFCi*EPS
-	
-	Boo += dBoo*EPS
-	Bf += dBf*EPS
-	Bo += dBo*EPS
-	Bm += dBm*EPS
-	Bi += dBi*EPS
-	
-	FCf2 += dFCf2*EPS
-	FCo2 += dFCo2*EPS
-	FCm2 += dFCm2*EPS
-	FCi2 += dFCi2*EPS
-	
-	Boo2 += dBoo2*EPS
-	Bf2 += dBf2*EPS
-	Bo2 += dBo2*EPS
-	Bm2 += dBm2*EPS
-	Bi2 += dBi2*EPS
-	
-	FCf3 += dFCf3*EPS
-	FCo3 += dFCo3*EPS
-	FCm3 += dFCm3*EPS
-	FCi3 += dFCi3*EPS
-	
-	Boo3 += dBoo3*EPS
-	Bf3 += dBf3*EPS
-	Bo3 += dBo3*EPS
-	Bm3 += dBm3*EPS
-	Bi3 += dBi3*EPS
-	
-	dF1 = return_buffer(DF1, stream=1, gpu=GPU_CUR)
-	
-	F1 += dF1*EPS_F
+	if step < TRAIN_STEPS:
+		FL += dFL*EPS
+		
+		FCf += dFCf*EPS
+		FCo += dFCo*EPS
+		FCm += dFCm*EPS
+		FCi += dFCi*EPS
+		
+		Boo += dBoo*EPS
+		Bf += dBf*EPS
+		Bo += dBo*EPS
+		Bm += dBm*EPS
+		Bi += dBi*EPS
+		
+		FCf2 += dFCf2*EPS
+		FCo2 += dFCo2*EPS
+		FCm2 += dFCm2*EPS
+		FCi2 += dFCi2*EPS
+		
+		Boo2 += dBoo2*EPS
+		Bf2 += dBf2*EPS
+		Bo2 += dBo2*EPS
+		Bm2 += dBm2*EPS
+		Bi2 += dBi2*EPS
+		
+		FCf3 += dFCf3*EPS
+		FCo3 += dFCo3*EPS
+		FCm3 += dFCm3*EPS
+		FCi3 += dFCi3*EPS
+		
+		Boo3 += dBoo3*EPS
+		Bf3 += dBf3*EPS
+		Bo3 += dBo3*EPS
+		Bm3 += dBm3*EPS
+		Bi3 += dBi3*EPS
+		
+		dF1 = np.zeros_like(F1)
+		dF1 = return_buffer(DF1, stream=1, gpu=GPU_CUR)
+		
+		F1 += dF1*EPS_F
 	
 	if step % NETWORK_UPDATE == 0:
 		print 'updating network'
@@ -601,7 +626,7 @@ while True:
 		err_plot.append(err)
 		
 		savemat(file_name, {'r_total_plot': r_total_plot, 'step': step,\
-				'err_plot': err_plot, 'CEC':CEC,\
+				'err_plot': err_plot, 'CEC':CEC,'F1':F1,\
 				'action_recent': action_recent, 'r_recent':r_recent,'SAVE_FREQ':SAVE_FREQ,\
 				'FCi': FCi, 'FCm': FCm, 'FCf': FCf, 'FCo': FCo, 'EPS':EPS, 'NETWORK_UPDATE':NETWORK_UPDATE,\
 				'FCi2': FCi2, 'FCm2': FCm2, 'FCf2': FCf2, 'FCo2': FCo2,\
