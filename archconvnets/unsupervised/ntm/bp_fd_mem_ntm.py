@@ -23,9 +23,9 @@ t = np.random.random(size=(n_controllers, n_mem_slots))
 def softmax(layer_in):
 	return np.exp(layer_in)/np.sum(np.exp(layer_in))
 
-def softmax_dlayer_in(layer_out, tl_dsoftmax=1):
-	temp = tl_dsoftmax * (layer_out * (1 - layer_out))
-	temp += -np.einsum(np.squeeze(tl_dsoftmax*layer_out), [0], np.squeeze(layer_out), [1], [1])[:,np.newaxis] + tl_dsoftmax*layer_out**2
+def softmax_dlayer_in(layer_out, above_w=1):
+	temp = above_w * (layer_out * (1 - layer_out))
+	temp += -np.einsum(np.squeeze(above_w*layer_out), [0], np.squeeze(layer_out), [1], [1])[:,np.newaxis] + above_w*layer_out**2
 	return temp
 
 ############### shift w
@@ -84,28 +84,32 @@ j_ind = 1
 
 
 def f(y):
-	#shift_weights[i_ind,j_ind] = y
-	x[i_ind] = y
+	shift_weights[i_ind,j_ind] = y
+	#x[i_ind] = y
 	
 	shift_out = linear_F(shift_weights, x).reshape((n_controllers, n_shifts))
-	w_tilde = shift_w(shift_out, w_prev)
+	shift_out_smax = softmax(shift_out.ravel()).reshape((n_controllers, n_shifts))
+	w_tilde = shift_w(shift_out_smax, w_prev)
 	
 	return ((w_tilde - t)**2).sum()
 
 def g(y):
-	#shift_weights[i_ind,j_ind] = y
-	x[i_ind] = y
+	shift_weights[i_ind,j_ind] = y
+	#x[i_ind] = y
 	
 	shift_out = linear_F(shift_weights, x).reshape((n_controllers, n_shifts))
-	w_tilde = shift_w(shift_out, w_prev)
+	shift_out_smax = softmax(shift_out.ravel()).reshape((n_controllers, n_shifts))
+	w_tilde = shift_w(shift_out_smax, w_prev)
 	
 	dw_tilde_dshift_out = shift_w_dshift_out(w_prev, 2*(w_tilde - t)).reshape((n_controllers*n_shifts,1))
 	
-	dshift_out_dshift_weights = linear_dF(x, dw_tilde_dshift_out)
-	dshift_out_dx = linear_dlayer_in(shift_weights, dw_tilde_dshift_out)
+	dshift_out_smax_dshift_out = softmax_dlayer_in(shift_out_smax.ravel()[:,np.newaxis], dw_tilde_dshift_out)
 	
-	return dshift_out_dx[i_ind]
-	#return dshift_out_dshift_weights[i_ind,j_ind]
+	dshift_out_dshift_weights = linear_dF(x, dshift_out_smax_dshift_out)
+	dshift_out_dx = linear_dlayer_in(shift_weights, dshift_out_smax_dshift_out)
+	
+	#return dshift_out_dx[i_ind]
+	return dshift_out_dshift_weights[i_ind,j_ind]
 	
 np.random.seed(np.int64(time.time()))
 eps = np.sqrt(np.finfo(np.float).eps)*1e2#9#10#10
@@ -115,12 +119,12 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	#i_ind = np.random.randint(shift_weights.shape[0])
-	#j_ind = np.random.randint(shift_weights.shape[1])
-	#y = -1e0*shift_weights[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
+	i_ind = np.random.randint(shift_weights.shape[0])
+	j_ind = np.random.randint(shift_weights.shape[1])
+	y = -1e0*shift_weights[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
 	
-	i_ind = np.random.randint(x.shape[0])
-	y = -1e0*x[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
+	#i_ind = np.random.randint(x.shape[0])
+	#y = -1e0*x[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
 	
 	
 	if gtx == 0:
