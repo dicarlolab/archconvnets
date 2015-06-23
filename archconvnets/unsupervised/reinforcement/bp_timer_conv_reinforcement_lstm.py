@@ -14,10 +14,12 @@ import random
 static = False
 static = True
 
+TIME_LENGTH = 12.
+
 if static == True:
-	file_name = '/home/darren/reinforcement_timer_lstm_ncec_F1.mat'
+	file_name = '/home/darren/reinforcement_timer_lstm_ncec_F1_' + str(TIME_LENGTH) + '.mat'
 else:
-	file_name = '/home/darren/reinforcement_timer_lstm_F1.mat'
+	file_name = '/home/darren/reinforcement_timer_lstm_F1_' + str(TIME_LENGTH) + '.mat'
 
 TRAIN_STEPS =  278000#242000000
 EPS_GREED_FINAL = .1
@@ -25,8 +27,8 @@ EPS_GREED_FINAL_TIME = 10000#3*1000000/4
 GAMMA = 0.99
 
 NETWORK_UPDATE = 5*5*10000
-EPS = 1e-3
-EPS_F = 1e-4
+EPS = 1e-4
+EPS_F = 1e-5
 SAVE_FREQ = 2000
 
 F1_scale = 0.03 # std of init normal distribution
@@ -34,9 +36,9 @@ F2_scale = 0.05
 F3_scale = 0.001
 FL_scale = .03
 
-n1m = 128/2
-n2m = 128/2+1
-n3m = 128/2+2
+n1m = 2*128/2
+n2m = 2*128/2+1
+n3m = 2*128/2+2
 
 s3 = 3 # L1 filter size (px)
 s2 = 4 # ...
@@ -343,12 +345,12 @@ while True:
 	
 	# show blocks
 	if random.random() < p_start and elapsed_time > time_length:
-		time_length = np.random.randint(5)#2*12)
+		time_length = np.random.randint(TIME_LENGTH)#2*12)
 		elapsed_time = 0
 		r_interval = 0
 		
 		img[0,0,:4,:4] = .5
-		img[0,1,4:,4:] = time_length/(5.) -.5
+		img[0,1,4:,4:] = time_length/(TIME_LENGTH) -.5
 	else:
 		img[0,0,:4,:4] = -.5
 	
