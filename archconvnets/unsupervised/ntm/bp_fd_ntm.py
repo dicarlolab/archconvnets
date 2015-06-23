@@ -16,7 +16,17 @@ F1 = np.random.random(size=(n1, n_in))
 F2 = np.random.random(size=(n2, n1))
 F3 = np.random.random(size=(n3, n2))
 
+t = np.random.random(size=(n3,1))
+
 x = np.random.random(size=(n_in,1))
+
+def softmax(layer_in):
+	return np.exp(layer_in)/np.sum(np.exp(layer_in))
+
+def softmax_dx(layer_out, tl_dsoftmax=1):
+	temp = tl_dsoftmax * (layer_out * (1 - layer_out))
+	temp += -np.einsum(np.squeeze(tl_dsoftmax*layer_out), [0], np.squeeze(layer_out), [1], [1])[:,np.newaxis] + tl_dsoftmax*layer_out**2
+	return temp
 
 def t1(F, layer_in):
 	return np.dot(F,layer_in)**2 # [n1, 1]
@@ -32,33 +42,38 @@ def t1_dx(F, layer_in, layer_out, tt1_dt1=1):
 i_ind = 1
 j_ind = 1
 
+
 def f(y):
-	#F1[i_ind,j_ind] = y
-	F2[i_ind,j_ind] = y
+	F1[i_ind,j_ind] = y
+	#F2[i_ind,j_ind] = y
 	#x[i_ind] = y
 	
 	y1 = t1(F1,x)
 	y2 = t1(F2, y1)
-	y3 = t1(F3, y2)
+	y2s = softmax(y2)
+	y3 = t1(F3, y2s)
 	
-	return y3.sum()
+	return ((y3 - t)**2).sum()
 
 def g(y):
-	#F1[i_ind,j_ind] = y
-	F2[i_ind,j_ind] = y
+	F1[i_ind,j_ind] = y
+	#F2[i_ind,j_ind] = y
 	#x[i_ind] = y
 	
 	y1 = t1(F1, x)
 	y2 = t1(F2, y1)
-	y3 = t1(F3, y2)
+	y2s = softmax(y2)
+	y3 = t1(F3, y2s)
 	
-	dy3_dy2 = t1_dx(F3, y2, y3)
-	dy2_dy1 = t1_dx(F2, y1, y2, dy3_dy2)
+	dy3_dy2s = t1_dx(F3, y2s, y3, 2*(y3 - t))
+	dy3_dsoftmax = softmax_dx(y2s, dy3_dy2s)
 	
-	dy2_dF = t1_dF(F2, y1, y2, dy3_dy2)
+	dy2_dy1 = t1_dx(F2, y1, y2, dy3_dsoftmax)
+	
+	dy2_dF = t1_dF(F2, y1, y2, dy3_dsoftmax)
 	dy1_dF = t1_dF(F1, x, y1, dy2_dy1)
 	
-	return dy2_dF[i_ind,j_ind]
+	return dy1_dF[i_ind,j_ind]
 	
 np.random.seed(np.int64(time.time()))
 eps = np.sqrt(np.finfo(np.float).eps)*1e3#9#10#10
@@ -68,13 +83,13 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	i_ind = np.random.randint(F2.shape[0])
-	j_ind = np.random.randint(F2.shape[1])
-	y = -1e0*F2[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
+	#i_ind = np.random.randint(F2.shape[0])
+	#j_ind = np.random.randint(F2.shape[1])
+	#y = -1e0*F2[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
 
-	#i_ind = np.random.randint(F1.shape[0])
-	#j_ind = np.random.randint(F1.shape[1])
-	#y = -1e0*F1[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
+	i_ind = np.random.randint(F1.shape[0])
+	j_ind = np.random.randint(F1.shape[1])
+	y = -1e0*F1[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
 	
 	#i_ind = np.random.randint(x.shape[0])
 	#y = -1e0*x[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
