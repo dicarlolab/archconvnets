@@ -32,19 +32,32 @@ def sharpen_dlayer_in(layer_in, gamma_out, above_w=1):
 	# layer_in, above_w: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
 	layer_in_raised = layer_in**gamma_out
 	layer_in_raised_m1 = layer_in**(gamma_out-1)
-	denom = layer_in_raised.sum(1)[:,np.newaxis]
+	denom = layer_in_raised.sum(1)[:,np.newaxis] # sum across slots
 	denom2 = denom**2
 	
-	# i = j:
-	temp = above_w*( layer_in_raised_m1 * denom - layer_in_raised *  layer_in_raised_m1)
+	# dsharpen[:,i]/dlayer_in[:,j] when i = j:
+	dsharpen_dlayer_in = above_w*(layer_in_raised_m1 * denom - layer_in_raised * layer_in_raised_m1)
 
-	# i != j:
-	temp -=  np.einsum(layer_in_raised_m1, [0,1], above_w * layer_in_raised, [0,2], [0,1])
-	temp += above_w *  layer_in_raised_m1 * layer_in_raised
+	# dsharpen[:,i]/dlayer_in[:,j] when i != j:
+	dsharpen_dlayer_in -=  np.einsum(layer_in_raised_m1, [0,1], above_w * layer_in_raised, [0,2], [0,1])
+	dsharpen_dlayer_in += above_w * layer_in_raised_m1 * layer_in_raised
 	
-	temp *= gamma_out / denom2
+	dsharpen_dlayer_in *= gamma_out / denom2
 	
-	return temp
+	return dsharpen_dlayer_in
+
+def sharpen_dgamma_out(layer_in, gamma_out, above_w=1):
+	# layer_in, above_w: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
+	w_gamma = layer_in**gamma_out
+	w_gamma_sum = w_gamma.sum(1)[:,np.newaxis] # sum across slots
+	
+	ln_gamma = np.log(layer_in)
+	
+	dw_gamma_dgamma = w_gamma * ln_gamma
+	dw_sum_gamma_dgamma = dw_gamma_dgamma.sum(1)[:,np.newaxis] # sum across slots
+	
+	dw_dgamma = (dw_gamma_dgamma * w_gamma_sum - w_gamma * dw_sum_gamma_dgamma) / (w_gamma_sum**2)
+	return (dw_dgamma * above_w).sum(1)[:,np.newaxis]
 
 ############
 def softmax(layer_in):
@@ -53,7 +66,11 @@ def softmax(layer_in):
 
 def softmax_dlayer_in(layer_out, above_w=1):
 	# layer_in, above_w: [n_in]
+	
+	# dsoftmax[i]/dlayer_in[j] when i = j:
 	temp = above_w * (layer_out * (1 - layer_out))
+	
+	# dsoftmax[i]/dlayer_in[j] when i != j:
 	temp += -np.einsum(np.squeeze(above_w*layer_out), [0], np.squeeze(layer_out), [1], [1])[:,np.newaxis] + above_w*layer_out**2
 	return temp
 
@@ -115,7 +132,8 @@ j_ind = 1
 
 
 def f(y):
-	shift_weights[i_ind,j_ind] = y
+	#shift_weights[i_ind,j_ind] = y
+	gamma_out[i_ind] = y
 	#x[i_ind] = y
 	
 	########
@@ -128,7 +146,8 @@ def f(y):
 	return ((w - t)**2).sum()
 
 def g(y):
-	shift_weights[i_ind,j_ind] = y
+	#shift_weights[i_ind,j_ind] = y
+	gamma_out[i_ind] = y
 	#x[i_ind] = y
 	
 	########
@@ -139,15 +158,19 @@ def g(y):
 	w = sharpen(w_tilde, gamma_out)
 	
 	##########
-	# backward:
+	# backward (data):
 	dsharpen_dw_tilde = sharpen_dlayer_in(w_tilde, gamma_out, 2*(w - t))
 	dw_tilde_dshift_out = shift_w_dshift_out(w_prev, dsharpen_dw_tilde).reshape((n_controllers*n_shifts,1))
 	dshift_out_smax_dshift_out = softmax_dlayer_in(shift_out_smax.ravel()[:,np.newaxis], dw_tilde_dshift_out)
-	dshift_out_dshift_weights = linear_dF(x, dshift_out_smax_dshift_out)
-	dshift_out_dx = linear_dlayer_in(shift_weights, dshift_out_smax_dshift_out)
+	dshift_out_dx = linear_dlayer_in(shift_weights, dshift_out_smax_dshift_out) ##
 	
+	# backward (vars):
+	dw_dgamma_out = sharpen_dgamma_out(w_tilde, gamma_out, 2*(w - t))
+	dshift_out_dshift_weights = linear_dF(x, dshift_out_smax_dshift_out)
+	
+	return dw_dgamma_out[i_ind]
 	#return dshift_out_dx[i_ind]
-	return dshift_out_dshift_weights[i_ind,j_ind]
+	#return dshift_out_dshift_weights[i_ind,j_ind]
 	
 np.random.seed(np.int64(time.time()))
 eps = np.sqrt(np.finfo(np.float).eps)*1e2#9#10#10
@@ -157,12 +180,15 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	i_ind = np.random.randint(shift_weights.shape[0])
+	'''i_ind = np.random.randint(shift_weights.shape[0])
 	j_ind = np.random.randint(shift_weights.shape[1])
-	y = -1e0*shift_weights[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
+	y = -1e0*shift_weights[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);'''
 	
 	#i_ind = np.random.randint(x.shape[0])
 	#y = -1e0*x[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
+	
+	i_ind = np.random.randint(gamma_out.shape[0])
+	y = -1e0*gamma_out[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
 	
 	
 	if gtx == 0:
