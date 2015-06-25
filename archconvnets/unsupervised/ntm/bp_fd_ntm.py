@@ -15,7 +15,9 @@ m_length = 8 # "N"
 
 gamma_out = np.random.random(size=(n_controllers,1))
 
+gamma_weights = np.random.random(size=(n_controllers, n_in))
 shift_weights = np.random.random(size=(n_controllers*n_shifts, n_in))
+
 w_prev = np.random.random(size=(n_controllers, n_mem_slots))
 
 x = np.random.random(size=(n_in,1))
@@ -133,11 +135,12 @@ j_ind = 1
 
 def f(y):
 	#shift_weights[i_ind,j_ind] = y
-	gamma_out[i_ind] = y
-	#x[i_ind] = y
+	gamma_weights[i_ind,j_ind] = y
 	
 	########
 	# forward:
+	gamma_out = linear_F(gamma_weights, x)
+	
 	shift_out = linear_F(shift_weights, x).reshape((n_controllers, n_shifts))
 	shift_out_smax = softmax(shift_out.ravel()).reshape((n_controllers, n_shifts))
 	w_tilde = shift_w(shift_out_smax, w_prev)
@@ -147,11 +150,12 @@ def f(y):
 
 def g(y):
 	#shift_weights[i_ind,j_ind] = y
-	gamma_out[i_ind] = y
-	#x[i_ind] = y
+	gamma_weights[i_ind,j_ind] = y
 	
 	########
 	# forward:
+	gamma_out = linear_F(gamma_weights, x)
+	
 	shift_out = linear_F(shift_weights, x).reshape((n_controllers, n_shifts))
 	shift_out_smax = softmax(shift_out.ravel()).reshape((n_controllers, n_shifts))
 	w_tilde = shift_w(shift_out_smax, w_prev)
@@ -159,17 +163,21 @@ def g(y):
 	
 	##########
 	# backward (data):
-	dsharpen_dw_tilde = sharpen_dlayer_in(w_tilde, gamma_out, 2*(w - t))
-	dw_tilde_dshift_out = shift_w_dshift_out(w_prev, dsharpen_dw_tilde).reshape((n_controllers*n_shifts,1))
-	dshift_out_smax_dshift_out = softmax_dlayer_in(shift_out_smax.ravel()[:,np.newaxis], dw_tilde_dshift_out)
-	dshift_out_dx = linear_dlayer_in(shift_weights, dshift_out_smax_dshift_out) ##
 	
+	# branch: sharpening -> shift -> interpolation -> content addressing
+	dsharpen_dw_tilde = sharpen_dlayer_in(w_tilde, gamma_out, 2*(w - t)) # sharpen
+	dw_tilde_dshift_out = shift_w_dshift_out(w_prev, dsharpen_dw_tilde).reshape((n_controllers*n_shifts,1)) # shift
+	dshift_out_smax_dshift_out = softmax_dlayer_in(shift_out_smax.ravel()[:,np.newaxis], dw_tilde_dshift_out) # shift
+	
+	# branch: sharpening -> gamma
+	dw_dgamma_out = sharpen_dgamma_out(w_tilde, gamma_out, 2*(w - t)) # sharpen
+	
+	##########
 	# backward (vars):
-	dw_dgamma_out = sharpen_dgamma_out(w_tilde, gamma_out, 2*(w - t))
+	dgamma_out_dgamma_weights = linear_dF(x, dw_dgamma_out)
 	dshift_out_dshift_weights = linear_dF(x, dshift_out_smax_dshift_out)
 	
-	return dw_dgamma_out[i_ind]
-	#return dshift_out_dx[i_ind]
+	return dgamma_out_dgamma_weights[i_ind,j_ind]
 	#return dshift_out_dshift_weights[i_ind,j_ind]
 	
 np.random.seed(np.int64(time.time()))
@@ -182,13 +190,14 @@ for sample in range(N_SAMPLES):
 
 	'''i_ind = np.random.randint(shift_weights.shape[0])
 	j_ind = np.random.randint(shift_weights.shape[1])
-	y = -1e0*shift_weights[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);'''
+	y = -1e0*shift_weights[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)'''
 	
-	#i_ind = np.random.randint(x.shape[0])
-	#y = -1e0*x[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
+	i_ind = np.random.randint(gamma_weights.shape[0])
+	j_ind = np.random.randint(gamma_weights.shape[1])
+	y = -1e0*gamma_weights[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
 	
-	i_ind = np.random.randint(gamma_out.shape[0])
-	y = -1e0*gamma_out[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps);
+	#i_ind = np.random.randint(gamma_weights.shape[0])
+	#y = -1e0*gamma_weights[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
 	
 	
 	if gtx == 0:
