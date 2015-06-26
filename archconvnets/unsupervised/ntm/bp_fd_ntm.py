@@ -16,7 +16,7 @@ m_length = 8 # "N"
 gamma_out = np.random.normal(size=(n_controllers,1))
 
 gamma_weights = np.random.normal(size=(n_controllers, n_in))
-shift_weights = np.random.normal(size=(n_controllers*n_shifts, n_in))
+shift_weights = np.random.normal(size=(n_controllers*n_shifts, n_in),scale=1)
 
 w_prev = np.random.random(size=(n_controllers, n_mem_slots))
 
@@ -75,18 +75,17 @@ def relu_dlayer_in(layer_in, above_w=1, thresh=0):
 	
 
 ############
+# softmax over second dimension; first dim. treated independently
 def softmax(layer_in):
-	# layer_in: [n_in]
-	return np.exp(layer_in)/np.sum(np.exp(layer_in))
+	exp_layer_in = np.exp(layer_in)
+	return exp_layer_in/np.sum(exp_layer_in,1)[:,np.newaxis]
 
 def softmax_dlayer_in(layer_out, above_w=1):
-	# layer_in, above_w: [n_in]
-	
-	# dsoftmax[i]/dlayer_in[j] when i = j:
+	# dsoftmax[:,i]/dlayer_in[:,j] when i = j:
 	temp = above_w * (layer_out * (1 - layer_out))
 	
-	# dsoftmax[i]/dlayer_in[j] when i != j:
-	temp += -np.einsum(np.squeeze(above_w*layer_out), [0], np.squeeze(layer_out), [1], [1])[:,np.newaxis] + above_w*layer_out**2
+	# dsoftmax[:,i]/dlayer_in[:,j] when i != j:
+	temp += -np.einsum(np.squeeze(above_w*layer_out), [0,1], np.squeeze(layer_out), [0,2], [0,2]) + above_w*layer_out**2
 	return temp
 
 ############### shift w
@@ -147,33 +146,33 @@ j_ind = 1
 
 
 def f(y):
-	#shift_weights[i_ind,j_ind] = y
-	gamma_weights[i_ind,j_ind] = y
+	shift_weights[i_ind,j_ind] = y
+	#gamma_weights[i_ind,j_ind] = y
 	
 	########
 	# forward:
 	gamma_out = linear_F(gamma_weights, x)
 	gamma_out_relu = relu(gamma_out,1)
 	
-	shift_out = linear_F(shift_weights, x).reshape((n_controllers, n_shifts))
+	shift_out = linear_F(shift_weights, x)
 	shift_out_relu = relu(shift_out)
-	shift_out_relu_smax = softmax(shift_out_relu.ravel()).reshape((n_controllers, n_shifts))
+	shift_out_relu_smax = softmax(shift_out_relu.reshape((n_controllers, n_shifts)))
 	w_tilde = shift_w(shift_out_relu_smax, w_prev)
 	w = sharpen(w_tilde, gamma_out_relu)
 	
 	return ((w - t)**2).sum()
 
 def g(y):
-	#shift_weights[i_ind,j_ind] = y
-	gamma_weights[i_ind,j_ind] = y
+	shift_weights[i_ind,j_ind] = y
+	#gamma_weights[i_ind,j_ind] = y
 	
 	########
 	# forward:
 		
 	# branch: content addressing -> interpolation -> shift -> sharpening
-	shift_out = linear_F(shift_weights, x).reshape((n_controllers, n_shifts))
+	shift_out = linear_F(shift_weights, x)
 	shift_out_relu = relu(shift_out)
-	shift_out_relu_smax = softmax(shift_out_relu.ravel()).reshape((n_controllers, n_shifts))
+	shift_out_relu_smax = softmax(shift_out_relu.reshape((n_controllers, n_shifts)))
 	w_tilde = shift_w(shift_out_relu_smax, w_prev)
 	
 	# branch: gamma -> sharpening
@@ -188,9 +187,11 @@ def g(y):
 	
 	# branch: content addressing -> interpolation -> shift -> sharpening
 	dsharpen_dw_tilde = sharpen_dlayer_in(w_tilde, gamma_out_relu, 2*(w - t)) # sharpen
-	dw_tilde_dshift_out = shift_w_dshift_out(w_prev, dsharpen_dw_tilde).reshape((n_controllers*n_shifts,1)) # shift
-	dshift_out_relu_smax_dshift_out = softmax_dlayer_in(shift_out_relu_smax.ravel()[:,np.newaxis], dw_tilde_dshift_out) # shift
-	dshift_out_relu_dshift_out = relu_dlayer_in(shift_out.ravel()[:,np.newaxis], dshift_out_relu_smax_dshift_out) # relu
+	dw_tilde_dshift_out = shift_w_dshift_out(w_prev, dsharpen_dw_tilde)#.reshape((n_controllers*n_shifts,1)) # shift
+	dshift_out_relu_smax_dshift_out = softmax_dlayer_in(shift_out_relu_smax, dw_tilde_dshift_out) # shift
+	#dshift_out_relu_smax_dshift_out = softmax_dlayer_in(shift_out_relu_smax.ravel()[:,np.newaxis], dw_tilde_dshift_out) # shift
+	#dshift_out_relu_dshift_out = relu_dlayer_in(shift_out.ravel()[:,np.newaxis], dshift_out_relu_smax_dshift_out) # relu
+	dshift_out_relu_dshift_out = relu_dlayer_in(shift_out, dshift_out_relu_smax_dshift_out.ravel()[:,np.newaxis]) # relu
 	
 	# branch: gamma -> sharpening
 	dw_dgamma_out_relu = sharpen_dgamma_out(w_tilde, gamma_out_relu, 2*(w - t)) # sharpen
@@ -201,8 +202,8 @@ def g(y):
 	dgamma_out_dgamma_weights = linear_dF(x, dw_dgamma_out)
 	dshift_out_dshift_weights = linear_dF(x, dshift_out_relu_dshift_out)
 	
-	return dgamma_out_dgamma_weights[i_ind,j_ind]
-	#return dshift_out_dshift_weights[i_ind,j_ind]
+	#return dgamma_out_dgamma_weights[i_ind,j_ind]
+	return dshift_out_dshift_weights[i_ind,j_ind]
 	
 np.random.seed(np.int64(time.time()))
 eps = np.sqrt(np.finfo(np.float).eps)*1e2#9#10#10
@@ -212,13 +213,13 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	'''i_ind = np.random.randint(shift_weights.shape[0])
+	i_ind = np.random.randint(shift_weights.shape[0])
 	j_ind = np.random.randint(shift_weights.shape[1])
-	y = -1e0*shift_weights[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)'''
+	y = -1e0*shift_weights[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
 	
-	i_ind = np.random.randint(gamma_weights.shape[0])
+	'''i_ind = np.random.randint(gamma_weights.shape[0])
 	j_ind = np.random.randint(gamma_weights.shape[1])
-	y = -1e0*gamma_weights[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	y = -1e0*gamma_weights[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)'''
 	
 	#i_ind = np.random.randint(gamma_weights.shape[0])
 	#y = -1e0*gamma_weights[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
