@@ -13,16 +13,16 @@ n_controllers = 2
 n_mem_slots = 5 # "M"
 m_length = 8 # "N"
 
-gamma_out = np.random.random(size=(n_controllers,1))
+gamma_out = np.random.normal(size=(n_controllers,1))
 
-gamma_weights = np.random.random(size=(n_controllers, n_in))
-shift_weights = np.random.random(size=(n_controllers*n_shifts, n_in))
+gamma_weights = np.random.normal(size=(n_controllers, n_in))
+shift_weights = np.random.normal(size=(n_controllers*n_shifts, n_in))
 
 w_prev = np.random.random(size=(n_controllers, n_mem_slots))
 
-x = np.random.random(size=(n_in,1))
+x = np.random.normal(size=(n_in,1))
 
-t = np.random.random(size=(n_controllers, n_mem_slots))
+t = np.random.normal(size=(n_controllers, n_mem_slots))
 
 ############# sharpen across mem_slots separately for each controller
 def sharpen(layer_in, gamma_out):
@@ -60,6 +60,19 @@ def sharpen_dgamma_out(layer_in, gamma_out, above_w=1):
 	
 	dw_dgamma = (dw_gamma_dgamma * w_gamma_sum - w_gamma * dw_sum_gamma_dgamma) / (w_gamma_sum**2)
 	return (dw_dgamma * above_w).sum(1)[:,np.newaxis]
+
+#############
+# relu below 'thresh' (0 = normal relu)
+def relu(layer_in, thresh=0):
+	temp = copy.deepcopy(layer_in)
+	temp[layer_in < thresh] = thresh
+	return temp
+
+def relu_dlayer_in(layer_in, above_w=1, thresh=0):
+	temp = above_w * np.ones_like(layer_in)
+	temp[layer_in < thresh] = 0
+	return temp
+	
 
 ############
 def softmax(layer_in):
@@ -140,11 +153,13 @@ def f(y):
 	########
 	# forward:
 	gamma_out = linear_F(gamma_weights, x)
+	gamma_out_relu = relu(gamma_out,1)
 	
 	shift_out = linear_F(shift_weights, x).reshape((n_controllers, n_shifts))
-	shift_out_smax = softmax(shift_out.ravel()).reshape((n_controllers, n_shifts))
-	w_tilde = shift_w(shift_out_smax, w_prev)
-	w = sharpen(w_tilde, gamma_out)
+	shift_out_relu = relu(shift_out)
+	shift_out_relu_smax = softmax(shift_out_relu.ravel()).reshape((n_controllers, n_shifts))
+	w_tilde = shift_w(shift_out_relu_smax, w_prev)
+	w = sharpen(w_tilde, gamma_out_relu)
 	
 	return ((w - t)**2).sum()
 
@@ -155,27 +170,32 @@ def g(y):
 	########
 	# forward:
 	gamma_out = linear_F(gamma_weights, x)
+	gamma_out_relu = relu(gamma_out,1)
 	
 	shift_out = linear_F(shift_weights, x).reshape((n_controllers, n_shifts))
-	shift_out_smax = softmax(shift_out.ravel()).reshape((n_controllers, n_shifts))
-	w_tilde = shift_w(shift_out_smax, w_prev)
-	w = sharpen(w_tilde, gamma_out)
+	shift_out_relu = relu(shift_out)
+	shift_out_relu_smax = softmax(shift_out_relu.ravel()).reshape((n_controllers, n_shifts))
+	w_tilde = shift_w(shift_out_relu_smax, w_prev)
+	
+	w = sharpen(w_tilde, gamma_out_relu)
 	
 	##########
 	# backward (data):
 	
 	# branch: sharpening -> shift -> interpolation -> content addressing
-	dsharpen_dw_tilde = sharpen_dlayer_in(w_tilde, gamma_out, 2*(w - t)) # sharpen
+	dsharpen_dw_tilde = sharpen_dlayer_in(w_tilde, gamma_out_relu, 2*(w - t)) # sharpen
 	dw_tilde_dshift_out = shift_w_dshift_out(w_prev, dsharpen_dw_tilde).reshape((n_controllers*n_shifts,1)) # shift
-	dshift_out_smax_dshift_out = softmax_dlayer_in(shift_out_smax.ravel()[:,np.newaxis], dw_tilde_dshift_out) # shift
+	dshift_out_relu_smax_dshift_out = softmax_dlayer_in(shift_out_relu_smax.ravel()[:,np.newaxis], dw_tilde_dshift_out) # shift
+	dshift_out_relu_dshift_out = relu_dlayer_in(shift_out.ravel()[:,np.newaxis], dshift_out_relu_smax_dshift_out) # relu
 	
 	# branch: sharpening -> gamma
-	dw_dgamma_out = sharpen_dgamma_out(w_tilde, gamma_out, 2*(w - t)) # sharpen
+	dw_dgamma_out_relu = sharpen_dgamma_out(w_tilde, gamma_out_relu, 2*(w - t)) # sharpen
+	dw_dgamma_out = relu_dlayer_in(gamma_out, dw_dgamma_out_relu, 1) # relu
 	
 	##########
 	# backward (vars):
 	dgamma_out_dgamma_weights = linear_dF(x, dw_dgamma_out)
-	dshift_out_dshift_weights = linear_dF(x, dshift_out_smax_dshift_out)
+	dshift_out_dshift_weights = linear_dF(x, dshift_out_relu_dshift_out)
 	
 	return dgamma_out_dgamma_weights[i_ind,j_ind]
 	#return dshift_out_dshift_weights[i_ind,j_ind]
