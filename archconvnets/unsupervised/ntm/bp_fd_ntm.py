@@ -169,26 +169,30 @@ def g(y):
 	
 	########
 	# forward:
-	gamma_out = linear_F(gamma_weights, x)
-	gamma_out_relu = relu(gamma_out,1)
-	
+		
+	# branch: content addressing -> interpolation -> shift -> sharpening
 	shift_out = linear_F(shift_weights, x).reshape((n_controllers, n_shifts))
 	shift_out_relu = relu(shift_out)
 	shift_out_relu_smax = softmax(shift_out_relu.ravel()).reshape((n_controllers, n_shifts))
 	w_tilde = shift_w(shift_out_relu_smax, w_prev)
 	
+	# branch: gamma -> sharpening
+	gamma_out = linear_F(gamma_weights, x)
+	gamma_out_relu = relu(gamma_out,1)
+	
+	# combine branches
 	w = sharpen(w_tilde, gamma_out_relu)
 	
 	##########
 	# backward (data):
 	
-	# branch: sharpening -> shift -> interpolation -> content addressing
+	# branch: content addressing -> interpolation -> shift -> sharpening
 	dsharpen_dw_tilde = sharpen_dlayer_in(w_tilde, gamma_out_relu, 2*(w - t)) # sharpen
 	dw_tilde_dshift_out = shift_w_dshift_out(w_prev, dsharpen_dw_tilde).reshape((n_controllers*n_shifts,1)) # shift
 	dshift_out_relu_smax_dshift_out = softmax_dlayer_in(shift_out_relu_smax.ravel()[:,np.newaxis], dw_tilde_dshift_out) # shift
 	dshift_out_relu_dshift_out = relu_dlayer_in(shift_out.ravel()[:,np.newaxis], dshift_out_relu_smax_dshift_out) # relu
 	
-	# branch: sharpening -> gamma
+	# branch: gamma -> sharpening
 	dw_dgamma_out_relu = sharpen_dgamma_out(w_tilde, gamma_out_relu, 2*(w - t)) # sharpen
 	dw_dgamma_out = relu_dlayer_in(gamma_out, dw_dgamma_out_relu, 1) # relu
 	
