@@ -187,10 +187,8 @@ def g(y):
 	
 	# branch: content addressing -> interpolation -> shift -> sharpening
 	dsharpen_dw_tilde = sharpen_dlayer_in(w_tilde, gamma_out_relu, 2*(w - t)) # sharpen
-	dw_tilde_dshift_out = shift_w_dshift_out(w_prev, dsharpen_dw_tilde)#.reshape((n_controllers*n_shifts,1)) # shift
+	dw_tilde_dshift_out = shift_w_dshift_out(w_prev, dsharpen_dw_tilde) # shift
 	dshift_out_relu_smax_dshift_out = softmax_dlayer_in(shift_out_relu_smax, dw_tilde_dshift_out) # shift
-	#dshift_out_relu_smax_dshift_out = softmax_dlayer_in(shift_out_relu_smax.ravel()[:,np.newaxis], dw_tilde_dshift_out) # shift
-	#dshift_out_relu_dshift_out = relu_dlayer_in(shift_out.ravel()[:,np.newaxis], dshift_out_relu_smax_dshift_out) # relu
 	dshift_out_relu_dshift_out = relu_dlayer_in(shift_out, dshift_out_relu_smax_dshift_out.ravel()[:,np.newaxis]) # relu
 	
 	# branch: gamma -> sharpening
