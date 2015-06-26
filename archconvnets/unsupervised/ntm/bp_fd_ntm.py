@@ -18,7 +18,7 @@ gamma_out = np.random.normal(size=(n_controllers,1))
 gamma_weights = np.random.normal(size=(n_controllers, n_in))
 shift_weights = np.random.normal(size=(n_controllers*n_shifts, n_in),scale=1)
 
-w_prev = np.random.random(size=(n_controllers, n_mem_slots))
+w_prev = np.abs(np.random.normal(size=(n_controllers, n_mem_slots)))
 
 x = np.random.normal(size=(n_in,1))
 
@@ -109,7 +109,7 @@ def shift_w_dshift_out(w_prev, above_w=1):
 	
 	return dshift_w_dshift_out.sum(1) # [n_controllers, n_shifts]
 
-# todo: shift_w_dw_prev()
+######### todo: shift_w_dw_prev()
 
 ############## linear layer
 def linear_F(F, layer_in):
@@ -151,13 +151,18 @@ def f(y):
 	
 	########
 	# forward:
-	gamma_out = linear_F(gamma_weights, x)
-	gamma_out_relu = relu(gamma_out,1)
-	
+		
+	# branch: content addressing -> interpolation -> shift -> sharpening
 	shift_out = linear_F(shift_weights, x)
 	shift_out_relu = relu(shift_out)
 	shift_out_relu_smax = softmax(shift_out_relu.reshape((n_controllers, n_shifts)))
 	w_tilde = shift_w(shift_out_relu_smax, w_prev)
+	
+	# branch: gamma -> sharpening
+	gamma_out = linear_F(gamma_weights, x)
+	gamma_out_relu = relu(gamma_out,1)
+	
+	# combine branches
 	w = sharpen(w_tilde, gamma_out_relu)
 	
 	return ((w - t)**2).sum()
