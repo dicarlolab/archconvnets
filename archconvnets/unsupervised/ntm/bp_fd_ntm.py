@@ -31,39 +31,16 @@ t = np.random.normal(size=(n_controllers, n_mem_slots))
 
 def cosine_denom(keys, mem):
 	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	
-	denom_keys = np.zeros((n_controllers, n_mem_slots))
-	for c in range(n_controllers):
-		for L in range(n_mem_slots):
-			denom_keys[c,L] = np.sqrt(np.sum(keys[c]**2))
-	
-	denom_mem = np.zeros((n_controllers, n_mem_slots))
-	for c in range(n_controllers):
-		for L in range(n_mem_slots):
-			denom_mem[c,L] = np.sqrt(np.sum(mem[L]**2))
-	
-	#return denom_keys*denom_mem # [n_controllers, n_mem_slots]
-	
 	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
 	return denom
 
 def cosine_denom_dkeys(keys, mem, above_w=1):
 	ddenom_keys = np.zeros_like(keys)
 
-	denom_keys = np.zeros((n_controllers, n_mem_slots))
-	for c in range(n_controllers):
-		for L in range(n_mem_slots):
-			denom_keys[c,L] = np.sqrt(np.sum(keys[c]**2))
-
-	denom_mem = np.zeros((n_controllers, n_mem_slots))
-	for c in range(n_controllers):
-		for L in range(n_mem_slots):
-			denom_mem[c,L] = np.sqrt(np.sum(mem[L]**2))
+	denom_keys = np.sqrt(np.sum(keys**2,1))
+	denom_mem = np.sqrt(np.sum(mem**2,1))
 	
-	for c in range(n_controllers):
-		for m in range(m_length):
-			for L in range(n_mem_slots):
-				ddenom_keys[c,m] = (keys[c,m]/denom_keys[c,L]) * np.sum(above_w[c] * denom_mem[c])
+	ddenom_keys = keys * (np.dot(above_w, denom_mem)/denom_keys)[:,np.newaxis]
 
 	return ddenom_keys
 
