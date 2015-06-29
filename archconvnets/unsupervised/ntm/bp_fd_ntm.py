@@ -29,7 +29,7 @@ x = np.random.normal(size=(n_in,1))
 
 t = np.random.normal(size=(n_controllers, n_mem_slots))
 
-def cosine_denom(keys, mem):
+'''def cosine_denom(keys, mem):
 	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
 	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
 	return denom
@@ -42,7 +42,28 @@ def cosine_denom_dkeys(keys, mem, above_w=1):
 	
 	ddenom_keys = keys * (np.dot(above_w, denom_mem)/denom_keys)[:,np.newaxis]
 
-	return ddenom_keys
+	return ddenom_keys'''
+
+def cosine_denom(keys, mem):
+	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
+	numer = np.dot(keys, mem.T)
+	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	
+	return numer * denom
+
+def cosine_denom_dkeys(keys, mem, above_w=1):
+	numer = np.dot(keys, mem.T)
+	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	
+	denom_keys = np.sqrt(np.sum(keys**2,1))
+	denom_mem = np.sqrt(np.sum(mem**2,1))
+	
+	dnumer = np.dot(denom*above_w, mem)
+	ddenom_keys = keys * (np.dot(numer*above_w, denom_mem)/denom_keys)[:,np.newaxis]
+
+	#print numer.shape, dnumer.shape, denom.shape, ddenom_keys.shape, above_w.shape
+	
+	return dnumer + ddenom_keys
 
 ############
 # cosine similarity between each controller's key and memory vector
@@ -55,8 +76,6 @@ def cosine_sim(keys, mem):
 	return numer #/ denom # [n_controllers, n_mem_slots]
 
 def cosine_sim_dkeys(keys, mem, above_w=1):
-	dnumer = np.zeros_like(keys)
-
 	dnumer = np.dot(above_w, mem)
 
 	return dnumer # todo...
