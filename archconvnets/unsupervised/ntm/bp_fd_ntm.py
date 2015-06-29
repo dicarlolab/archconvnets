@@ -29,56 +29,28 @@ x = np.random.normal(size=(n_in,1))
 
 t = np.random.normal(size=(n_controllers, n_mem_slots))
 
-'''def cosine_denom(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	return denom
-
-def cosine_denom_dkeys(keys, mem, above_w=1):
-	ddenom_keys = np.zeros_like(keys)
-
-	denom_keys = np.sqrt(np.sum(keys**2,1))
-	denom_mem = np.sqrt(np.sum(mem**2,1))
-	
-	ddenom_keys = keys * (np.dot(above_w, denom_mem)/denom_keys)[:,np.newaxis]
-
-	return ddenom_keys'''
-
-def cosine_denom(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	numer = np.dot(keys, mem.T)
-	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	
-	return numer * denom
-
-def cosine_denom_dkeys(keys, mem, above_w=1):
-	numer = np.dot(keys, mem.T)
-	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	
-	denom_keys = np.sqrt(np.sum(keys**2,1))
-	denom_mem = np.sqrt(np.sum(mem**2,1))
-	
-	dnumer = np.dot(denom*above_w, mem)
-	ddenom_keys = keys * (np.dot(numer*above_w, denom_mem)/denom_keys)[:,np.newaxis]
-
-	#print numer.shape, dnumer.shape, denom.shape, ddenom_keys.shape, above_w.shape
-	
-	return dnumer + ddenom_keys
-
 ############
 # cosine similarity between each controller's key and memory vector
 def cosine_sim(keys, mem):
 	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	
 	numer = np.dot(keys, mem.T)
-	#denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
 	
-	return numer #/ denom # [n_controllers, n_mem_slots]
+	return numer / denom # [n_controllers, n_mem_slots]
 
 def cosine_sim_dkeys(keys, mem, above_w=1):
-	dnumer = np.dot(above_w, mem)
+	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
+	numer = np.dot(keys, mem.T)
+	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	above_w_denom2 = above_w/(denom**2)
+	
+	denom_keys = np.sqrt(np.sum(keys**2,1))
+	denom_mem = np.sqrt(np.sum(mem**2,1))
+	
+	dnumer_keys = np.dot(denom*above_w_denom2, mem)
+	ddenom_keys = keys * (np.dot(numer*above_w_denom2, denom_mem)/denom_keys)[:,np.newaxis]
 
-	return dnumer # todo...
+	return dnumer_keys - ddenom_keys # [n_controllers, m_length]
 
 
 def f(y):
@@ -93,7 +65,7 @@ def f(y):
 	
 	# content
 	#w_content = cosine_sim(keys, mem)
-	w_content = cosine_denom(keys, mem)
+	w_content = cosine_sim(keys, mem)
 	
 	# interpolation
 	interp_gate_out = linear_F(interp_weights, x)
@@ -115,7 +87,6 @@ def f(y):
 	return ((w - t)**2).sum()
 
 def g(y):
-	#w_content[i_ind,j_ind] = y
 	keys[i_ind,j_ind] = y
 	#shift_weights[i_ind,j_ind] = y
 	#gamma_weights[i_ind,j_ind] = y
@@ -125,8 +96,7 @@ def g(y):
 	# forward:
 	
 	# content
-	#w_content = cosine_sim(keys, mem)
-	w_content = cosine_denom(keys, mem)
+	w_content = cosine_sim(keys, mem)
 	
 	# interpolation
 	interp_gate_out = linear_F(interp_weights, x)
@@ -165,8 +135,7 @@ def g(y):
 	dw_interp_dw_content = interpolate_dw_content(interp_gate_out, dw_tilde_dw_interp) # interpolate
 	
 	# cosine
-	#dw_content_dkeys = cosine_sim_dkeys(keys, mem, dw_interp_dw_content)
-	dw_content_dkeys = cosine_denom_dkeys(keys, mem, dw_interp_dw_content)
+	dw_content_dkeys = cosine_sim_dkeys(keys, mem, dw_interp_dw_content)
 	
 	##########
 	# backward (vars):
@@ -178,7 +147,6 @@ def g(y):
 	#return dgamma_out_dgamma_weights[i_ind,j_ind]
 	#return dshift_out_dshift_weights[i_ind,j_ind]
 	
-	#return dw_interp_dw_content[i_ind,j_ind]
 	return dw_content_dkeys[i_ind,j_ind]
 	
 np.random.seed(np.int64(time.time()))
