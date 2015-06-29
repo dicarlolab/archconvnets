@@ -29,33 +29,13 @@ x = np.random.normal(size=(n_in,1))
 
 t = np.random.normal(size=(n_controllers, n_mem_slots))
 
-############
-# cosine similarity between each controller's key and memory vector
-def cosine_sim(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	numer = np.dot(keys, mem.T)
-	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	
-	return numer / denom # [n_controllers, n_mem_slots]
 
-def cosine_sim_dkeys(keys, mem, above_w=1):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	numer = np.dot(keys, mem.T)
-	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	above_w_denom2 = above_w/(denom**2)
-	
-	denom_keys = np.sqrt(np.sum(keys**2,1))
-	denom_mem = np.sqrt(np.sum(mem**2,1))
-	
-	dnumer_keys = np.dot(denom*above_w_denom2, mem)
-	ddenom_keys = keys * (np.dot(numer*above_w_denom2, denom_mem)/denom_keys)[:,np.newaxis]
-
-	return dnumer_keys - ddenom_keys # [n_controllers, m_length]
 
 
 def f(y):
 	#w_content[i_ind,j_ind] = y
-	keys[i_ind,j_ind] = y
+	#keys[i_ind,j_ind] = y
+	mem[i_ind,j_ind] = y
 	#shift_weights[i_ind,j_ind] = y
 	#gamma_weights[i_ind,j_ind] = y
 	#interp_weights[i_ind,j_ind] = y
@@ -87,7 +67,8 @@ def f(y):
 	return ((w - t)**2).sum()
 
 def g(y):
-	keys[i_ind,j_ind] = y
+	#keys[i_ind,j_ind] = y
+	mem[i_ind,j_ind] = y
 	#shift_weights[i_ind,j_ind] = y
 	#gamma_weights[i_ind,j_ind] = y
 	#interp_weights[i_ind,j_ind] = y
@@ -136,6 +117,7 @@ def g(y):
 	
 	# cosine
 	dw_content_dkeys = cosine_sim_dkeys(keys, mem, dw_interp_dw_content)
+	dw_content_dmem = cosine_sim_dmem(keys, mem, dw_interp_dw_content)
 	
 	##########
 	# backward (vars):
@@ -147,7 +129,8 @@ def g(y):
 	#return dgamma_out_dgamma_weights[i_ind,j_ind]
 	#return dshift_out_dshift_weights[i_ind,j_ind]
 	
-	return dw_content_dkeys[i_ind,j_ind]
+	return dw_content_dmem[i_ind,j_ind]
+	#return dw_content_dkeys[i_ind,j_ind]
 	
 np.random.seed(np.int64(time.time()))
 eps = np.sqrt(np.finfo(np.float).eps)*1e1
@@ -157,7 +140,7 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = keys#w_content
+	ref = mem
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
 	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)

@@ -1,6 +1,43 @@
 import numpy as np
 import copy
 
+############
+# cosine similarity between each controller's key and memory vector
+def cosine_sim(keys, mem):
+	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
+	numer = np.dot(keys, mem.T)
+	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	
+	return numer / denom # [n_controllers, n_mem_slots]
+
+def cosine_sim_dkeys(keys, mem, above_w=1):
+	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
+	numer = np.dot(keys, mem.T)
+	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	above_w_denom2 = above_w/(denom**2)
+	
+	denom_keys = np.sqrt(np.sum(keys**2,1))
+	denom_mem = np.sqrt(np.sum(mem**2,1))
+	
+	dnumer_keys = np.dot(denom*above_w_denom2, mem)
+	ddenom_keys = keys * (np.dot(numer*above_w_denom2, denom_mem)/denom_keys)[:,np.newaxis]
+
+	return dnumer_keys - ddenom_keys # [n_controllers, m_length]
+	
+def cosine_sim_dmem(keys, mem, above_w=1):
+	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
+	numer = np.dot(keys, mem.T)
+	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	above_w_denom2 = above_w/(denom**2)
+	
+	denom_keys = np.sqrt(np.sum(keys**2,1))
+	denom_mem = np.sqrt(np.sum(mem**2,1))
+	
+	dnumer_mem = np.dot((denom*above_w_denom2).T, keys)
+	ddenom_mem = mem * (np.dot((numer*above_w_denom2).T, denom_keys)/denom_mem)[:,np.newaxis]
+
+	return dnumer_mem - ddenom_mem # [n_controllers, m_length]
+
 ############# sharpen across mem_slots separately for each controller
 def sharpen(layer_in, gamma_out):
 	# layer_in: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
