@@ -8,6 +8,7 @@ import random
 import scipy
 from ntm_gradients import *
 
+n_out = 7
 n_in = 4
 n_shifts = 3 # must be 3 [shift_w()]
 n_controllers = 2
@@ -19,88 +20,40 @@ gamma_weights = np.random.normal(size=(n_controllers, n_in))
 interp_weights = np.random.normal(size=(n_controllers, n_in))
 shift_weights = np.random.normal(size=(n_controllers*n_shifts, n_in))
 key_weights = np.random.normal(size=(n_controllers*m_length, n_in))
+out_weights = np.random.normal(size=(n_out, n_controllers*m_length))
+out_bypass_weights = np.random.normal(size=(n_out, n_in))
 
 beta_biases = np.random.normal(size=(n_controllers, 1))
 gamma_biases = np.random.normal(size=(n_controllers, 1))
 interp_biases = np.random.normal(size=(n_controllers, 1))
 shift_biases = np.random.normal(size=(n_controllers*n_shifts, 1))
 key_biases = np.random.normal(size=(n_controllers*m_length, 1))
+out_biases = np.random.normal(size=(n_out, 1))
 
 w_prev = np.abs(np.random.normal(size=(n_controllers, n_mem_slots)))
 
 mem = np.random.normal(size=(n_mem_slots, m_length))
-mem2 = np.random.normal(size=(n_mem_slots, m_length))
 
 x = np.random.normal(size=(n_in,1))
 
-t = np.random.normal(size=(n_controllers, m_length))
+t = np.random.normal(size=(n_out, 1))
 
 def f(y):
 	#mem[i_ind,j_ind] = y
-	mem2[i_ind,j_ind] = y
 	
 	#beta_weights[i_ind] = y
 	#key_weights[i_ind,j_ind] = y
 	#shift_weights[i_ind,j_ind] = y
 	#gamma_weights[i_ind,j_ind] = y
 	#interp_weights[i_ind,j_ind] = y
+	#out_weights[i_ind,j_ind] = y
+	out_bypass_weights[i_ind,j_ind] = y
 	
 	#gamma_biases[i_ind] = y
 	#shift_biases[i_ind] = y
 	#key_biases[i_ind] = y
 	#interp_biases[i_ind] = y
-	
-	########
-	# forward:
-	
-	# content
-	keys = (linear_F(key_weights, x) + key_biases).reshape((n_controllers, m_length))
-	keys_relu = relu(keys)
-	
-	beta_out = linear_F(beta_weights, x) + beta_biases
-	beta_out_relu = relu(beta_out)
-	
-	keys_focused = focus_keys(keys_relu, beta_out_relu)
-	w_content = cosine_sim(keys_focused, mem)
-	w_content_smax = softmax(w_content)
-	
-	# interpolation
-	interp_gate_out = linear_F(interp_weights, x) + interp_biases
-	interp_gate_out_sigm = sigmoid(interp_gate_out)
-	w_interp = interpolate(w_content_smax, w_prev, interp_gate_out_sigm)
-	
-	# shift
-	shift_out = linear_F(shift_weights, x) + shift_biases
-	shift_out_relu = relu(shift_out)
-	
-	shift_out_relu_smax = softmax(shift_out_relu.reshape((n_controllers, n_shifts)))
-	w_tilde = shift_w(shift_out_relu_smax, w_interp)
-	
-	# sharpen
-	gamma_out = linear_F(gamma_weights, x) + gamma_biases
-	gamma_out_relu = relu(gamma_out,1)
-	
-	w = sharpen(w_tilde, gamma_out_relu)
-	
-	# read mem
-	read_mem = read_from_mem(w, mem2)
-	
-	return ((read_mem - t)**2).sum()
-
-def g(y):
-	#mem[i_ind,j_ind] = y
-	mem2[i_ind,j_ind] = y
-	
-	#beta_weights[i_ind] = y
-	#key_weights[i_ind,j_ind] = y
-	#shift_weights[i_ind,j_ind] = y
-	#gamma_weights[i_ind,j_ind] = y
-	#interp_weights[i_ind,j_ind] = y
-	
-	#gamma_biases[i_ind] = y
-	#shift_biases[i_ind] = y
-	#key_biases[i_ind] = y
-	#interp_biases[i_ind] = y
+	#out_biases[i_ind] = y
 	
 	########
 	# forward:
@@ -135,13 +88,79 @@ def g(y):
 	w = sharpen(w_tilde, gamma_out_relu)
 	
 	# read mem
-	read_mem = read_from_mem(w, mem2)
+	read_mem = read_from_mem(w, mem)
+	
+	# output layer
+	out = linear_F(out_weights, read_mem.ravel()[:,np.newaxis]) + out_biases
+	out += linear_F(out_bypass_weights, x)
+	
+	return ((out - t)**2).sum()
+
+def g(y):
+	#mem[i_ind,j_ind] = y
+	
+	#beta_weights[i_ind] = y
+	#key_weights[i_ind,j_ind] = y
+	#shift_weights[i_ind,j_ind] = y
+	#gamma_weights[i_ind,j_ind] = y
+	#interp_weights[i_ind,j_ind] = y
+	#out_weights[i_ind,j_ind] = y
+	out_bypass_weights[i_ind,j_ind] = y
+	
+	#gamma_biases[i_ind] = y
+	#shift_biases[i_ind] = y
+	#key_biases[i_ind] = y
+	#interp_biases[i_ind] = y
+	#out_biases[i_ind] = y
+	
+	########
+	# forward:
+	
+	# content
+	keys = (linear_F(key_weights, x) + key_biases).reshape((n_controllers, m_length))
+	keys_relu = relu(keys)
+	
+	beta_out = linear_F(beta_weights, x) + beta_biases ##?
+	beta_out_relu = relu(beta_out)
+	
+	keys_focused = focus_keys(keys_relu, beta_out_relu)
+	w_content = cosine_sim(keys_focused, mem)
+	w_content_smax = softmax(w_content)
+	
+	# interpolation
+	interp_gate_out = linear_F(interp_weights, x) + interp_biases
+	interp_gate_out_sigm = sigmoid(interp_gate_out)
+	w_interp = interpolate(w_content_smax, w_prev, interp_gate_out_sigm)
+	
+	# shift
+	shift_out = linear_F(shift_weights, x) + shift_biases
+	shift_out_relu = relu(shift_out)
+	
+	shift_out_relu_smax = softmax(shift_out_relu.reshape((n_controllers, n_shifts)))
+	w_tilde = shift_w(shift_out_relu_smax, w_interp)
+	
+	# sharpen
+	gamma_out = linear_F(gamma_weights, x) + gamma_biases
+	gamma_out_relu = relu(gamma_out,1)
+	
+	w = sharpen(w_tilde, gamma_out_relu)
+	
+	# read mem
+	read_mem = read_from_mem(w, mem)
+	
+	# output layer
+	out = linear_F(out_weights, read_mem.ravel()[:,np.newaxis]) + out_biases
+	out += linear_F(out_bypass_weights, x)
 	
 	##########
 	# backward (data):
 	
-	dread_from_mem_dw = read_from_mem_dw(mem2, 2*(read_mem - t)) # read mem, dw
-	dread_from_mem_dmem = read_from_mem_dmem(w, 2*(read_mem - t)) # read mem, dmem
+	# output layer
+	dout_dread_mem = linear_dlayer_in(out_weights, 2*(out - t)).reshape((n_controllers, m_length))
+	
+	# read mem
+	dread_from_mem_dw = read_from_mem_dw(mem, dout_dread_mem) # read mem, dw
+	dread_from_mem_dmem = read_from_mem_dmem(w, dout_dread_mem) # read mem, dmem
 	
 	# sharpen
 	dsharpen_dw_tilde = sharpen_dlayer_in(w_tilde, gamma_out_relu, dread_from_mem_dw) # sharpen
@@ -180,21 +199,25 @@ def g(y):
 	dinterp_gate_out_dinterp_weights = linear_dF(x, dinterp_gate_out_sigm_dinterp_gate_out) # interp_weights
 	dbeta_out_dbeta_weights = linear_dF(x, dbeta_out_relu_dbeta_out) # beta_weights
 	dkeys_dkey_weights = linear_dF(x, dkeys_relu_dkeys) # key_weights
+	dout_dout_weights = linear_dF(read_mem.ravel()[:,np.newaxis], 2*(out - t)) # out_weights
+	dout_dout_bypass_weights = linear_dF(x, 2*(out - t)) # out_bypass_weights
 	
-	return dread_from_mem_dmem[i_ind,j_ind]
+	#return dw_content_dmem[i_ind,j_ind] + dread_from_mem_dmem[i_ind,j_ind]
 	
 	#return dw_dgamma_out[i_ind] # gamma_biases
 	#return dshift_out_relu_dshift_out[i_ind] # shift_biases
 	#return dinterp_gate_out_sigm_dinterp_gate_out[i_ind] # interp_biases
 	#return dbeta_out_relu_dbeta_out[i_ind] # beta_biases
 	#return dkeys_relu_dkeys[i_ind] # key_biases
+	#return (2*(out - t))[i_ind]
 	
 	#return dinterp_gate_out_dinterp_weights[i_ind,j_ind]
 	#return dgamma_out_dgamma_weights[i_ind,j_ind]
 	#return dshift_out_dshift_weights[i_ind,j_ind]
-	#return dw_content_dmem[i_ind,j_ind]
 	#return dbeta_out_dbeta_weights[i_ind,j_ind]
 	#return dkeys_dkey_weights[i_ind,j_ind]
+	#return dout_dout_weights[i_ind,j_ind]
+	return dout_dout_bypass_weights[i_ind,j_ind]
 	
 np.random.seed(np.int64(time.time()))
 eps = np.sqrt(np.finfo(np.float).eps)*1e0
@@ -204,7 +227,7 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = mem2#key_weights
+	ref = out_bypass_weights #mem
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
 	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
