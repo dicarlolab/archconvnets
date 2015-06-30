@@ -54,53 +54,66 @@ x2 = np.random.normal(size=(n_in,1)) * SCALE
 
 t = np.random.normal(size=(n_controllers, m_length)) * SCALE
 
+################# interpolate simplified
+def interpolate_simp(w_prev, interp_gate_out):
+	# w_prev, w_content: [n_controllers, n_mem_slots], interp_gate_out: [n_controllers, 1]
+	return interp_gate_out * w_prev
+
+def interpolate_simp_dinterp_gate_out_int(w_prev, interp_gate_out, dw_prev=0):
+	return ( w_prev + interp_gate_out * dw_prev)
+
+def interpolate_simp_dinterp_gate_out(w_prev, interp_gate_out, dw_prev=0, above_w=1):
+	return (above_w * ( w_prev + interp_gate_out * dw_prev)).sum(1)[:,np.newaxis] # sum across mem_slots
+
+def interpolate_simp_dw_prev(interp_gate_out, above_w):
+	return above_w * ( interp_gate_out)
+
 def f(y):
+	#w_prev[i_ind,j_ind] = y
 	interp_weights[i_ind,j_ind] = y
+	w_prevl = copy.deepcopy(w_prev)
 	
 	# forward
-	keys = (linear_F(key_weights, x)).reshape((n_controllers, m_length))
-	w_content = cosine_sim(keys, mem)
 	interp_gate_out = linear_F(interp_weights, x)
-	w_interp = interpolate(w_content, w_prev, interp_gate_out)
+	w_interp = interpolate_simp(w_prevl, interp_gate_out)
 	read_mem = read_from_mem(w_interp, mem)
 	
-	w_new = copy.deepcopy(w_interp)#w_prev)
+	dw_prev = interpolate_simp_dinterp_gate_out_int(w_prevl, interp_gate_out)
+	w_prevl = copy.deepcopy(w_interp)
 	
 	# forward2
-	keys = (linear_F(key_weights, x2)).reshape((n_controllers, m_length))
-	w_content = cosine_sim(keys, mem)
 	interp_gate_out = linear_F(interp_weights, x2)
-	w_interp = interpolate(w_content, w_new, interp_gate_out)
+	w_interp = interpolate_simp(w_prevl, interp_gate_out)
 	read_mem = read_from_mem(w_interp, mem)
 	
 	return ((read_mem - t)**2).sum()
 
 
 def g(y):
+	#w_prev[i_ind,j_ind] = y
 	interp_weights[i_ind,j_ind] = y
+	w_prevl = copy.deepcopy(w_prev)
 	
 	# forward
-	keys = (linear_F(key_weights, x)).reshape((n_controllers, m_length))
-	w_content = cosine_sim(keys, mem)
 	interp_gate_out = linear_F(interp_weights, x)
-	w_interp = interpolate(w_content, w_prev, interp_gate_out)
+	w_interp = interpolate_simp(w_prevl, interp_gate_out)
 	read_mem = read_from_mem(w_interp, mem)
 	
-	w_new = copy.deepcopy(w_interp)#w_prev)
+	dw_prev = interpolate_simp_dinterp_gate_out_int(w_prevl, interp_gate_out)
+	w_prevl = copy.deepcopy(w_interp)
 	
 	# forward2
-	keys = (linear_F(key_weights, x2)).reshape((n_controllers, m_length))
-	w_content = cosine_sim(keys, mem)
 	interp_gate_out = linear_F(interp_weights, x2)
-	w_interp = interpolate(w_content, w_new, interp_gate_out)
+	w_interp = interpolate_simp(w_prevl, interp_gate_out)
 	read_mem = read_from_mem(w_interp, mem)
 	
-	###
+	########
 	dread_from_mem_dw = read_from_mem_dw(mem, 2*(read_mem - t)) # read mem, dw
 	
 	# interpolation
-	dmem_dw_dw_prev = interpolate_dw_prev(interp_gate_out, dread_from_mem_dw)
-	dmem_dw_dw_interp_gate_out = interpolate_dinterp_gate_out(w_content, w_prev, dread_from_mem_dw)
+	dmem_dw_dw_prev = interpolate_simp_dw_prev(interp_gate_out, dread_from_mem_dw)
+	dmem_dw_dw_interp_gate_out = interpolate_simp_dinterp_gate_out(w_prevl, interp_gate_out, dw_prev,\
+			dread_from_mem_dw)
 	
 	dw_interp_gate_out_dinterp_weights = linear_dF(x2, dmem_dw_dw_interp_gate_out) # interp
 	
