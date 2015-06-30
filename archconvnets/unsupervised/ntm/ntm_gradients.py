@@ -1,6 +1,17 @@
 import numpy as np
 import copy
 
+##### read memory vector (generalization of linear_F())
+def read_from_mem(w, mem):
+	# w: [n_controllers, n_mem_slots], mem: [n_mem_slots, m_length]
+	return np.dot(w, mem) # [n_controllers, m_length]
+
+def read_from_mem_dw(mem, above_w):
+	return np.einsum(above_w, [0,2], mem, [1,2], [0,1])
+
+def read_from_mem_dmem(w, above_w):
+	return np.einsum(above_w, [1,2], w, [1,0], [0,2])
+
 ##########
 # focus keys, scalar beta_out (one for each controller) multiplied with each of its keys
 def focus_keys(keys, beta_out):
