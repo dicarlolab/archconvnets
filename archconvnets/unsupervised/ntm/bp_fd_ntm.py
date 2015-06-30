@@ -162,7 +162,7 @@ def f(y):
 	#out_bypass_weights[i_ind,j_ind] = y
 	
 	W_READ[REF][i_ind,j_ind] = y
-	#B[REF][i_ind] = y
+	#B_READ[REF][i_ind] = y
 	
 	OUT_READ = head_forward(x, W_READ, B_READ, w_prev, mem)
 	
@@ -183,7 +183,7 @@ def g(y):
 	#out_bypass_weights[i_ind,j_ind] = y
 	
 	W_READ[REF][i_ind,j_ind] = y
-	#B[REF][i_ind] = y
+	#B_READ[REF][i_ind] = y
 	
 	OUT_READ = head_forward(x, W_READ, B_READ, w_prev, mem)
 	

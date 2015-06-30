@@ -150,7 +150,9 @@ def interpolate_dinterp_gate_out(w_content, w_prev, above_w=1):
 def interpolate_dw_content(interp_gate_out, above_w=1):
 	return above_w * interp_gate_out
 
-# todo: interpolate_dw_prev()
+def interpolate_dw_prev(interp_gate_out, above_w):
+	return above_w * (1 - interp_gate_out)
+
 
 ############### shift w
 def shift_w(shift_out, w_interp):	
