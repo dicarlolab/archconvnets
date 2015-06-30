@@ -63,6 +63,11 @@ mem = np.random.normal(size=(n_mem_slots, m_length)) * SCALE
 x = np.random.normal(size=(n_in,1)) * SCALE
 t = np.random.normal(size=(n_out, 1)) * SCALE
 
+W = [beta_weights, gamma_weights, interp_weights, shift_weights, key_weights, out_weights, out_bypass_weights]
+B = [beta_biases, gamma_biases, interp_biases, shift_biases, key_biases, out_biases]
+
+REF = INTERP
+
 def head_forward(x, W, B, w_prev, mem):
 	# content
 	keys = (linear_F(W[KEY], x) + B[KEY]).reshape((n_controllers, m_length))
@@ -146,22 +151,11 @@ def head_backward(x, W, B, w_prev, mem, OUT, above_w):
 def f(y):
 	#mem[i_ind,j_ind] = y
 	
-	#beta_weights[i_ind] = y
-	#key_weights[i_ind,j_ind] = y
-	#shift_weights[i_ind,j_ind] = y
-	#gamma_weights[i_ind,j_ind] = y
-	#interp_weights[i_ind,j_ind] = y
 	#out_weights[i_ind,j_ind] = y
 	#out_bypass_weights[i_ind,j_ind] = y
 	
-	#gamma_biases[i_ind] = y
-	shift_biases[i_ind] = y
-	#key_biases[i_ind] = y
-	#interp_biases[i_ind] = y
-	#out_biases[i_ind] = y
-	
-	W = [beta_weights, gamma_weights, interp_weights, shift_weights, key_weights]
-	B = [beta_biases, gamma_biases, interp_biases, shift_biases, key_biases]
+	W[REF][i_ind,j_ind] = y
+	#B[REF][i_ind] = y
 	
 	OUT = head_forward(x, W, B, w_prev, mem)
 	
@@ -178,22 +172,11 @@ def f(y):
 def g(y):
 	#mem[i_ind,j_ind] = y
 	
-	#beta_weights[i_ind] = y
-	#key_weights[i_ind,j_ind] = y
-	#shift_weights[i_ind,j_ind] = y
-	#gamma_weights[i_ind,j_ind] = y
-	#interp_weights[i_ind,j_ind] = y
 	#out_weights[i_ind,j_ind] = y
 	#out_bypass_weights[i_ind,j_ind] = y
 	
-	#gamma_biases[i_ind] = y
-	shift_biases[i_ind] = y
-	#key_biases[i_ind] = y
-	#interp_biases[i_ind] = y
-	#out_biases[i_ind] = y
-	
-	W = [beta_weights, gamma_weights, interp_weights, shift_weights, key_weights, out_weights, out_bypass_weights]
-	B = [beta_biases, gamma_biases, interp_biases, shift_biases, key_biases, out_biases]
+	W[REF][i_ind,j_ind] = y
+	#B[REF][i_ind] = y
 	
 	OUT = head_forward(x, W, B, w_prev, mem)
 	
@@ -219,8 +202,8 @@ def g(y):
 	dout_dout_weights = linear_dF(read_mem.ravel()[:,np.newaxis], 2*(out - t)) # out_weights
 	dout_dout_bypass_weights = linear_dF(x, 2*(out - t)) # out_bypass_weights
 	
-	return DB[SHIFT][i_ind]
-	#return DW[SHIFT][i_ind,j_ind]
+	#return DB[REF][i_ind]
+	return DW[REF][i_ind,j_ind]
 
 	#return dmem[i_ind,j_ind] + dread_from_mem_dmem[i_ind,j_ind]
 	#return dout_dout_bypass_weights[i_ind,j_ind]
@@ -234,13 +217,13 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = shift_biases
-	#i_ind = np.random.randint(ref.shape[0])
-	#j_ind = np.random.randint(ref.shape[1])
-	#y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
-		
+	ref = W[REF]
 	i_ind = np.random.randint(ref.shape[0])
-	y = -1e0*ref[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	j_ind = np.random.randint(ref.shape[1])
+	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+		
+	#i_ind = np.random.randint(ref.shape[0])
+	#y = -1e0*ref[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
 		
 	if gtx == 0:
 		ratios[sample] = 1
