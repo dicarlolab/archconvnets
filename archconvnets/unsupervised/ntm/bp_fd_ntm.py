@@ -41,19 +41,23 @@ O_GAMMA_OUT = 14
 O_GAMMA_OUT_RELU = 15
 O_W = 16
 
+## head weights
 beta_weights = np.random.normal(size=(n_controllers, n_in)) * SCALE
 gamma_weights = np.random.normal(size=(n_controllers, n_in)) * SCALE
 interp_weights = np.random.normal(size=(n_controllers, n_in)) * SCALE
 shift_weights = np.random.normal(size=(n_controllers*n_shifts, n_in)) * SCALE
 key_weights = np.random.normal(size=(n_controllers*m_length, n_in)) * SCALE
-out_weights = np.random.normal(size=(n_out, n_controllers*m_length)) * SCALE
-out_bypass_weights = np.random.normal(size=(n_out, n_in)) * SCALE
 
 beta_biases = 1 + np.random.normal(size=(n_controllers, 1)) * SCALE
 gamma_biases = np.random.normal(size=(n_controllers, 1)) * SCALE
 interp_biases = np.random.normal(size=(n_controllers, 1)) * SCALE
 shift_biases = np.random.normal(size=(n_controllers*n_shifts, 1)) * SCALE
 key_biases = np.random.normal(size=(n_controllers*m_length, 1)) * SCALE
+
+##
+out_weights = np.random.normal(size=(n_out, n_controllers*m_length)) * SCALE
+out_bypass_weights = np.random.normal(size=(n_out, n_in)) * SCALE
+
 out_biases = np.random.normal(size=(n_out, 1)) * SCALE
 
 w_prev = np.abs(np.random.normal(size=(n_controllers, n_mem_slots))) * SCALE
@@ -63,8 +67,11 @@ mem = np.random.normal(size=(n_mem_slots, m_length)) * SCALE
 x = np.random.normal(size=(n_in,1)) * SCALE
 t = np.random.normal(size=(n_out, 1)) * SCALE
 
-W = [beta_weights, gamma_weights, interp_weights, shift_weights, key_weights, out_weights, out_bypass_weights]
-B = [beta_biases, gamma_biases, interp_biases, shift_biases, key_biases, out_biases]
+W_READ = [beta_weights, gamma_weights, interp_weights, shift_weights, key_weights]
+B_READ = [beta_biases, gamma_biases, interp_biases, shift_biases, key_biases]
+
+W_WRITE = copy.deepcopy(W_READ)
+B_WRITE = copy.deepcopy(B_READ)
 
 REF = INTERP
 
@@ -154,13 +161,13 @@ def f(y):
 	#out_weights[i_ind,j_ind] = y
 	#out_bypass_weights[i_ind,j_ind] = y
 	
-	W[REF][i_ind,j_ind] = y
+	W_READ[REF][i_ind,j_ind] = y
 	#B[REF][i_ind] = y
 	
-	OUT = head_forward(x, W, B, w_prev, mem)
+	OUT_READ = head_forward(x, W_READ, B_READ, w_prev, mem)
 	
 	# read mem
-	read_mem = read_from_mem(OUT[O_W], mem)
+	read_mem = read_from_mem(OUT_READ[O_W], mem)
 	
 	# output layer
 	out = linear_F(out_weights, read_mem.ravel()[:,np.newaxis]) + out_biases
@@ -175,13 +182,13 @@ def g(y):
 	#out_weights[i_ind,j_ind] = y
 	#out_bypass_weights[i_ind,j_ind] = y
 	
-	W[REF][i_ind,j_ind] = y
+	W_READ[REF][i_ind,j_ind] = y
 	#B[REF][i_ind] = y
 	
-	OUT = head_forward(x, W, B, w_prev, mem)
+	OUT_READ = head_forward(x, W_READ, B_READ, w_prev, mem)
 	
 	# read mem
-	read_mem = read_from_mem(OUT[O_W], mem)
+	read_mem = read_from_mem(OUT_READ[O_W], mem)
 	
 	# output layer
 	out = linear_F(out_weights, read_mem.ravel()[:,np.newaxis]) + out_biases
@@ -195,9 +202,9 @@ def g(y):
 	
 	# read mem
 	dread_from_mem_dw = read_from_mem_dw(mem, dout_dread_mem) # read mem, dw
-	dread_from_mem_dmem = read_from_mem_dmem(OUT[O_W], dout_dread_mem) # read mem, dmem ##############################
+	dread_from_mem_dmem = read_from_mem_dmem(OUT_READ[O_W], dout_dread_mem) # read mem, dmem ##############################
 	
-	DW, DB, dmem = head_backward(x, W, B, w_prev, mem, OUT, dread_from_mem_dw)
+	DW, DB, dmem = head_backward(x, W_READ, B_READ, w_prev, mem, OUT_READ, dread_from_mem_dw)
 	
 	dout_dout_weights = linear_dF(read_mem.ravel()[:,np.newaxis], 2*(out - t)) # out_weights
 	dout_dout_bypass_weights = linear_dF(x, 2*(out - t)) # out_bypass_weights
@@ -217,7 +224,7 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = W[REF]
+	ref = W_READ[REF]
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
 	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
