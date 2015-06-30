@@ -32,6 +32,7 @@ t = np.random.normal(size=(n_controllers, n_mem_slots))
 
 keys = linear_F(key_weights, x).reshape((n_controllers, m_length))
 
+
 def f(y):
 	#beta_weights[i_ind] = y
 	#key_weights[i_ind,j_ind] = y
@@ -53,7 +54,8 @@ def f(y):
 	
 	# interpolation
 	interp_gate_out = linear_F(interp_weights, x)
-	w_interp = interpolate(w_content_smax, w_prev, interp_gate_out)
+	interp_gate_out_sigm = sigmoid(interp_gate_out)
+	w_interp = interpolate(w_content_smax, w_prev, interp_gate_out_sigm)
 	
 	# shift
 	shift_out = linear_F(shift_weights, x)
@@ -91,7 +93,8 @@ def g(y):
 	
 	# interpolation
 	interp_gate_out = linear_F(interp_weights, x)
-	w_interp = interpolate(w_content_smax, w_prev, interp_gate_out)
+	interp_gate_out_sigm = sigmoid(interp_gate_out)
+	w_interp = interpolate(w_content_smax, w_prev, interp_gate_out_sigm)
 	
 	# shift
 	shift_out = linear_F(shift_weights, x)
@@ -121,9 +124,10 @@ def g(y):
 
 	# interpolation
 	dw_tilde_dw_interp = shift_w_dw_interp(shift_out_relu_smax, dsharpen_dw_tilde) # shift
-	dw_interp_dinterp_gate_out = interpolate_dinterp_gate_out(w_content_smax, w_prev, dw_tilde_dw_interp) # interpolate
+	dw_interp_dw_content_smax = interpolate_dw_content(interp_gate_out_sigm, dw_tilde_dw_interp) # interpolate
 	
-	dw_interp_dw_content_smax = interpolate_dw_content(interp_gate_out, dw_tilde_dw_interp) # interpolate
+	dw_interp_dinterp_gate_out_sigm = interpolate_dinterp_gate_out(w_content_smax, w_prev, dw_tilde_dw_interp) # interpolate
+	dinterp_gate_out_sigm_dinterp_gate_out = sigmoid_dlayer_in(interp_gate_out_sigm, dw_interp_dinterp_gate_out_sigm) # sigmoid
 	
 	# content
 	dw_content_smax_dw_content = softmax_dlayer_in(w_content_smax, dw_interp_dw_content_smax) # softmax
@@ -138,7 +142,7 @@ def g(y):
 	# backward (vars):
 	dgamma_out_dgamma_weights = linear_dF(x, dw_dgamma_out) # gamma
 	dshift_out_dshift_weights = linear_dF(x, dshift_out_relu_dshift_out) # shift_weights
-	dinterp_gate_out_dinterp_weights = linear_dF(x, dw_interp_dinterp_gate_out) # interp_weights
+	dinterp_gate_out_dinterp_weights = linear_dF(x, dinterp_gate_out_sigm_dinterp_gate_out) # interp_weights
 	dbeta_out_dbeta_weights = linear_dF(x, dfocus_key_dbeta_out) # beta_weights
 	dkeys_dkey_weights = linear_dF(x, dfocus_key_dkeys) # key_weights
 	
@@ -157,7 +161,7 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = interp_weights
+	ref = interp_weights#mem
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
 	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)

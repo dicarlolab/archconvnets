@@ -92,6 +92,15 @@ def sharpen_dgamma_out(layer_in, gamma_out, above_w=1):
 	dw_dgamma = (dw_gamma_dgamma * w_gamma_sum - w_gamma * dw_sum_gamma_dgamma) / (w_gamma_sum**2)
 	return (dw_dgamma * above_w).sum(1)[:,np.newaxis]
 
+##############
+# sigmoid point-wise
+def sigmoid(layer_in):
+	return 1/(1+np.exp(-layer_in))
+
+def sigmoid_dlayer_in(layer_out, above_w):
+	return above_w * layer_out * (1-layer_out)
+
+
 #############
 # relu below 'thresh' (0 = normal relu)
 def relu(layer_in, thresh=0):
