@@ -14,15 +14,19 @@ n_controllers = 2
 n_mem_slots = 5 # "M"
 m_length = 8 # "N"
 
-w_interp = np.abs(np.random.random(size=(n_controllers, n_mem_slots)))
-beta_weights = np.abs(np.random.normal(size=(n_controllers, n_in)))
-gamma_weights = np.abs(np.random.normal(size=(n_controllers, n_in)))
-interp_weights = np.abs(np.random.random(size=(n_controllers, n_in)))
-shift_weights = np.abs(np.random.normal(size=(n_controllers*n_shifts, n_in)))
-key_weights = np.abs(np.random.normal(size=(n_controllers*m_length, n_in)))
+beta_weights = np.random.normal(size=(n_controllers, n_in))
+gamma_weights = np.random.normal(size=(n_controllers, n_in))
+interp_weights = np.random.normal(size=(n_controllers, n_in))
+shift_weights = np.random.normal(size=(n_controllers*n_shifts, n_in))
+key_weights = np.random.normal(size=(n_controllers*m_length, n_in))
+
+beta_biases = np.random.normal(size=(n_controllers, 1))
+gamma_biases = np.random.normal(size=(n_controllers, 1))
+interp_biases = np.random.normal(size=(n_controllers, 1))
+shift_biases = np.random.normal(size=(n_controllers*n_shifts, 1))
+key_biases = np.random.normal(size=(n_controllers*m_length, 1))
 
 w_prev = np.abs(np.random.normal(size=(n_controllers, n_mem_slots)))
-w_content = np.abs(np.random.normal(size=(n_controllers, n_mem_slots)))
 
 mem = np.random.normal(size=(n_mem_slots, m_length))
 
@@ -30,42 +34,48 @@ x = np.random.normal(size=(n_in,1))
 
 t = np.random.normal(size=(n_controllers, n_mem_slots))
 
-keys = linear_F(key_weights, x).reshape((n_controllers, m_length))
-
-
 def f(y):
+	#mem[i_ind,j_ind] = y
+	
 	#beta_weights[i_ind] = y
 	#key_weights[i_ind,j_ind] = y
-	#mem[i_ind,j_ind] = y
 	#shift_weights[i_ind,j_ind] = y
 	#gamma_weights[i_ind,j_ind] = y
-	interp_weights[i_ind,j_ind] = y
+	#interp_weights[i_ind,j_ind] = y
+	
+	gamma_biases[i_ind] = y
+	#shift_biases[i_ind] = y
+	#key_biases[i_ind] = y
+	#interp_biases[i_ind] = y
 	
 	########
 	# forward:
 	
 	# content
-	keys = linear_F(key_weights, x).reshape((n_controllers, m_length))
-	beta_out = linear_F(beta_weights, x)
+	keys = (linear_F(key_weights, x) + key_biases).reshape((n_controllers, m_length))
+	keys_relu = relu(keys)
 	
-	keys_focused = focus_keys(keys, beta_out)
+	beta_out = linear_F(beta_weights, x) + beta_biases
+	beta_out_relu = relu(beta_out)
+	
+	keys_focused = focus_keys(keys_relu, beta_out_relu)
 	w_content = cosine_sim(keys_focused, mem)
 	w_content_smax = softmax(w_content)
 	
 	# interpolation
-	interp_gate_out = linear_F(interp_weights, x)
+	interp_gate_out = linear_F(interp_weights, x) + interp_biases
 	interp_gate_out_sigm = sigmoid(interp_gate_out)
 	w_interp = interpolate(w_content_smax, w_prev, interp_gate_out_sigm)
 	
 	# shift
-	shift_out = linear_F(shift_weights, x)
+	shift_out = linear_F(shift_weights, x) + shift_biases
 	shift_out_relu = relu(shift_out)
 	
 	shift_out_relu_smax = softmax(shift_out_relu.reshape((n_controllers, n_shifts)))
 	w_tilde = shift_w(shift_out_relu_smax, w_interp)
 	
 	# sharpen
-	gamma_out = linear_F(gamma_weights, x)
+	gamma_out = linear_F(gamma_weights, x) + gamma_biases
 	gamma_out_relu = relu(gamma_out,1)
 	
 	w = sharpen(w_tilde, gamma_out_relu)
@@ -73,38 +83,47 @@ def f(y):
 	return ((w - t)**2).sum()
 
 def g(y):
+	#mem[i_ind,j_ind] = y
+	
 	#beta_weights[i_ind] = y
 	#key_weights[i_ind,j_ind] = y
-	#mem[i_ind,j_ind] = y
 	#shift_weights[i_ind,j_ind] = y
 	#gamma_weights[i_ind,j_ind] = y
-	interp_weights[i_ind,j_ind] = y
+	#interp_weights[i_ind,j_ind] = y
+	
+	gamma_biases[i_ind] = y
+	#shift_biases[i_ind] = y
+	#key_biases[i_ind] = y
+	#interp_biases[i_ind] = y
 	
 	########
 	# forward:
 	
 	# content
-	keys = linear_F(key_weights, x).reshape((n_controllers, m_length))
-	beta_out = linear_F(beta_weights, x)
+	keys = (linear_F(key_weights, x) + key_biases).reshape((n_controllers, m_length))
+	keys_relu = relu(keys)
 	
-	keys_focused = focus_keys(keys, beta_out)
+	beta_out = linear_F(beta_weights, x) + beta_biases
+	beta_out_relu = relu(beta_out)
+	
+	keys_focused = focus_keys(keys_relu, beta_out_relu)
 	w_content = cosine_sim(keys_focused, mem)
 	w_content_smax = softmax(w_content)
 	
 	# interpolation
-	interp_gate_out = linear_F(interp_weights, x)
+	interp_gate_out = linear_F(interp_weights, x) + interp_biases
 	interp_gate_out_sigm = sigmoid(interp_gate_out)
 	w_interp = interpolate(w_content_smax, w_prev, interp_gate_out_sigm)
 	
 	# shift
-	shift_out = linear_F(shift_weights, x)
+	shift_out = linear_F(shift_weights, x) + shift_biases
 	shift_out_relu = relu(shift_out)
 	
 	shift_out_relu_smax = softmax(shift_out_relu.reshape((n_controllers, n_shifts)))
 	w_tilde = shift_w(shift_out_relu_smax, w_interp)
 	
 	# sharpen
-	gamma_out = linear_F(gamma_weights, x)
+	gamma_out = linear_F(gamma_weights, x) + gamma_biases
 	gamma_out_relu = relu(gamma_out,1)
 	
 	w = sharpen(w_tilde, gamma_out_relu)
@@ -135,40 +154,50 @@ def g(y):
 	dw_content_dkeys_focused = cosine_sim_dkeys(keys_focused, mem, dw_content_smax_dw_content) # cosine
 	dw_content_dmem = cosine_sim_dmem(keys_focused, mem, dw_content_smax_dw_content) # cosine
 	
-	dfocus_key_dkeys = focus_key_dkeys(beta_out, dw_content_dkeys_focused).ravel()[:,np.newaxis] # focus
-	dfocus_key_dbeta_out = focus_key_dbeta_out(keys, dw_content_dkeys_focused)[:,np.newaxis] # focus
+	dfocus_key_dbeta_out_relu = focus_key_dbeta_out(keys_relu, dw_content_dkeys_focused) # focus, dbeta
+	dbeta_out_relu_dbeta_out = relu_dlayer_in(beta_out_relu, dfocus_key_dbeta_out_relu).ravel()[:,np.newaxis] # relu, dbeta
+	
+	dfocus_key_dkeys_relu = focus_key_dkeys(beta_out_relu, dw_content_dkeys_focused) # focus, dkeys
+	dkeys_relu_dkeys = relu_dlayer_in(keys, dfocus_key_dkeys_relu).ravel()[:,np.newaxis] # relu, dkeys
+	
 	
 	##########
 	# backward (vars):
 	dgamma_out_dgamma_weights = linear_dF(x, dw_dgamma_out) # gamma
 	dshift_out_dshift_weights = linear_dF(x, dshift_out_relu_dshift_out) # shift_weights
 	dinterp_gate_out_dinterp_weights = linear_dF(x, dinterp_gate_out_sigm_dinterp_gate_out) # interp_weights
-	dbeta_out_dbeta_weights = linear_dF(x, dfocus_key_dbeta_out) # beta_weights
-	dkeys_dkey_weights = linear_dF(x, dfocus_key_dkeys) # key_weights
+	dbeta_out_dbeta_weights = linear_dF(x, dbeta_out_relu_dbeta_out) # beta_weights
+	dkeys_dkey_weights = linear_dF(x, dkeys_relu_dkeys) # key_weights
 	
-	return dinterp_gate_out_dinterp_weights[i_ind,j_ind]
+	return dw_dgamma_out[i_ind] # gamma_biases
+	#return dshift_out_relu_dshift_out[i_ind] # shift_biases
+	#return dinterp_gate_out_sigm_dinterp_gate_out[i_ind] # interp_biases
+	#return dbeta_out_relu_dbeta_out[i_ind] # beta_biases
+	#return dkeys_relu_dkeys[i_ind] # key_biases
+	
+	#return dinterp_gate_out_dinterp_weights[i_ind,j_ind]
 	#return dgamma_out_dgamma_weights[i_ind,j_ind]
 	#return dshift_out_dshift_weights[i_ind,j_ind]
 	#return dw_content_dmem[i_ind,j_ind]
-	#return dkeys_dkey_weights[i_ind,j_ind]
 	#return dbeta_out_dbeta_weights[i_ind,j_ind]
+	#return dkeys_dkey_weights[i_ind,j_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e1
+eps = np.sqrt(np.finfo(np.float).eps)*1e0
 
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = interp_weights#mem
-	i_ind = np.random.randint(ref.shape[0])
-	j_ind = np.random.randint(ref.shape[1])
-	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
-	
-		
+	ref = gamma_biases
 	#i_ind = np.random.randint(ref.shape[0])
-	#y = -1e0*ref[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	#j_ind = np.random.randint(ref.shape[1])
+	#y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	
+	
+	i_ind = np.random.randint(ref.shape[0])
+	y = -1e0*ref[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
 	
 	
 	if gtx == 0:
