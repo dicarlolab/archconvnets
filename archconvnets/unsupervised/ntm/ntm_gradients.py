@@ -7,10 +7,10 @@ def read_from_mem(w, mem):
 	return np.dot(w, mem) # [n_controllers, m_length]
 
 def read_from_mem_dw(mem, above_w):
-	return np.einsum(above_w, [0,2], mem, [1,2], [0,1])
+	return np.dot(above_w, mem.T)
 
 def read_from_mem_dmem(w, above_w):
-	return np.einsum(above_w, [1,2], w, [1,0], [0,2])
+	return np.dot(w.T, above_w)
 
 ##########
 # focus keys, scalar beta_out (one for each controller) multiplied with each of its keys
