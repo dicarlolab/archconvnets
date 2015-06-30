@@ -17,30 +17,6 @@ m_length = 7 # "N"
 
 SCALE = 1e-1
 
-BETA = 0
-GAMMA = 1
-INTERP = 2
-SHIFT = 3
-KEY = 4
-
-O_KEYS = 0
-O_KEYS_RELU = 1
-O_BETA_OUT = 2
-O_BETA_OUT_RELU = 3
-O_KEYS_FOCUSED = 4
-O_W_CONTENT = 5
-O_W_CONTENT_SMAX = 6
-O_INTERP_GATE_OUT = 7
-O_INTERP_GATE_OUT_SIGM = 8
-O_W_INTERP = 9
-O_SHIFT_OUT = 10
-O_SHIFT_OUT_RELU = 11
-O_SHIFT_OUT_RELU_SMAX = 12
-O_W_TILDE = 13
-O_GAMMA_OUT = 14
-O_GAMMA_OUT_RELU = 15
-O_W = 16
-
 ## head weights
 interp_weights = np.random.normal(size=(n_controllers, n_in)) * SCALE
 key_weights = np.random.normal(size=(n_controllers*m_length, n_in)) * SCALE
@@ -79,7 +55,7 @@ def f(y):
 	read_mem = read_from_mem(w_interp, mem)
 	
 	dw_prev = interpolate_simp_dinterp_gate_out_int(w_prevl, interp_gate_out)
-	w_prevl = copy.deepcopy(w_interp)
+	#w_prevl = copy.deepcopy(w_interp)
 	
 	# forward2
 	interp_gate_out = linear_F(interp_weights, x2)
@@ -99,8 +75,8 @@ def g(y):
 	w_interp = interpolate_simp(w_prevl, interp_gate_out)
 	read_mem = read_from_mem(w_interp, mem)
 	
-	dw_prev = interpolate_simp_dinterp_gate_out_int(w_prevl, interp_gate_out)
-	w_prevl = copy.deepcopy(w_interp)
+	dw_prev = 0*interpolate_simp_dinterp_gate_out_int(w_prevl, interp_gate_out)
+	#w_prevl = copy.deepcopy(w_interp)
 	
 	# forward2
 	interp_gate_out = linear_F(interp_weights, x2)
