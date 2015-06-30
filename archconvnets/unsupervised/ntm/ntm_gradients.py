@@ -1,6 +1,23 @@
 import numpy as np
 import copy
 
+##########
+# focus keys, scalar beta_out (one for each controller) multiplied with each of its keys
+def focus_keys(keys, beta_out):
+	# keys: [n_controllers, m_length], beta_out: [n_controllers, 1]
+	
+	return keys * beta_out # [n_controllers, m_length]
+
+def focus_key_dkeys(beta_out, above_w): 
+	# above_w: [n_controllers, m_length], beta_out: [n_controllers, 1]
+	
+	return above_w * beta_out # [n_controllers, m_length]
+
+def focus_key_dbeta_out(keys, above_w): 
+	# above_w: [n_controllers, m_length], beta_out: [n_controllers, 1]
+	
+	return (above_w * keys).sum(1) # [n_controllers, 1]
+
 ############
 # cosine similarity between each controller's key and memory vector
 def cosine_sim(keys, mem):
