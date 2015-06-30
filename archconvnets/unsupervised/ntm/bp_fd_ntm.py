@@ -9,37 +9,39 @@ import scipy
 from ntm_gradients import *
 
 n_out = 7
-n_in = 4
+n_in = 5
 n_shifts = 3 # must be 3 [shift_w()]
-n_controllers = 2
-n_mem_slots = 5 # "M"
-m_length = 8 # "N"
+n_controllers = 4
+n_mem_slots = 2 # "M"
+m_length = 7 # "N"
 
-beta_weights = np.random.normal(size=(n_controllers, n_in))
-gamma_weights = np.random.normal(size=(n_controllers, n_in))
-interp_weights = np.random.normal(size=(n_controllers, n_in))
-shift_weights = np.random.normal(size=(n_controllers*n_shifts, n_in))
-key_weights = np.random.normal(size=(n_controllers*m_length, n_in))
-out_weights = np.random.normal(size=(n_out, n_controllers*m_length))
-out_bypass_weights = np.random.normal(size=(n_out, n_in))
+SCALE = 1e-1
 
-beta_biases = np.random.normal(size=(n_controllers, 1))
-gamma_biases = np.random.normal(size=(n_controllers, 1))
-interp_biases = np.random.normal(size=(n_controllers, 1))
-shift_biases = np.random.normal(size=(n_controllers*n_shifts, 1))
-key_biases = np.random.normal(size=(n_controllers*m_length, 1))
-out_biases = np.random.normal(size=(n_out, 1))
+beta_weights = np.random.normal(size=(n_controllers, n_in)) * SCALE
+gamma_weights = np.random.normal(size=(n_controllers, n_in)) * SCALE
+interp_weights = np.random.normal(size=(n_controllers, n_in)) * SCALE
+shift_weights = np.random.normal(size=(n_controllers*n_shifts, n_in)) * SCALE
+key_weights = np.random.normal(size=(n_controllers*m_length, n_in)) * SCALE
+out_weights = np.random.normal(size=(n_out, n_controllers*m_length)) * SCALE
+out_bypass_weights = np.random.normal(size=(n_out, n_in)) * SCALE
 
-w_prev = np.abs(np.random.normal(size=(n_controllers, n_mem_slots)))
+beta_biases = 1 + np.random.normal(size=(n_controllers, 1)) * SCALE
+gamma_biases = np.random.normal(size=(n_controllers, 1)) * SCALE
+interp_biases = np.random.normal(size=(n_controllers, 1)) * SCALE
+shift_biases = np.random.normal(size=(n_controllers*n_shifts, 1)) * SCALE
+key_biases = np.random.normal(size=(n_controllers*m_length, 1)) * SCALE
+out_biases = np.random.normal(size=(n_out, 1)) * SCALE
 
-mem = np.random.normal(size=(n_mem_slots, m_length))
+w_prev = np.abs(np.random.normal(size=(n_controllers, n_mem_slots))) * SCALE
 
-x = np.random.normal(size=(n_in,1))
+mem = np.random.normal(size=(n_mem_slots, m_length)) * SCALE
 
-t = np.random.normal(size=(n_out, 1))
+x = np.random.normal(size=(n_in,1)) * SCALE
+
+t = np.random.normal(size=(n_out, 1)) * SCALE
 
 def f(y):
-	#mem[i_ind,j_ind] = y
+	mem[i_ind,j_ind] = y
 	
 	#beta_weights[i_ind] = y
 	#key_weights[i_ind,j_ind] = y
@@ -47,7 +49,7 @@ def f(y):
 	#gamma_weights[i_ind,j_ind] = y
 	#interp_weights[i_ind,j_ind] = y
 	#out_weights[i_ind,j_ind] = y
-	out_bypass_weights[i_ind,j_ind] = y
+	#out_bypass_weights[i_ind,j_ind] = y
 	
 	#gamma_biases[i_ind] = y
 	#shift_biases[i_ind] = y
@@ -97,7 +99,7 @@ def f(y):
 	return ((out - t)**2).sum()
 
 def g(y):
-	#mem[i_ind,j_ind] = y
+	mem[i_ind,j_ind] = y
 	
 	#beta_weights[i_ind] = y
 	#key_weights[i_ind,j_ind] = y
@@ -105,7 +107,7 @@ def g(y):
 	#gamma_weights[i_ind,j_ind] = y
 	#interp_weights[i_ind,j_ind] = y
 	#out_weights[i_ind,j_ind] = y
-	out_bypass_weights[i_ind,j_ind] = y
+	#out_bypass_weights[i_ind,j_ind] = y
 	
 	#gamma_biases[i_ind] = y
 	#shift_biases[i_ind] = y
@@ -202,7 +204,7 @@ def g(y):
 	dout_dout_weights = linear_dF(read_mem.ravel()[:,np.newaxis], 2*(out - t)) # out_weights
 	dout_dout_bypass_weights = linear_dF(x, 2*(out - t)) # out_bypass_weights
 	
-	#return dw_content_dmem[i_ind,j_ind] + dread_from_mem_dmem[i_ind,j_ind]
+	return dw_content_dmem[i_ind,j_ind] + dread_from_mem_dmem[i_ind,j_ind]
 	
 	#return dw_dgamma_out[i_ind] # gamma_biases
 	#return dshift_out_relu_dshift_out[i_ind] # shift_biases
@@ -217,7 +219,7 @@ def g(y):
 	#return dbeta_out_dbeta_weights[i_ind,j_ind]
 	#return dkeys_dkey_weights[i_ind,j_ind]
 	#return dout_dout_weights[i_ind,j_ind]
-	return dout_dout_bypass_weights[i_ind,j_ind]
+	#return dout_dout_bypass_weights[i_ind,j_ind]
 	
 np.random.seed(np.int64(time.time()))
 eps = np.sqrt(np.finfo(np.float).eps)*1e0
@@ -227,7 +229,7 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = out_bypass_weights #mem
+	ref = mem
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
 	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
