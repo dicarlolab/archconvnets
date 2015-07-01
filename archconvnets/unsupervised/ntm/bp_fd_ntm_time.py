@@ -8,93 +8,105 @@ import random
 import scipy
 from ntm_gradients import *
 
-n_out = 7
-n_in = 5
-n_shifts = 3 # must be 3 [shift_w()]
-n_controllers = 4
-n_mem_slots = 2 # "M"
-m_length = 7 # "N"
+C = 4
+M = 5
+n1 = 6
+n_in = 3
 
-SCALE = 1e-1
+t = np.random.normal(size=(C,M))
+o_previ = np.random.normal(size=(C,M))
+g = np.random.normal(size=(C,1))
 
-## head weights
-interp_weights = np.random.normal(size=(n_controllers, n_in)) * SCALE
-key_weights = np.random.normal(size=(n_controllers*m_length, n_in)) * SCALE
+w2 = np.random.normal(size=(C,n1))
+w1 = np.random.normal(size=(n1,n_in))
 
-w_prev = np.abs(np.random.normal(size=(n_controllers, n_mem_slots))) * SCALE
+x = np.random.normal(size=(n_in,1))
+x2 = np.random.normal(size=(n_in,1))
+x3 = np.random.normal(size=(n_in,1))
 
-mem = np.random.normal(size=(n_mem_slots, m_length)) * SCALE
-
-x = np.random.normal(size=(n_in,1)) * SCALE
-x2 = np.random.normal(size=(n_in,1)) * SCALE
-
-t = np.random.normal(size=(n_controllers, m_length)) * SCALE
+do_dw2i = np.zeros((C,M,n1))
+do_dw1i = np.zeros((C,M,n1,n_in))
 
 ################# interpolate simplified
 def interpolate_simp(w_prev, interp_gate_out):
-	# w_prev, w_content: [n_controllers, n_mem_slots], interp_gate_out: [n_controllers, 1]
-	return interp_gate_out * w_prev
+	return w_prev * interp_gate_out
 
-def interpolate_simp_dinterp_gate_out_int(w_prev, interp_gate_out, dw_prev=0):
-	return ( w_prev + interp_gate_out * dw_prev)
-
-def interpolate_simp_dinterp_gate_out(w_prev, interp_gate_out, dw_prev=0, above_w=1):
-	return (above_w * ( w_prev + interp_gate_out * dw_prev)).sum(1)[:,np.newaxis] # sum across mem_slots
-
-def interpolate_simp_dw_prev(interp_gate_out, above_w):
-	return above_w * ( interp_gate_out)
 
 def f(y):
-	#w_prev[i_ind,j_ind] = y
-	interp_weights[i_ind,j_ind] = y
-	w_prevl = copy.deepcopy(w_prev)
+	w1[i_ind,j_ind] = y
 	
-	# forward
-	interp_gate_out = linear_F(interp_weights, x)
-	w_interp = interpolate_simp(w_prevl, interp_gate_out)
-	read_mem = read_from_mem(w_interp, mem)
+	o_prev = copy.deepcopy(o_previ)
 	
-	dw_prev = interpolate_simp_dinterp_gate_out_int(w_prevl, interp_gate_out)
-	#w_prevl = copy.deepcopy(w_interp)
+	###
+	g1 = linear_F(w1,x)
+	g2 = linear_F(w2,g1)
+	o = interpolate_simp(o_prev, g2)
 	
-	# forward2
-	interp_gate_out = linear_F(interp_weights, x2)
-	w_interp = interpolate_simp(w_prevl, interp_gate_out)
-	read_mem = read_from_mem(w_interp, mem)
+	o_prev = copy.deepcopy(o)
 	
-	return ((read_mem - t)**2).sum()
+	###
+	g1 = linear_F(w1,x2)
+	g2 = linear_F(w2,g1)
+	o = interpolate_simp(o_prev, g2)
+	
+	o_prev = copy.deepcopy(o)
+	
+	return ((o - t)**2).sum()
 
 
 def g(y):
-	#w_prev[i_ind,j_ind] = y
-	interp_weights[i_ind,j_ind] = y
-	w_prevl = copy.deepcopy(w_prev)
+	w1[i_ind,j_ind] = y
 	
-	# forward
-	interp_gate_out = linear_F(interp_weights, x)
-	w_interp = interpolate_simp(w_prevl, interp_gate_out)
-	read_mem = read_from_mem(w_interp, mem)
+	do_dw2 = copy.deepcopy(do_dw2i)
+	do_dw1 = copy.deepcopy(do_dw1i)
+	o_prev = copy.deepcopy(o_previ)
 	
-	dw_prev = 0*interpolate_simp_dinterp_gate_out_int(w_prevl, interp_gate_out)
-	#w_prevl = copy.deepcopy(w_interp)
+	###
+	g1 = linear_F(w1,x)
+	g2 = linear_F(w2,g1)
+	o = interpolate_simp(o_prev, g2)
 	
-	# forward2
-	interp_gate_out = linear_F(interp_weights, x2)
-	w_interp = interpolate_simp(w_prevl, interp_gate_out)
-	read_mem = read_from_mem(w_interp, mem)
+	dg2_dw2 = g1
+	dg2_dg1 = w2
 	
-	########
-	dread_from_mem_dw = read_from_mem_dw(mem, 2*(read_mem - t)) # read mem, dw
+	dg1_dw1 = x
 	
-	# interpolation
-	dmem_dw_dw_prev = interpolate_simp_dw_prev(interp_gate_out, dread_from_mem_dw)
-	dmem_dw_dw_interp_gate_out = interpolate_simp_dinterp_gate_out(w_prevl, interp_gate_out, dw_prev,\
-			dread_from_mem_dw)
+	dg2_dw1 = np.einsum(dg2_dg1,[0,1], dg1_dw1, [2,3], [0,1,2])
 	
-	dw_interp_gate_out_dinterp_weights = linear_dF(x2, dmem_dw_dw_interp_gate_out) # interp
+	do_dw1 = np.einsum(do_dw1, range(4), g2, [0,3], range(4))
+	do_dw1 += np.einsum(o_prev, [0,1], dg2_dw1, [0,2,3], range(4))
 	
-	return dw_interp_gate_out_dinterp_weights[i_ind,j_ind]
-	#return dmem_dw_dw_prev[i_ind,j_ind]
+	do_dw2 = np.einsum(do_dw2, [0,1,2], g2, [0,3], [0,1,2])
+	do_dw2 += np.einsum(o_prev, [0,1], dg2_dw2, [2,3], [0,1,2])
+	
+	o_prev = copy.deepcopy(o)
+	
+	###
+	g1 = linear_F(w1,x2)
+	g2 = linear_F(w2,g1)
+	o = interpolate_simp(o_prev, g2)
+	
+	dg2_dw2 = g1
+	dg2_dg1 = w2
+	
+	dg1_dw1 = x2
+	
+	dg2_dw1 = np.einsum(dg2_dg1,[0,1], dg1_dw1, [2,3], [0,1,2])
+	
+	do_dw1 = np.einsum(do_dw1, range(4), g2, [0,3], range(4))
+	do_dw1 += np.einsum(o_prev, [0,1], dg2_dw1, [0,2,3], range(4))
+	
+	do_dw2 = np.einsum(do_dw2, [0,1,2], g2, [0,3], [0,1,2])
+	do_dw2 += np.einsum(o_prev, [0,1], dg2_dw2, [2,3], [0,1,2])
+	
+	o_prev = copy.deepcopy(o)
+	
+	###
+	
+	dw1 = np.einsum(2*(o - t), [0,1], do_dw1, range(4), [2,3])
+	dw2 = np.einsum(2*(o - t), [0,1], do_dw2, [0,1,2], [0,2])
+	
+	return dw1[i_ind,j_ind]
 	
 	
 np.random.seed(np.int64(time.time()))
@@ -105,7 +117,7 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = interp_weights
+	ref = w1
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
 	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
