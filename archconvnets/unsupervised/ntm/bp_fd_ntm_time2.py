@@ -35,7 +35,7 @@ def interpolate_simp(w_prev, interp_gate_out):
 
 
 def f(y):
-	w2[i_ind,j_ind] = y
+	w1[i_ind,j_ind] = y
 	
 	o_prev = copy.deepcopy(o_previ)
 	
@@ -48,7 +48,7 @@ def f(y):
 	o_prev = copy.deepcopy(o)
 	
 	###
-	g1 = linear_F(w1,x)
+	g1 = linear_F(w1,x2)
 	g2 = linear_F(w2,g1)
 	g3 = linear_F(w3,g2)
 	o = interpolate_simp(o_prev, g3)
@@ -59,7 +59,7 @@ def f(y):
 
 
 def g(y):
-	w2[i_ind,j_ind] = y
+	w1[i_ind,j_ind] = y
 	
 	do_dw3 = copy.deepcopy(do_dw3i)
 	do_dw2 = copy.deepcopy(do_dw2i)
@@ -72,9 +72,18 @@ def g(y):
 	g3 = linear_F(w3,g2)
 	o = interpolate_simp(o_prev, g3)
 	
-	dg3_dw3 = g2
+	# w1:
 	dg3_dg2 = w3
+	dg2_dg1 = w2
+	dg1_dw1 = x
 	
+	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
+	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [3,4], [0,1,2,3])
+	
+	do_dw1 = np.einsum(do_dw1, range(5), g3, [0,5], range(5))
+	do_dw1 += np.einsum(o_prev, [0,1], dg3_dw1, [0,2,3,4], range(5))
+	
+	# w2:
 	dg2_dw2 = g1
 	
 	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [2,3], [0,1,2])
@@ -82,26 +91,41 @@ def g(y):
 	do_dw2 = np.einsum(do_dw2, range(4), g3, [0,3], range(4))
 	do_dw2 += np.einsum(o_prev, [0,1], dg3_dw2, [0,2,3], range(4))
 	
+	# w3:
+	dg3_dw3 = g2
+	
 	do_dw3 = np.einsum(do_dw3, [0,1,2], g3, [0,3], [0,1,2])
 	do_dw3 += np.einsum(o_prev, [0,1], dg3_dw3, [2,3], [0,1,2])
 	
 	o_prev = copy.deepcopy(o)
 	
 	###
-	g1 = linear_F(w1,x)
+	g1 = linear_F(w1,x2)
 	g2 = linear_F(w2,g1)
 	g3 = linear_F(w3,g2)
 	o = interpolate_simp(o_prev, g3)
 	
-	dg3_dw3 = g2
+	# w1:
 	dg3_dg2 = w3
+	dg2_dg1 = w2
+	dg1_dw1 = x2
 	
+	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
+	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [3,4], [0,1,2,3])
+	
+	do_dw1 = np.einsum(do_dw1, range(5), g3, [0,5], range(5))
+	do_dw1 += np.einsum(o_prev, [0,1], dg3_dw1, [0,2,3,4], range(5))
+	
+	# w2:
 	dg2_dw2 = g1
 	
 	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [2,3], [0,1,2])
 	
 	do_dw2 = np.einsum(do_dw2, range(4), g3, [0,3], range(4))
 	do_dw2 += np.einsum(o_prev, [0,1], dg3_dw2, [0,2,3], range(4))
+	
+	# w3:
+	dg3_dw3 = g2
 	
 	do_dw3 = np.einsum(do_dw3, [0,1,2], g3, [0,3], [0,1,2])
 	do_dw3 += np.einsum(o_prev, [0,1], dg3_dw3, [2,3], [0,1,2])
@@ -110,10 +134,11 @@ def g(y):
 	
 	###
 	
+	dw1 = np.einsum(2*(o - t), [0,1], do_dw1, range(5), [3,4])
 	dw2 = np.einsum(2*(o - t), [0,1], do_dw2, range(4), [2,3])
 	dw3 = np.einsum(2*(o - t), [0,1], do_dw3, [0,1,2], [0,2])
 	
-	return dw2[i_ind,j_ind]
+	return dw1[i_ind,j_ind]
 	
 	
 np.random.seed(np.int64(time.time()))
@@ -124,7 +149,7 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = w2
+	ref = w1
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
 	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
