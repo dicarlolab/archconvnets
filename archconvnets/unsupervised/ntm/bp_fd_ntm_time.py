@@ -73,9 +73,9 @@ def g(y):
 	o = interpolate_simp(o_prev, g3)
 	
 	# w1:
-	dg3_dg2 = 2 * w3 * linear_F(w3,g2)
-	dg2_dg1 = 2 * w2 * linear_F(w2,g1)
-	dg1_dw1 = 2 * x.T * linear_F(w1,x)
+	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
+	dg2_dg1 = sq_dlayer_in_nsum(w2, g1)
+	dg1_dw1 = sq_dF(w1, x, g1)
 	
 	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
 	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [2,3], [0,1,2,3])
@@ -84,7 +84,7 @@ def g(y):
 	do_dw1 += np.einsum(o_prev, [0,1], dg3_dw1, [0,4,2,3], range(4))
 	
 	# w2:
-	dg2_dw2 = 2 * g1.T * linear_F(w2,g1)
+	dg2_dw2 = sq_dF(w2, g1, g2)
 	
 	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2], [0,1,2])
 	
@@ -92,7 +92,7 @@ def g(y):
 	do_dw2 += np.einsum(o_prev, [0,1], dg3_dw2, [0,2,3], range(4))
 	
 	# w3:
-	dg3_dw3 = 2 * g2.T * linear_F(w3,g2)
+	dg3_dw3 = sq_dF(w3, g2, g3)
 	
 	do_dw3 = np.einsum(do_dw3, [0,1,2], g3, [0,3], [0,1,2])
 	do_dw3 += np.einsum(o_prev, [0,1], dg3_dw3, [0,2], [0,1,2])
@@ -106,9 +106,9 @@ def g(y):
 	o = interpolate_simp(o_prev, g3)
 	
 	# w1:
-	dg3_dg2 = 2 * w3 * linear_F(w3,g2)
-	dg2_dg1 = 2 * w2 * linear_F(w2,g1)
-	dg1_dw1 = 2 * x2.T * linear_F(w1,x2)
+	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
+	dg2_dg1 = sq_dlayer_in_nsum(w2, g1)
+	dg1_dw1 = sq_dF(w1, x2, g1)
 	
 	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
 	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [2,3], [0,1,2,3])
@@ -117,7 +117,7 @@ def g(y):
 	do_dw1 += np.einsum(o_prev, [0,1], dg3_dw1, [0,4,2,3], range(4))
 	
 	# w2:
-	dg2_dw2 = 2 * g1.T * linear_F(w2,g1)
+	dg2_dw2 = sq_dF(w2, g1, g2)
 	
 	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2], [0,1,2])
 	
@@ -125,7 +125,7 @@ def g(y):
 	do_dw2 += np.einsum(o_prev, [0,1], dg3_dw2, [0,2,3], range(4))
 	
 	# w3:
-	dg3_dw3 = 2 * g2.T * linear_F(w3,g2)
+	dg3_dw3 = sq_dF(w3, g2, g3)
 	
 	do_dw3 = np.einsum(do_dw3, [0,1,2], g3, [0,3], [0,1,2])
 	do_dw3 += np.einsum(o_prev, [0,1], dg3_dw3, [0,2], [0,1,2])
