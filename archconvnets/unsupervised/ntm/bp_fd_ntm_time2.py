@@ -51,7 +51,7 @@ def interpolate_simp(w_prev, interp_gate_out):
 
 
 def f(y):
-	w3[i_ind,j_ind] = y
+	w1[i_ind,j_ind] = y
 	
 	o_prev = copy.deepcopy(o_previ)
 	
@@ -79,7 +79,7 @@ def f(y):
 
 
 def g(y):
-	w3[i_ind,j_ind] = y
+	w1[i_ind,j_ind] = y
 	
 	do_dw3 = copy.deepcopy(do_dw3i)
 	do_dw2 = copy.deepcopy(do_dw2i)
@@ -94,6 +94,7 @@ def g(y):
 	o_in += interpolate_simp(o_content, g3)
 	o = sq_points(o_in)
 	
+	do_do_in = sq_points_dinput(o_in)
 	# w1:
 	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
 	dg2_dg1 = sq_dlayer_in_nsum(w2, g1)
@@ -102,24 +103,27 @@ def g(y):
 	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
 	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [2,3], range(4))
 	
-	do_dw1 = np.einsum(do_dw1 + do_content_dw1, range(4), g3, [0,4], range(4))
-	do_dw1 += np.einsum(o_prev + o_content, [0,1], dg3_dw1, [0,4,2,3], range(4))
+	do_in_dw1 = np.einsum(do_dw1 + do_content_dw1, range(4), g3, [0,4], range(4))
+	do_in_dw1 += np.einsum(o_prev + o_content, [0,1], dg3_dw1, [0,4,2,3], range(4))
+	
+	do_dw1 = np.einsum(do_in_dw1, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
 	
 	# w2:
 	dg2_dw2 = sq_dF(w2, g1, g2)
 	
 	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2], [0,1,2])
 	
-	do_dw2 = np.einsum(do_dw2 + do_content_dw2, range(4), g3, [0,3], range(4))
-	do_dw2 += np.einsum(o_prev + o_content, [0,1], dg3_dw2, [0,2,3], range(4))
+	do_in_dw2 = np.einsum(do_dw2 + do_content_dw2, range(4), g3, [0,3], range(4))
+	do_in_dw2 += np.einsum(o_prev + o_content, [0,1], dg3_dw2, [0,2,3], range(4))
+	
+	do_dw2 = np.einsum(do_in_dw2, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
 	
 	# w3:
 	dg3_dw3 = sq_dF(w3, g2, g3)
 	
-	do_do_in = sq_points_dinput(o_in)
-	
 	do_in_dw3 = np.einsum(do_dw3 + do_content_dw3, [0,1,2], g3, [0,3], [0,1,2])
 	do_in_dw3 += np.einsum(o_prev + o_content, [0,1], dg3_dw3, [0,2], [0,1,2])
+	
 	do_dw3 = np.einsum(do_in_dw3, [0,1,2], do_do_in, [3,4,0,1], [3,4,2])
 	
 	o_prev = copy.deepcopy(o)
@@ -134,6 +138,7 @@ def g(y):
 	o_in += interpolate_simp(o_content, g3)
 	o = sq_points(o_in)
 	
+	do_do_in = sq_points_dinput(o_in)
 	# w1:
 	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
 	dg2_dg1 = sq_dlayer_in_nsum(w2, g1)
@@ -142,24 +147,27 @@ def g(y):
 	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
 	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [2,3], range(4))
 	
-	do_dw1 = np.einsum(do_dw1 + do_content_dw1, range(4), g3, [0,4], range(4))
-	do_dw1 += np.einsum(o_prev + o_content, [0,1], dg3_dw1, [0,4,2,3], range(4))
+	do_in_dw1 = np.einsum(do_dw1 + do_content_dw1, range(4), g3, [0,4], range(4))
+	do_in_dw1 += np.einsum(o_prev + o_content, [0,1], dg3_dw1, [0,4,2,3], range(4))
+	
+	do_dw1 = np.einsum(do_in_dw1, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
 	
 	# w2:
 	dg2_dw2 = sq_dF(w2, g1, g2)
 	
 	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2], [0,1,2])
 	
-	do_dw2 = np.einsum(do_dw2 + do_content_dw2, range(4), g3, [0,3], range(4))
-	do_dw2 += np.einsum(o_prev + o_content, [0,1], dg3_dw2, [0,2,3], range(4))
+	do_in_dw2 = np.einsum(do_dw2 + do_content_dw2, range(4), g3, [0,3], range(4))
+	do_in_dw2 += np.einsum(o_prev + o_content, [0,1], dg3_dw2, [0,2,3], range(4))
+	
+	do_dw2 = np.einsum(do_in_dw2, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
 	
 	# w3:
 	dg3_dw3 = sq_dF(w3, g2, g3)
 	
-	do_do_in = sq_points_dinput(o_in)
-	
 	do_in_dw3 = np.einsum(do_dw3 + do_content_dw3, [0,1,2], g3, [0,3], [0,1,2])
 	do_in_dw3 += np.einsum(o_prev + o_content, [0,1], dg3_dw3, [0,2], [0,1,2])
+	
 	do_dw3 = np.einsum(do_in_dw3, [0,1,2], do_do_in, [3,4,0,1], [3,4,2])
 	
 	o_prev = copy.deepcopy(o)
@@ -170,18 +178,18 @@ def g(y):
 	dw2 = np.einsum(2*(o - t), [0,1], do_dw2, range(4), [2,3])
 	dw3 = np.einsum(2*(o - t), [0,1], do_dw3, [0,1,2], [0,2])
 	
-	return dw3[i_ind,j_ind]
+	return dw1[i_ind,j_ind]
 	
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e1
+eps = np.sqrt(np.finfo(np.float).eps)*1e2
 
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = w3
+	ref = w1
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
 	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
