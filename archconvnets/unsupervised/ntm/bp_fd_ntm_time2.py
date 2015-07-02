@@ -94,10 +94,30 @@ def g(y):
 	o_in += interpolate_simp(o_content, g3)
 	o = sq_points(o_in)
 	
+	#########
 	do_do_in = sq_points_dinput(o_in)
-	# w1:
+	
+	# w3:
+	dg3_dw3 = sq_dF(w3, g2, g3)
 	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
+	
+	do_in_dw3 = np.einsum(do_dw3 + do_content_dw3, [0,1,2], g3, [0,3], [0,1,2])
+	do_in_dw3 += np.einsum(o_prev + o_content, [0,1], dg3_dw3, [0,2], [0,1,2])
+	
+	do_dw3 = np.einsum(do_in_dw3, [0,1,2], do_do_in, [3,4,0,1], [3,4,2])
+	
+	# w2:
+	dg2_dw2 = sq_dF(w2, g1, g2)
 	dg2_dg1 = sq_dlayer_in_nsum(w2, g1)
+	
+	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2], [0,1,2])
+	
+	do_in_dw2 = np.einsum(do_dw2 + do_content_dw2, range(4), g3, [0,3], range(4))
+	do_in_dw2 += np.einsum(o_prev + o_content, [0,1], dg3_dw2, [0,2,3], range(4))
+	
+	do_dw2 = np.einsum(do_in_dw2, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
+	
+	# w1:
 	dg1_dw1 = sq_dF(w1, x, g1)
 	
 	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
@@ -107,24 +127,6 @@ def g(y):
 	do_in_dw1 += np.einsum(o_prev + o_content, [0,1], dg3_dw1, [0,4,2,3], range(4))
 	
 	do_dw1 = np.einsum(do_in_dw1, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
-	
-	# w2:
-	dg2_dw2 = sq_dF(w2, g1, g2)
-	
-	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2], [0,1,2])
-	
-	do_in_dw2 = np.einsum(do_dw2 + do_content_dw2, range(4), g3, [0,3], range(4))
-	do_in_dw2 += np.einsum(o_prev + o_content, [0,1], dg3_dw2, [0,2,3], range(4))
-	
-	do_dw2 = np.einsum(do_in_dw2, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
-	
-	# w3:
-	dg3_dw3 = sq_dF(w3, g2, g3)
-	
-	do_in_dw3 = np.einsum(do_dw3 + do_content_dw3, [0,1,2], g3, [0,3], [0,1,2])
-	do_in_dw3 += np.einsum(o_prev + o_content, [0,1], dg3_dw3, [0,2], [0,1,2])
-	
-	do_dw3 = np.einsum(do_in_dw3, [0,1,2], do_do_in, [3,4,0,1], [3,4,2])
 	
 	o_prev = copy.deepcopy(o)
 	
@@ -138,10 +140,30 @@ def g(y):
 	o_in += interpolate_simp(o_content, g3)
 	o = sq_points(o_in)
 	
+	#########
 	do_do_in = sq_points_dinput(o_in)
-	# w1:
+	
+	# w3:
+	dg3_dw3 = sq_dF(w3, g2, g3)
 	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
+	
+	do_in_dw3 = np.einsum(do_dw3 + do_content_dw3, [0,1,2], g3, [0,3], [0,1,2])
+	do_in_dw3 += np.einsum(o_prev + o_content, [0,1], dg3_dw3, [0,2], [0,1,2])
+	
+	do_dw3 = np.einsum(do_in_dw3, [0,1,2], do_do_in, [3,4,0,1], [3,4,2])
+	
+	# w2:
+	dg2_dw2 = sq_dF(w2, g1, g2)
 	dg2_dg1 = sq_dlayer_in_nsum(w2, g1)
+	
+	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2], [0,1,2])
+	
+	do_in_dw2 = np.einsum(do_dw2 + do_content_dw2, range(4), g3, [0,3], range(4))
+	do_in_dw2 += np.einsum(o_prev + o_content, [0,1], dg3_dw2, [0,2,3], range(4))
+	
+	do_dw2 = np.einsum(do_in_dw2, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
+	
+	# w1:
 	dg1_dw1 = sq_dF(w1, x2, g1)
 	
 	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
@@ -151,24 +173,6 @@ def g(y):
 	do_in_dw1 += np.einsum(o_prev + o_content, [0,1], dg3_dw1, [0,4,2,3], range(4))
 	
 	do_dw1 = np.einsum(do_in_dw1, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
-	
-	# w2:
-	dg2_dw2 = sq_dF(w2, g1, g2)
-	
-	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2], [0,1,2])
-	
-	do_in_dw2 = np.einsum(do_dw2 + do_content_dw2, range(4), g3, [0,3], range(4))
-	do_in_dw2 += np.einsum(o_prev + o_content, [0,1], dg3_dw2, [0,2,3], range(4))
-	
-	do_dw2 = np.einsum(do_in_dw2, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
-	
-	# w3:
-	dg3_dw3 = sq_dF(w3, g2, g3)
-	
-	do_in_dw3 = np.einsum(do_dw3 + do_content_dw3, [0,1,2], g3, [0,3], [0,1,2])
-	do_in_dw3 += np.einsum(o_prev + o_content, [0,1], dg3_dw3, [0,2], [0,1,2])
-	
-	do_dw3 = np.einsum(do_in_dw3, [0,1,2], do_do_in, [3,4,0,1], [3,4,2])
 	
 	o_prev = copy.deepcopy(o)
 	
