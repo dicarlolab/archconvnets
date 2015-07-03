@@ -43,6 +43,14 @@ do_content_dw1 = np.zeros_like(do_dw1i)
 def sq_points(input):
 	return input**2
 
+def sq_points_dinput_comb(input, above_layer):
+	dinput = np.zeros((input.shape[0], input.shape[1], input.shape[0], input.shape[1]))
+	for i in range(input.shape[0]):
+		for j in range(input.shape[1]):
+			dinput[i,j,i,j] = 2*input[i,j]
+	
+	return np.einsum(above_layer, [0,1,2,3], dinput, [2,3,4,5], [0,1,4,5])
+
 def sq_points_dinput(input):
 	dinput = np.zeros((input.shape[0], input.shape[1], input.shape[0], input.shape[1]))
 	for i in range(input.shape[0]):
@@ -131,9 +139,7 @@ def g(y):
 	
 	#########
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
-	do_sq_do_in = sq_points_dinput(o_in)
-	
-	do_do_in = np.einsum(do_do_sq, [0,1,2,3], do_sq_do_in, [2,3,4,5], [0,1,4,5])
+	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
 	
 	# w3:
 	dg3_dw3 = sq_dF(w3, g2, g3)
@@ -181,9 +187,7 @@ def g(y):
 	
 	#########
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
-	do_sq_do_in = sq_points_dinput(o_in)
-	
-	do_do_in = np.einsum(do_do_sq, [0,1,2,3], do_sq_do_in, [2,3,4,5], [0,1,4,5])
+	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
 	
 	# w3:
 	dg3_dw3 = sq_dF(w3, g2, g3)
