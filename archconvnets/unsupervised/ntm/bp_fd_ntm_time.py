@@ -11,13 +11,17 @@ from ntm_gradients import *
 n_shifts = 3
 C = 4
 M = 5
+mem_length = 8
 n2 = 6
 n1 = 7
 n_in = 3
 
 SCALE = .4
 
-t = np.random.normal(size=(C,M))
+t = np.random.normal(size=(C,mem_length))
+
+mem = np.random.normal(size=(M, mem_length))
+
 o_previ = np.random.normal(size=(C,M))
 o_content = np.random.normal(size=(C,M))
 
@@ -38,6 +42,13 @@ do_content_dw3 = np.zeros_like(do_dw3i)
 do_content_dw2 = np.zeros_like(do_dw2i)
 do_content_dw1 = np.zeros_like(do_dw1i)
 
+def read_from_mem_dw_nsum(mem):
+	temp = np.zeros((o_previ.shape[0], mem.shape[1], o_previ.shape[0], o_previ.shape[1]))
+	for i in range(o_previ.shape[0]):
+		for k in range(o_previ.shape[1]):
+			for l in range(mem.shape[1]):
+				temp[i,l, i,k] += mem[k,l]
+	return temp
 
 ##################
 def sq_points(input):
@@ -64,7 +75,7 @@ def interpolate_simp(w_prev, interp_gate_out):
 	
 ############### shift w
 def shift_w(shift_out, w_interp):	
-	# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, mem_length]
+	# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, n_mem_slots]
 	
 	w_tilde = np.zeros_like(w_interp)
 	n_mem_slots = w_interp.shape[1]
@@ -72,26 +83,25 @@ def shift_w(shift_out, w_interp):
 	for loc in range(n_mem_slots):
 		w_tilde[:,loc] = shift_out[:,0]*w_interp[:,loc-1] + shift_out[:,1]*w_interp[:,loc] + \
 				shift_out[:,2]*w_interp[:,(loc+1)%n_mem_slots]
-	return w_tilde # [n_controllers, mem_length]
+	return w_tilde # [n_controllers, n_mem_slots]
 	
 ################
 def shift_w_dw_interp_nsum(shift_out):
 	# shift_out: [n_controllers, n_shifts]
-	mem_length = M
 	
-	temp = np.zeros((C, mem_length, C, mem_length))
+	temp = np.zeros((C, M, C, M))
 	
 	for c in range(C):
-		for loc in range(mem_length):
+		for loc in range(M):
 			temp[c,loc,c,loc-1] = shift_out[c,0]
 			temp[c,loc,c,loc] = shift_out[c,1]
-			temp[c,loc,c,(loc+1)%mem_length] = shift_out[c,2]
+			temp[c,loc,c,(loc+1)%M] = shift_out[c,2]
 			
-	return temp # [n_controllers, mem_length, n_controllers, mem_length]
+	return temp # [n_controllers, M, n_controllers, M]
 
 
 def f(y):
-	w1[i_ind,j_ind] = y
+	w3[i_ind,j_ind] = y
 	
 	o_prev = copy.deepcopy(o_previ)
 	
@@ -103,6 +113,7 @@ def f(y):
 	o_in += interpolate_simp(o_content, g3)
 	o_sq = sq_points(o_in)
 	o = shift_w(shift_out, o_sq)
+	read_mem = read_from_mem(o, mem)
 	
 	o_prev = copy.deepcopy(o)
 	
@@ -114,14 +125,15 @@ def f(y):
 	o_in += interpolate_simp(o_content, g3)
 	o_sq = sq_points(o_in)
 	o = shift_w(shift_out, o_sq)
+	read_mem = read_from_mem(o, mem)
 	
 	o_prev = copy.deepcopy(o)
 	
-	return ((o - t)**2).sum()
+	return ((read_mem - t)**2).sum()
 
 
 def g(y):
-	w1[i_ind,j_ind] = y
+	w3[i_ind,j_ind] = y
 	
 	do_dw3 = copy.deepcopy(do_dw3i)
 	do_dw2 = copy.deepcopy(do_dw2i)
@@ -136,8 +148,11 @@ def g(y):
 	o_in += interpolate_simp(o_content, g3)
 	o_sq = sq_points(o_in)
 	o = shift_w(shift_out, o_sq)
+	read_mem = read_from_mem(o, mem)
 	
 	#########
+	dread_mem_do = read_from_mem_dw_nsum(mem)
+	
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
 	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
 	
@@ -184,8 +199,11 @@ def g(y):
 	o_in += interpolate_simp(o_content, g3)
 	o_sq = sq_points(o_in)
 	o = shift_w(shift_out, o_sq)
+	read_mem = read_from_mem(o, mem)
 	
 	#########
+	dread_mem_do = read_from_mem_dw_nsum(mem)
+	
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
 	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
 	
@@ -223,12 +241,14 @@ def g(y):
 	o_prev = copy.deepcopy(o)
 	
 	###
+	derr_dread_mem = 2*(read_mem - t)
+	derr_do = np.einsum(derr_dread_mem, [0,1], dread_mem_do, range(4), range(4))
 	
-	dw1 = np.einsum(2*(o - t), [0,1], do_dw1, range(4), [2,3])
-	dw2 = np.einsum(2*(o - t), [0,1], do_dw2, range(4), [2,3])
-	dw3 = np.einsum(2*(o - t), [0,1], do_dw3, [0,1,2], [0,2])
+	dw1 = np.einsum(derr_do, range(4), do_dw1,  [2,3,4,5], [4,5])
+	dw2 = np.einsum(derr_do, range(4), do_dw2,  [2,3,4,5], [4,5])
+	dw3 = np.einsum(derr_do, range(4), do_dw3,  [2,3,4],   [0,4])
 	
-	return dw1[i_ind,j_ind]
+	return dw3[i_ind,j_ind]
 	
 	
 np.random.seed(np.int64(time.time()))
@@ -239,7 +259,7 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = w1
+	ref = w3
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
 	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
