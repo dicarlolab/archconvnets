@@ -20,7 +20,7 @@ SCALE = .4
 
 t = np.random.normal(size=(C,mem_length))
 
-mem = np.random.normal(size=(M, mem_length))
+mem_previ = np.random.normal(size=(M, mem_length))
 
 o_previ = np.random.normal(size=(C,M))
 o_content = np.random.normal(size=(C,M))
@@ -28,6 +28,10 @@ o_content = np.random.normal(size=(C,M))
 w3 = np.random.normal(size=(C,n2)) * SCALE
 w2 = np.random.normal(size=(n2,n1)) * SCALE
 w1 = np.random.normal(size=(n1,n_in)) * SCALE
+
+ww = np.random.normal(size=(C, M, n_in)) * SCALE
+
+add_out = np.random.normal(size=(C, mem_length)) * SCALE
 
 shift_out = np.random.normal(size=(C, n_shifts))
 
@@ -99,11 +103,30 @@ def shift_w_dw_interp_nsum(shift_out):
 			
 	return temp # [n_controllers, M, n_controllers, M]
 
+#####
+def add_mem(gw, add_out):
+	return np.dot(gw.T, add_out)
+
+def add_mem_dgw(add_out):
+	temp = np.zeros((M, mem_length, C, M))
+	
+	#out = np.zeros((M, mem_length))
+	
+	for i in range(C):
+		for k in range(M):
+			for j in range(mem_length):
+				temp[k,j,i,k] += add_out[i,j]# * gw[i,k]
+	return temp
+
+#######
+def linear_2d_F(ww,x):
+	return np.squeeze(np.dot(ww,x))
 
 def f(y):
 	w3[i_ind,j_ind] = y
 	
 	o_prev = copy.deepcopy(o_previ)
+	mem_prev = copy.deepcopy(mem_previ)
 	
 	###
 	g1 = sq_F(w1,x)
@@ -113,9 +136,13 @@ def f(y):
 	o_in += interpolate_simp(o_content, g3)
 	o_sq = sq_points(o_in)
 	o = shift_w(shift_out, o_sq)
-	read_mem = read_from_mem(o, mem)
+	read_mem = read_from_mem(o, mem_prev)
+	
+	gw = linear_2d_F(ww,x)
+	mem = mem_prev + add_mem(gw, add_out)
 	
 	o_prev = copy.deepcopy(o)
+	mem_prev = copy.deepcopy(mem)
 	
 	###
 	g1 = sq_F(w1,x2)
@@ -125,9 +152,13 @@ def f(y):
 	o_in += interpolate_simp(o_content, g3)
 	o_sq = sq_points(o_in)
 	o = shift_w(shift_out, o_sq)
-	read_mem = read_from_mem(o, mem)
+	read_mem = read_from_mem(o, mem_prev)
+	
+	gw = linear_2d_F(ww,x2)
+	mem = mem_prev + add_mem(gw, add_out)
 	
 	o_prev = copy.deepcopy(o)
+	mem_prev = copy.deepcopy(mem)
 	
 	return ((read_mem - t)**2).sum()
 
@@ -139,6 +170,7 @@ def g(y):
 	do_dw2 = copy.deepcopy(do_dw2i)
 	do_dw1 = copy.deepcopy(do_dw1i)
 	o_prev = copy.deepcopy(o_previ)
+	mem_prev = copy.deepcopy(mem_previ)
 	
 	###
 	g1 = sq_F(w1,x)
@@ -148,10 +180,14 @@ def g(y):
 	o_in += interpolate_simp(o_content, g3)
 	o_sq = sq_points(o_in)
 	o = shift_w(shift_out, o_sq)
-	read_mem = read_from_mem(o, mem)
+	read_mem = read_from_mem(o, mem_prev)
+	
+	gw = linear_2d_F(ww,x)
+	mem = mem_prev + add_mem(gw, add_out)
+	
 	
 	#########
-	dread_mem_do = read_from_mem_dw_nsum(mem)
+	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
 	
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
 	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
@@ -174,7 +210,7 @@ def g(y):
 	do_in_dw2 = np.einsum(do_dw2 + do_content_dw2, range(4), g3, [0,3], range(4))
 	do_in_dw2 += np.einsum(o_prev + o_content, [0,1], dg3_dw2, [0,2,3], range(4))
 	
-	do_dw2 = np.einsum(do_in_dw2, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
+	do_dw2 = np.einsum(do_do_in, range(4), do_in_dw2, [2,3,4,5], [0,1,4,5])
 	
 	# w1:
 	dg1_dw1 = sq_dF(w1, x, g1)
@@ -185,9 +221,10 @@ def g(y):
 	do_in_dw1 = np.einsum(do_dw1 + do_content_dw1, range(4), g3, [0,4], range(4))
 	do_in_dw1 += np.einsum(o_prev + o_content, [0,1], dg3_dw1, [0,4,2,3], range(4))
 	
-	do_dw1 = np.einsum(do_in_dw1, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
+	do_dw1 = np.einsum(do_do_in, range(4), do_in_dw1, [2,3,4,5], [0,1,4,5])
 	
 	o_prev = copy.deepcopy(o)
+	mem_prev = copy.deepcopy(mem)
 	
 	###
 	
@@ -199,10 +236,13 @@ def g(y):
 	o_in += interpolate_simp(o_content, g3)
 	o_sq = sq_points(o_in)
 	o = shift_w(shift_out, o_sq)
-	read_mem = read_from_mem(o, mem)
+	read_mem = read_from_mem(o, mem_prev)
+	
+	gw = linear_2d_F(ww,x2)
+	mem = mem_prev + add_mem(gw, add_out)
 	
 	#########
-	dread_mem_do = read_from_mem_dw_nsum(mem)
+	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
 	
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
 	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
@@ -225,7 +265,7 @@ def g(y):
 	do_in_dw2 = np.einsum(do_dw2 + do_content_dw2, range(4), g3, [0,3], range(4))
 	do_in_dw2 += np.einsum(o_prev + o_content, [0,1], dg3_dw2, [0,2,3], range(4))
 	
-	do_dw2 = np.einsum(do_in_dw2, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
+	do_dw2 = np.einsum(do_do_in, range(4), do_in_dw2, [2,3,4,5], [0,1,4,5])
 	
 	# w1:
 	dg1_dw1 = sq_dF(w1, x2, g1)
@@ -236,9 +276,10 @@ def g(y):
 	do_in_dw1 = np.einsum(do_dw1 + do_content_dw1, range(4), g3, [0,4], range(4))
 	do_in_dw1 += np.einsum(o_prev + o_content, [0,1], dg3_dw1, [0,4,2,3], range(4))
 	
-	do_dw1 = np.einsum(do_in_dw1, [0,1,2,5], do_do_in, [3,4,0,1], [3,4,2,5])
+	do_dw1 = np.einsum(do_do_in, range(4), do_in_dw1, [2,3,4,5], [0,1,4,5])
 	
 	o_prev = copy.deepcopy(o)
+	mem_prev = copy.deepcopy(mem)
 	
 	###
 	derr_dread_mem = 2*(read_mem - t)
