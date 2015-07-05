@@ -46,6 +46,28 @@ do_content_dw3 = np.zeros_like(do_dw3i)
 do_content_dw2 = np.zeros_like(do_dw2i)
 do_content_dw1 = np.zeros_like(do_dw1i)
 
+##########
+def update_partials(g1,g2,g3,w1,w2,w3,x,o_prev,o_content,do_do_sq,do_do_in, do_dw1,do_dw2,do_dw3):
+	# w3:
+	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
+	dg3_dw3 = sq_dF_nsum(w3, g2, g3)
+	
+	do_dw3 = interpolate_simp_dx(dg3_dw3, do_dw3, do_content_dw3, g3, o_prev, o_content, do_do_in)
+	
+	# w2:
+	dg2_dg1 = sq_dlayer_in_nsum(w2, g1)
+	dg2_dw2 = sq_dF_nsum(w2, g1, g2)
+	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2,3], [0,2,3])
+	do_dw2 = interpolate_simp_dx(dg3_dw2, do_dw2, do_content_dw2, g3, o_prev, o_content, do_do_in)
+	
+	# w1:
+	dg1_dw1 = sq_dF_nsum(w1, x, g1)
+	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
+	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [2,3,4], [0,3,4])
+	do_dw1 = interpolate_simp_dx(dg3_dw1, do_dw1, do_content_dw1, g3, o_prev, o_content, do_do_in)
+	
+	return do_dw1, do_dw2, do_dw3
+
 ##############
 def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_do_in):
 	do_in_dx = np.einsum(do_dx + do_content_dx, range(4), g3, [0,3], range(4))
@@ -181,7 +203,7 @@ def g(y):
 	o_prev = copy.deepcopy(o_previ)
 	mem_prev = copy.deepcopy(mem_previ)
 	
-	###
+	### forward
 	g1 = sq_F(w1,x)
 	g2 = sq_F(w2,g1)
 	g3 = sq_F(w3,g2)
@@ -194,37 +216,19 @@ def g(y):
 	gw = linear_2d_F(ww,x)
 	mem = mem_prev + add_mem(gw, add_out)
 	
-	
-	#########
+	######### gradients
 	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
 	
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
 	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
 	
-	# w3:
-	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
-	dg3_dw3 = sq_dF_nsum(w3, g2, g3)
+	do_dw1, do_dw2, do_dw3 = update_partials(g1,g2,g3,w1,w2,w3,x,o_prev,o_content,do_do_sq,do_do_in, do_dw1,do_dw2,do_dw3)
 	
-	do_dw3 = interpolate_simp_dx(dg3_dw3, do_dw3, do_content_dw3, g3, o_prev, o_content, do_do_in)
-	
-	# w2:
-	dg2_dg1 = sq_dlayer_in_nsum(w2, g1)
-	dg2_dw2 = sq_dF_nsum(w2, g1, g2)
-	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2,3], [0,2,3])
-	do_dw2 = interpolate_simp_dx(dg3_dw2, do_dw2, do_content_dw2, g3, o_prev, o_content, do_do_in)
-	
-	# w1:
-	dg1_dw1 = sq_dF_nsum(w1, x, g1)
-	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
-	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [2,3,4], [0,3,4])
-	do_dw1 = interpolate_simp_dx(dg3_dw1, do_dw1, do_content_dw1, g3, o_prev, o_content, do_do_in)
 	
 	o_prev = copy.deepcopy(o)
 	mem_prev = copy.deepcopy(mem)
 	
-	###
-	
-	###
+	### forward
 	g1 = sq_F(w1,x2)
 	g2 = sq_F(w2,g1)
 	g3 = sq_F(w3,g2)
@@ -237,29 +241,13 @@ def g(y):
 	gw = linear_2d_F(ww,x2)
 	mem = mem_prev + add_mem(gw, add_out)
 	
-	#########
+	######### gradients
 	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
 	
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
 	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
 	
-	# w3:
-	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
-	dg3_dw3 = sq_dF_nsum(w3, g2, g3)
-	
-	do_dw3 = interpolate_simp_dx(dg3_dw3, do_dw3, do_content_dw3, g3, o_prev, o_content, do_do_in)
-	
-	# w2:
-	dg2_dg1 = sq_dlayer_in_nsum(w2, g1)
-	dg2_dw2 = sq_dF_nsum(w2, g1, g2)
-	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2,3], [0,2,3])
-	do_dw2 = interpolate_simp_dx(dg3_dw2, do_dw2, do_content_dw2, g3, o_prev, o_content, do_do_in)
-	
-	# w1:
-	dg1_dw1 = sq_dF_nsum(w1, x2, g1)
-	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
-	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [2,3,4], [0,3,4])
-	do_dw1 = interpolate_simp_dx(dg3_dw1, do_dw1, do_content_dw1, g3, o_prev, o_content, do_do_in)
+	do_dw1, do_dw2, do_dw3 = update_partials(g1,g2,g3,w1,w2,w3,x2,o_prev,o_content,do_do_sq,do_do_in, do_dw1,do_dw2,do_dw3)
 	
 	o_prev = copy.deepcopy(o)
 	mem_prev = copy.deepcopy(mem)
