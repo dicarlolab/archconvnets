@@ -38,7 +38,7 @@ shift_out = np.random.normal(size=(C, n_shifts))
 x = np.random.normal(size=(n_in,1))
 x2 = np.random.normal(size=(n_in,1))
 
-do_dw3i = np.zeros((C,M,n2))
+do_dw3i = np.zeros((C,M,C,n2))
 do_dw2i = np.zeros((C,M,n2,n1))
 do_dw1i = np.zeros((C,M,n1,n_in))
 
@@ -46,6 +46,15 @@ do_content_dw3 = np.zeros_like(do_dw3i)
 do_content_dw2 = np.zeros_like(do_dw2i)
 do_content_dw1 = np.zeros_like(do_dw1i)
 
+##############
+def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_do_in):
+	do_in_dx = np.einsum(do_dx + do_content_dx, range(4), g3, [0,3], range(4))
+	do_in_dx += np.einsum(o_prev + o_content, [0,1], dg3_dx, [0,2,3], range(4))
+	
+	do_dx = np.einsum(do_do_in, range(4), do_in_dx, [2,3,4,5], [0,1,4,5])
+	return do_dx
+
+############
 def read_from_mem_dw_nsum(mem):
 	temp = np.zeros((o_previ.shape[0], mem.shape[1], o_previ.shape[0], o_previ.shape[1]))
 	for i in range(o_previ.shape[0]):
@@ -193,13 +202,10 @@ def g(y):
 	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
 	
 	# w3:
-	dg3_dw3 = sq_dF(w3, g2, g3)
 	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
+	dg3_dw3 = sq_dF_nsum(w3, g2, g3)
 	
-	do_in_dw3 = np.einsum(do_dw3 + do_content_dw3, [0,1,2], g3, [0,3], [0,1,2])
-	do_in_dw3 += np.einsum(o_prev + o_content, [0,1], dg3_dw3, [0,2], [0,1,2])
-	
-	do_dw3 = np.einsum(do_in_dw3, [0,1,2], do_do_in, [3,4,0,1], [3,4,2])
+	do_dw3 = interpolate_simp_dx(dg3_dw3, do_dw3, do_content_dw3, g3, o_prev, o_content, do_do_in)
 	
 	# w2:
 	dg2_dw2 = sq_dF(w2, g1, g2)
@@ -207,21 +213,15 @@ def g(y):
 	
 	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2], [0,1,2])
 	
-	do_in_dw2 = np.einsum(do_dw2 + do_content_dw2, range(4), g3, [0,3], range(4))
-	do_in_dw2 += np.einsum(o_prev + o_content, [0,1], dg3_dw2, [0,2,3], range(4))
-	
-	do_dw2 = np.einsum(do_do_in, range(4), do_in_dw2, [2,3,4,5], [0,1,4,5])
+	do_dw2 = interpolate_simp_dx(dg3_dw2, do_dw2, do_content_dw2, g3, o_prev, o_content, do_do_in)
 	
 	# w1:
 	dg1_dw1 = sq_dF(w1, x, g1)
 	
 	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
-	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [2,3], range(4))
+	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [2,3], [0,2,3])
 	
-	do_in_dw1 = np.einsum(do_dw1 + do_content_dw1, range(4), g3, [0,4], range(4))
-	do_in_dw1 += np.einsum(o_prev + o_content, [0,1], dg3_dw1, [0,4,2,3], range(4))
-	
-	do_dw1 = np.einsum(do_do_in, range(4), do_in_dw1, [2,3,4,5], [0,1,4,5])
+	do_dw1 = interpolate_simp_dx(dg3_dw1, do_dw1, do_content_dw1, g3, o_prev, o_content, do_do_in)
 	
 	o_prev = copy.deepcopy(o)
 	mem_prev = copy.deepcopy(mem)
@@ -248,13 +248,10 @@ def g(y):
 	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
 	
 	# w3:
-	dg3_dw3 = sq_dF(w3, g2, g3)
 	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
+	dg3_dw3 = sq_dF_nsum(w3, g2, g3)
 	
-	do_in_dw3 = np.einsum(do_dw3 + do_content_dw3, [0,1,2], g3, [0,3], [0,1,2])
-	do_in_dw3 += np.einsum(o_prev + o_content, [0,1], dg3_dw3, [0,2], [0,1,2])
-	
-	do_dw3 = np.einsum(do_in_dw3, [0,1,2], do_do_in, [3,4,0,1], [3,4,2])
+	do_dw3 = interpolate_simp_dx(dg3_dw3, do_dw3, do_content_dw3, g3, o_prev, o_content, do_do_in)
 	
 	# w2:
 	dg2_dw2 = sq_dF(w2, g1, g2)
@@ -262,21 +259,15 @@ def g(y):
 	
 	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2], [0,1,2])
 	
-	do_in_dw2 = np.einsum(do_dw2 + do_content_dw2, range(4), g3, [0,3], range(4))
-	do_in_dw2 += np.einsum(o_prev + o_content, [0,1], dg3_dw2, [0,2,3], range(4))
-	
-	do_dw2 = np.einsum(do_do_in, range(4), do_in_dw2, [2,3,4,5], [0,1,4,5])
+	do_dw2 = interpolate_simp_dx(dg3_dw2, do_dw2, do_content_dw2, g3, o_prev, o_content, do_do_in)
 	
 	# w1:
 	dg1_dw1 = sq_dF(w1, x2, g1)
 	
 	dg3_dg1 = np.einsum(dg3_dg2, [0,1], dg2_dg1, [1,2], [0,1,2])
-	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [2,3], range(4))
+	dg3_dw1 = np.einsum(dg3_dg1, [0,1,2], dg1_dw1, [2,3], [0,2,3])
 	
-	do_in_dw1 = np.einsum(do_dw1 + do_content_dw1, range(4), g3, [0,4], range(4))
-	do_in_dw1 += np.einsum(o_prev + o_content, [0,1], dg3_dw1, [0,4,2,3], range(4))
-	
-	do_dw1 = np.einsum(do_do_in, range(4), do_in_dw1, [2,3,4,5], [0,1,4,5])
+	do_dw1 = interpolate_simp_dx(dg3_dw1, do_dw1, do_content_dw1, g3, o_prev, o_content, do_do_in)
 	
 	o_prev = copy.deepcopy(o)
 	mem_prev = copy.deepcopy(mem)
@@ -287,7 +278,7 @@ def g(y):
 	
 	dw1 = np.einsum(derr_do, range(4), do_dw1,  [2,3,4,5], [4,5])
 	dw2 = np.einsum(derr_do, range(4), do_dw2,  [2,3,4,5], [4,5])
-	dw3 = np.einsum(derr_do, range(4), do_dw3,  [2,3,4],   [0,4])
+	dw3 = np.einsum(derr_do, range(4), do_dw3,  [2,3,4,5], [4,5])
 	
 	return dw3[i_ind,j_ind]
 	

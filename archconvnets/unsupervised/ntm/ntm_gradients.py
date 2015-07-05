@@ -213,6 +213,17 @@ def sq_F(F, layer_in):
 	
 	return np.dot(F,layer_in)**2 # [n1, 1]
 
+def sq_dF_nsum(F, layer_in, layer_out): 
+	# F: [n1, n_in], layer_in: [n_in, 1], layer_out,above_w: [n1,1]
+	
+	s = np.sign(np.dot(F,layer_in))
+	temp = 2*s*np.sqrt(layer_out)*(layer_in.T) # [n1, n_in]
+	
+	temp2 = np.zeros((temp.shape[0], temp.shape[0], temp.shape[1]))
+	for i in range(temp.shape[0]):
+		temp2[i,i] = temp[i]
+	return temp2
+
 def sq_dF(F, layer_in, layer_out, above_w=1): 
 	# F: [n1, n_in], layer_in: [n_in, 1], layer_out,above_w: [n1,1]
 	
