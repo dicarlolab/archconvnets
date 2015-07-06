@@ -141,8 +141,6 @@ def add_mem(gw, add_out):
 def add_mem_dgw(add_out):
 	temp = np.zeros((M, mem_length, C, M))
 	
-	#out = np.zeros((M, mem_length))
-	
 	for i in range(C):
 		for k in range(M):
 			for j in range(mem_length):
@@ -154,7 +152,7 @@ def linear_2d_F(ww,x):
 	return np.squeeze(np.dot(ww,x))
 
 def f(y):
-	w2[i_ind,j_ind] = y
+	w3[i_ind,j_ind] = y
 	
 	o_prev = copy.deepcopy(o_previ)
 	mem_prev = copy.deepcopy(mem_previ)
@@ -195,7 +193,7 @@ def f(y):
 
 
 def g(y):
-	w2[i_ind,j_ind] = y
+	w3[i_ind,j_ind] = y
 	
 	do_dw3 = copy.deepcopy(do_dw3i)
 	do_dw2 = copy.deepcopy(do_dw2i)
@@ -260,7 +258,7 @@ def g(y):
 	dw2 = np.einsum(derr_do, range(4), do_dw2,  [2,3,4,5], [4,5])
 	dw3 = np.einsum(derr_do, range(4), do_dw3,  [2,3,4,5], [4,5])
 	
-	return dw2[i_ind,j_ind]
+	return dw3[i_ind,j_ind]
 	
 	
 np.random.seed(np.int64(time.time()))
@@ -271,7 +269,7 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = w2
+	ref = w3
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
 	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
