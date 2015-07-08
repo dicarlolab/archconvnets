@@ -169,6 +169,42 @@ def mult_partials_sum(da_db, db_dc, b):
 	da_dc = mult_partials(da_db, db_dc, b)
 	dc = np.einsum(da_dc, range(da_dc.ndim), range(a_ndim, da_dc.ndim))
 	return dc
+#####
+
+def forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev,x_cur):
+	g1 = sq_F(w1,x_cur)
+	g2 = sq_F(w2,g1)
+	g3 = sq_F(w3,g2)
+	o_in = interpolate_simp(o_prev, g3)
+	o_in += interpolate_simp(o_content, g3)
+	o_sq = sq_points(o_in)
+	o = shift_w(shift_out, o_sq)
+	read_mem = read_from_mem(o, mem_prev)
+	
+	gw = linear_2d_F(ww,x_cur)
+	mem = mem_prev + add_mem(gw, add_out)
+	
+	return g1,g2,g3,o_in,o_sq,o,read_mem,gw,mem
+
+def compute_partials(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww):
+	g1,g2,g3,o_in,o_sq,o,read_mem,gw,mem = forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur)
+	
+	# read gradients
+	do_do_sq = shift_w_dw_interp_nsum(shift_out)
+	do_sq_do_in = sq_points_dinput(o_in)
+	do_do_in = mult_partials(do_do_sq, do_sq_do_in, o_sq)
+	
+	do_dw1, do_dw2, do_dw3 = update_partials(g1,g2,g3,w1,w2,w3,x_cur,o_prev,o_content,do_do_sq,do_do_in, do_dw1,do_dw2,do_dw3)
+	
+	# write gradients
+	da_dgw = add_mem_dgw(add_out)
+	dgw_dww = linear_2d_F_dF_nsum(ww,x_prev)
+	
+	da_dww = mult_partials(da_dgw, dgw_dww, gw)
+	
+	dmem_prev_dww += da_dww
+	
+	return do_dw1, do_dw2, do_dw3, dmem_prev_dww, o, mem, read_mem
 
 def f(y):
 	w1[i_ind,j_ind] = y
@@ -176,57 +212,19 @@ def f(y):
 	
 	o_prev = copy.deepcopy(o_previ)
 	mem_prev = copy.deepcopy(mem_previ)
+	mem = np.zeros_like(mem_prev)
 	
+	# t1
 	x_cur = copy.deepcopy(x)
-	###
-	g1 = sq_F(w1,x_cur)
-	g2 = sq_F(w2,g1)
-	g3 = sq_F(w3,g2)
-	o_in = interpolate_simp(o_prev, g3)
-	o_in += interpolate_simp(o_content, g3)
-	o_sq = sq_points(o_in)
-	o = shift_w(shift_out, o_sq)
-	read_mem = read_from_mem(o, mem_prev)
+	g1,g2,g3,o_in,o_sq,o_prev,read_mem,gw,mem_prev = forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur)
 	
-	gw = linear_2d_F(ww,x_cur)
-	mem = mem_prev + add_mem(gw, add_out)
-	
-	o_prev = copy.deepcopy(o)
-	mem_prev = copy.deepcopy(mem)
-	
+	# t2
 	x_cur = copy.deepcopy(x2)
-	###
-	g1 = sq_F(w1,x_cur)
-	g2 = sq_F(w2,g1)
-	g3 = sq_F(w3,g2)
-	o_in = interpolate_simp(o_prev, g3)
-	o_in += interpolate_simp(o_content, g3)
-	o_sq = sq_points(o_in)
-	o = shift_w(shift_out, o_sq)
-	read_mem = read_from_mem(o, mem_prev)
+	g1,g2,g3,o_in,o_sq,o_prev,read_mem,gw,mem_prev = forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur)
 	
-	gw = linear_2d_F(ww,x_cur)
-	mem = mem_prev + add_mem(gw, add_out)
-	
-	o_prev = copy.deepcopy(o)
-	mem_prev = copy.deepcopy(mem)
-	
+	# t3
 	x_cur = copy.deepcopy(x3)
-	###
-	g1 = sq_F(w1,x_cur)
-	g2 = sq_F(w2,g1)
-	g3 = sq_F(w3,g2)
-	o_in = interpolate_simp(o_prev, g3)
-	o_in += interpolate_simp(o_content, g3)
-	o_sq = sq_points(o_in)
-	o = shift_w(shift_out, o_sq)
-	read_mem = read_from_mem(o, mem_prev)
-	
-	gw = linear_2d_F(ww,x_cur)
-	mem = mem_prev + add_mem(gw, add_out)
-	
-	o_prev = copy.deepcopy(o)
-	mem_prev = copy.deepcopy(mem)
+	g1,g2,g3,o_in,o_sq,o_prev,read_mem,gw,mem_prev = forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur)
 	
 	return ((read_mem - t)**2).sum()
 
@@ -235,6 +233,7 @@ def g(y):
 	w1[i_ind,j_ind] = y
 	#ww[i_ind,j_ind,k_ind] = y
 	
+	x_prev = np.zeros_like(x)
 	do_dw3 = copy.deepcopy(do_dw3i)
 	do_dw2 = copy.deepcopy(do_dw2i)
 	do_dw1 = copy.deepcopy(do_dw1i)
@@ -242,114 +241,28 @@ def g(y):
 	
 	dmem_prev_dww = copy.deepcopy(dmem_prev_dwwi)
 	mem_prev = copy.deepcopy(mem_previ)
+	mem = np.zeros_like(mem_prev)
 	
+	# t1
 	x_cur = copy.deepcopy(x)
-	### forward
-	g1 = sq_F(w1,x_cur)
-	g2 = sq_F(w2,g1)
-	g3 = sq_F(w3,g2)
-	o_in = interpolate_simp(o_prev, g3)
-	o_in += interpolate_simp(o_content, g3)
-	o_sq = sq_points(o_in)
-	o = shift_w(shift_out, o_sq)
-	read_mem = read_from_mem(o, mem_prev)
+	do_dw1, do_dw2, do_dw3, j, o, mem, read_mem = compute_partials(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, \
+			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww)
+	o_prev = copy.deepcopy(o); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x_cur)
 	
-	gw = linear_2d_F(ww,x_cur)
-	a = add_mem(gw, add_out)
-	mem = mem_prev + a
-	
-	# read gradients
-	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
-	
-	do_do_sq = shift_w_dw_interp_nsum(shift_out)
-	do_sq_do_in = sq_points_dinput(o_in)
-	do_do_in = mult_partials(do_do_sq, do_sq_do_in, o_sq)
-	
-	do_dw1, do_dw2, do_dw3 = update_partials(g1,g2,g3,w1,w2,w3,x_cur,o_prev,o_content,do_do_sq,do_do_in, do_dw1,do_dw2,do_dw3)
-	
-	##
-	o_prev = copy.deepcopy(o)
-	mem_prev = copy.deepcopy(mem)
-	x_prev = copy.deepcopy(x_cur)
-	
+	# t2
 	x_cur = copy.deepcopy(x2)
-	### forward
-	g1 = sq_F(w1,x_cur)
-	g2 = sq_F(w2,g1)
-	g3 = sq_F(w3,g2)
-	o_in = interpolate_simp(o_prev, g3)
-	o_in += interpolate_simp(o_content, g3)
-	o_sq = sq_points(o_in)
-	o = shift_w(shift_out, o_sq)
-	read_mem = read_from_mem(o, mem_prev)
+	do_dw1, do_dw2, do_dw3, j, o, mem, read_mem = compute_partials(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, \
+			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww)
+	o_prev = copy.deepcopy(o); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x_cur)
 	
-	gw = linear_2d_F(ww,x_cur)
-	a = add_mem(gw, add_out)
-	mem = mem_prev + a
-	
-	# read gradients
-	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
-	
-	do_do_sq = shift_w_dw_interp_nsum(shift_out)
-	do_sq_do_in = sq_points_dinput(o_in)
-	do_do_in = mult_partials(do_do_sq, do_sq_do_in, o_sq)
-	
-	do_dw1, do_dw2, do_dw3 = update_partials(g1,g2,g3,w1,w2,w3,x_cur,o_prev,o_content,do_do_sq,do_do_in, do_dw1,do_dw2,do_dw3)
-	
-	# write gradients
-	dread_mem_dmem_prev = read_from_mem_dmem_nsum(o)
-	
-	da_dgw = add_mem_dgw(add_out)
-	dgw_dww = linear_2d_F_dF_nsum(ww,x_prev)
-	
-	da_dww = mult_partials(da_dgw, dgw_dww, gw)
-	
-	dmem_prev_dww += da_dww
-	
-	######
-	o_prev = copy.deepcopy(o)
-	mem_prev = copy.deepcopy(mem)
-	x_prev = copy.deepcopy(x_cur)
-	
+	# t3
 	x_cur = copy.deepcopy(x3)
-	### forward
-	g1 = sq_F(w1,x_cur)
-	g2 = sq_F(w2,g1)
-	g3 = sq_F(w3,g2)
-	o_in = interpolate_simp(o_prev, g3)
-	o_in += interpolate_simp(o_content, g3)
-	o_sq = sq_points(o_in)
-	o = shift_w(shift_out, o_sq)
-	read_mem = read_from_mem(o, mem_prev)
+	do_dw1, do_dw2, do_dw3, j, o, mem, read_mem = compute_partials(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, \
+			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww)
 	
-	gw = linear_2d_F(ww,x_cur)
-	a = add_mem(gw, add_out)
-	mem = mem_prev + a
-	
-	# read gradients
 	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
-	
-	do_do_sq = shift_w_dw_interp_nsum(shift_out)
-	do_sq_do_in = sq_points_dinput(o_in)
-	do_do_in = mult_partials(do_do_sq, do_sq_do_in, o_sq)
-	
-	do_dw1, do_dw2, do_dw3 = update_partials(g1,g2,g3,w1,w2,w3,x_cur,o_prev,o_content,do_do_sq,do_do_in, do_dw1,do_dw2,do_dw3)
-	
-	# write gradients
 	dread_mem_dmem_prev = read_from_mem_dmem_nsum(o)
-	
-	da_dgw = add_mem_dgw(add_out)
-	dgw_dww = linear_2d_F_dF_nsum(ww,x_prev)
-	
-	da_dww = mult_partials(da_dgw, dgw_dww, gw)
-	
-	dmem_prev_dww += da_dww
-	
-	######
-	o_prev = copy.deepcopy(o)
-	mem_prev = copy.deepcopy(mem)
-	x_prev = copy.deepcopy(x_cur)
-	
+
 	
 	###
 	derr_dread_mem = 2*(read_mem - t)
