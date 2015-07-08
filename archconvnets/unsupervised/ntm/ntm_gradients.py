@@ -1,6 +1,20 @@
 import numpy as np
 import copy
 
+####
+def mult_partials(da_db, db_dc, b):
+	a_ndim = da_db.ndim - b.ndim
+	c_ndim = db_dc.ndim - b.ndim
+	keep_dims = np.concatenate((range(a_ndim), range(da_db.ndim, da_db.ndim + c_ndim)))
+	da_dc = np.einsum(da_db, range(da_db.ndim), db_dc, range(a_ndim, a_ndim + db_dc.ndim), keep_dims)
+	return da_dc
+
+def mult_partials_sum(da_db, db_dc, b):
+	a_ndim = da_db.ndim - b.ndim
+	da_dc = mult_partials(da_db, db_dc, b)
+	dc = np.einsum(da_dc, range(da_dc.ndim), range(a_ndim, da_dc.ndim))
+	return dc
+
 ##### read memory vector (generalization of linear_F())
 def read_from_mem(w, mem):
 	# w: [n_controllers, n_mem_slots], mem: [n_mem_slots, m_length]
