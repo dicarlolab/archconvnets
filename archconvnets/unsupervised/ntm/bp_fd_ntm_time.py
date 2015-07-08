@@ -49,10 +49,29 @@ do_content_dw1 = np.zeros_like(do_dw1i)
 
 dmem_prev_dwwi = np.zeros((M, mem_length, C, M, n_in))
 
-##############
-def interpolate_simp(w_prev, interp_gate_out):
-	return w_prev * interp_gate_out
+##########
+def update_partials(g1,g2,g3,w1,w2,w3,x,o_prev,o_content,do_do_sq,do_do_in, do_dw1,do_dw2,do_dw3):
+	# w3:
+	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
+	dg3_dw3 = sq_dF_nsum(w3, g2, g3)
+	
+	do_dw3 = interpolate_simp_dx(dg3_dw3, do_dw3, do_content_dw3, g3, o_prev, o_content, do_do_in)
+	
+	# w2:
+	dg2_dg1 = sq_dlayer_in_nsum(w2, g1)
+	dg2_dw2 = sq_dF_nsum(w2, g1, g2)
+	dg3_dw2 = mult_partials(dg3_dg2, dg2_dw2, np.squeeze(g2))
+	do_dw2 = interpolate_simp_dx(dg3_dw2, do_dw2, do_content_dw2, g3, o_prev, o_content, do_do_in)
+	
+	# w1:
+	dg1_dw1 = sq_dF_nsum(w1, x, g1)
+	dg3_dg1 = mult_partials(dg3_dg2, dg2_dg1, np.squeeze(g2))
+	dg3_dw1 = mult_partials(dg3_dg1, dg1_dw1, np.squeeze(g1))
+	do_dw1 = interpolate_simp_dx(dg3_dw1, do_dw1, do_content_dw1, g3, o_prev, o_content, do_do_in)
+	
+	return do_dw1, do_dw2, do_dw3
 
+##############
 def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_do_in):
 	do_in_dx = np.einsum(do_dx + do_content_dx, range(4), g3, [0,3], range(4))
 	do_in_dx += np.einsum(o_prev + o_content, [0,1], dg3_dx, [0,2,3], range(4))
@@ -83,6 +102,22 @@ def sq_points_dinput(input):
 	for i in range(input.shape[0]):
 		dinput[i,range(n),i,range(n)] = 2*input[i]
 	return dinput
+
+################# interpolate simplified
+def interpolate_simp(w_prev, interp_gate_out):
+	return w_prev * interp_gate_out
+	
+############### shift w
+def shift_w(shift_out, w_interp):	
+	# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, n_mem_slots]
+	
+	w_tilde = np.zeros_like(w_interp)
+	n_mem_slots = w_interp.shape[1]
+	
+	for loc in range(n_mem_slots):
+		w_tilde[:,loc] = shift_out[:,0]*w_interp[:,loc-1] + shift_out[:,1]*w_interp[:,loc] + \
+				shift_out[:,2]*w_interp[:,(loc+1)%n_mem_slots]
+	return w_tilde # [n_controllers, n_mem_slots]
 	
 ################
 def shift_w_dw_interp_nsum(shift_out):
@@ -121,8 +156,7 @@ def linear_2d_F_dF_nsum(ww,x):
 def linear_2d_F_dx_nsum(ww):
 	return ww
 
-#####
-
+########
 def forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev,x_cur):
 	g1 = sq_F(w1,x_cur)
 	g2 = sq_F(w2,g1)
@@ -141,30 +175,14 @@ def forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev,x_cur):
 def compute_partials(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww):
 	g1,g2,g3,o_in,o_sq,o,read_mem,gw,mem = forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur)
 	
-	## read gradients
+	# read gradients
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
 	do_sq_do_in = sq_points_dinput(o_in)
 	do_do_in = mult_partials(do_do_sq, do_sq_do_in, o_sq)
 	
-	# w3:
-	dg3_dg2 = sq_dlayer_in_nsum(w3, g2)
-	dg3_dw3 = sq_dF_nsum(w3, g2, g3)
+	do_dw1, do_dw2, do_dw3 = update_partials(g1,g2,g3,w1,w2,w3,x_cur,o_prev,o_content,do_do_sq,do_do_in, do_dw1,do_dw2,do_dw3)
 	
-	do_dw3 = interpolate_simp_dx(dg3_dw3, do_dw3, do_content_dw3, g3, o_prev, o_content, do_do_in)
-	
-	# w2:
-	dg2_dg1 = sq_dlayer_in_nsum(w2, g1)
-	dg2_dw2 = sq_dF_nsum(w2, g1, g2)
-	dg3_dw2 = mult_partials(dg3_dg2, dg2_dw2, np.squeeze(g2))
-	do_dw2 = interpolate_simp_dx(dg3_dw2, do_dw2, do_content_dw2, g3, o_prev, o_content, do_do_in)
-	
-	# w1:
-	dg1_dw1 = sq_dF_nsum(w1, x, g1)
-	dg3_dg1 = mult_partials(dg3_dg2, dg2_dg1, np.squeeze(g2))
-	dg3_dw1 = mult_partials(dg3_dg1, dg1_dw1, np.squeeze(g1))
-	do_dw1 = interpolate_simp_dx(dg3_dw1, do_dw1, do_content_dw1, g3, o_prev, o_content, do_do_in)
-	
-	## write gradients
+	# write gradients
 	da_dgw = add_mem_dgw(add_out)
 	dgw_dww = linear_2d_F_dF_nsum(ww,x_prev)
 	
@@ -175,8 +193,8 @@ def compute_partials(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur, x_pre
 	return do_dw1, do_dw2, do_dw3, dmem_prev_dww, o, mem, read_mem
 
 def f(y):
-	#w1[i_ind,j_ind] = y
-	ww[i_ind,j_ind,k_ind] = y
+	w1[i_ind,j_ind] = y
+	#ww[i_ind,j_ind,k_ind] = y
 	
 	o_prev = copy.deepcopy(o_previ)
 	mem_prev = copy.deepcopy(mem_previ)
@@ -198,8 +216,8 @@ def f(y):
 
 
 def g(y):
-	#w1[i_ind,j_ind] = y
-	ww[i_ind,j_ind,k_ind] = y
+	w1[i_ind,j_ind] = y
+	#ww[i_ind,j_ind,k_ind] = y
 	
 	x_prev = np.zeros_like(x)
 	do_dw3 = copy.deepcopy(do_dw3i)
@@ -233,10 +251,13 @@ def g(y):
 
 	
 	###
-	derr_dread_mem = 2*(read_mem - t)
+	derr_dread_mem = sq_points_dinput(read_mem - t)
 	
-	derr_do = np.einsum(derr_dread_mem, [0,1], dread_mem_do, range(4), range(4))
-	derr_dmem_prev = np.einsum(derr_dread_mem, [0,1], dread_mem_dmem_prev, range(4), range(4))
+	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
+	dread_mem_dmem_prev = read_from_mem_dmem_nsum(o)
+	
+	derr_do = mult_partials(derr_dread_mem, dread_mem_do, read_mem)
+	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
 	
 	dww = mult_partials_sum(derr_dmem_prev, dmem_prev_dww, mem_prev)
 	
@@ -244,8 +265,8 @@ def g(y):
 	dw2 = mult_partials_sum(derr_do, do_dw2, o)
 	dw3 = mult_partials_sum(derr_do, do_dw3, o)
 	
-	#return dw1[i_ind,j_ind]
-	return dww[i_ind,j_ind,k_ind]
+	return dw1[i_ind,j_ind]
+	#return dww[i_ind,j_ind,k_ind]
 	
 	
 np.random.seed(np.int64(time.time()))
@@ -256,15 +277,15 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = ww
-	#i_ind = np.random.randint(ref.shape[0])
-	#j_ind = np.random.randint(ref.shape[1])
-	#y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
-	
+	ref = w1
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
-	k_ind = np.random.randint(ref.shape[2])
-	y = -ref[i_ind,j_ind,k_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	
+	#i_ind = np.random.randint(ref.shape[0])
+	#j_ind = np.random.randint(ref.shape[1])
+	#k_ind = np.random.randint(ref.shape[2])
+	#y = -1e0*ref[i_ind,j_ind,k_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
 		
 	if gtx == 0:
 		ratios[sample] = 1
