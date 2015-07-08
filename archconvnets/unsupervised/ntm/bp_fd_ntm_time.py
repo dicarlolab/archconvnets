@@ -174,14 +174,16 @@ def compute_partials(w1,w2,w3,ww, o_prev, o_content, x_cur, x_prev, do_dw1, do_d
 	
 	## write gradients (for the previous time step---read then write!)
 	da_dow = add_mem_dgw(add_out)
-	dow_dow_in = sq_points_dinput(ow_in)
+	dgw_dww = linear_2d_F_dF_nsum(ww,x_prev)
 	
 	# ww:
-	dgw_dww = linear_2d_F_dF_nsum(ww,x_prev)
+	
+	## ...
+	dow_dow_in = sq_points_dinput(ow_in)
 	dow_dww = interpolate_simp_dxw(dgw_dww, dow_dww, dow_content_dww, gw, ow_prev, ow_content, dow_dow_in)
 	da_dww = mult_partials(da_dow, dow_dww, ow)
 	
-	##
+	## ...
 	dow_dgw = sq_points_dinput(gw)
 	da_dgw = mult_partials(da_dow, dow_dgw, ow)
 	da_dww = mult_partials(da_dgw, dgw_dww, gw)
@@ -195,10 +197,8 @@ def f(y):
 	#w1[i_ind,j_ind] = y
 	ww[i_ind,j_ind,k_ind] = y
 	
-	o_prev = copy.deepcopy(o_previ)
-	ow_prev = copy.deepcopy(ow_previ)
-	mem_prev = copy.deepcopy(mem_previ)
-	mem = np.zeros_like(mem_prev)
+	o_prev = copy.deepcopy(o_previ); ow_prev = copy.deepcopy(ow_previ)
+	mem_prev = copy.deepcopy(mem_previ); mem = np.zeros_like(mem_prev)
 	
 	for frame in range(N_FRAMES):
 		o_prev, ow_prev, mem_prev, read_mem = forward_pass(w1,w2,w3,ww, o_prev, \
@@ -212,19 +212,12 @@ def g(y):
 	ww[i_ind,j_ind,k_ind] = y
 	
 	x_prev = np.zeros_like(x[0])
-	do_dw3 = copy.deepcopy(do_dw3i)
-	do_dw2 = copy.deepcopy(do_dw2i)
-	do_dw1 = copy.deepcopy(do_dw1i)
-	dow_dww = copy.deepcopy(dow_dwwi)
-	o_prev = copy.deepcopy(o_previ)
-	ow_prev = copy.deepcopy(ow_previ)
-	ow_prev_prev = np.zeros_like(ow_prev)
-	ow_in_prev = np.zeros_like(ow_prev)
-	
-	dmem_prev_dww = copy.deepcopy(dmem_prev_dwwi)
-	mem_prev = copy.deepcopy(mem_previ)
-	mem = np.zeros_like(mem_prev)
-	gw_prev = np.zeros_like(o_prev)
+	do_dw3 = copy.deepcopy(do_dw3i); do_dw2 = copy.deepcopy(do_dw2i)
+	do_dw1 = copy.deepcopy(do_dw1i); dow_dww = copy.deepcopy(dow_dwwi)
+	o_prev = copy.deepcopy(o_previ); ow_prev = copy.deepcopy(ow_previ)
+	ow_prev_prev = np.zeros_like(ow_prev); ow_in_prev = np.zeros_like(ow_prev)
+	dmem_prev_dww = copy.deepcopy(dmem_prev_dwwi); mem_prev = copy.deepcopy(mem_previ)
+	mem = np.zeros_like(mem_prev); gw_prev = np.zeros_like(o_prev)
 	
 	for frame in range(N_FRAMES):
 		# forward
@@ -233,7 +226,7 @@ def g(y):
 		
 		# partials
 		do_dw1, do_dw2, do_dw3, dmem_prev_dww, dow_dww = compute_partials(w1,w2,w3,ww, o_prev, o_content, \
-				x[frame], x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw_prev,ow,ow_in_prev,\
+				x[frame], x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw_prev,ow_prev,ow_in_prev,\
 				dow_dww,ow_content, ow_prev_prev)
 		
 		# update temporal vars
