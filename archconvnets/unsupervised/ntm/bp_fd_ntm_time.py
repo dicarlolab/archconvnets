@@ -146,12 +146,13 @@ def forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev,x_cur):
 	read_mem = linear_F(o, mem_prev)
 	
 	gw = linear_2d_F(ww,x_cur)
-	mem = mem_prev + add_mem(gw, add_out)
+	ow = sq_points(gw)
+	mem = mem_prev + add_mem(ow, add_out)
 	
-	return o,mem,read_mem,g1,g2,g3,o_in,o_sq,gw
+	return o,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow
 
 ##########
-def compute_partials(w1,w2,w3,ww, o_prev, o_content, x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw):
+def compute_partials(w1,w2,w3,ww, o_prev, o_content, x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw,ow):
 	## read gradients
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
 	do_sq_do_in = sq_points_dinput(o_in)
@@ -176,7 +177,9 @@ def compute_partials(w1,w2,w3,ww, o_prev, o_content, x_cur, x_prev, do_dw1, do_d
 	do_dw1 = interpolate_simp_dx(dg3_dw1, do_dw1, do_content_dw1, g3, o_prev, o_content, do_do_in)
 	
 	## write gradients
-	da_dgw = add_mem_dgw(add_out)
+	da_dow = add_mem_dgw(add_out)
+	dow_dgw = sq_points_dinput(gw)
+	da_dgw = mult_partials(da_dow, dow_dgw, ow)
 	dgw_dww = linear_2d_F_dF_nsum(ww,x_prev)
 	
 	da_dww = mult_partials(da_dgw, dgw_dww, gw)
@@ -221,26 +224,27 @@ def g(y):
 	dmem_prev_dww = copy.deepcopy(dmem_prev_dwwi)
 	mem_prev = copy.deepcopy(mem_previ)
 	mem = np.zeros_like(mem_prev)
+	gw_prev = np.zeros_like(o_prev)
 	
 	# t1
 	x_cur = copy.deepcopy(x)
-	o,mem,read_mem,g1,g2,g3,o_in,o_sq,gw = forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur)
+	o,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow = forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur)
 	do_dw1, do_dw2, do_dw3, dmem_prev_dww = compute_partials(w1,w2,w3,ww, o_prev, o_content, \
-			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw)
-	o_prev = copy.deepcopy(o); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x_cur)
+			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw_prev,ow)
+	o_prev = copy.deepcopy(o); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x_cur); gw_prev = copy.deepcopy(gw)
 	
 	# t2
 	x_cur = copy.deepcopy(x2)
-	o,mem,read_mem,g1,g2,g3,o_in,o_sq,gw = forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur)
+	o,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow = forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur)
 	do_dw1, do_dw2, do_dw3, dmem_prev_dww = compute_partials(w1,w2,w3,ww, o_prev, o_content, \
-			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw)
-	o_prev = copy.deepcopy(o); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x_cur)
+			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw_prev,ow)
+	o_prev = copy.deepcopy(o); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x_cur); gw_prev = copy.deepcopy(gw)
 	
 	# t3
 	x_cur = copy.deepcopy(x3)
-	o,mem,read_mem,g1,g2,g3,o_in,o_sq,gw = forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur)
+	o,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow = forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev, x_cur)
 	do_dw1, do_dw2, do_dw3, dmem_prev_dww = compute_partials(w1,w2,w3,ww, o_prev, o_content, \
-			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw)
+			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw_prev,ow); gw_prev = copy.deepcopy(gw)
 	
 	dread_mem_do = linear_F_dF_nsum(mem_prev)
 	dread_mem_dmem_prev = linear_F_dx_nsum(o)
