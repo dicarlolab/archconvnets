@@ -58,13 +58,13 @@ def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_
 	return do_dx
 
 ############
-def read_from_mem_dmem_nsum(o):
+def linear_F_dx_nsum(o):
 	n = mem_previ.shape[1]
 	temp = np.zeros((o_previ.shape[0], n, mem_previ.shape[0], n))
 	temp[:,range(n),:,range(n)] = o
 	return temp
 
-def read_from_mem_dw_nsum(mem):
+def linear_F_dF_nsum(mem):
 	n = o_previ.shape[0]
 	temp = np.zeros((n, mem.shape[1], n, o_previ.shape[1]))
 	temp[range(n),:,range(n)] = mem.T
@@ -143,7 +143,7 @@ def forward_pass(w1,w2,w3,ww, o_prev, o_content, mem, mem_prev,x_cur):
 	o_in += interpolate_simp(o_content, g3)
 	o_sq = sq_points(o_in)
 	o = shift_w(shift_out, o_sq)
-	read_mem = read_from_mem(o, mem_prev)
+	read_mem = linear_F(o, mem_prev)
 	
 	gw = linear_2d_F(ww,x_cur)
 	mem = mem_prev + add_mem(gw, add_out)
@@ -242,14 +242,14 @@ def g(y):
 	do_dw1, do_dw2, do_dw3, dmem_prev_dww = compute_partials(w1,w2,w3,ww, o_prev, o_content, \
 			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw)
 	
-	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
-	dread_mem_dmem_prev = read_from_mem_dmem_nsum(o)
+	dread_mem_do = linear_F_dF_nsum(mem_prev)
+	dread_mem_dmem_prev = linear_F_dx_nsum(o)
 
 	###
 	derr_dread_mem = sq_points_dinput(read_mem - t)
 	
-	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
-	dread_mem_dmem_prev = read_from_mem_dmem_nsum(o)
+	dread_mem_do = linear_F_dF_nsum(mem_prev)
+	dread_mem_dmem_prev = linear_F_dx_nsum(o)
 	
 	derr_do = mult_partials(derr_dread_mem, dread_mem_do, read_mem)
 	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
