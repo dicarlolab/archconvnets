@@ -60,13 +60,13 @@ def update_partials(g1,g2,g3,w1,w2,w3,x,o_prev,o_content,do_do_sq,do_do_in, do_d
 	# w2:
 	dg2_dg1 = sq_dlayer_in_nsum(w2, g1)
 	dg2_dw2 = sq_dF_nsum(w2, g1, g2)
-	dg3_dw2 = np.einsum(dg3_dg2,[0,1], dg2_dw2, [1,2,3], [0,2,3])
+	dg3_dw2 = mult_partials(dg3_dg2, dg2_dw2, np.squeeze(g2))
 	do_dw2 = interpolate_simp_dx(dg3_dw2, do_dw2, do_content_dw2, g3, o_prev, o_content, do_do_in)
 	
 	# w1:
 	dg1_dw1 = sq_dF_nsum(w1, x, g1)
-	dg3_dg1 = np.dot(dg3_dg2, dg2_dg1)
-	dg3_dw1 = np.einsum(dg3_dg1, [0,1], dg1_dw1, [1,2,3], [0,2,3])
+	dg3_dg1 = mult_partials(dg3_dg2, dg2_dg1, np.squeeze(g2))
+	dg3_dw1 = mult_partials(dg3_dg1, dg1_dw1, np.squeeze(g1))
 	do_dw1 = interpolate_simp_dx(dg3_dw1, do_dw1, do_content_dw1, g3, o_prev, o_content, do_do_in)
 	
 	return do_dw1, do_dw2, do_dw3
@@ -76,7 +76,7 @@ def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_
 	do_in_dx = np.einsum(do_dx + do_content_dx, range(4), g3, [0,3], range(4))
 	do_in_dx += np.einsum(o_prev + o_content, [0,1], dg3_dx, [0,2,3], range(4))
 	
-	do_dx = np.einsum(do_do_in, range(4), do_in_dx, [2,3,4,5], [0,1,4,5])
+	do_dx = mult_partials(do_do_in, do_in_dx, o_prev)
 	return do_dx
 
 ############
@@ -96,14 +96,11 @@ def read_from_mem_dw_nsum(mem):
 def sq_points(input):
 	return input**2
 
-def sq_points_dinput_comb(input, above_layer):
-	return np.einsum(above_layer, [0,1,2,3], sq_points_dinput(input), [2,3,4,5], [0,1,4,5])
-
 def sq_points_dinput(input):
-	dinput = np.zeros((input.shape[0], input.shape[1], input.shape[0], input.shape[1]))
+	n = input.shape[1]
+	dinput = np.zeros((input.shape[0], n, input.shape[0], n))
 	for i in range(input.shape[0]):
-		for j in range(input.shape[1]):
-			dinput[i,j,i,j] = 2*input[i,j]
+		dinput[i,range(n),i,range(n)] = 2*input[i]
 	return dinput
 
 ################# interpolate simplified
@@ -156,13 +153,22 @@ def linear_2d_F_dF_nsum(ww,x):
 		temp[i,range(n),i,range(n)] += np.squeeze(x)
 	return temp
 
-def linear_2d_F_dx_nsum(ww,x):
-	temp = np.zeros((ww.shape[0], ww.shape[1], x.shape[0]))
-	for i in range(ww.shape[0]):
-		for j in range(ww.shape[1]):
-			for k in range(ww.shape[2]):
-				temp[i,j,k] += ww[i,j,k]
-	return temp
+def linear_2d_F_dx_nsum(ww):
+	return ww
+
+####
+def mult_partials(da_db, db_dc, b):
+	a_ndim = da_db.ndim - b.ndim
+	c_ndim = db_dc.ndim - b.ndim
+	keep_dims = np.concatenate((range(a_ndim), range(da_db.ndim, da_db.ndim + c_ndim)))
+	da_dc = np.einsum(da_db, range(da_db.ndim), db_dc, range(a_ndim, a_ndim + db_dc.ndim), keep_dims)
+	return da_dc
+
+def mult_partials_sum(da_db, db_dc, b):
+	a_ndim = da_db.ndim - b.ndim
+	da_dc = mult_partials(da_db, db_dc, b)
+	dc = np.einsum(da_dc, range(da_dc.ndim), range(a_ndim, da_dc.ndim))
+	return dc
 
 def f(y):
 	w1[i_ind,j_ind] = y
@@ -256,7 +262,8 @@ def g(y):
 	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
 	
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
-	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
+	do_sq_do_in = sq_points_dinput(o_in)
+	do_do_in = mult_partials(do_do_sq, do_sq_do_in, o_sq)
 	
 	do_dw1, do_dw2, do_dw3 = update_partials(g1,g2,g3,w1,w2,w3,x_cur,o_prev,o_content,do_do_sq,do_do_in, do_dw1,do_dw2,do_dw3)
 	
@@ -284,7 +291,8 @@ def g(y):
 	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
 	
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
-	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
+	do_sq_do_in = sq_points_dinput(o_in)
+	do_do_in = mult_partials(do_do_sq, do_sq_do_in, o_sq)
 	
 	do_dw1, do_dw2, do_dw3 = update_partials(g1,g2,g3,w1,w2,w3,x_cur,o_prev,o_content,do_do_sq,do_do_in, do_dw1,do_dw2,do_dw3)
 	
@@ -294,7 +302,7 @@ def g(y):
 	da_dgw = add_mem_dgw(add_out)
 	dgw_dww = linear_2d_F_dF_nsum(ww,x_prev)
 	
-	da_dww = np.einsum(da_dgw, range(4), dgw_dww, [2,3,4,5,6], [0,1, 4,5,6])
+	da_dww = mult_partials(da_dgw, dgw_dww, gw)
 	
 	dmem_prev_dww += da_dww
 	
@@ -322,7 +330,8 @@ def g(y):
 	dread_mem_do = read_from_mem_dw_nsum(mem_prev)
 	
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
-	do_do_in = sq_points_dinput_comb(o_in, do_do_sq)
+	do_sq_do_in = sq_points_dinput(o_in)
+	do_do_in = mult_partials(do_do_sq, do_sq_do_in, o_sq)
 	
 	do_dw1, do_dw2, do_dw3 = update_partials(g1,g2,g3,w1,w2,w3,x_cur,o_prev,o_content,do_do_sq,do_do_in, do_dw1,do_dw2,do_dw3)
 	
@@ -332,7 +341,7 @@ def g(y):
 	da_dgw = add_mem_dgw(add_out)
 	dgw_dww = linear_2d_F_dF_nsum(ww,x_prev)
 	
-	da_dww = np.einsum(da_dgw, range(4), dgw_dww, [2,3,4,5,6], [0,1, 4,5,6])
+	da_dww = mult_partials(da_dgw, dgw_dww, gw)
 	
 	dmem_prev_dww += da_dww
 	
@@ -348,11 +357,11 @@ def g(y):
 	derr_do = np.einsum(derr_dread_mem, [0,1], dread_mem_do, range(4), range(4))
 	derr_dmem_prev = np.einsum(derr_dread_mem, [0,1], dread_mem_dmem_prev, range(4), range(4))
 	
-	dww = np.einsum(derr_dmem_prev, range(4), dmem_prev_dww, [2,3,4,5,6], [4,5,6])
+	dww = mult_partials_sum(derr_dmem_prev, dmem_prev_dww, mem_prev)
 	
-	dw1 = np.einsum(derr_do, range(4), do_dw1,  [2,3,4,5], [4,5])
-	dw2 = np.einsum(derr_do, range(4), do_dw2,  [2,3,4,5], [4,5])
-	dw3 = np.einsum(derr_do, range(4), do_dw3,  [2,3,4,5], [4,5])
+	dw1 = mult_partials_sum(derr_do, do_dw1, o)
+	dw2 = mult_partials_sum(derr_do, do_dw2, o)
+	dw3 = mult_partials_sum(derr_do, do_dw3, o)
 	
 	return dw1[i_ind,j_ind]
 	#return dww[i_ind,j_ind,k_ind]
@@ -371,10 +380,10 @@ for sample in range(N_SAMPLES):
 	j_ind = np.random.randint(ref.shape[1])
 	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
 	
-	'''i_ind = np.random.randint(ref.shape[0])
-	j_ind = np.random.randint(ref.shape[1])
-	k_ind = np.random.randint(ref.shape[2])
-	y = -1e0*ref[i_ind,j_ind,k_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)'''
+	#i_ind = np.random.randint(ref.shape[0])
+	#j_ind = np.random.randint(ref.shape[1])
+	#k_ind = np.random.randint(ref.shape[2])
+	#y = -1e0*ref[i_ind,j_ind,k_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
 		
 	if gtx == 0:
 		ratios[sample] = 1
