@@ -17,8 +17,7 @@ n1 = 7
 n_in = 3
 
 SCALE = .4
-
-t = np.random.normal(size=(C,mem_length))
+N_FRAMES = 3
 
 mem_previ = np.random.normal(size=(M, mem_length))
 
@@ -34,12 +33,10 @@ w1 = np.random.normal(size=(n1,n_in)) * SCALE
 ww = np.random.normal(size=(C, M, n_in)) * SCALE
 
 add_out = np.random.normal(size=(C, mem_length)) * SCALE
-
 shift_out = np.random.normal(size=(C, n_shifts))
 
-x = np.random.normal(size=(n_in,1))
-x2 = np.random.normal(size=(n_in,1))
-x3 = np.random.normal(size=(n_in,1))
+x = np.random.normal(size=(N_FRAMES, n_in,1))
+t = np.random.normal(size=(C,mem_length))
 
 do_dw3i = np.zeros((C,M,C,n2))
 do_dw2i = np.zeros((C,M,n2,n1))
@@ -57,8 +54,15 @@ dmem_prev_dwwi = np.zeros((M, mem_length, C, M, n_in))
 def interpolate_simp(w_prev, interp_gate_out):
 	return w_prev * interp_gate_out
 	
+def interpolate_simp_dxw(dgw_dx, dow_dx, dow_content_dx, gw, ow_prev, ow_content, dow_dow_in):
+	dow_in_dx = np.einsum(dow_dx + dow_content_dx, range(5), gw, [0,1], range(5))
+	dow_in_dx += np.einsum(ow_prev + ow_content, [0,1], dgw_dx, range(5), range(5))
+	
+	dow_dx = mult_partials(dow_dow_in, dow_in_dx, ow_prev)
+	return dow_dx
+	
 def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_do_in):
-	do_in_dx = np.einsum(do_dx + do_content_dx, range(4), g3, [0,3], range(4))
+	do_in_dx = np.einsum(do_dx + do_content_dx, range(4), g3, [0,1], range(4))
 	do_in_dx += np.einsum(o_prev + o_content, [0,1], dg3_dx, [0,2,3], range(4))
 	
 	do_dx = mult_partials(do_do_in, do_in_dx, o_prev)
@@ -138,6 +142,7 @@ def forward_pass(w1,w2,w3,ww, o_prev, o_content, ow_prev, ow_content, mem, mem_p
 	ow_in = interpolate_simp(ow_prev, gw)
 	ow_in += interpolate_simp(ow_content, gw)
 	ow = sq_points(gw)
+	#ow = sq_points(ow_in)
 	mem = mem_prev + add_mem(ow, add_out)
 	
 	return o,ow,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow_in
@@ -167,101 +172,82 @@ def compute_partials(w1,w2,w3,ww, o_prev, o_content, x_cur, x_prev, do_dw1, do_d
 	dg3_dw1 = mult_partials(dg3_dg1, dg1_dw1, np.squeeze(g1))
 	do_dw1 = interpolate_simp_dx(dg3_dw1, do_dw1, do_content_dw1, g3, o_prev, o_content, do_do_in)
 	
-	## write gradients
+	## write gradients (for the previous time step---read then write!)
 	da_dow = add_mem_dgw(add_out)
-	
 	dow_dow_in = sq_points_dinput(ow_in)
-	da_dow_in = mult_partials(da_dow, dow_dow_in, ow)
 	
+	# ww:
 	dgw_dww = linear_2d_F_dF_nsum(ww,x_prev)
-	
-	#dow_dww = interpolate_simp_dx(dgw_dww, dow_dww, dow_content_dww, gw, ow_prev, ow_content, dow_dow_in)
+	dow_dww = interpolate_simp_dxw(dgw_dww, dow_dww, dow_content_dww, gw, ow_prev, ow_content, dow_dow_in)
+	da_dww = mult_partials(da_dow, dow_dww, ow)
 	
 	##
 	dow_dgw = sq_points_dinput(gw)
 	da_dgw = mult_partials(da_dow, dow_dgw, ow)
-	##
-	
-	dgw_dww = linear_2d_F_dF_nsum(ww,x_prev)
-	
 	da_dww = mult_partials(da_dgw, dgw_dww, gw)
+	##
 	
 	dmem_prev_dww += da_dww
 	
-	return do_dw1, do_dw2, do_dw3, dmem_prev_dww
+	return do_dw1, do_dw2, do_dw3, dmem_prev_dww, dow_dww
 
 def f(y):
-	w1[i_ind,j_ind] = y
-	#ww[i_ind,j_ind,k_ind] = y
+	#w1[i_ind,j_ind] = y
+	ww[i_ind,j_ind,k_ind] = y
 	
 	o_prev = copy.deepcopy(o_previ)
 	ow_prev = copy.deepcopy(ow_previ)
 	mem_prev = copy.deepcopy(mem_previ)
 	mem = np.zeros_like(mem_prev)
 	
-	# t1
-	x_cur = copy.deepcopy(x)
-	o_prev, ow_prev, mem_prev = forward_pass(w1,w2,w3,ww, o_prev, o_content,ow_prev, ow_content, mem, mem_prev, x_cur)[:3]
-	
-	# t2
-	x_cur = copy.deepcopy(x2)
-	o_prev, ow_prev, mem_prev = forward_pass(w1,w2,w3,ww, o_prev, o_content, o_prev, o_content,mem, mem_prev, x_cur)[:3]
-	
-	# t3
-	x_cur = copy.deepcopy(x3)
-	o_prev, ow_prev, mem_prev, read_mem = forward_pass(w1,w2,w3,ww, o_prev, o_content, o_prev, o_content,mem, mem_prev, x_cur)[:4]
+	for frame in range(N_FRAMES):
+		o_prev, ow_prev, mem_prev, read_mem = forward_pass(w1,w2,w3,ww, o_prev, \
+			o_content, o_prev, o_content,mem, mem_prev, x[frame])[:4]
 	
 	return ((read_mem - t)**2).sum()
 
 
 def g(y):
-	w1[i_ind,j_ind] = y
-	#ww[i_ind,j_ind,k_ind] = y
+	#w1[i_ind,j_ind] = y
+	ww[i_ind,j_ind,k_ind] = y
 	
-	x_prev = np.zeros_like(x)
+	x_prev = np.zeros_like(x[0])
 	do_dw3 = copy.deepcopy(do_dw3i)
 	do_dw2 = copy.deepcopy(do_dw2i)
 	do_dw1 = copy.deepcopy(do_dw1i)
 	dow_dww = copy.deepcopy(dow_dwwi)
 	o_prev = copy.deepcopy(o_previ)
 	ow_prev = copy.deepcopy(ow_previ)
+	ow_prev_prev = np.zeros_like(ow_prev)
+	ow_in_prev = np.zeros_like(ow_prev)
 	
 	dmem_prev_dww = copy.deepcopy(dmem_prev_dwwi)
 	mem_prev = copy.deepcopy(mem_previ)
 	mem = np.zeros_like(mem_prev)
 	gw_prev = np.zeros_like(o_prev)
 	
-	# t1
-	x_cur = copy.deepcopy(x)
-	o,ow,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow_in = forward_pass(w1,w2,w3,ww, o_prev, o_content, o_prev, o_content,mem, mem_prev, x_cur)
-	do_dw1, do_dw2, do_dw3, dmem_prev_dww = compute_partials(w1,w2,w3,ww, o_prev, o_content, \
-			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw_prev,ow,ow_in,dow_dww,ow_content, ow_prev)
-	o_prev = copy.deepcopy(o); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x_cur); 
-	ow_prev = copy.deepcopy(ow); gw_prev = copy.deepcopy(gw)
+	for frame in range(N_FRAMES):
+		# forward
+		o,ow,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow_in = forward_pass(w1,w2,w3,ww, o_prev, o_content, \
+				o_prev, o_content,mem, mem_prev, x[frame])
+		
+		# partials
+		do_dw1, do_dw2, do_dw3, dmem_prev_dww, dow_dww = compute_partials(w1,w2,w3,ww, o_prev, o_content, \
+				x[frame], x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw_prev,ow,ow_in_prev,\
+				dow_dww,ow_content, ow_prev_prev)
+		
+		# update temporal vars
+		if frame != (N_FRAMES-1):
+			ow_prev_prev = copy.deepcopy(ow_prev)
+			o_prev = copy.deepcopy(o); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x[frame]); 
+			ow_prev = copy.deepcopy(ow); gw_prev = copy.deepcopy(gw); ow_in_prev = copy.deepcopy(ow_in)
 	
-	# t2
-	x_cur = copy.deepcopy(x2)
-	o,ow,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow_in = forward_pass(w1,w2,w3,ww, o_prev, o_content, o_prev, o_content,mem, mem_prev, x_cur)
-	do_dw1, do_dw2, do_dw3, dmem_prev_dww = compute_partials(w1,w2,w3,ww, o_prev, o_content, \
-			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw_prev,ow,ow_in,dow_dww,ow_content, ow_prev)
-	o_prev = copy.deepcopy(o); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x_cur);
-	ow_prev = copy.deepcopy(ow); gw_prev = copy.deepcopy(gw)
-	
-	# t3
-	x_cur = copy.deepcopy(x3)
-	o,ow,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow_in = forward_pass(w1,w2,w3,ww, o_prev, o_content, o_prev, o_content,mem, mem_prev, x_cur)
-	do_dw1, do_dw2, do_dw3, dmem_prev_dww = compute_partials(w1,w2,w3,ww, o_prev, o_content, \
-			x_cur, x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw_prev,ow,ow_in,dow_dww,ow_content, ow_prev)
-	
-	dread_mem_do = linear_F_dF_nsum(mem_prev)
-	dread_mem_dmem_prev = linear_F_dx_nsum(o)
-
-	###
+	# full gradients:
 	derr_dread_mem = sq_points_dinput(read_mem - t)
 	
 	dread_mem_do = linear_F_dF_nsum(mem_prev)
 	dread_mem_dmem_prev = linear_F_dx_nsum(o)
-	
+
 	derr_do = mult_partials(derr_dread_mem, dread_mem_do, read_mem)
 	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
 	
@@ -271,8 +257,8 @@ def g(y):
 	dw2 = mult_partials_sum(derr_do, do_dw2, o)
 	dw3 = mult_partials_sum(derr_do, do_dw3, o)
 	
-	return dw1[i_ind,j_ind]
-	#return dww[i_ind,j_ind,k_ind]
+	#return dw1[i_ind,j_ind]
+	return dww[i_ind,j_ind,k_ind]
 	
 	
 np.random.seed(np.int64(time.time()))
@@ -283,15 +269,15 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = w1
-	i_ind = np.random.randint(ref.shape[0])
-	j_ind = np.random.randint(ref.shape[1])
-	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
-	
+	ref = ww
 	#i_ind = np.random.randint(ref.shape[0])
 	#j_ind = np.random.randint(ref.shape[1])
-	#k_ind = np.random.randint(ref.shape[2])
-	#y = -1e0*ref[i_ind,j_ind,k_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	#y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	
+	i_ind = np.random.randint(ref.shape[0])
+	j_ind = np.random.randint(ref.shape[1])
+	k_ind = np.random.randint(ref.shape[2])
+	y = -1e0*ref[i_ind,j_ind,k_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
 		
 	if gtx == 0:
 		ratios[sample] = 1
