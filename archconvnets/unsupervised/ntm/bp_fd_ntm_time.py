@@ -33,6 +33,7 @@ w1 = np.random.normal(size=(n1,n_in)) * SCALE
 ww = np.random.normal(size=(C, n_in)) * SCALE #* 1e4
 
 shift_out = np.random.normal(size=(C, n_shifts))
+shiftw_out = np.random.normal(size=(C, n_shifts))
 add_out = np.random.normal(size=(C, mem_length)) * SCALE
 
 x = np.random.normal(size=(N_FRAMES, n_in,1)) * SCALE
@@ -112,16 +113,17 @@ def forward_pass(w1,w2,w3,ww, o_prev, o_content,ow_content, ow_prev, mem, mem_pr
 	read_mem = linear_F(o, mem_prev)
 	
 	gw = sq_F(ww,x_cur)
-	ow = interpolate_simp(ow_prev, gw)
-	ow += interpolate_simp(ow_content, gw)
-	
+	ow_in = interpolate_simp(ow_prev, gw)
+	ow_in += interpolate_simp(ow_content, gw)
+	ow_sq = sq_points(ow_in)
+	ow = shift_w(shiftw_out, ow_sq)
 	mem = mem_prev + add_mem(ow, add_out)
 	
-	return o,ow,mem,read_mem,g1,g2,g3,o_in,o_sq,gw
+	return o,ow,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow_in,ow_sq
 
 ##########
 def compute_partials(w1,w2,w3,ww, o_prev, o_content, ow_content, x_cur, x_prev, do_dw1, do_dw2, do_dw3, \
-		dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw,ow,dow_dww, ow_prev):
+		dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw,ow,dow_dww, ow_prev,ow_in,ow_sq):
 	## read gradients
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
 	do_sq_do_in = sq_points_dinput(o_in)
@@ -147,9 +149,16 @@ def compute_partials(w1,w2,w3,ww, o_prev, o_content, ow_content, x_cur, x_prev, 
 	## write gradients (for the previous time step---read then write!)
 	da_dow = add_mem_dgw(add_out)
 	
+	dow_dow_sq = shift_w_dw_interp_nsum(shiftw_out)
+	dow_sq_dow_in = sq_points_dinput(ow_in)
+	dow_dow_in = mult_partials(dow_dow_sq, dow_sq_dow_in, ow_sq)
+	
 	# ww:
 	dgw_dww = sq_dF_nsum(ww, x_prev, gw)
-	dow_dww = interpolate_simp_dx_nprod(dgw_dww, dow_dww, dow_content_dww, gw, ow_prev, ow_content)
+	do_in_dww = interpolate_simp_dx_nprod(dgw_dww, dow_dww, dow_content_dww, gw, ow_prev, ow_content)
+	
+	dow_dww = mult_partials(dow_dow_in, do_in_dww, ow_in)
+	
 	da_dww = mult_partials(da_dow, dow_dww, ow)
 	
 	dmem_prev_dww += da_dww
@@ -177,25 +186,28 @@ def g(y):
 	do_dw1 = copy.deepcopy(do_dw1i); dow_dww = copy.deepcopy(dow_dwwi)
 	o_prev = copy.deepcopy(o_previ); ow_prev = copy.deepcopy(ow_previ)
 	ow_prev_prev = np.zeros_like(ow_prev);
+	ow_in_prev = np.zeros_like(ow_prev);
+	ow_sq_prev = np.zeros_like(ow_prev);
 	dmem_prev_dww = copy.deepcopy(dmem_prev_dwwi); mem_prev = copy.deepcopy(mem_previ)
 	mem = np.zeros_like(mem_prev); gw_prev = np.zeros((C,1))
 	
 	for frame in range(N_FRAMES):
 		# forward
-		o,ow,mem,read_mem,g1,g2,g3,o_in,o_sq,gw = forward_pass(w1,w2,w3,ww, o_prev, o_content,ow_content, \
+		o,ow,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow_in,ow_sq = forward_pass(w1,w2,w3,ww, o_prev, o_content,ow_content, \
 			ow_prev, mem, mem_prev,x[frame])
 		
 		# partials
 		do_dw1, do_dw2, do_dw3, dmem_prev_dww, dow_dww = compute_partials(w1,w2,w3,ww, \
 				o_prev, o_content, ow_content,\
 				x[frame], x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw_prev,ow_prev,\
-				dow_dww, ow_prev_prev)
+				dow_dww, ow_prev_prev,ow_in_prev,ow_sq_prev)
 		
 		# update temporal vars
 		if frame != (N_FRAMES-1):
 			ow_prev_prev = copy.deepcopy(ow_prev)
 			o_prev = copy.deepcopy(o); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x[frame]); 
 			ow_prev = copy.deepcopy(ow); gw_prev = copy.deepcopy(gw)
+			ow_in_prev = copy.deepcopy(ow_in); ow_sq_prev = copy.deepcopy(ow_sq)
 	
 	# full gradients:
 	derr_dread_mem = sq_points_dinput(read_mem - t)
