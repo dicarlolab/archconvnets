@@ -159,7 +159,7 @@ def compute_partials(w1,w2,w3,ww, o_prev, o_content, ow_content, x_cur, x_prev, 
 	
 	da_dww = mult_partials(da_dow, dow_dww, ow)
 	
-	dmem_prev_dww += da_dww
+	#dmem_prev_dww += da_dww
 	
 	return do_dw1, do_dw2, do_dw3, dmem_prev_dww, dow_dww
 
