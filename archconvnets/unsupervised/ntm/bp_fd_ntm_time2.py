@@ -155,9 +155,7 @@ def compute_partials(w1,w2,w3,ww, o_prev, o_content, ow_content, x_cur, x_prev, 
 	
 	# ww:
 	dgw_dww = sq_dF_nsum(ww, x_prev, gw)
-	do_in_dww = interpolate_simp_dx_nprod(dgw_dww, dow_dww, dow_content_dww, gw, ow_prev, ow_content)
-	
-	dow_dww = mult_partials(dow_dow_in, do_in_dww, ow_in)
+	dow_dww = interpolate_simp_dx(dgw_dww, dow_dww, dow_content_dww, gw, ow_prev, ow_content,dow_dow_in)
 	
 	da_dww = mult_partials(da_dow, dow_dww, ow)
 	
