@@ -250,3 +250,29 @@ def sq_dlayer_in(F, layer_in, layer_out, above_w=1):
 
 def sq_dlayer_in_nsum(F, layer_in): # not summed across n1 as sq_dlayer_in() does
 	return 2 * F * linear_F(F,layer_in) # [n1, n_in]
+	
+#######
+def linear_2d_F(ww,x):
+	return np.squeeze(np.dot(ww,x))
+
+def linear_2d_F_dF_nsum(ww,x):
+	n = ww.shape[1]
+	temp = np.zeros((ww.shape[0], n, ww.shape[0], n, ww.shape[2]))
+	for i in range(ww.shape[0]):
+		temp[i,range(n),i,range(n)] += np.squeeze(x)
+	return temp
+
+def linear_2d_F_dx_nsum(ww):
+	return ww
+
+##################
+def sq_points(input):
+	return input**2
+
+def sq_points_dinput(input):
+	n = input.shape[1]
+	dinput = np.zeros((input.shape[0], n, input.shape[0], n))
+	for i in range(input.shape[0]):
+		dinput[i,range(n),i,range(n)] = 2*input[i]
+	return dinput
+
