@@ -102,7 +102,12 @@ def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_
 	return do_dx
 
 ########
-def forward_pass(w1,w2,w3,ww, o_prev, o_content,ow_content, ow_prev, mem, mem_prev,x_cur):
+G1 = 0
+
+G = [None]*4
+
+def forward_pass(w1,w2,w3,ww, o_prev, ow_prev, mem, mem_prev,x_cur):
+	G[G1] = sq_F(w1,x_cur)
 	g1 = sq_F(w1,x_cur)
 	g2 = sq_F(w2,g1)
 	g3 = sq_F(w3,g2)
@@ -122,8 +127,7 @@ def forward_pass(w1,w2,w3,ww, o_prev, o_content,ow_content, ow_prev, mem, mem_pr
 	return o,ow,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow_in,ow_sq
 
 ##########
-def compute_partials(w1,w2,w3,ww, o_prev, o_content, ow_content, x_cur, x_prev, do_dw1, do_dw2, do_dw3, \
-		dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw,ow,dow_dww, ow_prev,ow_in,ow_sq):
+def compute_weight_address_partials(w1,w2,w3, o_prev, o_content, x_cur, do_dw1, do_dw2, do_dw3, g1,g2,g3,o_in,o_sq):
 	## read gradients
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
 	do_sq_do_in = sq_points_dinput(o_in)
@@ -146,24 +150,7 @@ def compute_partials(w1,w2,w3,ww, o_prev, o_content, ow_content, x_cur, x_prev, 
 	dg3_dw1 = mult_partials(dg3_dg1, dg1_dw1, np.squeeze(g1))
 	do_dw1 = interpolate_simp_dx(dg3_dw1, do_dw1, do_content_dw1, g3, o_prev, o_content, do_do_in)
 	
-	## write gradients (for the previous time step---read then write!)
-	da_dow = add_mem_dgw(add_out)
-	
-	dow_dow_sq = shift_w_dw_interp_nsum(shiftw_out)
-	dow_sq_dow_in = sq_points_dinput(ow_in)
-	dow_dow_in = mult_partials(dow_dow_sq, dow_sq_dow_in, ow_sq)
-	
-	# ww:
-	dgw_dww = sq_dF_nsum(ww, x_prev, gw)
-	do_in_dww = interpolate_simp_dx_nprod(dgw_dww, dow_dww, dow_content_dww, gw, ow_prev, ow_content)
-	
-	dow_dww = mult_partials(dow_dow_in, do_in_dww, ow_in)
-	
-	da_dww = mult_partials(da_dow, dow_dww, ow)
-	
-	dmem_prev_dww += da_dww
-	
-	return do_dw1, do_dw2, do_dw3, dmem_prev_dww, dow_dww
+	return do_dw1, do_dw2, do_dw3
 
 def f(y):
 	ww[i_ind,j_ind] = y
@@ -172,7 +159,7 @@ def f(y):
 	mem_prev = copy.deepcopy(mem_previ); mem = np.zeros_like(mem_prev)
 	
 	for frame in range(N_FRAMES):
-		o_prev, ow_prev, mem_prev, read_mem = forward_pass(w1,w2,w3,ww, o_prev, o_content,ow_content, \
+		o_prev, ow_prev, mem_prev, read_mem = forward_pass(w1,w2,w3,ww, o_prev, \
 			ow_prev, mem, mem_prev,x[frame])[:4]
 	
 	return ((read_mem - t)**2).sum()
@@ -193,14 +180,28 @@ def g(y):
 	
 	for frame in range(N_FRAMES):
 		# forward
-		o,ow,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow_in,ow_sq = forward_pass(w1,w2,w3,ww, o_prev, o_content,ow_content, \
+		o,ow,mem,read_mem,g1,g2,g3,o_in,o_sq,gw,ow_in,ow_sq = forward_pass(w1,w2,w3,ww, o_prev,  \
 			ow_prev, mem, mem_prev,x[frame])
 		
-		# partials
-		do_dw1, do_dw2, do_dw3, dmem_prev_dww, dow_dww = compute_partials(w1,w2,w3,ww, \
-				o_prev, o_content, ow_content,\
-				x[frame], x_prev, do_dw1, do_dw2, do_dw3, dmem_prev_dww,g1,g2,g3,o_in,o_sq,gw_prev,ow_prev,\
-				dow_dww, ow_prev_prev,ow_in_prev,ow_sq_prev)
+		# partials for previous address weights (o)
+		do_dw1, do_dw2, do_dw3 = compute_weight_address_partials(w1,w2,w3,o_prev, o_content, x[frame], do_dw1, do_dw2, do_dw3,g1,g2,g3,o_in,o_sq)
+		
+		########### temp
+		## write partials (for the previous time step---read then write!)
+		dow_dow_sq = shift_w_dw_interp_nsum(shiftw_out)
+		dow_sq_dow_in = sq_points_dinput(ow_in_prev)
+		dow_dow_in = mult_partials(dow_dow_sq, dow_sq_dow_in, ow_sq_prev)
+		
+		# ww:
+		dgw_dww = sq_dF_nsum(ww, x_prev, gw_prev)
+		dow_dww = interpolate_simp_dx(dgw_dww, dow_dww, dow_content_dww, gw_prev, ow_prev_prev, ow_content,dow_dow_in)
+		##############
+		
+		# partials for mem
+		da_dow = add_mem_dgw(add_out)
+		da_dww = mult_partials(da_dow, dow_dww, ow_prev)
+		
+		dmem_prev_dww += da_dww
 		
 		# update temporal vars
 		if frame != (N_FRAMES-1):
