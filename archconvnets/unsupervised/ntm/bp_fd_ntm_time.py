@@ -9,10 +9,10 @@ from ntm_gradients import *
 from init_vars import *
 
 ########
-def weight_address(W, o_prev, x_cur, shift_out, o_content): # todo: shift_out, o_content computations
+def weight_address(W, o_prev, x_cur, o_content): # todo: shift_out, o_content computations
 	G = [None]*7
 	
-	G[SHIFT] = sq_F(W[SHIFT], x_cur)
+	G[SHIFT] = linear_2d_F(W[SHIFT], x_cur)
 	
 	G[L1] = sq_F(W[L1], x_cur)
 	G[L2] = sq_F(W[L2], G[L1])
@@ -20,13 +20,13 @@ def weight_address(W, o_prev, x_cur, shift_out, o_content): # todo: shift_out, o
 	G[IN] = interpolate_simp(o_prev, G[L3]) + interpolate_simp(o_content, G[L3])
 	G[SQ] = sq_points(G[IN])
 	
-	G[F] = shift_w(shift_out, G[SQ])
+	G[F] = shift_w(G[SHIFT], G[SQ])
 	
 	return G
 
 def forward_pass(W,WW, o_prev, ow_prev, mem_prev,x_cur):
-	G = weight_address(W, o_prev, x_cur, shift_out, o_content)
-	GW = weight_address(WW, ow_prev, x_cur, shiftw_out, ow_content)
+	G = weight_address(W, o_prev, x_cur, o_content)
+	GW = weight_address(WW, ow_prev, x_cur, ow_content)
 	
 	read_mem = linear_F(G[F], mem_prev)
 	mem = mem_prev + add_mem(GW[F], add_out)
@@ -34,11 +34,16 @@ def forward_pass(W,WW, o_prev, ow_prev, mem_prev,x_cur):
 	return G,GW,mem,read_mem
 
 ##########
-def weight_address_partials(W, o_prev, shift_out, o_content, x_cur, DO_DW, DO_CONTENT_DW, G):
+def weight_address_partials(W, o_prev, o_content, x_cur, DO_DW, DO_CONTENT_DW, G):
 	DO_DW_NEW = copy.deepcopy(DO_DW)
 	
-	#do_dshift_out = shift_w_dshift_out_nsum(o_sq)
-	do_do_sq = shift_w_dw_interp_nsum(shift_out)
+	##
+	do_dgshift = shift_w_dshift_out_nsum(G[SQ])
+	dgshift_dwshift = linear_2d_F_dF_nsum(W[SHIFT], x_cur)
+	DO_DW_NEW[SHIFT] = mult_partials(do_dgshift, dgshift_dwshift, G[SHIFT])
+	
+	##
+	do_do_sq = shift_w_dw_interp_nsum(G[SHIFT])
 	do_sq_do_in = sq_points_dinput(G[IN])
 	do_do_in = mult_partials(do_do_sq, do_sq_do_in, G[SQ])
 	
@@ -68,21 +73,33 @@ def mem_partials(add_out, DMEM_PREV_DWW, DOW_DWW, OW_PREV):
 	
 	da_dow = add_mem_dgw(add_out)
 	
-	da_dww3 = mult_partials(da_dow, DOW_DWW[L3], OW_PREV[F])
-	da_dww2 = mult_partials(da_dow, DOW_DWW[L2], OW_PREV[F])
-	da_dww1 = mult_partials(da_dow, DOW_DWW[L1], OW_PREV[F])
-	
-	DMEM_PREV_DWW_NEW[L3] = DMEM_PREV_DWW[L3] + da_dww3
-	DMEM_PREV_DWW_NEW[L2] = DMEM_PREV_DWW[L2] + da_dww2
-	DMEM_PREV_DWW_NEW[L1] = DMEM_PREV_DWW[L1] + da_dww1
+	for layer in range(len(DOW_DWW)):
+		da_dlayer = mult_partials(da_dow, DOW_DWW[layer], OW_PREV[F])
+		DMEM_PREV_DWW_NEW[layer] = DMEM_PREV_DWW[layer] + da_dlayer
+		
 	
 	return DMEM_PREV_DWW_NEW
 
-#####
-DERIV_L = L1
+##### which gradients to test
+DERIV_L = SHIFT
+read_gradients = False
+####
+if read_gradients == True:
+	ref = WW[DERIV_L]
+else:
+	ref = W[DERIV_L]
 
+########
 def f(y):
-	WW[DERIV_L][i_ind,j_ind] = y
+	if ref.ndim == 2 and read_gradients == True:
+		W[DERIV_L][i_ind,j_ind] = y
+	elif read_gradients == True:
+		W[DERIV_L][i_ind,j_ind,k_ind] = y
+	elif ref.ndim == 2:
+		WW[DERIV_L][i_ind,j_ind] = y
+	else:
+		WW[DERIV_L][i_ind,j_ind,k_ind] = y
+	##
 	
 	G_PREV = copy.deepcopy(G_PREVi); GW_PREV = copy.deepcopy(GW_PREVi)
 	mem_prev = copy.deepcopy(mem_previ); mem = np.zeros_like(mem_prev)
@@ -94,7 +111,11 @@ def f(y):
 
 
 def g(y):
-	WW[DERIV_L][i_ind,j_ind] = y
+	if ref.ndim == 2:
+		W[DERIV_L][i_ind,j_ind] = y
+	else:
+		W[DERIV_L][i_ind,j_ind,k_ind] = y
+	##
 	
 	G_PREV = copy.deepcopy(G_PREVi); GW_PREV = copy.deepcopy(GW_PREVi)
 	GW_PREV_PREV = copy.deepcopy(GW_PREV_PREVi)
@@ -107,8 +128,8 @@ def g(y):
 		G,GW,mem,read_mem = forward_pass(W, WW, G_PREV[F], GW_PREV[F], mem_prev, x[frame])
 		
 		# partials for weight addresses
-		DO_DW = weight_address_partials(W, G_PREV[F], shift_out, o_content, x[frame], DO_DW, DO_CONTENT_DW, G)
-		DOW_DWW = weight_address_partials(WW, GW_PREV_PREV[F], shiftw_out, ow_content, x[frame-1], DOW_DWW, DO_CONTENT_DW, GW_PREV)
+		DO_DW = weight_address_partials(W, G_PREV[F], o_content, x[frame], DO_DW, DO_CONTENT_DW, G)
+		DOW_DWW = weight_address_partials(WW, GW_PREV_PREV[F], ow_content, x[frame-1], DOW_DWW, DO_CONTENT_DW, GW_PREV)
 		
 		# partials for mem
 		DMEM_PREV_DWW = mem_partials(add_out, DMEM_PREV_DWW, DOW_DWW, GW_PREV)
@@ -128,33 +149,43 @@ def g(y):
 	dread_mem_do = linear_F_dF_nsum(mem_prev)
 	derr_do = mult_partials(derr_dread_mem, dread_mem_do, read_mem)
 	
-	DW[L1] = mult_partials_sum(derr_do, DO_DW[L1], G[F])
-	DW[L2] = mult_partials_sum(derr_do, DO_DW[L2], G[F])
-	DW[L3] = mult_partials_sum(derr_do, DO_DW[L3], G[F])
-
+	for layer in range(len(DW)):
+		DW[layer] = mult_partials_sum(derr_do, DO_DW[layer], G[F])
+	
 	# write weights
 	dread_mem_dmem_prev = linear_F_dx_nsum(G[F])
 	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
 	
+	DWW[SHIFT] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[SHIFT], mem_prev)
 	DWW[L3] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[L3], mem_prev)
 	DWW[L2] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[L2], mem_prev)
 	DWW[L1] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[L1], mem_prev)
 	
-	return DWW[DERIV_L][i_ind,j_ind]
-	
+	####
+	if ref.ndim == 2 and read_gradients == True:
+		return DW[DERIV_L][i_ind,j_ind]
+	elif read_gradients == True:
+		return DW[DERIV_L][i_ind,j_ind,k_ind]
+	elif ref.ndim == 2:
+		return DWW[DERIV_L][i_ind,j_ind]
+	else:
+		return DWW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e2
-
+eps = np.sqrt(np.finfo(np.float).eps)*1e1
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
-
-	ref = WW[DERIV_L]
-	i_ind = np.random.randint(ref.shape[0])
-	j_ind = np.random.randint(ref.shape[1])
-	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	if ref.ndim == 2:
+		i_ind = np.random.randint(ref.shape[0])
+		j_ind = np.random.randint(ref.shape[1])
+	else:
+		i_ind = np.random.randint(ref.shape[0])
+		j_ind = np.random.randint(ref.shape[1])
+		k_ind = np.random.randint(ref.shape[1])
+	
+	y = -1e0*ref[i_ind,j_ind,k_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
 	
 	if gtx == 0:
 		ratios[sample] = 1
