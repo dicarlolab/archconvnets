@@ -18,16 +18,18 @@ ow_previ = np.random.normal(size=(C,M))
 o_content = np.random.normal(size=(C,M))
 ow_content = np.random.normal(size=(C,M))
 
-w3 = np.random.normal(size=(C,n2)) * SCALE
-w2 = np.random.normal(size=(n2,n1)) * SCALE
 w1 = np.random.normal(size=(n1,n_in)) * SCALE
+w2 = np.random.normal(size=(n2,n1)) * SCALE
+w3 = np.random.normal(size=(C,n2)) * SCALE
+wshift = np.random.normal(size=(C,n_in)) * SCALE
 
 ww1 = np.random.normal(size=(n1, n_in)) * SCALE
 ww2 = np.random.normal(size=(n2, n1)) * SCALE
 ww3 = np.random.normal(size=(C, n2)) * SCALE
+wwshift = np.random.normal(size=(C,n_in)) * SCALE
 
-W = [w1, w2, w3]; DW = [None] * 3
-WW = [ww1, ww2, ww3]; DWW = [None] * 3
+W = [w1, w2, w3, wshift]; DW = [None] * 4
+WW = [ww1, ww2, ww3, wwshift]; DWW = [None] * 4
 
 shift_out = np.random.normal(size=(C, n_shifts))
 shiftw_out = np.random.normal(size=(C, n_shifts))
@@ -66,9 +68,9 @@ dmem_prev_dww3 = np.zeros((M, mem_length, C,n2))
 
 DMEM_PREV_DWWi = [dmem_prev_dww1, dmem_prev_dww2, dmem_prev_dww3]
 
-L1 = 0; L2 = 1; L3 = 2
+L1 = 0; L2 = 1; L3 = 2; SHIFT = 3
 IN = 0; SQ = 1; F = 2
 O_PREVi = [None, None, o_previ]
 OW_PREVi = [np.zeros_like(ow_previ), np.zeros_like(ow_previ), ow_previ]
 OW_PREV_PREVi = [None, None, np.zeros_like(ow_previ)]
-GW_PREVi = [np.zeros((n1,1)), np.zeros((n2,1)), np.zeros((C,1))]
+GW_PREVi = [np.zeros((n1,1)), np.zeros((n2,1)), np.zeros((C,1)), np.zeros((C,1))]

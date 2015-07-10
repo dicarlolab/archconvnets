@@ -195,6 +195,16 @@ def shift_w_dshift_out(w_interp, above_w=1):
 	
 	return dshift_w_dshift_out.sum(1) # [n_controllers, n_shifts]
 
+def shift_w_dshift_out_nsum(w_interp):
+	n_shifts = 3 #...
+	
+	temp = np.zeros((C, M, C, n_shifts))
+	for m in range(M):
+		for H in [-1,0,1]:
+			temp[range(C),m,range(C),H+1] = w_interp[:, (m+H)%M]
+	
+	return temp
+
 def shift_w_dw_interp(shift_out, above_w=1):
 	# shift_out: [n_controllers, n_shifts], above_w: [n_controllers, mem_length]
 	
@@ -207,6 +217,17 @@ def shift_w_dw_interp(shift_out, above_w=1):
 		temp[:,(loc+1)%n_mem_slots] += above_w[:,loc] * shift_out[:,2]
 			
 	return temp # [n_controllers, mem_length]
+
+def shift_w_dw_interp_nsum(shift_out):
+	# shift_out: [n_controllers, n_shifts]
+	temp = np.zeros((C, M, C, M))
+	
+	for loc in range(M):
+		temp[range(C),loc,range(C),loc-1] = shift_out[:,0]
+		temp[range(C),loc,range(C),loc] = shift_out[:,1]
+		temp[range(C),loc,range(C),(loc+1)%M] = shift_out[:,2]
+			
+	return temp
 
 ############## linear layer
 def linear_F(F, layer_in):
@@ -277,8 +298,6 @@ def sq_points_dinput(input):
 		dinput[i,range(n),i,range(n)] = 2*input[i]
 	return dinput
 
-###############
-
 ############
 def linear_F_dx_nsum(o):
 	n = mem_previ.shape[1]
@@ -291,18 +310,6 @@ def linear_F_dF_nsum(mem):
 	temp = np.zeros((n, mem.shape[1], n, o_previ.shape[1]))
 	temp[range(n),:,range(n)] = mem.T
 	return temp
-
-################
-def shift_w_dw_interp_nsum(shift_out):
-	# shift_out: [n_controllers, n_shifts]
-	temp = np.zeros((C, M, C, M))
-	
-	for loc in range(M):
-		temp[range(C),loc,range(C),loc-1] = shift_out[:,0]
-		temp[range(C),loc,range(C),loc] = shift_out[:,1]
-		temp[range(C),loc,range(C),(loc+1)%M] = shift_out[:,2]
-			
-	return temp # [n_controllers, M, n_controllers, M]
 
 #####
 def add_mem(gw, add_out):

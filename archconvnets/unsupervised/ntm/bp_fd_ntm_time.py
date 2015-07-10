@@ -1,4 +1,3 @@
-#from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 import time
 import numpy as np
 from scipy.io import savemat, loadmat
@@ -19,6 +18,7 @@ def weight_address(W, o_prev, x_cur, shift_out, o_content): # todo: shift_out, o
 	G[L3] = sq_F(W[L3], G[L2])
 	O[IN] = interpolate_simp(o_prev, G[L3]) + interpolate_simp(o_content, G[L3])
 	O[SQ] = sq_points(O[IN])
+	
 	O[F] = shift_w(shift_out, O[SQ])
 	
 	return G, O
@@ -162,5 +162,3 @@ for sample in range(N_SAMPLES):
 	print gt, gtx, ratios[sample]
 	
 print ratios.mean(), ratios.std()
-
-
