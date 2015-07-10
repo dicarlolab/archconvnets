@@ -123,7 +123,7 @@ def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_
 L1 = 0; L2 = 1; L3 = 2
 IN = 0; SQ = 1; F = 2
 Oi = [None, None, o_previ]
-OW_PREVi = [None, None, ow_previ]
+OWi = [None, None, ow_previ]
 
 def compute_weight_address(W, o_prev, x_cur, shift_out, o_content): # todo: shift_out, o_content computations
 	G = [None]*3
@@ -187,7 +187,7 @@ def f(y):
 	#W[L3][i_ind,j_ind] = y
 	
 	O = copy.deepcopy(Oi)
-	OW_PREV = copy.deepcopy(OW_PREVi)
+	OW_PREV = copy.deepcopy(OWi)
 	
 	ow_prev = copy.deepcopy(ow_previ)
 	mem_prev = copy.deepcopy(mem_previ); mem = np.zeros_like(mem_prev)
@@ -206,7 +206,8 @@ def g(y):
 	
 	O = copy.deepcopy(Oi)
 	O_PREV = copy.deepcopy(O)
-	OW_PREV = copy.deepcopy(O)
+	OW = copy.deepcopy(OWi)
+	OW_PREV = copy.deepcopy(OWi)
 	
 	DO_DW = [do_dw1, do_dw2, do_dw3]
 	
@@ -274,6 +275,7 @@ def g(y):
 		# update temporal state vars
 		if frame != N_FRAMES:
 			ow_prev_prev = copy.deepcopy(ow_prev)
+			OW_PREV = copy.deepcopy(OW);
 			O_PREV = copy.deepcopy(O); mem_prev = copy.deepcopy(mem)
 			ow_prev = copy.deepcopy(ow)
 			GW_PREV = copy.deepcopy(GW)
