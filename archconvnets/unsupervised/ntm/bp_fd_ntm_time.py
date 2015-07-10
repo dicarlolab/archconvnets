@@ -111,10 +111,14 @@ def f(y):
 
 
 def g(y):
-	if ref.ndim == 2:
+	if ref.ndim == 2 and read_gradients == True:
 		W[DERIV_L][i_ind,j_ind] = y
-	else:
+	elif read_gradients == True:
 		W[DERIV_L][i_ind,j_ind,k_ind] = y
+	elif ref.ndim == 2:
+		WW[DERIV_L][i_ind,j_ind] = y
+	else:
+		WW[DERIV_L][i_ind,j_ind,k_ind] = y
 	##
 	
 	G_PREV = copy.deepcopy(G_PREVi); GW_PREV = copy.deepcopy(GW_PREVi)

@@ -27,7 +27,7 @@ wshift = np.random.normal(size=(C,n_shifts,n_in)) * SCALE
 ww1 = np.random.normal(size=(n1, n_in)) * SCALE
 ww2 = np.random.normal(size=(n2, n1)) * SCALE
 ww3 = np.random.normal(size=(C, n2)) * SCALE
-wwshift = np.random.normal(size=(C,n_shifts,n_in)) * 1e1
+wwshift = np.random.normal(size=(C,n_shifts,n_in)) * SCALE
 
 W = [w1, w2, w3, wshift]; DW = [None] * 4
 WW = [ww1, ww2, ww3, wwshift]; DWW = [None] * 4
