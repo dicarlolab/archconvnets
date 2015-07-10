@@ -108,34 +108,35 @@ def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_
 
 ########
 L1 = 0; L2 = 1; L3 = 2
+IN = 0; SQ = 1; F = 2
+Oi = [None, None, o_previ]
 
-def forward_pass(W,ww, o_prev, ow_prev, mem, mem_prev,x_cur):
+def forward_pass(W,ww, o_prev, ow_prev, mem_prev,x_cur):
 	G = [None]*3
+	O = [None]*3
 	
 	G[L1] = sq_F(W[L1], x_cur)
 	G[L2] = sq_F(W[L2], G[L1])
 	G[L3] = sq_F(W[L3], G[L2])
-	o_in = interpolate_simp(o_prev, G[L3])
-	o_in += interpolate_simp(o_content, G[L3])
-	o_sq = sq_points(o_in)
-	o = shift_w(shift_out, o_sq)
-	read_mem = linear_F(o, mem_prev)
+	O[IN] = interpolate_simp(o_prev, G[L3]) + interpolate_simp(o_content, G[L3])
+	O[SQ] = sq_points(O[IN])
+	O[F] = shift_w(shift_out, O[SQ])
+	read_mem = linear_F(O[F], mem_prev)
 	
 	gw = sq_F(ww,x_cur)
-	ow_in = interpolate_simp(ow_prev, gw)
-	ow_in += interpolate_simp(ow_content, gw)
+	ow_in = interpolate_simp(ow_prev, gw) + interpolate_simp(ow_content, gw)
 	ow_sq = sq_points(ow_in)
 	ow = shift_w(shiftw_out, ow_sq)
 	mem = mem_prev + add_mem(ow, add_out)
 	
-	return o,ow,mem,read_mem,G,o_in,o_sq,gw,ow_in,ow_sq
+	return O,ow,mem,read_mem,G,gw,ow_in,ow_sq
 
 ##########
-def compute_weight_address_partials(W, o_prev, o_content, x_cur, DO_DW, G,o_in,o_sq):
+def compute_weight_address_partials(W, o_prev, o_content, x_cur, DO_DW, G,O):
 	## read gradients
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
-	do_sq_do_in = sq_points_dinput(o_in)
-	do_do_in = mult_partials(do_do_sq, do_sq_do_in, o_sq)
+	do_sq_do_in = sq_points_dinput(O[IN])
+	do_do_in = mult_partials(do_do_sq, do_sq_do_in, O[SQ])
 	
 	#w3
 	dg3_dg2 = sq_dlayer_in_nsum(W[L3], G[L2])
@@ -160,12 +161,13 @@ def f(y):
 	#ww[i_ind,j_ind] = y
 	W[L1][i_ind,j_ind] = y
 	
-	o_prev = copy.deepcopy(o_previ); ow_prev = copy.deepcopy(ow_previ)
+	O = copy.deepcopy(Oi)
+	
+	ow_prev = copy.deepcopy(ow_previ)
 	mem_prev = copy.deepcopy(mem_previ); mem = np.zeros_like(mem_prev)
 	
 	for frame in range(N_FRAMES):
-		o_prev, ow_prev, mem_prev, read_mem = forward_pass(W,ww, o_prev, \
-			ow_prev, mem, mem_prev,x[frame])[:4]
+		O, ow_prev, mem_prev, read_mem = forward_pass(W,ww, O[F], ow_prev, mem_prev,x[frame])[:4]
 	
 	return ((read_mem - t)**2).sum()
 
@@ -173,6 +175,9 @@ def f(y):
 def g(y):
 	#ww[i_ind,j_ind] = y
 	W[L1][i_ind,j_ind] = y
+	
+	O = copy.deepcopy(Oi)
+	O_PREV = copy.deepcopy(O)
 	
 	x_prev = np.zeros_like(x[0])
 	
@@ -188,10 +193,10 @@ def g(y):
 	
 	for frame in range(N_FRAMES):
 		# forward
-		o,ow,mem,read_mem,G,o_in,o_sq,gw,ow_in,ow_sq = forward_pass(W, ww, o_prev, ow_prev, mem, mem_prev,x[frame])
+		O,ow,mem,read_mem,G,gw,ow_in,ow_sq = forward_pass(W, ww, O_PREV[F], ow_prev, mem_prev,x[frame])
 		
 		# partials for previous address weights (o)
-		DO_DW = compute_weight_address_partials(W,o_prev, o_content, x[frame], DO_DW,G,o_in,o_sq)
+		DO_DW = compute_weight_address_partials(W,O_PREV[F], o_content, x[frame], DO_DW,G,O)
 		
 		########### temp
 		## write partials (for the previous time step---read then write!)
@@ -213,7 +218,7 @@ def g(y):
 		# update temporal vars
 		if frame != (N_FRAMES-1):
 			ow_prev_prev = copy.deepcopy(ow_prev)
-			o_prev = copy.deepcopy(o); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x[frame]); 
+			O_PREV = copy.deepcopy(O); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x[frame]); 
 			ow_prev = copy.deepcopy(ow); gw_prev = copy.deepcopy(gw)
 			ow_in_prev = copy.deepcopy(ow_in); ow_sq_prev = copy.deepcopy(ow_sq)
 	
@@ -221,16 +226,16 @@ def g(y):
 	derr_dread_mem = sq_points_dinput(read_mem - t)
 	
 	dread_mem_do = linear_F_dF_nsum(mem_prev)
-	dread_mem_dmem_prev = linear_F_dx_nsum(o)
+	dread_mem_dmem_prev = linear_F_dx_nsum(O[F])
 
 	derr_do = mult_partials(derr_dread_mem, dread_mem_do, read_mem)
 	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
 	
 	dww = mult_partials_sum(derr_dmem_prev, dmem_prev_dww, mem_prev)
 	
-	dw1 = mult_partials_sum(derr_do, DO_DW[L1], o)
-	dw2 = mult_partials_sum(derr_do, DO_DW[L2], o)
-	dw3 = mult_partials_sum(derr_do, DO_DW[L3], o)
+	dw1 = mult_partials_sum(derr_do, DO_DW[L1], O[F])
+	dw2 = mult_partials_sum(derr_do, DO_DW[L2], O[F])
+	dw3 = mult_partials_sum(derr_do, DO_DW[L3], O[F])
 	
 	return dw1[i_ind,j_ind]
 	
