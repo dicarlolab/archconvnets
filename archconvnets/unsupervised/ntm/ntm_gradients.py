@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+from init_vars import *
 
 ####
 def mult_partials(da_db, db_dc, b):
@@ -276,3 +277,54 @@ def sq_points_dinput(input):
 		dinput[i,range(n),i,range(n)] = 2*input[i]
 	return dinput
 
+###############
+
+############
+def linear_F_dx_nsum(o):
+	n = mem_previ.shape[1]
+	temp = np.zeros((o_previ.shape[0], n, mem_previ.shape[0], n))
+	temp[:,range(n),:,range(n)] = o
+	return temp
+
+def linear_F_dF_nsum(mem):
+	n = o_previ.shape[0]
+	temp = np.zeros((n, mem.shape[1], n, o_previ.shape[1]))
+	temp[range(n),:,range(n)] = mem.T
+	return temp
+
+################
+def shift_w_dw_interp_nsum(shift_out):
+	# shift_out: [n_controllers, n_shifts]
+	temp = np.zeros((C, M, C, M))
+	
+	for loc in range(M):
+		temp[range(C),loc,range(C),loc-1] = shift_out[:,0]
+		temp[range(C),loc,range(C),loc] = shift_out[:,1]
+		temp[range(C),loc,range(C),(loc+1)%M] = shift_out[:,2]
+			
+	return temp # [n_controllers, M, n_controllers, M]
+
+#####
+def add_mem(gw, add_out):
+	return np.dot(gw.T, add_out)
+
+def add_mem_dgw(add_out):
+	temp = np.zeros((M, mem_length, C, M))
+	temp[range(M),:,:,range(M)] = add_out.T
+	return temp
+
+################# interpolate simplified
+def interpolate_simp(w_prev, interp_gate_out):
+	return w_prev * interp_gate_out
+
+def interpolate_simp_dx_nprod(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content):
+	do_in_dx = np.einsum(do_dx + do_content_dx, range(4), g3, [0,1], range(4))
+	do_in_dx += np.einsum(o_prev + o_content, [0,1], dg3_dx, [0,2,3], range(4))
+	
+	return do_in_dx
+	
+def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_do_in):
+	do_in_dx = interpolate_simp_dx_nprod(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content)
+	
+	do_dx = mult_partials(do_do_in, do_in_dx, o_prev)
+	return do_dx
