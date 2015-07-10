@@ -38,8 +38,10 @@ shift_out = np.random.normal(size=(C, n_shifts))
 shiftw_out = np.random.normal(size=(C, n_shifts))
 add_out = np.random.normal(size=(C, mem_length)) * SCALE
 
-x = np.random.normal(size=(N_FRAMES, n_in,1)) * SCALE
+x = np.random.normal(size=(N_FRAMES+1, n_in,1)) * SCALE
 t = np.random.normal(size=(C,mem_length))
+
+x[0] = np.zeros_like(x[0])
 
 do_dw3 = np.zeros((C,M,C,n2))
 do_dw2 = np.zeros((C,M,n2,n1))
@@ -166,7 +168,7 @@ def f(y):
 	ow_prev = copy.deepcopy(ow_previ)
 	mem_prev = copy.deepcopy(mem_previ); mem = np.zeros_like(mem_prev)
 	
-	for frame in range(N_FRAMES):
+	for frame in range(1,N_FRAMES+1):
 		O, ow_prev, mem_prev, read_mem = forward_pass(W,ww, O[F], ow_prev, mem_prev,x[frame])[:4]
 	
 	return ((read_mem - t)**2).sum()
@@ -179,8 +181,6 @@ def g(y):
 	O = copy.deepcopy(Oi)
 	O_PREV = copy.deepcopy(O)
 	
-	x_prev = np.zeros_like(x[0])
-	
 	DO_DW = [do_dw1, do_dw2, do_dw3]
 	
 	dow_dww = copy.deepcopy(dow_dwwi)
@@ -191,7 +191,7 @@ def g(y):
 	dmem_prev_dww = copy.deepcopy(dmem_prev_dwwi); mem_prev = copy.deepcopy(mem_previ)
 	mem = np.zeros_like(mem_prev); gw_prev = np.zeros((C,1))
 	
-	for frame in range(N_FRAMES):
+	for frame in range(1,N_FRAMES+1):
 		# forward
 		O,ow,mem,read_mem,G,gw,ow_in,ow_sq = forward_pass(W, ww, O_PREV[F], ow_prev, mem_prev,x[frame])
 		
@@ -205,7 +205,7 @@ def g(y):
 		dow_dow_in = mult_partials(dow_dow_sq, dow_sq_dow_in, ow_sq_prev)
 		
 		# ww:
-		dgw_dww = sq_dF_nsum(ww, x_prev, gw_prev)
+		dgw_dww = sq_dF_nsum(ww, x[frame-1], gw_prev)
 		dow_dww = interpolate_simp_dx(dgw_dww, dow_dww, dow_content_dww, gw_prev, ow_prev_prev, ow_content,dow_dow_in)
 		##############
 		
@@ -215,10 +215,10 @@ def g(y):
 		
 		dmem_prev_dww += da_dww
 		
-		# update temporal vars
-		if frame != (N_FRAMES-1):
+		# update temporal state vars
+		if frame != N_FRAMES:
 			ow_prev_prev = copy.deepcopy(ow_prev)
-			O_PREV = copy.deepcopy(O); mem_prev = copy.deepcopy(mem); x_prev = copy.deepcopy(x[frame]); 
+			O_PREV = copy.deepcopy(O); mem_prev = copy.deepcopy(mem)
 			ow_prev = copy.deepcopy(ow); gw_prev = copy.deepcopy(gw)
 			ow_in_prev = copy.deepcopy(ow_in); ow_sq_prev = copy.deepcopy(ow_sq)
 	
