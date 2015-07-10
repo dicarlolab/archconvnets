@@ -123,6 +123,7 @@ def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_
 L1 = 0; L2 = 1; L3 = 2
 IN = 0; SQ = 1; F = 2
 Oi = [None, None, o_previ]
+OW_PREVi = [None, None, ow_previ]
 
 def compute_weight_address(W, o_prev, x_cur, shift_out, o_content): # todo: shift_out, o_content computations
 	G = [None]*3
@@ -145,10 +146,6 @@ def forward_pass(W,WW, o_prev, ow_prev, mem_prev,x_cur):
 	
 	WW = [ww1,ww2,ww3]
 	GW, OW = compute_weight_address(WW, ow_prev, x_cur, shiftw_out, ow_content)
-	
-	gw1 = GW[L1]
-	gw2 = GW[L2]
-	gw3 = GW[L3]
 	
 	ow_in = OW[IN]
 	ow_sq = OW[SQ]
@@ -190,6 +187,7 @@ def f(y):
 	#W[L3][i_ind,j_ind] = y
 	
 	O = copy.deepcopy(Oi)
+	OW_PREV = copy.deepcopy(OW_PREVi)
 	
 	ow_prev = copy.deepcopy(ow_previ)
 	mem_prev = copy.deepcopy(mem_previ); mem = np.zeros_like(mem_prev)
@@ -208,13 +206,14 @@ def g(y):
 	
 	O = copy.deepcopy(Oi)
 	O_PREV = copy.deepcopy(O)
+	OW_PREV = copy.deepcopy(O)
 	
 	DO_DW = [do_dw1, do_dw2, do_dw3]
 	
 	dow_dww3 = copy.deepcopy(dow_dww3i)
 	dow_dww2 = copy.deepcopy(dow_dww2i)
 	dow_dww1 = copy.deepcopy(dow_dww1i)
-	o_prev = copy.deepcopy(o_previ); ow_prev = copy.deepcopy(ow_previ)
+	ow_prev = copy.deepcopy(ow_previ)
 	ow_prev_prev = np.zeros_like(ow_prev);
 	ow_in_prev = np.zeros_like(ow_prev);
 	ow_sq_prev = np.zeros_like(ow_prev);
@@ -223,18 +222,18 @@ def g(y):
 	dmem_prev_dww1 = copy.deepcopy(dmem_prev_dww1i); 
 	mem_prev = copy.deepcopy(mem_previ); mem = np.zeros_like(mem_prev); 
 	gw1_prev = np.zeros((n1,1)); gw2_prev = np.zeros((n2,1)); gw3_prev = np.zeros((C,1))
+	GW_PREV = [gw1_prev, gw2_prev, gw3_prev]
 	
 	for frame in range(1,N_FRAMES+1):
 		# forward
 		O,ow,mem,read_mem,G,GW,ow_in,ow_sq = forward_pass(W, WW, O_PREV[F], ow_prev, mem_prev,x[frame])
 		
+		
 		# partials for previous address weights (o)
 		DO_DW = compute_weight_address_partials(W,O_PREV[F], o_content, x[frame], DO_DW,G,O)
 		
 		########### temp
-		gw1 = GW[L1]
-		gw2 = GW[L2]
-		gw3 = GW[L3]
+
 		
 		## write partials (for the previous time step---read then write!)
 		dow_dow_sq = shift_w_dw_interp_nsum(shiftw_out)
@@ -242,21 +241,21 @@ def g(y):
 		dow_dow_in = mult_partials(dow_dow_sq, dow_sq_dow_in, ow_sq_prev)
 		
 		# ww3:
-		dgw3_dgw2 = sq_dlayer_in_nsum(ww3, gw2_prev)
-		dgw3_dww3 = sq_dF_nsum(ww3, gw2_prev, gw3_prev)
-		dow_dww3 = interpolate_simp_dx(dgw3_dww3, dow_dww3, dow_content_dww3, gw3_prev, ow_prev_prev, ow_content, dow_dow_in)
+		dgw3_dgw2 = sq_dlayer_in_nsum(WW[L3], GW_PREV[L2])
+		dgw3_dww3 = sq_dF_nsum(WW[L3], GW_PREV[L2], GW_PREV[L3])
+		dow_dww3 = interpolate_simp_dx(dgw3_dww3, dow_dww3, dow_content_dww3, GW_PREV[L3], ow_prev_prev, ow_content, dow_dow_in)
 		
 		# ww2
-		dgw2_dgw1 = sq_dlayer_in_nsum(ww2, gw1_prev)
-		dgw2_dww2 = sq_dF_nsum(ww2, gw1_prev, gw2_prev)
-		dgw3_dww2 = mult_partials(dgw3_dgw2, dgw2_dww2, np.squeeze(gw2_prev))
-		dow_dww2 = interpolate_simp_dx(dgw3_dww2, dow_dww2, dow_content_dww2, gw3_prev, ow_prev_prev, ow_content, dow_dow_in)
+		dgw2_dgw1 = sq_dlayer_in_nsum(WW[L2], GW_PREV[L1])
+		dgw2_dww2 = sq_dF_nsum(WW[L2], GW_PREV[L1], GW_PREV[L2])
+		dgw3_dww2 = mult_partials(dgw3_dgw2, dgw2_dww2, np.squeeze(GW_PREV[L2]))
+		dow_dww2 = interpolate_simp_dx(dgw3_dww2, dow_dww2, dow_content_dww2, GW_PREV[L3], ow_prev_prev, ow_content, dow_dow_in)
 		
 		# ww1:
-		dgw1_dww1 = sq_dF_nsum(ww1, x[frame-1], gw1_prev)
-		dgw3_dgw1 = mult_partials(dgw3_dgw2, dgw2_dgw1, np.squeeze(gw2_prev))
-		dgw3_dww1 = mult_partials(dgw3_dgw1, dgw1_dww1, np.squeeze(gw1_prev))
-		dow_dww1 = interpolate_simp_dx(dgw3_dww1, dow_dww1, dow_content_dww1, gw3_prev, ow_prev_prev, ow_content, dow_dow_in)
+		dgw1_dww1 = sq_dF_nsum(WW[L1], x[frame-1], GW_PREV[L1])
+		dgw3_dgw1 = mult_partials(dgw3_dgw2, dgw2_dgw1, np.squeeze(GW_PREV[L2]))
+		dgw3_dww1 = mult_partials(dgw3_dgw1, dgw1_dww1, np.squeeze(GW_PREV[L1]))
+		dow_dww1 = interpolate_simp_dx(dgw3_dww1, dow_dww1, dow_content_dww1, GW_PREV[L3], ow_prev_prev, ow_content, dow_dow_in)
 		
 		###########################################
 		
@@ -276,8 +275,8 @@ def g(y):
 		if frame != N_FRAMES:
 			ow_prev_prev = copy.deepcopy(ow_prev)
 			O_PREV = copy.deepcopy(O); mem_prev = copy.deepcopy(mem)
-			ow_prev = copy.deepcopy(ow); gw3_prev = copy.deepcopy(gw3); gw2_prev = copy.deepcopy(gw2)
-			gw1_prev = copy.deepcopy(gw1)
+			ow_prev = copy.deepcopy(ow)
+			GW_PREV = copy.deepcopy(GW)
 			ow_in_prev = copy.deepcopy(ow_in); ow_sq_prev = copy.deepcopy(ow_sq)
 	
 	# full gradients:
