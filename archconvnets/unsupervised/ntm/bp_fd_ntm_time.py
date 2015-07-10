@@ -151,7 +151,35 @@ def forward_pass(W,WW, o_prev, ow_prev, mem_prev,x_cur):
 	return O,OW,mem,read_mem,G,GW
 
 ##########
-def compute_weight_address_partials(W, o_prev, o_content, x_cur, DO_DW, G,O):
+def compute_weight_address_partials2(WW, ow_prev_prev, shiftw_out, ow_content, x_cur, DOW_DWW, GW_PREV,OW_PREV):
+	DOW_DWW_NEW = copy.deepcopy(DOW_DWW)
+	## write partials (for the previous time step---read then write!)
+	dow_dow_sq = shift_w_dw_interp_nsum(shiftw_out)
+	dow_sq_dow_in = sq_points_dinput(OW_PREV[IN])
+	dow_dow_in = mult_partials(dow_dow_sq, dow_sq_dow_in, OW_PREV[SQ])
+	
+	# ww3:
+	dgw3_dgw2 = sq_dlayer_in_nsum(WW[L3], GW_PREV[L2])
+	dgw3_dww3 = sq_dF_nsum(WW[L3], GW_PREV[L2], GW_PREV[L3])
+	DOW_DWW_NEW[L3] = interpolate_simp_dx(dgw3_dww3, DOW_DWW[L3], dow_content_dww3, GW_PREV[L3], ow_prev_prev, ow_content, dow_dow_in)
+	
+	# ww2
+	dgw2_dgw1 = sq_dlayer_in_nsum(WW[L2], GW_PREV[L1])
+	dgw2_dww2 = sq_dF_nsum(WW[L2], GW_PREV[L1], GW_PREV[L2])
+	dgw3_dww2 = mult_partials(dgw3_dgw2, dgw2_dww2, np.squeeze(GW_PREV[L2]))
+	DOW_DWW_NEW[L2] = interpolate_simp_dx(dgw3_dww2, DOW_DWW[L2], dow_content_dww2, GW_PREV[L3], ow_prev_prev, ow_content, dow_dow_in)
+	
+	# ww1:
+	dgw1_dww1 = sq_dF_nsum(WW[L1], x_cur, GW_PREV[L1])
+	dgw3_dgw1 = mult_partials(dgw3_dgw2, dgw2_dgw1, np.squeeze(GW_PREV[L2]))
+	dgw3_dww1 = mult_partials(dgw3_dgw1, dgw1_dww1, np.squeeze(GW_PREV[L1]))
+	DOW_DWW_NEW[L1] = interpolate_simp_dx(dgw3_dww1, DOW_DWW[L1], dow_content_dww1, GW_PREV[L3], ow_prev_prev, ow_content, dow_dow_in)
+	
+	return DOW_DWW_NEW
+
+
+def compute_weight_address_partials(W, o_prev, shift_out, o_content, x_cur, DO_DW, G,O):
+	DO_DW_NEW = copy.deepcopy(DO_DW)
 	## read gradients
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
 	do_sq_do_in = sq_points_dinput(O[IN])
@@ -160,21 +188,21 @@ def compute_weight_address_partials(W, o_prev, o_content, x_cur, DO_DW, G,O):
 	#w3
 	dg3_dg2 = sq_dlayer_in_nsum(W[L3], G[L2])
 	dg3_dw3 = sq_dF_nsum(W[L3], G[L2], G[L3])
-	DO_DW[L3] = interpolate_simp_dx(dg3_dw3, DO_DW[L3], do_content_dw3, G[L3], o_prev, o_content, do_do_in)
+	DO_DW_NEW[L3] = interpolate_simp_dx(dg3_dw3, DO_DW[L3], do_content_dw3, G[L3], o_prev, o_content, do_do_in)
 	
 	# w2
 	dg2_dg1 = sq_dlayer_in_nsum(W[L2], G[L1])
 	dg2_dw2 = sq_dF_nsum(W[L2], G[L1], G[L2])
 	dg3_dw2 = mult_partials(dg3_dg2, dg2_dw2, np.squeeze(G[L2]))
-	DO_DW[L2] = interpolate_simp_dx(dg3_dw2, DO_DW[L2], do_content_dw2, G[L3], o_prev, o_content, do_do_in)
+	DO_DW_NEW[L2] = interpolate_simp_dx(dg3_dw2, DO_DW[L2], do_content_dw2, G[L3], o_prev, o_content, do_do_in)
 	
 	# w1:
 	dg1_dw1 = sq_dF_nsum(w1, x_cur, G[L1])
 	dg3_dg1 = mult_partials(dg3_dg2, dg2_dg1, np.squeeze(G[L2]))
 	dg3_dw1 = mult_partials(dg3_dg1, dg1_dw1, np.squeeze(G[L1]))
-	DO_DW[L1] = interpolate_simp_dx(dg3_dw1, DO_DW[L1], do_content_dw1, G[L3], o_prev, o_content, do_do_in)
+	DO_DW_NEW[L1] = interpolate_simp_dx(dg3_dw1, DO_DW[L1], do_content_dw1, G[L3], o_prev, o_content, do_do_in)
 	
-	return DO_DW
+	return DO_DW_NEW
 
 def f(y):
 	WW[L1][i_ind,j_ind] = y
@@ -208,36 +236,10 @@ def g(y):
 		O,OW,mem,read_mem,G,GW = forward_pass(W, WW, O_PREV[F], OW_PREV[F], mem_prev, x[frame])
 		
 		
-		# partials for previous address weights (o)
-		DO_DW = compute_weight_address_partials(W,O_PREV[F], o_content, x[frame], DO_DW, G,O)
-		
-		########### temp
+		# partials for weight addresses
+		DO_DW = compute_weight_address_partials(W,O_PREV[F], shift_out, o_content, x[frame], DO_DW, G,O)
+		DOW_DWW = compute_weight_address_partials2(WW, OW_PREV_PREV[F], shiftw_out, ow_content, x[frame-1], DOW_DWW, GW_PREV, OW_PREV)
 
-		
-		## write partials (for the previous time step---read then write!)
-		dow_dow_sq = shift_w_dw_interp_nsum(shiftw_out)
-		dow_sq_dow_in = sq_points_dinput(OW_PREV[IN])
-		dow_dow_in = mult_partials(dow_dow_sq, dow_sq_dow_in, OW_PREV[SQ])
-		
-		# ww3:
-		dgw3_dgw2 = sq_dlayer_in_nsum(WW[L3], GW_PREV[L2])
-		dgw3_dww3 = sq_dF_nsum(WW[L3], GW_PREV[L2], GW_PREV[L3])
-		DOW_DWW[L3] = interpolate_simp_dx(dgw3_dww3, DOW_DWW[L3], dow_content_dww3, GW_PREV[L3], OW_PREV_PREV[F], ow_content, dow_dow_in)
-		
-		# ww2
-		dgw2_dgw1 = sq_dlayer_in_nsum(WW[L2], GW_PREV[L1])
-		dgw2_dww2 = sq_dF_nsum(WW[L2], GW_PREV[L1], GW_PREV[L2])
-		dgw3_dww2 = mult_partials(dgw3_dgw2, dgw2_dww2, np.squeeze(GW_PREV[L2]))
-		DOW_DWW[L2] = interpolate_simp_dx(dgw3_dww2, DOW_DWW[L2], dow_content_dww2, GW_PREV[L3], OW_PREV_PREV[F], ow_content, dow_dow_in)
-		
-		# ww1:
-		dgw1_dww1 = sq_dF_nsum(WW[L1], x[frame-1], GW_PREV[L1])
-		dgw3_dgw1 = mult_partials(dgw3_dgw2, dgw2_dgw1, np.squeeze(GW_PREV[L2]))
-		dgw3_dww1 = mult_partials(dgw3_dgw1, dgw1_dww1, np.squeeze(GW_PREV[L1]))
-		DOW_DWW[L1] = interpolate_simp_dx(dgw3_dww1, DOW_DWW[L1], dow_content_dww1, GW_PREV[L3], OW_PREV_PREV[F], ow_content, dow_dow_in)
-		
-		###########################################
-		
 		
 		# partials for mem
 		da_dow = add_mem_dgw(add_out)
