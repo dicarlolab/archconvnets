@@ -10,35 +10,37 @@ from init_vars import *
 
 ########
 def weight_address(W, o_prev, x_cur, shift_out, o_content): # todo: shift_out, o_content computations
-	G = [None]*3
-	O = [None]*3
+	G = [None]*7
+	
+	G[SHIFT] = sq_F(W[SHIFT], x_cur)
 	
 	G[L1] = sq_F(W[L1], x_cur)
 	G[L2] = sq_F(W[L2], G[L1])
 	G[L3] = sq_F(W[L3], G[L2])
-	O[IN] = interpolate_simp(o_prev, G[L3]) + interpolate_simp(o_content, G[L3])
-	O[SQ] = sq_points(O[IN])
+	G[IN] = interpolate_simp(o_prev, G[L3]) + interpolate_simp(o_content, G[L3])
+	G[SQ] = sq_points(G[IN])
 	
-	O[F] = shift_w(shift_out, O[SQ])
+	G[F] = shift_w(shift_out, G[SQ])
 	
-	return G, O
+	return G
 
 def forward_pass(W,WW, o_prev, ow_prev, mem_prev,x_cur):
-	G, O = weight_address(W, o_prev, x_cur, shift_out, o_content)
-	GW, OW = weight_address(WW, ow_prev, x_cur, shiftw_out, ow_content)
+	G = weight_address(W, o_prev, x_cur, shift_out, o_content)
+	GW = weight_address(WW, ow_prev, x_cur, shiftw_out, ow_content)
 	
-	read_mem = linear_F(O[F], mem_prev)
-	mem = mem_prev + add_mem(OW[F], add_out)
+	read_mem = linear_F(G[F], mem_prev)
+	mem = mem_prev + add_mem(GW[F], add_out)
 	
-	return O,OW,mem,read_mem,G,GW
+	return G,GW,mem,read_mem
 
 ##########
-def weight_address_partials(W, o_prev, shift_out, o_content, x_cur, DO_DW, DO_CONTENT_DW, G,O):
+def weight_address_partials(W, o_prev, shift_out, o_content, x_cur, DO_DW, DO_CONTENT_DW, G):
 	DO_DW_NEW = copy.deepcopy(DO_DW)
 	
+	#do_dshift_out = shift_w_dshift_out_nsum(o_sq)
 	do_do_sq = shift_w_dw_interp_nsum(shift_out)
-	do_sq_do_in = sq_points_dinput(O[IN])
-	do_do_in = mult_partials(do_do_sq, do_sq_do_in, O[SQ])
+	do_sq_do_in = sq_points_dinput(G[IN])
+	do_do_in = mult_partials(do_do_sq, do_sq_do_in, G[SQ])
 	
 	#w3
 	dg3_dg2 = sq_dlayer_in_nsum(W[L3], G[L2])
@@ -77,47 +79,46 @@ def mem_partials(add_out, DMEM_PREV_DWW, DOW_DWW, OW_PREV):
 	return DMEM_PREV_DWW_NEW
 
 #####
-DERIV_L = L2
+DERIV_L = L1
 
 def f(y):
-	W[DERIV_L][i_ind,j_ind] = y
+	WW[DERIV_L][i_ind,j_ind] = y
 	
-	O_PREV = copy.deepcopy(O_PREVi); OW_PREV = copy.deepcopy(OW_PREVi)
+	G_PREV = copy.deepcopy(G_PREVi); GW_PREV = copy.deepcopy(GW_PREVi)
 	mem_prev = copy.deepcopy(mem_previ); mem = np.zeros_like(mem_prev)
 	
 	for frame in range(1,N_FRAMES+1):
-		O_PREV, OW_PREV, mem_prev, read_mem = forward_pass(W, WW, O_PREV[F], OW_PREV[F], mem_prev, x[frame])[:4]
+		G_PREV, GW_PREV, mem_prev, read_mem = forward_pass(W, WW, G_PREV[F], GW_PREV[F], mem_prev, x[frame])
 	
 	return ((read_mem - t)**2).sum()
 
 
 def g(y):
-	W[DERIV_L][i_ind,j_ind] = y
+	WW[DERIV_L][i_ind,j_ind] = y
 	
-	GW_PREV = copy.deepcopy(GW_PREVi)
-	O_PREV = copy.deepcopy(O_PREVi); OW_PREV = copy.deepcopy(OW_PREVi)
-	OW_PREV_PREV = copy.deepcopy(OW_PREV_PREVi)
-	DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi)
+	G_PREV = copy.deepcopy(G_PREVi); GW_PREV = copy.deepcopy(GW_PREVi)
+	GW_PREV_PREV = copy.deepcopy(GW_PREV_PREVi)
 	DO_DW = copy.deepcopy(DO_DWi); DOW_DWW = copy.deepcopy(DO_DWWi)
-	mem_prev = copy.deepcopy(mem_previ); mem = np.zeros_like(mem_prev); 
+	mem_prev = copy.deepcopy(mem_previ); mem = np.zeros_like(mem_prev)
+	DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi)
 	
 	for frame in range(1,N_FRAMES+1):
 		# forward
-		O,OW,mem,read_mem,G,GW = forward_pass(W, WW, O_PREV[F], OW_PREV[F], mem_prev, x[frame])
+		G,GW,mem,read_mem = forward_pass(W, WW, G_PREV[F], GW_PREV[F], mem_prev, x[frame])
 		
 		# partials for weight addresses
-		DO_DW = weight_address_partials(W,O_PREV[F], shift_out, o_content, x[frame], DO_DW, DO_CONTENT_DW, G,O)
-		DOW_DWW = weight_address_partials(WW, OW_PREV_PREV[F], shiftw_out, ow_content, x[frame-1], DOW_DWW, DO_CONTENT_DW, GW_PREV, OW_PREV)
+		DO_DW = weight_address_partials(W, G_PREV[F], shift_out, o_content, x[frame], DO_DW, DO_CONTENT_DW, G)
+		DOW_DWW = weight_address_partials(WW, GW_PREV_PREV[F], shiftw_out, ow_content, x[frame-1], DOW_DWW, DO_CONTENT_DW, GW_PREV)
 		
 		# partials for mem
-		DMEM_PREV_DWW = mem_partials(add_out, DMEM_PREV_DWW, DOW_DWW, OW_PREV)
+		DMEM_PREV_DWW = mem_partials(add_out, DMEM_PREV_DWW, DOW_DWW, GW_PREV)
 		
 		# update temporal state vars
 		if frame != N_FRAMES:
-			OW_PREV_PREV = copy.deepcopy(OW_PREV)
-			OW_PREV = copy.deepcopy(OW); O_PREV = copy.deepcopy(O)
+			GW_PREV_PREV = copy.deepcopy(GW_PREV)
+			G_PREV = copy.deepcopy(G); GW_PREV = copy.deepcopy(GW)
 			mem_prev = copy.deepcopy(mem)
-			GW_PREV = copy.deepcopy(GW)
+			
 	
 	########
 	## full gradients:
@@ -127,19 +128,19 @@ def g(y):
 	dread_mem_do = linear_F_dF_nsum(mem_prev)
 	derr_do = mult_partials(derr_dread_mem, dread_mem_do, read_mem)
 	
-	DW[L1] = mult_partials_sum(derr_do, DO_DW[L1], O[F])
-	DW[L2] = mult_partials_sum(derr_do, DO_DW[L2], O[F])
-	DW[L3] = mult_partials_sum(derr_do, DO_DW[L3], O[F])
+	DW[L1] = mult_partials_sum(derr_do, DO_DW[L1], G[F])
+	DW[L2] = mult_partials_sum(derr_do, DO_DW[L2], G[F])
+	DW[L3] = mult_partials_sum(derr_do, DO_DW[L3], G[F])
 
 	# write weights
-	dread_mem_dmem_prev = linear_F_dx_nsum(O[F])
+	dread_mem_dmem_prev = linear_F_dx_nsum(G[F])
 	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
 	
 	DWW[L3] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[L3], mem_prev)
 	DWW[L2] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[L2], mem_prev)
 	DWW[L1] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[L1], mem_prev)
 	
-	return DW[DERIV_L][i_ind,j_ind]
+	return DWW[DERIV_L][i_ind,j_ind]
 	
 	
 np.random.seed(np.int64(time.time()))
@@ -150,7 +151,7 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 
-	ref = W[DERIV_L]
+	ref = WW[DERIV_L]
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
 	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
