@@ -241,22 +241,25 @@ def g(y):
 			mem_prev = copy.deepcopy(mem)
 			GW_PREV = copy.deepcopy(GW)
 	
-	# full gradients:
+	########
+	## full gradients:
 	derr_dread_mem = sq_points_dinput(read_mem - t)
 	
+	# read weights
 	dread_mem_do = linear_F_dF_nsum(mem_prev)
-	dread_mem_dmem_prev = linear_F_dx_nsum(O[F])
-
 	derr_do = mult_partials(derr_dread_mem, dread_mem_do, read_mem)
+	
+	DW[L1] = mult_partials_sum(derr_do, DO_DW[L1], O[F])
+	DW[L2] = mult_partials_sum(derr_do, DO_DW[L2], O[F])
+	DW[L3] = mult_partials_sum(derr_do, DO_DW[L3], O[F])
+
+	# write weights
+	dread_mem_dmem_prev = linear_F_dx_nsum(O[F])
 	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
 	
 	DWW[L3] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[L3], mem_prev)
 	DWW[L2] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[L2], mem_prev)
 	DWW[L1] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[L1], mem_prev)
-	
-	DW[L1] = mult_partials_sum(derr_do, DO_DW[L1], O[F])
-	DW[L2] = mult_partials_sum(derr_do, DO_DW[L2], O[F])
-	DW[L3] = mult_partials_sum(derr_do, DO_DW[L3], O[F])
 	
 	return DW[DERIV_L][i_ind,j_ind]
 	
