@@ -243,6 +243,17 @@ def linear_dF(layer_in, above_w):
 def linear_dlayer_in(F, above_w=1):
 	return (F*above_w).sum(0)[:,np.newaxis] # [n_in, 1]
 
+def linear_F_dx_nsum(o):
+	n = mem_previ.shape[1]
+	temp = np.zeros((or_previ.shape[0], n, mem_previ.shape[0], n))
+	temp[:,range(n),:,range(n)] = o
+	return temp
+
+def linear_F_dF_nsum(mem):
+	n = or_previ.shape[0]
+	temp = np.zeros((n, mem.shape[1], n, or_previ.shape[1]))
+	temp[range(n),:,range(n)] = mem.T
+	return temp
 ################## squared layer
 def sq_F(F, layer_in):
 	# F: [n1, n_in], layer_in: [n_in, 1]
@@ -297,19 +308,6 @@ def sq_points_dinput(input):
 	for i in range(input.shape[0]):
 		dinput[i,range(n),i,range(n)] = 2*input[i]
 	return dinput
-
-############
-def linear_F_dx_nsum(o):
-	n = mem_previ.shape[1]
-	temp = np.zeros((o_previ.shape[0], n, mem_previ.shape[0], n))
-	temp[:,range(n),:,range(n)] = o
-	return temp
-
-def linear_F_dF_nsum(mem):
-	n = o_previ.shape[0]
-	temp = np.zeros((n, mem.shape[1], n, o_previ.shape[1]))
-	temp[range(n),:,range(n)] = mem.T
-	return temp
 
 #####
 def add_mem(gw, add_out):
