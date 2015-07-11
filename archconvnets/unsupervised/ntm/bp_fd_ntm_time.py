@@ -8,6 +8,15 @@ import scipy
 from ntm_gradients import *
 from init_vars import *
 
+##### which gradients to test
+DERIV_L = SHIFT
+read_gradients = True
+####
+if read_gradients == True:
+	ref = WW[DERIV_L]
+else:
+	ref = W[DERIV_L]
+
 ########
 def weight_address(W, o_prev, x_cur, o_content): # todo: shift_out, o_content computations
 	G = [None]*7
@@ -80,14 +89,7 @@ def mem_partials(add_out, DMEM_PREV_DWW, DOW_DWW, OW_PREV):
 	
 	return DMEM_PREV_DWW_NEW
 
-##### which gradients to test
-DERIV_L = SHIFT
-read_gradients = False
-####
-if read_gradients == True:
-	ref = WW[DERIV_L]
-else:
-	ref = W[DERIV_L]
+
 
 ########
 def f(y):
@@ -160,10 +162,8 @@ def g(y):
 	dread_mem_dmem_prev = linear_F_dx_nsum(G[F])
 	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
 	
-	DWW[SHIFT] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[SHIFT], mem_prev)
-	DWW[L3] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[L3], mem_prev)
-	DWW[L2] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[L2], mem_prev)
-	DWW[L1] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[L1], mem_prev)
+	for layer in range(len(DWW)):
+		DWW[layer] = mult_partials_sum(derr_dmem_prev, DMEM_PREV_DWW[layer], mem_prev)
 	
 	####
 	if ref.ndim == 2 and read_gradients == True:
@@ -184,12 +184,14 @@ for sample in range(N_SAMPLES):
 	if ref.ndim == 2:
 		i_ind = np.random.randint(ref.shape[0])
 		j_ind = np.random.randint(ref.shape[1])
+		y = -1e0*ref[i_ind,j_ind]
 	else:
 		i_ind = np.random.randint(ref.shape[0])
 		j_ind = np.random.randint(ref.shape[1])
 		k_ind = np.random.randint(ref.shape[1])
+		y = -1e0*ref[i_ind,j_ind,k_ind]
 	
-	y = -1e0*ref[i_ind,j_ind,k_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
 	
 	if gtx == 0:
 		ratios[sample] = 1
