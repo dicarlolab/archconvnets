@@ -86,7 +86,6 @@ def mem_partials(add_out, DMEM_PREV_DWW, DOW_DWW, OW_PREV):
 		da_dlayer = mult_partials(da_dow, DOW_DWW[layer], OW_PREV[F])
 		DMEM_PREV_DWW_NEW[layer] = DMEM_PREV_DWW[layer] + da_dlayer
 		
-	
 	return DMEM_PREV_DWW_NEW
 
 
