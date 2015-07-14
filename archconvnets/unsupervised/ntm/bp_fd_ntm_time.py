@@ -9,8 +9,8 @@ from ntm_gradients import *
 from init_vars import *
 
 ##### which gradients to test
-DERIV_L = SHIFT
-read_gradients = True
+DERIV_L = SHIFT#L3
+read_gradients = False
 ####
 if read_gradients == True:
 	ref = WW[DERIV_L]
@@ -174,7 +174,7 @@ def g(y):
 		return DWW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e1
+eps = np.sqrt(np.finfo(np.float).eps)*1e-1
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

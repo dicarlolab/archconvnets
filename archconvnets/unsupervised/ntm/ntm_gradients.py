@@ -46,6 +46,77 @@ def focus_key_dbeta_out(keys, above_w):
 
 ############
 # cosine similarity between each controller's key and memory vector
+
+def cosine_sim_expand_dkeys(keys, mem):
+	n_controllers = keys.shape[0]
+	dnumer = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]))
+	ddenom = np.zeros_like(dnumer); comb = np.zeros_like(dnumer)
+	
+	dnumer[range(n_controllers),:,range(n_controllers)] = mem
+	
+	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	numer = np.dot(keys, mem.T)
+	
+	for i in range(keys.shape[0]):
+		for j in range(mem.shape[0]):
+			ddenom[i,j,i] = keys[i] * np.sqrt(np.sum(mem[j]**2)) / np.sqrt(np.sum(keys[i]**2))
+			comb[i,j,i] = (dnumer[i,j,i] * denom[i,j] - numer[i,j] * ddenom[i,j,i])/(denom[i,j]**2)
+	return comb
+
+def cosine_sim_numer_expand_dkeys(keys, mem):
+	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
+	n_controllers = keys.shape[0]
+	numer = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]))
+	
+	numer[range(n_controllers),:,range(n_controllers)] = mem
+		
+	return numer #/ denom # [n_controllers, n_mem_slots]
+
+def cosine_sim_denom_dkeys(keys, mem):
+	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
+	#numer = np.dot(keys, mem.T)
+	denom = np.zeros((keys.shape[0], mem.shape[0], keys.shape[0], keys.shape[1]))
+	for i in range(keys.shape[0]):
+		for j in range(mem.shape[0]):
+				denom[i,j,i] = keys[i] * np.sqrt(np.sum(mem[j]**2)) / np.sqrt(np.sum(keys[i]**2))
+	
+	return denom # [n_controllers, n_mem_slots]	
+
+def cosine_sim_denom_expand_dkeys(keys, mem):
+	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
+	#numer = np.dot(keys, mem.T)
+	denom = np.zeros((keys.shape[0], mem.shape[0], keys.shape[0], keys.shape[1]))
+	for i in range(keys.shape[0]):
+		for j in range(mem.shape[0]):
+			for k in range(keys.shape[1]):
+				denom[i,j,i,k] = keys[i,k] * np.sqrt(np.sum(mem[j]**2)) / np.sqrt(np.sum(keys[i]**2))
+	
+	return denom # [n_controllers, n_mem_slots]		
+
+def cosine_sim_denom_expand(keys, mem):
+	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
+	#numer = np.dot(keys, mem.T)
+	denom = np.zeros((keys.shape[0], mem.shape[0]))
+	for i in range(keys.shape[0]):
+		for j in range(mem.shape[0]):
+			denom[i,j] = np.sqrt(np.sum(keys[i]**2)) * np.sqrt(np.sum(mem[j]**2))
+	
+	return denom # [n_controllers, n_mem_slots]	
+
+def cosine_sim_denom(keys, mem):
+	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
+	#numer = np.dot(keys, mem.T)
+	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	
+	return denom # [n_controllers, n_mem_slots]	
+
+def cosine_sim_numer(keys, mem):
+	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
+	numer = np.dot(keys, mem.T)
+	#denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	
+	return numer #/ denom # [n_controllers, n_mem_slots]
+
 def cosine_sim(keys, mem):
 	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
 	numer = np.dot(keys, mem.T)
@@ -249,9 +320,21 @@ def linear_F_dx_nsum(o):
 	temp[:,range(n),:,range(n)] = o
 	return temp
 
+def linear_F_dx_nsum_g(o, mem):
+	n = mem.shape[1]
+	temp = np.zeros((o.shape[0], n, mem.shape[0], n))
+	temp[:,range(n),:,range(n)] = o
+	return temp
+
 def linear_F_dF_nsum(mem):
 	n = or_previ.shape[0]
 	temp = np.zeros((n, mem.shape[1], n, or_previ.shape[1]))
+	temp[range(n),:,range(n)] = mem.T
+	return temp
+
+def linear_F_dF_nsum_g(F, mem):
+	n = F.shape[0]
+	temp = np.zeros((n, mem.shape[1], n, F.shape[1]))
 	temp[range(n),:,range(n)] = mem.T
 	return temp
 ################## squared layer
