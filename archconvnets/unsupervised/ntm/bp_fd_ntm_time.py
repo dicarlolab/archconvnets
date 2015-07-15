@@ -18,7 +18,7 @@ else:
 	ref = WR[DERIV_L]
 
 ########
-def weight_address(W, o_prev, x_cur, o_content, mem_prev): # todo: shift_out, o_content computations
+def weight_address(W, o_prev, x_cur, mem_prev): # todo: shift_out, o_content computations
 	O = [None]*(len(W) + 4)
 	
 	# content
@@ -39,8 +39,8 @@ def weight_address(W, o_prev, x_cur, o_content, mem_prev): # todo: shift_out, o_
 	return O
 
 def forward_pass(WR,WW, or_prev, ow_prev, mem_prev,x_cur):
-	OR = weight_address(WR, or_prev, x_cur, or_content, mem_prev)
-	OW = weight_address(WW, ow_prev, x_cur, ow_content, mem_prev)
+	OR = weight_address(WR, or_prev, x_cur, mem_prev)
+	OW = weight_address(WW, ow_prev, x_cur, mem_prev)
 	
 	read_mem = linear_F(OR[F], mem_prev)
 	mem = mem_prev + add_mem(OW[F], add_out)
@@ -48,7 +48,7 @@ def forward_pass(WR,WW, or_prev, ow_prev, mem_prev,x_cur):
 	return OR,OW,mem,read_mem
 
 ##########
-def weight_address_partials(W, o_prev, o_content, x_cur, DO_DW, DO_CONTENT_DW, O):
+def weight_address_partials(W, o_prev, x_cur, DO_DW, DO_CONTENT_DW, O):
 	DO_DW_NEW = copy.deepcopy(DO_DW)
 	
 	# shift
@@ -136,8 +136,8 @@ def g(y):
 		OR, OW, mem, read_mem = forward_pass(WR, WW, OR_PREV[F], OW_PREV[F], mem_prev, x[frame])
 		
 		# partials for weight addresses
-		DOR_DWR = weight_address_partials(WR, OR_PREV[F], or_content, x[frame], DOR_DWR, DOR_CONTENT_DWR, OR)
-		DOW_DWW = weight_address_partials(WW, OW_PREV_PREV[F], ow_content, x[frame-1], DOW_DWW, DOW_CONTENT_DWW, OW_PREV)
+		DOR_DWR = weight_address_partials(WR, OR_PREV[F], x[frame], DOR_DWR, DOR_CONTENT_DWR, OR)
+		DOW_DWW = weight_address_partials(WW, OW_PREV_PREV[F], x[frame-1], DOW_DWW, DOW_CONTENT_DWW, OW_PREV)
 		
 		# partials for mem
 		DMEM_PREV_DWW = mem_partials(add_out, DMEM_PREV_DWW, DOW_DWW, OW_PREV)
