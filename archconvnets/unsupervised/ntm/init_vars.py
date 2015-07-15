@@ -49,8 +49,8 @@ DOR_CONTENT_DWR = copy.deepcopy(DOR_DWRi)
 DOW_CONTENT_DWW = copy.deepcopy(DOR_DWRi)
 
 ## indices
-L1 = 0; L2 = 1; L3 = 2; SHIFT = 3; KEY = 4
-IN = 5; SQ = 6; F = 7
+L1 = 0; L2 = 1; L3 = 2; SHIFT = 3; KEY = 4; CONTENT = 5
+IN = 6; SQ = 7; F = 8
 
 ## layer outputs/initial states:
 mem_previ = np.random.normal(size=(M, mem_length))
@@ -62,9 +62,9 @@ ow_previ = np.random.normal(size=(C,M))
 or_content = np.random.normal(size=(C,M))
 ow_content = np.random.normal(size=(C,M))
 
-OR_PREVi = [None]*(len(WR) + 3)
+OR_PREVi = [None]*(len(WR) + 4)
 OR_PREVi[F] = or_previ
 OW_PREVi = [np.zeros((n1,1)), np.zeros((n2,1)), np.zeros((C,1)), np.zeros((C,n_shifts)),\
-	np.zeros((C,mem_length)), np.zeros_like(ow_previ), np.zeros_like(ow_previ), ow_previ]
+	np.zeros((C,mem_length)), np.zeros_like(ow_previ), np.zeros_like(ow_previ), np.zeros_like(ow_previ), ow_previ]
 OW_PREV_PREVi = copy.deepcopy(OW_PREVi)
 OW_PREV_PREVi[F] = np.zeros_like(OW_PREV_PREVi[F])

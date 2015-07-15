@@ -9,8 +9,8 @@ from ntm_gradients import *
 from init_vars import *
 
 ##### which gradients to test
-DERIV_L = SHIFT#L3
-read_gradients = False
+DERIV_L = L3
+read_gradients = True
 ####
 if read_gradients == True:
 	ref = WW[DERIV_L]
@@ -18,25 +18,29 @@ else:
 	ref = WR[DERIV_L]
 
 ########
-def weight_address(W, o_prev, x_cur, o_content): # todo: shift_out, o_content computations
-	O = [None]*(len(W) + 3)
+def weight_address(W, o_prev, x_cur, o_content, mem_prev): # todo: shift_out, o_content computations
+	O = [None]*(len(W) + 4)
 	
+	# content
 	O[KEY] = linear_2d_F(W[KEY], x_cur)
-	O[SHIFT] = linear_2d_F(W[SHIFT], x_cur)
+	O[CONTENT] = cosine_sim(O[KEY], mem_prev)
 	
+	# interpolate
 	O[L1] = sq_F(W[L1], x_cur)
 	O[L2] = sq_F(W[L2], O[L1])
 	O[L3] = sq_F(W[L3], O[L2])
-	O[IN] = interpolate_simp(o_prev, O[L3]) + interpolate_simp(o_content, O[L3])
+	O[IN] = interpolate_simp(o_prev, O[L3]) + interpolate_simp(O[CONTENT], O[L3])
 	O[SQ] = sq_points(O[IN])
 	
+	# shift
+	O[SHIFT] = linear_2d_F(W[SHIFT], x_cur)
 	O[F] = shift_w(O[SHIFT], O[SQ])
 	
 	return O
 
 def forward_pass(WR,WW, or_prev, ow_prev, mem_prev,x_cur):
-	OR = weight_address(WR, or_prev, x_cur, or_content)
-	OW = weight_address(WW, ow_prev, x_cur, ow_content)
+	OR = weight_address(WR, or_prev, x_cur, or_content, mem_prev)
+	OW = weight_address(WW, ow_prev, x_cur, ow_content, mem_prev)
 	
 	read_mem = linear_F(OR[F], mem_prev)
 	mem = mem_prev + add_mem(OW[F], add_out)
@@ -72,9 +76,9 @@ def weight_address_partials(W, o_prev, o_content, x_cur, DO_DW, DO_CONTENT_DW, O
 	dg3_dw1 = mult_partials(dg3_dg1, dg1_dw1, np.squeeze(O[L1]))
 	
 	
-	DO_DW_NEW[L3] = interpolate_simp_dx(dg3_dw3, DO_DW[L3], DO_CONTENT_DW[L3], O[L3], o_prev, o_content, do_do_in)
-	DO_DW_NEW[L2] = interpolate_simp_dx(dg3_dw2, DO_DW[L2], DO_CONTENT_DW[L2], O[L3], o_prev, o_content, do_do_in)
-	DO_DW_NEW[L1] = interpolate_simp_dx(dg3_dw1, DO_DW[L1], DO_CONTENT_DW[L1], O[L3], o_prev, o_content, do_do_in)
+	DO_DW_NEW[L3] = interpolate_simp_dx(dg3_dw3, DO_DW[L3], DO_CONTENT_DW[L3], O[L3], o_prev, O[CONTENT], do_do_in)
+	DO_DW_NEW[L2] = interpolate_simp_dx(dg3_dw2, DO_DW[L2], DO_CONTENT_DW[L2], O[L3], o_prev, O[CONTENT], do_do_in)
+	DO_DW_NEW[L1] = interpolate_simp_dx(dg3_dw1, DO_DW[L1], DO_CONTENT_DW[L1], O[L3], o_prev, O[CONTENT], do_do_in)
 	
 	return DO_DW_NEW
 
