@@ -23,13 +23,13 @@ wr1 = np.random.normal(size=(n1,n_in)) * SCALE
 wr2 = np.random.normal(size=(n2,n1)) * SCALE
 wr3 = np.random.normal(size=(C,n2)) * SCALE
 wrshift = np.random.normal(size=(C,n_shifts,n_in)) * SCALE * .5
-wrkey = np.random.normal(size=(C,mem_length,n_in)) * SCALE * .5
+wrkey = np.random.normal(size=(C,mem_length,n_in)) * SCALE * 1e-3
 
 ww1 = np.random.normal(size=(n1, n_in)) * SCALE
 ww2 = np.random.normal(size=(n2, n1)) * SCALE
 ww3 = np.random.normal(size=(C, n2)) * SCALE
 wwshift = np.random.normal(size=(C,n_shifts,n_in)) * SCALE *.5
-wwkey = np.random.normal(size=(C,mem_length,n_in)) * SCALE * .5
+wwkey = np.random.normal(size=(C,mem_length,n_in)) * SCALE * 5e-3
 
 WR = [wr1, wr2, wr3, wrshift, wrkey]
 WW = [ww1, ww2, ww3, wwshift, wwkey]
@@ -59,8 +59,6 @@ add_out = np.random.normal(size=(C, mem_length)) * SCALE
 
 or_previ = np.random.normal(size=(C,M))
 ow_previ = np.random.normal(size=(C,M))
-or_content = np.random.normal(size=(C,M))
-ow_content = np.random.normal(size=(C,M))
 
 OR_PREVi = [None]*(len(WR) + 4)
 OR_PREVi[F] = or_previ

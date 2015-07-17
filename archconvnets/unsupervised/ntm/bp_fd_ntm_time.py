@@ -9,9 +9,9 @@ from ntm_gradients import *
 from init_vars import *
 
 ##### which gradients to test
-DERIV_L = L1
-read_gradients = False
-#read_gradients = True
+DERIV_L = SHIFT
+#read_gradients = False
+read_gradients = True
 ####
 if read_gradients == True:
 	ref = WW[DERIV_L]
@@ -50,20 +50,29 @@ def forward_pass(WR,WW, or_prev, ow_prev, mem_prev,x_cur):
 	return OR,OW,mem,read_mem
 
 ##########
-def weight_address_partials(W, o_prev, x_cur, DO_DW, DO_CONTENT_DW, O, mem_prev):
+def weight_address_partials(W, o_prev, x_cur, DO_DW, O, mem_prev):
 	DO_DW_NEW = copy.deepcopy(DO_DW)
+	DO_IN_DW = [None] * len(DO_DW)
 	
 	##
 	do_do_sq = shift_w_dw_interp_nsum(O[SHIFT])
 	do_sq_do_in = sq_points_dinput(O[IN])
 	do_do_in = mult_partials(do_do_sq, do_sq_do_in, O[SQ])
-
+	do_in_do_prev = interpolate_do_prev(O[L3], o_prev)
+	
+	# gradients from prior time-points:
+	for layer in range(len(DO_DW)):
+		DO_IN_DW[layer] = mult_partials(do_in_do_prev, DO_DW[layer], o_prev)
+	
 	# shift
 	do_dgshift = shift_w_dshift_out_nsum(O[SQ])
 	dgshift_dwshift = linear_2d_F_dF_nsum(W[SHIFT], x_cur)
 	DO_DW_NEW[SHIFT] = mult_partials(do_dgshift, dgshift_dwshift, O[SHIFT])
 	
-	#w3
+	do_sq_dwshift = mult_partials(do_sq_do_in, DO_IN_DW[SHIFT], O[IN])
+	DO_DW_NEW[SHIFT] += mult_partials(do_do_sq, do_sq_dwshift, O[SQ])
+	
+	# w3
 	dg3_dg2 = sq_dlayer_in_nsum(W[L3], O[L2])
 	dg3_dw3 = sq_dF_nsum(W[L3], O[L2], O[L3])
 	
@@ -81,17 +90,13 @@ def weight_address_partials(W, o_prev, x_cur, DO_DW, DO_CONTENT_DW, O, mem_prev)
 	do_in_do_prev = interpolate_do_prev(O[L3], o_prev)
 	do_in_dg3 = interpolate_dinterp_gate_out(O[L3], O[CONTENT], o_prev)
 	
-	do_in_dw3p = mult_partials(do_in_do_prev, DO_DW[L3], o_prev)
-	do_in_dw2p = mult_partials(do_in_do_prev, DO_DW[L2], o_prev)
-	do_in_dw1p = mult_partials(do_in_do_prev, DO_DW[L1], o_prev)
-	
 	do_in_dw3 = mult_partials(do_in_dg3, dg3_dw3[:,np.newaxis], O[L3])
 	do_in_dw2 = mult_partials(do_in_dg3, dg3_dw2[:,np.newaxis], O[L2])
 	do_in_dw1 = mult_partials(do_in_dg3, dg3_dw1[:,np.newaxis], O[L1])
 
-	DO_DW_NEW[L3] = mult_partials(do_do_in, do_in_dw3 + do_in_dw3p, O[IN])
-	DO_DW_NEW[L2] = mult_partials(do_do_in, do_in_dw2 + do_in_dw2p, O[IN])
-	DO_DW_NEW[L1] = mult_partials(do_do_in, do_in_dw1 + do_in_dw1p, O[IN])
+	DO_DW_NEW[L3] = mult_partials(do_do_in, do_in_dw3 + DO_IN_DW[L3], O[IN])
+	DO_DW_NEW[L2] = mult_partials(do_do_in, do_in_dw2 + DO_IN_DW[L2], O[IN])
+	DO_DW_NEW[L1] = mult_partials(do_do_in, do_in_dw1 + DO_IN_DW[L1], O[IN])
 	
 	# interp. gradients (wrt o_content)
 	do_in_do_content = interpolate_do_content(O[L3], O[CONTENT])
@@ -101,7 +106,7 @@ def weight_address_partials(W, o_prev, x_cur, DO_DW, DO_CONTENT_DW, O, mem_prev)
 	do_content_dwkey = mult_partials(do_content_dgkey, dgkey_dwkey, O[KEY])
 	do_in_dwkey = mult_partials(do_in_do_content, do_content_dwkey, O[CONTENT])
 	
-	DO_DW_NEW[KEY] = mult_partials(do_do_in, do_in_dwkey, O[IN])
+	DO_DW_NEW[KEY] = mult_partials(do_do_in, do_in_dwkey + DO_IN_DW[KEY], O[IN])
 	
 	return DO_DW_NEW
 
@@ -159,8 +164,8 @@ def g(y):
 		OR, OW, mem, read_mem = forward_pass(WR, WW, OR_PREV[F], OW_PREV[F], mem_prev, x[frame])
 		
 		# partials for weight addresses
-		DOR_DWR = weight_address_partials(WR, OR_PREV[F], x[frame], DOR_DWR, DOR_CONTENT_DWR, OR, mem_prev)
-		DOW_DWW = weight_address_partials(WW, OW_PREV_PREV[F], x[frame-1], DOW_DWW, DOW_CONTENT_DWW, OW_PREV, mem_prev)
+		DOR_DWR = weight_address_partials(WR, OR_PREV[F], x[frame], DOR_DWR, OR, mem_prev)
+		DOW_DWW = weight_address_partials(WW, OW_PREV_PREV[F], x[frame-1], DOW_DWW, OW_PREV, mem_prev)
 		
 		# partials for mem
 		DMEM_PREV_DWW = mem_partials(add_out, DMEM_PREV_DWW, DOW_DWW, OW_PREV)
