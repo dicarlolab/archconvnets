@@ -11,7 +11,7 @@ from init_vars import *
 ##### which gradients to test
 DERIV_L = L1
 read_gradients = False
-read_gradients = True
+#read_gradients = True
 ####
 if read_gradients == True:
 	ref = WW[DERIV_L]
@@ -71,7 +71,7 @@ def weight_address_partials(W, o_prev, x_cur, DO_DW, O, mem_prev, frame, DMEM_PR
 		for layer in range(len(DO_DW)):
 			do_content_dlayer = mult_partials(do_content_dmem_prev, DMEM_PREV_DWW[layer], mem_prev)
 			DO_IN_DW[layer] += mult_partials(do_in_do_content, do_content_dlayer, O[CONTENT])
-	
+		#print np.max(do_content_dmem_prev), np.max(DMEM_PREV_DWW[layer]), np.max(mem_prev)
 	# shift
 	do_dgshift = shift_w_dshift_out_nsum(O[SQ])
 	dgshift_dwshift = linear_2d_F_dF_nsum(W[SHIFT], x_cur)
@@ -165,17 +165,18 @@ def g(y):
 	mem_prev = copy.deepcopy(mem_previ); mem_prev_prev = copy.deepcopy(mem_previ)
 	DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi)
 	
+	###
 	for frame in range(1,N_FRAMES+1):
 		# forward
 		OR, OW, mem, read_mem = forward_pass(WR, WW, OR_PREV[F], OW_PREV[F], mem_prev, x[frame])
 		
 		# partials for weight addresses
 		DOR_DWR = weight_address_partials(WR, OR_PREV[F], x[frame], DOR_DWR, OR, mem_prev, frame)
-		DOW_DWW = weight_address_partials(WW, OW_PREV_PREV[F], x[frame-1], DOW_DWW, OW_PREV, mem_prev_prev, frame, DMEM_PREV_DWW)
+		DOW_DWW = weight_address_partials(WW, OW_PREV_PREV[F], x[frame-1], DOW_DWW, OW_PREV, mem_prev, frame, DMEM_PREV_DWW)
 		
 		# partials for mem
 		DMEM_PREV_DWW = mem_partials(add_out, DMEM_PREV_DWW, DOW_DWW, OW_PREV)
-		
+	
 		# update temporal state vars
 		if frame != N_FRAMES:
 			OW_PREV_PREV = copy.deepcopy(OW_PREV)
@@ -213,7 +214,7 @@ def g(y):
 		return DWW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e1
+eps = np.sqrt(np.finfo(np.float).eps)*1e0
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
