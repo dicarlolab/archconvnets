@@ -29,8 +29,8 @@ def weight_address(W, o_prev, mem_prev): # todo: shift_out, o_content computatio
 	return O
 
 def forward_pass(WR,WW, or_prev, ow_prev, mem_prev):
-	OR = weight_address(WR, or_prev, mem_previ)
-	OW = weight_address(WW, ow_prev, mem_prev)
+	OR = weight_address(WR, or_prev, mem_prev)
+	OW = weight_address(WW, ow_prev, mem_previ)
 	
 	read_mem = linear_F(OR[F], mem_prev)
 	mem = mem_prev + add_mem(OW[F], add_out)
@@ -45,13 +45,6 @@ def weight_address_partials(W, o_prev, DO_DW, O, mem_prev, DMEM_PREV_DWW=None):
 	do_in_do_prev = interpolate_do_prev(W[L3], o_prev)
 	DO_IN_DW[L3] = mult_partials(do_in_do_prev, DO_DW[L3], o_prev)
 	
-	# gradients of mem from prior time-points:
-	if DMEM_PREV_DWW != None:
-		do_in_do_content = interpolate_do_content(W[L3], O[CONTENT])
-		do_content_dmem_prev = linear_2d_F_dx_nsum(O_KEY).reshape((4,5,5,8))
-		do_content_dlayer = mult_partials(do_content_dmem_prev, DMEM_PREV_DWW[L3], mem_prev)
-		DO_IN_DW[L3] += mult_partials(do_in_do_content, do_content_dlayer, O[CONTENT])
-	
 	# w3
 	DO_IN_DW[L3] += interpolate_dinterp_gate_out(W[L3], O[CONTENT], o_prev)
 	
@@ -62,15 +55,15 @@ def weight_address_partials_mem(W, o_prev, DO_DW, O, mem_prev, DMEM_PREV_DWW):
 	
 	# gradients of 'o' from prior time-points:
 	do_in_do_prev = interpolate_do_prev(W[L3], o_prev)
-	#DO_IN_DW[L3] = mult_partials(do_in_do_prev, DO_DW[L3], o_prev)
-	DO_IN_DW[L3] = np.zeros_like(mult_partials(do_in_do_prev, DO_DW[L3], o_prev))
+	DO_IN_DW[L3] = mult_partials(do_in_do_prev, DO_DW[L3], o_prev)
+	#DO_IN_DW[L3] = np.zeros_like(mult_partials(do_in_do_prev, DO_DW[L3], o_prev))
 	
 	# gradients of mem from prior time-points:
 	do_in_do_content = interpolate_do_content(W[L3], O[CONTENT])
 	do_content_dmem_prev = linear_2d_F_dx_nsum(O_KEY).reshape((4,5,5,8))
 	do_content_dlayer = mult_partials(do_content_dmem_prev, DMEM_PREV_DWW[L3], mem_prev)
-	#DO_IN_DW[L3] += mult_partials(do_in_do_content, do_content_dlayer, O[CONTENT])
-	DO_IN_DW[L3] += np.zeros_like(mult_partials(do_in_do_content, do_content_dlayer, O[CONTENT]))
+	DO_IN_DW[L3] += mult_partials(do_in_do_content, do_content_dlayer, O[CONTENT])
+	#DO_IN_DW[L3] += np.zeros_like(mult_partials(do_in_do_content, do_content_dlayer, O[CONTENT]))
 	
 	return DO_IN_DW	
 
