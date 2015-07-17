@@ -10,7 +10,7 @@ n1 = 7
 n_in = 3
 
 SCALE = .6
-N_FRAMES = 3
+N_FRAMES = 4#3
 
 ## inputs/targets
 x = np.random.normal(size=(N_FRAMES+1, n_in,1)) * SCALE
@@ -29,7 +29,7 @@ ww1 = np.random.normal(size=(n1, n_in)) * SCALE
 ww2 = np.random.normal(size=(n2, n1)) * SCALE
 ww3 = np.random.normal(size=(C, n2)) * SCALE
 wwshift = np.random.normal(size=(C,n_shifts,n_in)) * SCALE *.5
-wwkey = np.random.normal(size=(C,mem_length,n_in)) * SCALE * 5e-3
+wwkey = np.random.normal(size=(C,mem_length,n_in)) * SCALE * 1e-3
 
 WR = [wr1, wr2, wr3, wrshift, wrkey]
 WW = [ww1, ww2, ww3, wwshift, wwkey]
@@ -45,8 +45,6 @@ for layer in range(len(WR)):
 	DMEM_PREV_DWWi[layer] = np.zeros(np.concatenate(((M, mem_length), WR[layer].shape)))
 
 DOW_DWWi = copy.deepcopy(DOR_DWRi)
-DOR_CONTENT_DWR = copy.deepcopy(DOR_DWRi)
-DOW_CONTENT_DWW = copy.deepcopy(DOR_DWRi)
 
 ## indices
 L1 = 0; L2 = 1; L3 = 2; SHIFT = 3; KEY = 4; CONTENT = 5

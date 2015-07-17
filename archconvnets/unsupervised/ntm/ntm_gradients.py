@@ -47,6 +47,23 @@ def focus_key_dbeta_out(keys, above_w):
 ############
 # cosine similarity between each controller's key and memory vector
 
+def cosine_sim_expand_dmem(keys, mem):
+	n_controllers = keys.shape[0]
+	dnumer = np.zeros((n_controllers, mem.shape[0], mem.shape[0], mem.shape[1]))
+	ddenom = np.zeros_like(dnumer); comb = np.zeros_like(dnumer)
+	
+	for j in range(mem.shape[0]):
+		dnumer[:,j,j] = keys
+	
+	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	numer = np.dot(keys, mem.T)
+	
+	for i in range(keys.shape[0]):
+		for j in range(mem.shape[0]):
+			ddenom[i,j,j] = mem[j] * np.sqrt(np.sum(keys[i]**2)) / np.sqrt(np.sum(mem[j]**2))
+			comb[i,j,j] = (dnumer[i,j,j] * denom[i,j] - numer[i,j] * ddenom[i,j,j])/(denom[i,j]**2)
+	return comb
+
 def cosine_sim_expand_dkeys(keys, mem):
 	n_controllers = keys.shape[0]
 	dnumer = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]))

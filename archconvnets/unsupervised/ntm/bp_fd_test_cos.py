@@ -67,15 +67,12 @@ N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
 	#ref = o_sq
-	ref = wrshift
-	#i_ind = np.random.randint(ref.shape[0])
-	#j_ind = np.random.randint(ref.shape[1])
-	#y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
-	
+	ref = o_key
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
-	k_ind = np.random.randint(ref.shape[2])
-	y = -1e0*ref[i_ind,j_ind,k_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	
+	
 	
 	if gtx == 0:
 		ratios[sample] = 1
