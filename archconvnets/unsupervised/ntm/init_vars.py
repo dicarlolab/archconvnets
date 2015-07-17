@@ -16,7 +16,7 @@ N_FRAMES = 4#3
 x = np.random.normal(size=(N_FRAMES+1, n_in,1)) * SCALE
 t = np.random.normal(size=(C,mem_length))
 
-x[0] = np.zeros_like(x[0])
+#x[0] = np.zeros_like(x[0])
 
 ## weights:
 wr1 = np.random.normal(size=(n1,n_in)) * SCALE
