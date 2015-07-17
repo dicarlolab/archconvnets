@@ -87,7 +87,6 @@ def weight_address_partials(W, o_prev, x_cur, DO_DW, O, mem_prev):
 	dg3_dw1 = mult_partials(dg3_dg1, dg1_dw1, np.squeeze(O[L1]))
 	
 	# interp. gradients (wrt o_prev; g3)
-	do_in_do_prev = interpolate_do_prev(O[L3], o_prev)
 	do_in_dg3 = interpolate_dinterp_gate_out(O[L3], O[CONTENT], o_prev)
 	
 	do_in_dw3 = mult_partials(do_in_dg3, dg3_dw3[:,np.newaxis], O[L3])
