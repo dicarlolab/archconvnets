@@ -31,6 +31,8 @@ ww3 = np.random.normal(size=(C, n2)) * SCALE
 wwshift = np.random.normal(size=(C,n_shifts,n_in)) * SCALE *.5
 wwkey = np.random.normal(size=(C,mem_length,n_in)) * SCALE * 1e-3
 
+wadd = np.random.normal(size=(C, mem_length, n_in)) * SCALE
+
 WR = [wr1, wr2, wr3, wrshift, wrkey]
 WW = [ww1, ww2, ww3, wwshift, wwkey]
 
@@ -53,8 +55,6 @@ IN = 6; SQ = 7; F = 8
 
 ## layer outputs/initial states:
 mem_previ = np.random.normal(size=(M, mem_length))
-
-add_out = np.random.normal(size=(C, mem_length)) * SCALE
 
 or_previ = np.random.normal(size=(C,M))
 ow_previ = np.random.normal(size=(C,M))
