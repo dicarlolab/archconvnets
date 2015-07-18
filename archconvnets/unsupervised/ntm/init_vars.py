@@ -45,6 +45,7 @@ for layer in range(len(WR)):
 	DMEM_PREV_DWWi[layer] = np.zeros(np.concatenate(((M, mem_length), WR[layer].shape)))
 
 DOW_DWWi = copy.deepcopy(DOR_DWRi)
+DOR_DWWi = copy.deepcopy(DOR_DWRi)
 
 ## indices
 L1 = 0; L2 = 1; L3 = 2; SHIFT = 3; KEY = 4; CONTENT = 5
