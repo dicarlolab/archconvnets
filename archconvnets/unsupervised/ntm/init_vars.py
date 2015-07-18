@@ -32,6 +32,9 @@ wwshift = np.random.normal(size=(C,n_shifts,n_in)) * SCALE *.5
 wwkey = np.random.normal(size=(C,mem_length,n_in)) * SCALE * 1e-3
 
 wadd = np.random.normal(size=(C, mem_length, n_in)) * SCALE
+dmem_prev_dwaddi = np.zeros((M,mem_length,C,mem_length,n_in))
+dor_dwaddi = np.zeros((C,M,C,mem_length,n_in))
+dow_dwaddi = np.zeros((C,M,C,mem_length,n_in))
 
 WR = [wr1, wr2, wr3, wrshift, wrkey]
 WW = [ww1, ww2, ww3, wwshift, wwkey]
