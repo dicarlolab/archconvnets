@@ -9,7 +9,7 @@ from ntm_gradients import *
 from init_vars import *
 
 ##### which gradients to test
-DERIV_L = L3
+DERIV_L = L1
 read_gradients = False
 #read_gradients = True
 ####
@@ -44,10 +44,12 @@ def forward_pass(WR,WW, or_prev, ow_prev, mem_prev,x_cur):
 	OR = weight_address(WR, or_prev, x_cur, mem_prev)
 	OW = weight_address(WW, ow_prev, x_cur, mem_prev)
 	
+	add_out = linear_2d_F(wadd, x_cur)
+	
 	read_mem = linear_F(OR[F], mem_prev)
 	mem = mem_prev + add_mem(OW[F], add_out)
 	
-	return OR,OW,mem,read_mem
+	return OR,OW,mem,read_mem,add_out
 
 ##########
 def weight_address_partials(W, o_prev, x_cur, DO_DW, O, mem_prev, DMEM_PREV_DWW=None):
@@ -168,7 +170,7 @@ def f(y):
 	mem_prev = copy.deepcopy(mem_previ)
 	
 	for frame in range(1,N_FRAMES+1):
-		OR_PREV, OW_PREV, mem_prev, read_mem = forward_pass(WR, WW, OR_PREV[F], OW_PREV[F], mem_prev, x[frame])
+		OR_PREV, OW_PREV, mem_prev, read_mem = forward_pass(WR, WW, OR_PREV[F], OW_PREV[F], mem_prev, x[frame])[:4]
 	
 	return ((read_mem - t)**2).sum()
 
@@ -193,12 +195,12 @@ def g(y):
 	###
 	for frame in range(1,N_FRAMES+1):
 		# forward
-		OR, OW, mem, read_mem = forward_pass(WR, WW, OR_PREV[F], OW_PREV[F], mem_prev, x[frame])
+		OR, OW, mem, read_mem, add_out = forward_pass(WR, WW, OR_PREV[F], OW_PREV[F], mem_prev, x[frame])
 		
 		# partials for weight addresses/mem
 		if frame > 1:
 			DOW_DWW = weight_address_partials(WW, OW_PREV_PREV[F], x[frame-1], DOW_DWW, OW_PREV, mem_prev_prev, DMEM_PREV_DWW)
-			DMEM_PREV_DWW = mem_partials(add_out, DMEM_PREV_DWW, DOW_DWW, OW_PREV)
+			DMEM_PREV_DWW = mem_partials(add_out_prev, DMEM_PREV_DWW, DOW_DWW, OW_PREV)
 		DOR_DWR = weight_address_partials(WR, OR_PREV[F], x[frame], DOR_DWR, OR, mem_prev)
 		DOR_DWW = read_dwrite_weight_address_partials(WR, OR_PREV[F], x[frame], DOR_DWW, OR, mem_prev, DMEM_PREV_DWW)
 		
@@ -209,6 +211,7 @@ def g(y):
 			OR_PREV = copy.deepcopy(OR); OW_PREV = copy.deepcopy(OW)
 			mem_prev_prev = copy.deepcopy(mem_prev)
 			mem_prev = copy.deepcopy(mem)
+			add_out_prev = copy.deepcopy(add_out)
 			
 	
 	########
