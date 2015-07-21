@@ -9,8 +9,8 @@ from ntm_gradients import *
 from init_vars import *
 
 ##### which gradients to test
-DERIV_L = L1
-gradient_category = 'add'
+DERIV_L = SHIFT
+gradient_category = 'write'
 ####
 if gradient_category == 'add':
 	ref = wadd
@@ -80,8 +80,9 @@ def weight_address_partials(W, o_prev, x_cur, DO_DW, O, mem_prev, DMEM_PREV_DWW=
 	dgshift_dwshift = linear_2d_F_dF_nsum(W[SHIFT], x_cur)
 	DO_DW_NEW[SHIFT] = mult_partials(do_dgshift, dgshift_dwshift, O[SHIFT])
 	
-	do_sq_dwshift = mult_partials(do_sq_do_in, DO_IN_DW[SHIFT], O[IN])
-	DO_DW_NEW[SHIFT] += mult_partials(do_do_sq, do_sq_dwshift, O[SQ])
+	#do_sq_dwshift = mult_partials(do_sq_do_in, DO_IN_DW[SHIFT], O[IN])
+	#DO_DW_NEW[SHIFT] += mult_partials(do_do_sq, do_sq_dwshift, O[SQ])
+	DO_DW_NEW[SHIFT] += mult_partials(do_do_in, DO_IN_DW[SHIFT], O[SQ])
 	
 	# w3
 	dg3_dg2 = sq_dlayer_in_nsum(W[L3], O[L2])
