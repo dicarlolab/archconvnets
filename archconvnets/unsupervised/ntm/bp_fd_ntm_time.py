@@ -45,7 +45,7 @@ def forward_pass(WR,WW, or_prev, ow_prev, mem_prev,x_cur):
 	OR = weight_address(WR, or_prev, x_cur, mem_prev)
 	OW = weight_address(WW, ow_prev, x_cur, mem_prev)
 	
-	OW[ADD] = linear_2d_F(wadd, x_cur)
+	OW[ADD] = linear_2d_F(WW[ADD], x_cur)
 	
 	read_mem = linear_F(OR[F], mem_prev)
 	mem = mem_prev + add_mem(OW[F], OW[ADD])
@@ -112,7 +112,7 @@ def do_dw__mem_prev(W, DO_DW, O, mem_prev, DMEM_PREV_DWW, do_do_in):
 	
 	return mult_partials__layers(do_dmem_prev, DMEM_PREV_DWW, mem_prev, DO_DW)
 
-def mem_partials(DMEM_PREV_DWW, DOW_DWW, OW_PREV, x_prev):
+def mem_partials(DMEM_PREV_DWW, DOW_DWW, OW_PREV, x_prev, WW):
 	DMEM_PREV_DWW_NEW = copy.deepcopy(DMEM_PREV_DWW)
 	
 	# write gradients
@@ -121,7 +121,7 @@ def mem_partials(DMEM_PREV_DWW, DOW_DWW, OW_PREV, x_prev):
 	
 	# 'add' gradients [?]
 	da_dadd_out = add_mem_dadd_out(OW_PREV[F])
-	dadd_out_dwadd = linear_2d_F_dF_nsum(wadd, x_prev)
+	dadd_out_dwadd = linear_2d_F_dF_nsum(WW[ADD], x_prev)
 	DMEM_PREV_DWW_NEW[ADD] += mult_partials(da_dadd_out, dadd_out_dwadd, OW_PREV[ADD]) # da_dwadd
 	
 	return DMEM_PREV_DWW_NEW
@@ -185,7 +185,7 @@ def g(y):
 			DOW_DWW = do_dw__mem_prev(WW, DOW_DWW, OW_PREV, mem_prev_prev, DMEM_PREV_DWW, dow_prev_dow_prev_in)
 			DOW_DWW = do_dw__inputs(WW, OW_PREV_PREV[F], x[frame-1], DOW_DWW, OW_PREV, mem_prev_prev, dow_prev_dow_prev_in)
 			
-			DMEM_PREV_DWW = mem_partials(DMEM_PREV_DWW, DOW_DWW, OW_PREV, x[frame-1])
+			DMEM_PREV_DWW = mem_partials(DMEM_PREV_DWW, DOW_DWW, OW_PREV, x[frame-1], WW)
 		
 		DOR_DWR = do_dw__o_prev(WR, OR_PREV[F], DOR_DWR, OR, dor_dor_in)
 		DOR_DWR = do_dw__inputs(WR, OR_PREV[F], x[frame], DOR_DWR, OR, mem_prev, dor_dor_in)
