@@ -10,7 +10,8 @@ from init_vars import *
 
 ##### which gradients to test
 DERIV_L = SHIFT
-gradient_category = 'write'
+#gradient_category = 'write'
+gradient_category = 'read'
 ####
 if gradient_category == 'add':
 	ref = wadd
