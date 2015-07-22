@@ -6,22 +6,18 @@ from scipy.stats import zscore
 import random
 import scipy
 from ntm_gradients import *
-from init_vars2 import *
+from init_vars import *
 
 ##### which gradients to test
 #DERIV_L = SHIFT
-DERIV_L = SHIFT
-#DERIV_L = ADD
+DERIV_L = ADD
 gradient_category = 'write'
 #gradient_category = 'read'
-#gradient_category = 'add'
 ####
-if gradient_category == 'add':
-	ref = wadd
-elif gradient_category == 'read':
-	ref = WW[DERIV_L]
-else:
+if gradient_category == 'read':
 	ref = WR[DERIV_L]
+else:
+	ref = WW[DERIV_L]
 
 ########
 def weight_address(W, o_prev, x_cur, mem_prev): # todo: shift_out, o_content computations
@@ -121,7 +117,6 @@ def mem_partials(DMEM_PREV_DWW, DOW_DWW, OW_PREV, x_prev):
 	
 	# write gradients
 	da_dow = add_mem_dgw(OW_PREV[ADD])
-	
 	DMEM_PREV_DWW_NEW = mult_partials__layers(da_dow, DOW_DWW, OW_PREV[F], DMEM_PREV_DWW_NEW) # da_dlayer
 	
 	# 'add' gradients [?]
@@ -133,9 +128,7 @@ def mem_partials(DMEM_PREV_DWW, DOW_DWW, OW_PREV, x_prev):
 
 ########
 def f(y):
-	if gradient_category == 'add':
-		wadd[i_ind,j_ind,k_ind] = y
-	elif ref.ndim == 2 and gradient_category == 'read':
+	if ref.ndim == 2 and gradient_category == 'read':
 		WR[DERIV_L][i_ind,j_ind] = y
 	elif gradient_category == 'read':
 		WR[DERIV_L][i_ind,j_ind,k_ind] = y
@@ -155,9 +148,7 @@ def f(y):
 
 
 def g(y):
-	if gradient_category == 'add':
-		wadd[i_ind,j_ind,k_ind] = y
-	elif ref.ndim == 2 and gradient_category == 'read':
+	if ref.ndim == 2 and gradient_category == 'read':
 		WR[DERIV_L][i_ind,j_ind] = y
 	elif gradient_category == 'read':
 		WR[DERIV_L][i_ind,j_ind,k_ind] = y
@@ -226,9 +217,7 @@ def g(y):
 	DWW = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWW, mem_prev, DWW)
 	
 	####
-	if gradient_category == 'add':
-		return dwadd[i_ind,j_ind,k_ind]
-	elif ref.ndim == 2 and gradient_category == 'read':
+	if ref.ndim == 2 and gradient_category == 'read':
 		return DWR[DERIV_L][i_ind,j_ind]
 	elif gradient_category == 'read':
 		return DWR[DERIV_L][i_ind,j_ind,k_ind]
