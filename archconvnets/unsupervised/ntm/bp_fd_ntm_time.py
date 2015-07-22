@@ -20,7 +20,7 @@ else:
 	ref = WW[DERIV_L]
 
 ########
-def weight_address(W, o_prev, x_cur, mem_prev): # todo: shift_out, o_content computations
+def weight_address(W, o_prev, x_cur, mem_prev):
 	O = [None]*(len(W) + 5)
 	
 	# content
@@ -119,7 +119,7 @@ def mem_partials(DMEM_PREV_DWW, DOW_DWW, OW_PREV, x_prev, WW):
 	da_dow = add_mem_dgw(OW_PREV[ADD])
 	DMEM_PREV_DWW_NEW = mult_partials__layers(da_dow, DOW_DWW, OW_PREV[F], DMEM_PREV_DWW_NEW) # da_dlayer
 	
-	# 'add' gradients [?]
+	# 'add' gradients
 	da_dadd_out = add_mem_dadd_out(OW_PREV[F])
 	dadd_out_dwadd = linear_2d_F_dF_nsum(WW[ADD], x_prev)
 	DMEM_PREV_DWW_NEW[ADD] += mult_partials(da_dadd_out, dadd_out_dwadd, OW_PREV[ADD]) # da_dwadd
