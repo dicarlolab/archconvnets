@@ -10,11 +10,32 @@ def mult_partials(da_db, db_dc, b):
 	da_dc = np.einsum(da_db, range(da_db.ndim), db_dc, range(a_ndim, a_ndim + db_dc.ndim), keep_dims)
 	return da_dc
 
-def mult_partials_sum(da_db, db_dc, b):
+# collapse (sum) over output dims
+def mult_partials_collapse(da_db, db_dc, b):
 	a_ndim = da_db.ndim - b.ndim
 	da_dc = mult_partials(da_db, db_dc, b)
 	dc = np.einsum(da_dc, range(da_dc.ndim), range(a_ndim, da_dc.ndim))
 	return dc
+
+# mult_partials_collapse for all layers in DB_DC (a list of matrices)
+def mult_partials_collapse__layers(da_db, DB_DC, b, DB_DC_INIT=None):
+	DC = [None] * len(DB_DC)
+	for layer in range(len(DB_DC)):
+		DC[layer] = mult_partials_collapse(da_db, DB_DC[layer], b)
+		if DB_DC_INIT != None:
+			DC[layer] += DB_DC_INIT[layer]
+	
+	return DC
+
+# mult_partials for all layers in DB_DC (a list of matrices)
+def mult_partials__layers(da_db, DB_DC, b, DB_DC_INIT=None):
+	DC = [None] * len(DB_DC)
+	for layer in range(len(DB_DC)):
+		DC[layer] = mult_partials(da_db, DB_DC[layer], b)
+		if DB_DC_INIT != None:
+			DC[layer] += DB_DC_INIT[layer]
+	
+	return DC
 
 ##### read memory vector (generalization of linear_F())
 def read_from_mem(w, mem):

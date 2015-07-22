@@ -16,8 +16,6 @@ N_FRAMES = 4#3
 x = np.random.normal(size=(N_FRAMES+1, n_in,1)) * SCALE
 t = np.random.normal(size=(C,mem_length))
 
-#x[0] = np.zeros_like(x[0])
-
 ## weights:
 wr1 = np.random.normal(size=(n1,n_in)) * SCALE
 wr2 = np.random.normal(size=(n2,n1)) * SCALE
@@ -32,29 +30,30 @@ wwshift = np.random.normal(size=(C,n_shifts,n_in)) * SCALE *.5
 wwkey = np.random.normal(size=(C,mem_length,n_in)) * SCALE * 1e-3
 
 wadd = np.random.normal(size=(C, mem_length, n_in)) * SCALE
-dmem_prev_dwaddi = np.zeros((M,mem_length,C,mem_length,n_in))
-dor_dwaddi = np.zeros((C,M,C,mem_length,n_in))
-dow_dwaddi = np.zeros((C,M,C,mem_length,n_in))
 
 WR = [wr1, wr2, wr3, wrshift, wrkey]
-WW = [ww1, ww2, ww3, wwshift, wwkey]
+WW = [ww1, ww2, ww3, wwshift, wwkey, wadd]
 
 DWR = [None] * len(WR)
 DWW = [None] * len(WW)
 
 ## address and mem partials:
 DOR_DWRi = [None] * len(WR)
+DOR_DWWi = [None] * len(WW)
 DMEM_PREV_DWWi = [None] * len(WW)
 for layer in range(len(WR)):
 	DOR_DWRi[layer] = np.zeros(np.concatenate(((C, M), WR[layer].shape)))
-	DMEM_PREV_DWWi[layer] = np.zeros(np.concatenate(((M, mem_length), WR[layer].shape)))
 
-DOW_DWWi = copy.deepcopy(DOR_DWRi)
-DOR_DWWi = copy.deepcopy(DOR_DWRi)
+for layer in range(len(WW)):
+	DOR_DWWi[layer] = np.zeros(np.concatenate(((C, M), WW[layer].shape)))
+	DMEM_PREV_DWWi[layer] = np.zeros(np.concatenate(((M, mem_length), WW[layer].shape)))
+
+DOW_DWWi = copy.deepcopy(DOR_DWWi)
+DOR_DWWi = copy.deepcopy(DOR_DWWi)
 
 ## indices
-L1 = 0; L2 = 1; L3 = 2; SHIFT = 3; KEY = 4; CONTENT = 5
-IN = 6; SQ = 7; F = 8
+L1 = 0; L2 = 1; L3 = 2; SHIFT = 3; KEY = 4; ADD = 5
+CONTENT = 6; IN = 7; SQ = 8; F = 9
 
 ## layer outputs/initial states:
 mem_previ = np.random.normal(size=(M, mem_length))
@@ -62,9 +61,9 @@ mem_previ = np.random.normal(size=(M, mem_length))
 or_previ = np.random.normal(size=(C,M))
 ow_previ = np.random.normal(size=(C,M))
 
-OR_PREVi = [None]*(len(WR) + 4)
+OR_PREVi = [None]*(len(WR) + 5)
 OR_PREVi[F] = or_previ
-OW_PREVi = [np.zeros((n1,1)), np.zeros((n2,1)), np.zeros((C,1)), np.zeros((C,n_shifts)),\
+OW_PREVi = [np.zeros((n1,1)), np.zeros((n2,1)), np.zeros((C,1)), np.zeros((C,n_shifts)), np.zeros((C,mem_length)),\
 	np.zeros((C,mem_length)), np.zeros_like(ow_previ), np.zeros_like(ow_previ), np.zeros_like(ow_previ), ow_previ]
 OW_PREV_PREVi = copy.deepcopy(OW_PREVi)
 OW_PREV_PREVi[F] = np.zeros_like(OW_PREV_PREVi[F])
