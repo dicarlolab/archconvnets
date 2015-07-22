@@ -57,14 +57,11 @@ def forward_pass(WR,WW, or_prev, ow_prev, mem_prev,x_cur):
 	return OR,OW,mem,read_mem
 
 ##########
-def weight_address_partials(W, o_prev, x_cur, DO_DW, O, mem_prev, DMEM_PREV_DWW=None):
+def weight_address_partials(W, o_prev, x_cur, DO_DW, O, mem_prev, do_do_in, DMEM_PREV_DWW=None):
 	DO_DW_NEW = copy.deepcopy(DO_DW)
 	DO_IN_DW = [None] * len(DO_DW)
 	
 	##
-	do_do_sq = shift_w_dw_interp_nsum(O[SHIFT])
-	do_sq_do_in = sq_points_dinput(O[IN])
-	do_do_in = mult_partials(do_do_sq, do_sq_do_in, O[SQ])
 	do_in_do_content = interpolate_do_content(O[L3], O[CONTENT])
 	
 	# gradients of 'o' from prior time-points:
@@ -122,14 +119,11 @@ def weight_address_partials(W, o_prev, x_cur, DO_DW, O, mem_prev, DMEM_PREV_DWW=
 	
 	return DO_DW_NEW
 
-def read_dwrite_weight_address_partials(W, o_prev, x_cur, DO_DW, O, mem_prev, DMEM_PREV_DWW):
+def read_dwrite_weight_address_partials(W, o_prev, x_cur, DO_DW, O, mem_prev, DMEM_PREV_DWW, do_do_in):
 	DO_DW_NEW = copy.deepcopy(DO_DW)
 	DO_IN_DW = [None] * len(DO_DW)
 	
 	##
-	do_do_sq = shift_w_dw_interp_nsum(O[SHIFT])
-	do_sq_do_in = sq_points_dinput(O[IN])
-	do_do_in = mult_partials(do_do_sq, do_sq_do_in, O[SQ])
 	
 	# gradients of 'o' from prior time-points:
 	do_in_do_prev = interpolate_do_prev(O[L3], o_prev)
@@ -212,13 +206,23 @@ def g(y):
 		# forward
 		OR, OW, mem, read_mem = forward_pass(WR, WW, OR_PREV[F], OW_PREV[F], mem_prev, x[frame])
 		
+		dor_dor_sq = shift_w_dw_interp_nsum(OR[SHIFT])
+		dow_dow_sq = shift_w_dw_interp_nsum(OW[SHIFT])
+		dow_prev_dow_prev_sq = shift_w_dw_interp_nsum(OW_PREV[SHIFT])
+		dor_sq_dor_in = sq_points_dinput(OR[IN])
+		dow_sq_dow_in = sq_points_dinput(OW[IN])
+		dow_prev_sq_dow_prev_in = sq_points_dinput(OW_PREV[IN])
+		dor_dor_in = mult_partials(dor_dor_sq, dor_sq_dor_in, OR[SQ])
+		dow_dow_in = mult_partials(dow_dow_sq, dow_sq_dow_in, OW[SQ])
+		dow_prev_dow_prev_in = mult_partials(dow_prev_dow_prev_sq, dow_prev_sq_dow_prev_in, OW_PREV[SQ])
+		
 		# partials for weight addresses/mem
 		if frame > 1:
-			DOW_DWW = weight_address_partials(WW, OW_PREV_PREV[F], x[frame-1], DOW_DWW, OW_PREV, mem_prev_prev, DMEM_PREV_DWW)
+			DOW_DWW = weight_address_partials(WW, OW_PREV_PREV[F], x[frame-1], DOW_DWW, OW_PREV, mem_prev_prev, dow_prev_dow_prev_in, DMEM_PREV_DWW)
 			
 			DMEM_PREV_DWW = mem_partials(DMEM_PREV_DWW, DOW_DWW, OW_PREV, x[frame-1])
-		DOR_DWR = weight_address_partials(WR, OR_PREV[F], x[frame], DOR_DWR, OR, mem_prev)
-		DOR_DWW = read_dwrite_weight_address_partials(WR, OR_PREV[F], x[frame], DOR_DWW, OR, mem_prev, DMEM_PREV_DWW)
+		DOR_DWR = weight_address_partials(WR, OR_PREV[F], x[frame], DOR_DWR, OR, mem_prev, dor_dor_in)
+		DOR_DWW = read_dwrite_weight_address_partials(WR, OR_PREV[F], x[frame], DOR_DWW, OR, mem_prev, DMEM_PREV_DWW, dor_dor_in)
 		
 	
 		# update temporal state vars
