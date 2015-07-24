@@ -10,9 +10,9 @@ from init_vars import *
 
 ##### which gradients to test
 #DERIV_L = SHIFT
-DERIV_L = ADD
-gradient_category = 'write'
-#gradient_category = 'read'
+DERIV_L = KEY
+#gradient_category = 'write'
+gradient_category = 'read'
 ####
 if gradient_category == 'read':
 	ref = WR[DERIV_L]
@@ -67,16 +67,20 @@ def do_dw__inputs(W, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, do_do_in):
 	DO_DW_NEW = copy.deepcopy(DO_DW)
 	DO_DWUNDER_NEW = copy.deepcopy(DO_DWUNDER)
 	
-	# shift weights
+	dg3under_dw3under = sq_dF_nsum(WUNDER[F_UNDER], OUNDER[L2_UNDER], OUNDER[F_UNDER])
+	
+	## shift weights
 	do_dgshift = shift_w_dshift_out_nsum(O[SQ])
 	dgshift_dwshift = linear_2d_F_dF_nsum(W[SHIFT], OUNDER[F_UNDER])
 	DO_DW_NEW[SHIFT] += mult_partials(do_dgshift, dgshift_dwshift, O[SHIFT])
 	
 	# shift under
-	dgshift_dx = linear_2d_F_dx_nsum(W[SHIFT])
-	do_dunder = mult_partials(do_dgshift, dgshift_dx, O[SHIFT])
+	dgshift_dg3under = linear_2d_F_dx_nsum(W[SHIFT])
+	do_dg3under = mult_partials(do_dgshift, dgshift_dg3under, O[SHIFT])
 	
+	DO_DWUNDER_NEW[F_UNDER] += mult_partials(do_dg3under, dg3under_dw3under, np.squeeze(OUNDER[F_UNDER])) # l2, l1...
 	
+	####
 	# w3
 	dg3_dg2 = sq_dlayer_in_nsum(W[L3], O[L2])
 	dg3_dw3 = sq_dF_nsum(W[L3], O[L2], O[L3])
@@ -91,7 +95,7 @@ def do_dw__inputs(W, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, do_do_in):
 	dg3_dg1 = mult_partials(dg3_dg2, dg2_dg1, np.squeeze(O[L2]))
 	dg3_dw1 = mult_partials(dg3_dg1, dg1_dw1, np.squeeze(O[L1]))
 	
-	# interp. gradients (wrt o_prev; g3)
+	## interp. gradients (wrt o_prev; g3)
 	do_in_dg3 = interpolate_dinterp_gate_out(O[L3], O[CONTENT], o_prev)
 	
 	do_in_dw3 = mult_partials(do_in_dg3, dg3_dw3[:,np.newaxis], O[L3])
@@ -102,15 +106,33 @@ def do_dw__inputs(W, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, do_do_in):
 	DO_DW_NEW[L2] += mult_partials(do_do_in, do_in_dw2, O[IN])
 	DO_DW_NEW[L1] += mult_partials(do_do_in, do_in_dw1, O[IN])
 	
-	# interp. gradients (wrt o_content)
+	# weights under
+	do_in_dg1 = mult_partials(do_in_dg3, dg3_dg1[:,np.newaxis], O[L3])
+	do_dg1 = mult_partials(do_do_in, do_in_dg1, O[IN])
+	
+	dg1_dg3under = sq_dlayer_in_nsum(W[L1], OUNDER[F_UNDER])
+	do_dg3under = mult_partials(do_dg1, dg1_dg3under, np.squeeze(O[L1]))
+	
+	DO_DWUNDER_NEW[F_UNDER] += mult_partials(do_dg3under, dg3under_dw3under, np.squeeze(OUNDER[F_UNDER])) # l2, l1...
+	
+	## interp. gradients (wrt o_content)
 	do_in_do_content = interpolate_do_content(O[L3], O[CONTENT])
 	do_content_dgkey = cosine_sim_expand_dkeys(O[KEY], mem_prev)
+	do_in_dgkey = mult_partials(do_in_do_content, do_content_dgkey, O[CONTENT])
+	
 	dgkey_dwkey = linear_2d_F_dF_nsum(W[KEY], OUNDER[F_UNDER])
 	
-	do_content_dwkey = mult_partials(do_content_dgkey, dgkey_dwkey, O[KEY])
-	do_in_dwkey = mult_partials(do_in_do_content, do_content_dwkey, O[CONTENT])
+	do_in_dwkey = mult_partials(do_in_dgkey, dgkey_dwkey, O[KEY])
 	
 	DO_DW_NEW[KEY] += mult_partials(do_do_in, do_in_dwkey, O[IN])
+	
+	# weights under
+	dgkey_dg3under = linear_2d_F_dx_nsum(W[KEY])
+	do_content_dg3under = mult_partials(do_content_dgkey, dgkey_dg3under, O[KEY])
+	do_in_dg3under = mult_partials(do_in_do_content, do_content_dg3under, O[CONTENT])
+	do_dg3under = mult_partials(do_do_in, do_in_dg3under, O[IN])
+	
+	DO_DWUNDER_NEW[F_UNDER] += mult_partials(do_dg3under, dg3under_dw3under, np.squeeze(OUNDER[F_UNDER])) # l2, l1...
 	
 	return DO_DW_NEW, DO_DWUNDER_NEW
 
@@ -206,7 +228,7 @@ def g(y):
 			DOW_DWW, DOW_DWUNDER = do_dw__mem_prev(WW, DOW_DWW, DOW_DWUNDER, OW_PREV, mem_prev_prev, DMEM_PREV_DWW, DMEM_PREV_DWUNDER, dow_prev_dow_prev_in)
 			DOW_DWW, DOW_DWUNDER = do_dw__inputs(WW, OW_PREV_PREV[F], OUNDER_PREV, DOW_DWUNDER, OW_PREV, DOW_DWW, mem_prev_prev, dow_prev_dow_prev_in)
 			
-			DMEM_PREV_DWW, DMEM_PREV_DUNDER = mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, OW_PREV, OUNDER_PREV, WW)
+			DMEM_PREV_DWW, DMEM_PREV_DWUNDER = mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, OW_PREV, OUNDER_PREV, WW)
 		
 		# partials from read head output (OR)
 		DOR_DWR, DOR_DWUNDER = do_dw__o_prev(WR, OR_PREV[F], DOR_DWR, DOR_DWUNDER, OR, dor_dor_in)
@@ -240,6 +262,7 @@ def g(y):
 	DWW = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWW, mem_prev, DWW)
 	DWUNDER = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DWUNDER)
 	
+	
 	####
 	if ref.ndim == 2 and gradient_category == 'read':
 		return DWR[DERIV_L][i_ind,j_ind]
@@ -251,7 +274,7 @@ def g(y):
 		return DWW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e1
+eps = np.sqrt(np.finfo(np.float).eps)*1e4
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
