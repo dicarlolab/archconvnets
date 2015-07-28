@@ -14,7 +14,7 @@ n2_under = 11
 
 SCALE = .6
 N_FRAMES = 4
-SCALE_UNDER = .4
+SCALE_UNDER = .45
 
 ## inputs/targets
 x = np.random.normal(size=(N_FRAMES+1, n_in,1)) * SCALE

@@ -9,12 +9,15 @@ from ntm_gradients import *
 from init_vars import *
 
 ##### which gradients to test
-#DERIV_L = SHIFT
+#DERIV_L = F_UNDER
 DERIV_L = KEY
-#gradient_category = 'write'
-gradient_category = 'read'
+gradient_category = 'write'
+#gradient_category = 'read'
+#gradient_category = 'under'
 ####
-if gradient_category == 'read':
+if gradient_category == 'under':
+	ref = WUNDER[DERIV_L]
+elif gradient_category == 'read':
 	ref = WR[DERIV_L]
 else:
 	ref = WW[DERIV_L]
@@ -156,21 +159,30 @@ def do_dw__mem_prev(W, DO_DW, DO_DWUNDER, O, mem_prev, DMEM_PREV_DWW, DMEM_PREV_
 	
 	return DO_DW_NEW, DO_DWUNDER_NEW
 
-def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, OW_PREV, OUNDER_PREV, WW):
+def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_DWUNDER, OW_PREV, OUNDER_PREV, WW):
 	# write gradients
 	da_dow = add_mem_dgw(OW_PREV[ADD])
 	DMEM_PREV_DWW_NEW = mult_partials__layers(da_dow, DOW_DWW, OW_PREV[F], DMEM_PREV_DWW) # da_dlayer
+	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(da_dow, DOW_DWUNDER, OW_PREV[F], DMEM_PREV_DWUNDER)
 	
 	# 'add' gradients
 	da_dadd_out = add_mem_dadd_out(OW_PREV[F])
+	
 	dadd_out_dwadd = linear_2d_F_dF_nsum(WW[ADD], OUNDER_PREV[F_UNDER])
 	DMEM_PREV_DWW_NEW[ADD] += mult_partials(da_dadd_out, dadd_out_dwadd, OW_PREV[ADD]) # da_dwadd
 	
-	return DMEM_PREV_DWW_NEW, DMEM_PREV_DWUNDER
+	dadd_out_dg3under = linear_2d_F_dx_nsum(WW[ADD])
+	dg3under_dw3under = sq_dF_nsum(WUNDER[F_UNDER], OUNDER_PREV[L2_UNDER], OUNDER_PREV[F_UNDER])
+	dadd_out_dw3under = mult_partials(dadd_out_dg3under, dg3under_dw3under, np.squeeze(OUNDER_PREV[F_UNDER]))
+	DMEM_PREV_DWUNDER_NEW[F_UNDER] += mult_partials(da_dadd_out, dadd_out_dw3under, OW_PREV[ADD])
+	
+	return DMEM_PREV_DWW_NEW, DMEM_PREV_DWUNDER_NEW
 
 ########
 def f(y):
-	if ref.ndim == 2 and gradient_category == 'read':
+	if ref.ndim == 2 and gradient_category == 'under':
+		WUNDER[DERIV_L][i_ind,j_ind] = y
+	elif ref.ndim == 2 and gradient_category == 'read':
 		WR[DERIV_L][i_ind,j_ind] = y
 	elif gradient_category == 'read':
 		WR[DERIV_L][i_ind,j_ind,k_ind] = y
@@ -190,7 +202,9 @@ def f(y):
 
 
 def g(y):
-	if ref.ndim == 2 and gradient_category == 'read':
+	if ref.ndim == 2 and gradient_category == 'under':
+		WUNDER[DERIV_L][i_ind,j_ind] = y
+	elif ref.ndim == 2 and gradient_category == 'read':
 		WR[DERIV_L][i_ind,j_ind] = y
 	elif gradient_category == 'read':
 		WR[DERIV_L][i_ind,j_ind,k_ind] = y
@@ -228,7 +242,7 @@ def g(y):
 			DOW_DWW, DOW_DWUNDER = do_dw__mem_prev(WW, DOW_DWW, DOW_DWUNDER, OW_PREV, mem_prev_prev, DMEM_PREV_DWW, DMEM_PREV_DWUNDER, dow_prev_dow_prev_in)
 			DOW_DWW, DOW_DWUNDER = do_dw__inputs(WW, OW_PREV_PREV[F], OUNDER_PREV, DOW_DWUNDER, OW_PREV, DOW_DWW, mem_prev_prev, dow_prev_dow_prev_in)
 			
-			DMEM_PREV_DWW, DMEM_PREV_DWUNDER = mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, OW_PREV, OUNDER_PREV, WW)
+			DMEM_PREV_DWW, DMEM_PREV_DWUNDER = mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_DWUNDER, OW_PREV, OUNDER_PREV, WW)
 		
 		# partials from read head output (OR)
 		DOR_DWR, DOR_DWUNDER = do_dw__o_prev(WR, OR_PREV[F], DOR_DWR, DOR_DWUNDER, OR, dor_dor_in)
@@ -264,7 +278,9 @@ def g(y):
 	
 	
 	####
-	if ref.ndim == 2 and gradient_category == 'read':
+	if ref.ndim == 2 and gradient_category == 'under':
+		return DWUNDER[DERIV_L][i_ind,j_ind]
+	elif ref.ndim == 2 and gradient_category == 'read':
 		return DWR[DERIV_L][i_ind,j_ind]
 	elif gradient_category == 'read':
 		return DWR[DERIV_L][i_ind,j_ind,k_ind]
@@ -274,18 +290,16 @@ def g(y):
 		return DWW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e4
+eps = np.sqrt(np.finfo(np.float).eps)*1e-2
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
+	i_ind = np.random.randint(ref.shape[0])
+	j_ind = np.random.randint(ref.shape[1])
 	if ref.ndim == 2:
-		i_ind = np.random.randint(ref.shape[0])
-		j_ind = np.random.randint(ref.shape[1])
 		y = -1e0*ref[i_ind,j_ind]
 	else:
-		i_ind = np.random.randint(ref.shape[0])
-		j_ind = np.random.randint(ref.shape[1])
 		k_ind = np.random.randint(ref.shape[2])
 		y = -1e0*ref[i_ind,j_ind,k_ind]
 	
