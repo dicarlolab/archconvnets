@@ -486,12 +486,17 @@ class DLDataProvider(LabeledDataProvider):
             self.labels_unique = labels_unique
         return metacol
 
-    def get_metacol_base(self, ma):
+    def get_metacol_base(self, ma, perm=None):
         assert isinstance(ma, str), ma
         if ma in self.meta.dtype.names:
             metacol = self.meta[ma][:]
         else:
             metacol = getattr(self.dset, ma)[:]
+        if perm is not None:
+        	assert perm.shape == metacol.shape
+        	metacol = metacol[perm]
+        if self.hasattr('subslice'):
+            metacol = metacol[self.subslice]
         mlen = len(metacol)
         try:
             metacol + 1
@@ -570,24 +575,35 @@ class DLDataProvider2(DLDataProvider):
         #load dataset and meta
         modulename, attrname = dp_params['dataset_name']
         module = importlib.import_module(modulename)
+        self.dp_params = dp_params
         dataset_obj = getattr(module, attrname)
         dataset_data = dp_params.get('dataset_data', None)
         if dataset_data is not None:
             dset = dataset_obj(data=dataset_data)
         else:
             dset = dataset_obj()
-        self.dset = dset
-        meta = self.meta = dset.meta
-        mlen = len(meta)
-        self.dp_params = dp_params
+        self.dset = dset        
+        
+        perm_type = dp_params.get('perm_type')
+        perm, perm_id = self.get_perm()        
+        if 'subslice' in dp_params:
+        	subslice_method, subslice_kwargs = self.subslice = dp_params['subslice']
+        	subslice = getattr(self.dset, subslice_method)(**subslice_kwargs)
+        	if perm is not None:
+        		self.subslice = fast.isin(perm, subslice).nonzero()[0]
+            else:
+            	self.subslice = subslice
+
+        metacol = self.get_metacol()
+        if hasattr(metacol, 'keys'):
+        	mlen = len(metacol.values()[0])
+        else:
+        	mlen = len(metacol)
 
         #compute number of batches
-        mlen = len(meta)
         batch_size = self.batch_size = dp_params['batch_size']
         num_batches = self.num_batches = int(math.ceil(mlen / float(batch_size)))
         num_batches_for_meta = self.num_batches_for_meta = dp_params['num_batches_for_mean']
-
-        perm_type = dp_params.get('perm_type')
 
         images = dset.get_images(preproc=dp_params['preproc'])
         if hasattr(images, 'dirname'):
@@ -595,30 +611,23 @@ class DLDataProvider2(DLDataProvider):
         else:
             base_dir = dset.home('cache')
             orig_name = 'images_cache_' + get_id(dp_params['preproc'])
-        perm, perm_id = self.get_perm()
+
         reorder = Reorder(images)
-        lmap = larray.lmap(reorder, perm, f_map = reorder)
+        lmap = larray.lmap(reorder, self.perm, f_map=reorder)
         if cache_type == 'hdf5':
-            new_name = orig_name + '_' + perm_id + '_hdf5'
+            new_name = orig_name + '_' + self.perm_id + '_hdf5'
             print('Getting stimuli from cache hdf5 at %s/%s ' % (base_dir, new_name))
             self.stimarray = larray.cache_hdf5(lmap,
                                   name=new_name,
                                   basedir=base_dir,
                                   mode=read_mode)
         elif cache_type == 'memmap':
-            new_name = orig_name + '_' + perm_id + '_memmap'
+            new_name = orig_name + '_' + self.perm_id + '_memmap'
             print('Getting stimuli from cache memmap at %s/%s ' % (base_dir, new_name))
             self.stimarray = larray.cache_memmap(lmap,
                                   name=new_name,
                                   basedir=base_dir)
 
-        metacol = self.get_metacol()
-        if hasattr(metacol, 'keys'):
-            for k in metacol:
-                metacol[k] = metacol[k][perm]
-            self.metacol = metacol
-        else:
-            self.metacol = metacol[perm]
 
         #default data location
         if data_dir == '':
@@ -627,14 +636,21 @@ class DLDataProvider2(DLDataProvider):
         if not os.path.exists(data_dir):
             print('data_dir %s does not exist, creating' % data_dir)
             os.makedirs(data_dir)
+            
+		if hasattr(self, 'subslice'):
+			hashval = subslice.__hash__()
+			metafile = os.path.join(data_dir, 'batches_%d.meta' % hashval)
+		else:
+            metafile = os.path.join(data_dir, 'batches.meta')
 
-        metafile = os.path.join(data_dir, 'batches.meta')
         if os.path.exists(metafile):
             print('Meta file at %s exists, loading' % metafile)
             bmeta = cPickle.load(open(metafile))
             #assertions checking that the things that need to be the same
             #for these batches to make sense are in fact the same
             assert dp_params['batch_size'] == bmeta['num_cases_per_batch'], (dp_params['batch_size'], bmeta['num_cases_per_batch'])
+            if 'subslice' in bmeta or 'subslice' in dp_params:
+            	assert dp_params['subslice'] == bmeta['subslice']
             if 'dataset_name' in bmeta:
                 assert dp_params['dataset_name'] == bmeta['dataset_name'], (dp_params['dataset_name'], bmeta['dataset_name'])
             if 'preproc' in bmeta:
@@ -649,10 +665,7 @@ class DLDataProvider2(DLDataProvider):
             for bn in range(num_batches_for_meta):
                 print('Meta batch %d' % bn)
                 #get stimuli and put in the required format
-                print(self.stimarray.shape, batch_size)
-                stims = self.stimarray[bn * batch_size: (bn + 1) * batch_size]
-                print("Shape", stims.shape)
-                stims = n.asarray(stims)
+                stims = self.get_stims(bn, batchsize)
                 print('Got stims', stims.shape, stims.nbytes)
                 if 'float' in repr(stims.dtype):
                     stims = n.uint8(n.round(255 * stims))
@@ -675,6 +688,8 @@ class DLDataProvider2(DLDataProvider):
                        'dataset_name': dp_params['dataset_name'],
                        'dataset_data': dataset_data,
                        'preproc': dp_params['preproc']}
+            if hasattr(dp_params, 'subslice'):
+            	outdict['subslice'] = dp_params['subslice']
             with open(metafile, 'wb') as _f:
                 cPickle.dump(outdict, _f)
 
@@ -683,20 +698,51 @@ class DLDataProvider2(DLDataProvider):
         LabeledDataProvider.__init__(self, data_dir, batch_range,
                                  init_epoch, init_batchnum, dp_params, test)
 
+    def get_metacol(self):
+        perm = self.perm    
+        meta_attr = self.dp_params['meta_attribute']
+        if isinstance(meta_attr, list):
+            meta_attr = map(str, meta_attr)
+            metacol = OrderedDict([])
+            self.labels_unique = OrderedDict([])
+            for ma in meta_attr:
+                mcol, lu = self.get_metacol_base(ma, perm=perm)
+                metacol[ma] = mcol
+                self.labels_unique[ma] = lu
+        else:
+            meta_attr = str(meta_attr)
+            metacol, labels_unique = self.get_metacol_base(meta_attr, perm=perm)
+            self.labels_unique = labels_unique
+        return metacol
+
+    def get_stims(self, bn, batch_size):
+        if hasattr(self, 'subslice'):
+    		subslice_inds = self.subslice[bn * batch_size: (bn + 1) * batch_size]
+    		mbs = 256
+    		bn0 = subslice_inds.min() / mbs
+    		bn1 = subslice_inds.max() / mbs
+    		stims = []
+    		for _bn in range(bn0, bn1 + 1):
+    			_s = n.asarray(self.stimarray[_bn * mbs: (_bn + 1) * mbs])
+    			new_inds = fast.isin(n.arange(_bn * mbs, (_bn + 1) * mbs), subslice_inds)
+    			new_array = _s[new_inds]
+    			stims.append(new_array)
+    		stims = np.concatenate(stims)
+        else:
+            stims = n.asarray(self.stimarray[bn * batch_size: (bn + 1) * batch_size])
+        return stims
+
     def get_batch(self, batch_num):
         print('bn', batch_num)
-        batch_size = self.batch_size
-        inds = slice(batch_num * batch_size, (batch_num + 1) * batch_size)
-        print('got slice')
-        stims = n.asarray(self.stimarray[inds])
+        stims = self.get_stims(bn, batch_size)
         print('got stims')
         if 'float' in repr(stims.dtype):
             stims = n.uint8(n.round(255 * stims))
         print('to uint8')
         if hasattr(self.metacol, 'keys'):
-            lbls = OrderedDict([(k, self.metacol[k][inds]) for k in self.metacol])
+            lbls = OrderedDict([(k, self.metacol[k][bn * batch_size: (bn + 1) * batch_size]) for k in self.metacol])
         else:
-            lbls = self.metacol[inds]
+            lbls = self.metacol[bn * batch_size: (bn + 1) * batch_size]
         print('got meta')
         d = dldata_to_convnet_reformatting(stims, lbls)
         print('done')
