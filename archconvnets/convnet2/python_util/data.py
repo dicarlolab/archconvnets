@@ -649,8 +649,8 @@ class DLDataProvider2(DLDataProvider):
             os.makedirs(data_dir)
             
         if hasattr(self, 'subslice'):
-            hashval = subslice.__hash__()
-            metafile = os.path.join(data_dir, 'batches_%d.meta' % hashval)
+            hashval = get_id(tuple(subslice.tolist()))
+            metafile = os.path.join(data_dir, 'batches_%s.meta' % hashval)
         else:
             metafile = os.path.join(data_dir, 'batches.meta')
 
@@ -699,7 +699,7 @@ class DLDataProvider2(DLDataProvider):
                        'dataset_name': dp_params['dataset_name'],
                        'dataset_data': dataset_data,
                        'preproc': dp_params['preproc']}
-            if hasattr(dp_params, 'subslice'):
+            if dp_params.has_key('subslice'):
             	outdict['subslice'] = dp_params['subslice']
             with open(metafile, 'wb') as _f:
                 cPickle.dump(outdict, _f)

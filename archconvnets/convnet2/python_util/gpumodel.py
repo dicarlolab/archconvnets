@@ -499,12 +499,12 @@ class IGPUModel:
             # load_dic = cPickle.loads(fs_to_use.get_last_version(_id=rec['_id']).read())
             # new code - save to cache
             go = fs_to_use.get_last_version(_id=rec['_id'])
-             from skdata.data_home import get_data_home
-             cachedir = os.path.join(get_data_home(), 'checkpoint_cache')
-             if not os.path.exists(cachedir):
-                 os.makedirs(cachedir)
-             cachefile = os.path.join(cachedir, str(rec['_id']) + ".pkl")
-             if os.path.exists(cachefile):
+            from skdata.data_home import get_data_home
+            cachedir = os.path.join(get_data_home(), 'checkpoint_cache')
+            if not os.path.exists(cachedir):
+                os.makedirs(cachedir)
+            cachefile = os.path.join(cachedir, str(rec['_id']) + ".pkl")
+            if os.path.exists(cachefile):
                 md5sum = get_md5(cachefile)
                 md5true = go.md5
                 if md5sum == md5true:
@@ -513,9 +513,9 @@ class IGPUModel:
                 else:
                     print("Cache file corrupted. Reload checkpoint from db")
                     load_dic = cPickle.loads(read_checkpoint_from_file(go, cachefile))
-             else:
-                 print("No file in cache. Load checkpoint from db")
-                 load_dic = cPickle.loads(read_checkpoint_from_file(go, cachefile))
+            else:
+                print("No file in cache. Load checkpoint from db")
+                load_dic = cPickle.loads(read_checkpoint_from_file(go, cachefile))
         else:
             load_dic = {}
         load_dic['rec'] = rec
