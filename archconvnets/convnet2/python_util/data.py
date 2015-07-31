@@ -25,6 +25,8 @@ import importlib
 import hashlib
 from skdata import larray
 
+import yamutils.fast as fast
+
 BATCH_META_FILE = "batches.meta"
 
 class DataLoaderThread(Thread):
@@ -493,10 +495,17 @@ class DLDataProvider(LabeledDataProvider):
             labels_unique = None
         except TypeError:
             labels_unique = n.unique(metacol)
-            labels = n.zeros((mlen, ), dtype='int')
-            for label in range(len(labels_unique)):
-                labels[metacol == labels_unique[label]] = label
-            metacol = labels
+            s = metacol.argsort()
+            cat_s = metacol[s]
+            ss = n.array([0] + ((cat_s[1:] != cat_s[:-1]).nonzero()[0] + 1).tolist() + [len(cat_s)])
+            ssd = ss[1:] - ss[:-1]
+            labels = n.repeat(n.arange(len(labels_unique)), ssd)
+            metacol = labels[fast.perminverse(s)]
+            #labels = n.zeros((mlen, ), dtype='int')
+            #print(len(labels_unique), "L")
+            #for label in range(len(labels_unique)):
+            #    labels[metacol == labels_unique[label]] = label
+            #metacol = labels
         return metacol, labels_unique
 
     def get_indset(self):
@@ -566,6 +575,7 @@ class DLDataProvider2(DLDataProvider):
         modulename, attrname = dp_params['dataset_name']
         module = importlib.import_module(modulename)
         dataset_obj = getattr(module, attrname)
+        print(module, attrname)
         dataset_data = dp_params.get('dataset_data', None)
         if dataset_data is not None:
             dset = dataset_obj(data=dataset_data)
