@@ -55,12 +55,11 @@ def forward_pass(WUNDER, WR,WW, or_prev, ow_prev, mem_prev, x_cur):
 	OUNDER[F_UNDER] = sq_F(WUNDER[F_UNDER], OUNDER[L2_UNDER])
 	
 	# read/write heads
-	OR = weight_address(WR, or_prev, ounder_static, mem_prev)
-	#OR = weight_address(WR, or_prev, OUNDER[F_UNDER], mem_prev)
+	OR = weight_address(WR, or_prev, OUNDER[F_UNDER], mem_prev)
 	OW = weight_address(WW, ow_prev, ounder_static, mem_prev)
-	#OW = weight_address(WW, ow_prev, OUNDER[F_UNDER], mem_prev)
 	
 	# add output
+	#OW[ADD] = linear_2d_F(WW[ADD], ounder_static)
 	OW[ADD] = linear_2d_F(WW[ADD], OUNDER[F_UNDER])
 	
 	# read then write to mem
@@ -139,7 +138,7 @@ def do_dw__inputs(W, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, do_do_in):
 	
 	return DO_DW_NEW, DO_DWUNDER_NEW
 
-## ...
+########## ...
 def do_dw__o_prev(W, o_prev, DO_DW, DO_DWUNDER, O, do_do_in):
 	do_in_do_prev = interpolate_do_prev(O[L3], o_prev)
 	do_do_prev = mult_partials(do_do_in, do_in_do_prev, O[IN])
@@ -241,7 +240,7 @@ def g(y):
 		if frame > 1:
 			DOW_DWW, DOW_DWUNDER = do_dw__o_prev(WW, OW_PREV_PREV[F], DOW_DWW, DOW_DWUNDER, OW_PREV, dow_prev_dow_prev_in)
 			DOW_DWW, DOW_DWUNDER = do_dw__mem_prev(WW, DOW_DWW, DOW_DWUNDER, OW_PREV, mem_prev_prev, DMEM_PREV_DWW, DMEM_PREV_DWUNDER, dow_prev_dow_prev_in)
-			DOW_DWW, DOW_DWUNDER = do_dw__inputs(WW, OW_PREV_PREV[F], OUNDER_PREV, DOW_DWUNDER, OW_PREV, DOW_DWW, mem_prev_prev, dow_prev_dow_prev_in)
+			DOW_DWW, j = do_dw__inputs(WW, OW_PREV_PREV[F], OUNDER_PREV, DOW_DWUNDER, OW_PREV, DOW_DWW, mem_prev_prev, dow_prev_dow_prev_in)
 			
 			DMEM_PREV_DWW, DMEM_PREV_DWUNDER = mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_DWUNDER, OW_PREV, OUNDER_PREV, WW)
 		
@@ -249,7 +248,7 @@ def g(y):
 		DOR_DWR, DOR_DWUNDER = do_dw__o_prev(WR, OR_PREV[F], DOR_DWR, DOR_DWUNDER, OR, dor_dor_in)
 		DOR_DWR, DOR_DWUNDER = do_dw__inputs(WR, OR_PREV[F], OUNDER, DOR_DWUNDER, OR, DOR_DWR, mem_prev, dor_dor_in)
 		
-		DOR_DWW, DOR_DWUNDER = do_dw__o_prev(WR, OR_PREV[F], DOR_DWW, DOR_DWUNDER, OR, dor_dor_in)
+		DOR_DWW, j = do_dw__o_prev(WR, OR_PREV[F], DOR_DWW, DOR_DWUNDER, OR, dor_dor_in)
 		DOR_DWW, DOR_DWUNDER = do_dw__mem_prev(WR, DOR_DWW, DOR_DWUNDER, OR, mem_prev, DMEM_PREV_DWW, DMEM_PREV_DWUNDER, dor_dor_in)
 	
 		# update temporal state vars

@@ -9,11 +9,11 @@ from ntm_gradients import *
 from init_vars import *
 
 ##### which gradients to test
-#DERIV_L = F_UNDER
-DERIV_L = KEY
-gradient_category = 'write'
+DERIV_L = F_UNDER
+#DERIV_L = KEY
+#gradient_category = 'write'
 #gradient_category = 'read'
-#gradient_category = 'under'
+gradient_category = 'under'
 ####
 if gradient_category == 'under':
 	ref = WUNDER[DERIV_L]
