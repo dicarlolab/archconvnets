@@ -32,6 +32,7 @@ import copy
 import collections
 import pymongo as pm
 import gridfs
+import hashlib
 from yamutils.mongo import SONify
 
 
@@ -66,6 +67,36 @@ def cleanup_checkpoint_db(host, port, db_name, fs_name, keep_recents=True):
     conn = pm.Connection(host=host, port=port)
     conn.drop_database(rfs._GridFS__database)
 
+def read_checkpoint_from_file(go, cachefile):
+    """instead of gridfs read() functionality"""
+    from bson.py3compat import b
+    EMPTY = b("")
+
+    go._ensure_file()
+
+    go_position = 0
+    size = int(go.length) - go_position
+
+    received = 0
+    data = open(cachefile, "wb")
+    while received < size:
+        chunk_data = go.readchunk()
+        received += len(chunk_data)
+        data.write(chunk_data)
+    data.close()
+
+    data = open(cachefile)
+    return data.read()
+
+def get_md5(file):
+    BLOCKSIZE = 65536
+    hasher = hashlib.md5()
+    with open(file, 'rb') as f:
+        buf = f.read(BLOCKSIZE)
+        while len(buf) > 0:
+            hasher.update(buf)
+            buf = f.read(BLOCKSIZE)
+    return hasher.hexdigest()
 
 class ModelStateException(Exception):
     pass
@@ -187,6 +218,9 @@ class IGPUModel:
                 idval = model_name + "_" + '_'.join(['%s_%s' % (char, self.options[opt].get_str_value()) for opt, char in filename_options]) + '_' + strftime('%Y-%m-%d_%H.%M.%S')
                 self.experiment_data = collections.OrderedDict([('experiment_id', idval)])
     
+        if not self.options["load_layers"].value_given:
+            self.load_layers = None
+
         self.init_data_providers()
         if load_dic: 
             self.train_data_provider.advance_batch()
@@ -461,7 +495,27 @@ class IGPUModel:
             print('Loading checkpoint from "recent" storage.')
  
         if not only_rec:
-            load_dic = cPickle.loads(fs_to_use.get_last_version(_id=rec['_id']).read())
+            # old one
+            # load_dic = cPickle.loads(fs_to_use.get_last_version(_id=rec['_id']).read())
+            # new code - save to cache
+            go = fs_to_use.get_last_version(_id=rec['_id'])
+             from skdata.data_home import get_data_home
+             cachedir = os.path.join(get_data_home(), 'checkpoint_cache')
+             if not os.path.exists(cachedir):
+                 os.makedirs(cachedir)
+             cachefile = os.path.join(cachedir, str(rec['_id']) + ".pkl")
+             if os.path.exists(cachefile):
+                md5sum = get_md5(cachefile)
+                md5true = go.md5
+                if md5sum == md5true:
+                    print("Loading checkpoint from cache")
+                    load_dic = cPickle.loads(open(cachefile).read())
+                else:
+                    print("Cache file corrupted. Reload checkpoint from db")
+                    load_dic = cPickle.loads(read_checkpoint_from_file(go, cachefile))
+             else:
+                 print("No file in cache. Load checkpoint from db")
+                 load_dic = cPickle.loads(read_checkpoint_from_file(go, cachefile))
         else:
             load_dic = {}
         load_dic['rec'] = rec

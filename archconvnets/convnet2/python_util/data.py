@@ -123,6 +123,7 @@ class DataProvider:
             dims = int(type.split('-')[-1])
             return _class(dims)
         elif type in dp_types:
+            print("dptype: %s" % type)
             _class = dp_classes[type]
             return _class(data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
 
@@ -322,6 +323,7 @@ class DLDataProvider(LabeledDataProvider):
             dset = dataset_obj(data=dataset_data)
         else:
             dset = dataset_obj()
+        self.dset = dset
         meta = self.meta = dset.meta
         mlen = len(meta)
         self.dp_params = dp_params
@@ -488,7 +490,10 @@ class DLDataProvider(LabeledDataProvider):
 
     def get_metacol_base(self, ma):
         assert isinstance(ma, str), ma
-        metacol = self.meta[ma][:]
+        if ma in self.meta.dtype.names:
+            metacol = self.meta[ma][:]
+        else:
+            metacol = getattr(self.dset, ma)[:]
         mlen = len(metacol)
         try:
             metacol + 1
@@ -581,6 +586,7 @@ class DLDataProvider2(DLDataProvider):
             dset = dataset_obj(data=dataset_data)
         else:
             dset = dataset_obj()
+        self.dset = dset
         meta = self.meta = dset.meta
         mlen = len(meta)
         self.dp_params = dp_params
@@ -771,6 +777,7 @@ class DLDataMapProvider(DLDataProvider):
             dset = self.dset = dataset_obj(data=dataset_data)
         else:
             dset = self.dset = dataset_obj()
+        self.dset = dset
         meta = self.meta = dset.meta
         mlen = len(meta)
         self.dp_params = dp_params
@@ -817,20 +824,27 @@ class DLDataMapProvider(DLDataProvider):
         if dataIdx is None or not hasattr(self.labels_unique, 'keys'):
             return len(self.labels_unique)
         else:
-            name = self.labels_unique.keys()[dataIdx]
+            name = self.labels_unique.keys()[dataIdx - 1]
             return len(self.labels_unique[name])
 
     def get_next_batch(self):
         epoch, batchnum, d = LabeledDataProvider.get_next_batch(self)
         for mn in self.mnames:
             d[mn] = n.require(d[mn], requirements='C')
-        d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
+        if hasattr(d['labels'], 'keys'):
+            for k in d['labels']:
+                d['labels'][k] = n.c_[n.require(d['labels'][k], dtype=n.single)]
+        else:
+            d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
         return epoch, batchnum, d
 
     def get_batch(self, batch_num):
         batch_size = self.batch_size
         inds = slice(batch_num * batch_size, (batch_num + 1) * batch_size)
-        lbls = self.label_reformatting(self.metacol[inds])
+        if hasattr(self.metacol, 'keys'):
+            lbls = OrderedDict([(k, self.metacol[k][inds]) for k in self.metacol])
+        else:
+            lbls = self.metacol[inds]
         return_dict = {'labels': lbls}
         for mname, marray in zip(self.mnames, self.stimarraylist):
             return_dict[mname] = n.asarray(marray[inds]).T

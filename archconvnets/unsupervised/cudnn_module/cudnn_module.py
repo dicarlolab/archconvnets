@@ -23,6 +23,26 @@ def pred_buffer(FL_ind, max3_ind, out_ind, Y, gpu=0, warn=True):
 	
 	return _cudnn_module.pred_buffer(FL_ind, max3_ind, out_ind, Y, gpu)
 
+def activation_buffers(imgs_ind, out_ind, activation_ind=1, gpu=0):
+	# options are: activation_ind = 0: CUDNN_ACTIVATION_SIGMOID; 1 = CUDNN_ACTIVATION_RELU; 2 = CUDNN_ACTIVATION_TANH
+	assert isinstance(activation_ind, int)
+	assert isinstance(imgs_ind, int)
+	assert isinstance(out_ind, int)
+	assert isinstance(gpu,int)
+	
+	return _cudnn_module.activation_buffers(imgs_ind, out_ind, activation_ind, gpu)
+
+def activation_back_buffers(src_ind, src_diff_ind, dest_ind, out_ind, activation_ind=1, gpu=0):
+	# options are: activation_ind = 0: CUDNN_ACTIVATION_SIGMOID; 1 = CUDNN_ACTIVATION_RELU; 2 = CUDNN_ACTIVATION_TANH
+	assert isinstance(gpu,int)
+	assert isinstance(activation_ind, int)
+	assert isinstance(src_ind,int)
+	assert isinstance(src_diff_ind,int)
+	assert isinstance(dest_ind,int)
+	assert isinstance(out_ind,int)
+
+	return _cudnn_module.activation_back_buffers(src_ind, src_diff_ind, dest_ind, out_ind, activation_ind, gpu)
+
 def max_pool_cudnn_buffers(imgs_ind, out_ind, gpu=0):
 	assert isinstance(imgs_ind, int)
 	assert isinstance(out_ind, int)

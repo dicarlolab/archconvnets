@@ -15,7 +15,7 @@ import PIL.Image
 SAVE_FREQ = 1000
 MEM_SZ = 1000000
 EPS_GREED_FINAL = .1
-EPS_GREED_FINAL_TIME = 5000000
+EPS_GREED_FINAL_TIME = 4*5000000
 GAMMA = 0.99
 BATCH_SZ = 32
 NETWORK_UPDATE = 10000
@@ -42,12 +42,12 @@ s1 = 5
 
 N_C = 3 # directions M, L, R
 
-file_name = '/home/darren/reinforcement3d_saves/reinforcement_'
+file_name = '/home/darren/reinforcement3d_saves_4x_eps/reinforcement_'
 
 max_output_sz3  = 12
 
-GPU_CUR = 0
-GPU_PREV = 1
+GPU_CUR = 2
+GPU_PREV = 3
 
 # gpu buffer indices
 MAX_OUTPUT1 = 0; DF2_DATA = 1; CONV_OUTPUT1 = 2; DPOOL1 = 3
@@ -105,7 +105,7 @@ ROOM_SZ_MV = 10
 N_KIDS = 6
 N_PANDAS = 6
 
-ROT_RATE = 7.75
+ROT_RATE = 12
 MOV_RATE = .75
 
 app = ShowBase()
@@ -162,7 +162,7 @@ def init_pos_vars():
 
 
 ############################################ render
-def render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, filename='tmp.png'):	
+def render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, filename='tmp2.png'):	
 	app.camera.setPos(x,y,h)
 	app.camera.setHpr(direction,0,0)
 	
