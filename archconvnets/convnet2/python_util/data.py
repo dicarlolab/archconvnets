@@ -439,10 +439,12 @@ class DLDataProvider(LabeledDataProvider):
         else:
             self.labels_unique = self.batch_meta['label_names']
 
-    def get_num_classes(self, name=None):
-        if name is None or not hasattr(self.labels_unique, 'keys'):
+
+    def get_num_classes(self, dataIdx=None):
+        if dataIdx is None or not hasattr(self.labels_unique, 'keys'):
             return len(self.labels_unique)
         else:
+            name = self.labels_unique.keys()[dataIdx - 1]
             return len(self.labels_unique[name])
 
     def get_next_batch(self):
