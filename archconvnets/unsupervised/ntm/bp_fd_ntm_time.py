@@ -6,15 +6,16 @@ from scipy.stats import zscore
 import random
 import scipy
 from ntm_gradients import *
-from init_vars import *
+from init_vars2 import *
 
 ##### which gradients to test
-DERIV_L = L1_UNDER
+#DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 #DERIV_L = SHIFT
+DERIV_L = IN_GATE
 #gradient_category = 'write'
-#gradient_category = 'read'
-gradient_category = 'under'
+gradient_category = 'read'
+#gradient_category = 'under'
 ####
 if gradient_category == 'under':
 	ref = WUNDER[DERIV_L]
@@ -32,10 +33,8 @@ def weight_address(W, o_prev, inputs, mem_prev):
 	O[CONTENT] = cosine_sim(O[KEY], mem_prev)
 	
 	# interpolate
-	O[L1] = sq_F(W[L1], inputs)
-	O[L2] = sq_F(W[L2], O[L1])
-	O[L3] = sq_F(W[L3], O[L2])
-	O[IN] = interpolate(O[L3], O[CONTENT], o_prev)
+	O[IN_GATE] = linear_F(W[IN_GATE], inputs)
+	O[IN] = interpolate(O[IN_GATE], O[CONTENT], o_prev)
 	
 	O[SQ] = sq_points(O[IN])
 	
@@ -96,41 +95,19 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	dgshift_dg3under = linear_2d_F_dx_nsum(W[SHIFT])
 	do_dg3under = mult_partials(do_dgshift, dgshift_dg3under, O[SHIFT])
 	
-	####
-	# w3
-	dg3_dg2 = sq_dlayer_in_nsum(W[L3], O[L2])
-	dg3_dw3 = sq_dF_nsum(W[L3], O[L2], O[L3])
-	
-	# w2
-	dg2_dg1 = sq_dlayer_in_nsum(W[L2], O[L1])
-	dg2_dw2 = sq_dF_nsum(W[L2], O[L1], O[L2])
-	dg3_dw2 = mult_partials(dg3_dg2, dg2_dw2, np.squeeze(O[L2]))
-	
-	# w1:
-	dg1_dw1 = sq_dF_nsum(W[L1], OUNDER[F_UNDER], O[L1])
-	dg3_dg1 = mult_partials(dg3_dg2, dg2_dg1, np.squeeze(O[L2]))
-	dg3_dw1 = mult_partials(dg3_dg1, dg1_dw1, np.squeeze(O[L1]))
-	
-	## interp. gradients (wrt o_prev; g3)
-	do_in_dg3 = interpolate_dinterp_gate_out(O[L3], O[CONTENT], o_prev)
-	
-	do_in_dw3 = mult_partials(do_in_dg3, dg3_dw3[:,np.newaxis], O[L3])
-	do_in_dw2 = mult_partials(do_in_dg3, dg3_dw2[:,np.newaxis], O[L2])
-	do_in_dw1 = mult_partials(do_in_dg3, dg3_dw1[:,np.newaxis], O[L1])
-
-	DO_DW_NEW[L3] += mult_partials(do_do_in, do_in_dw3, O[IN])
-	DO_DW_NEW[L2] += mult_partials(do_do_in, do_in_dw2, O[IN])
-	DO_DW_NEW[L1] += mult_partials(do_do_in, do_in_dw1, O[IN])
+	## interp. gradients (wrt o_prev; gin_gate)
+	do_in_dgin_gate = interpolate_dinterp_gate_out(O[IN_GATE], O[CONTENT], o_prev)
+	dgin_gate_dwin = linear_F_dF_nsum_g(W[IN_GATE], OUNDER[F_UNDER])
+	do_in_dwin = mult_partials(do_in_dgin_gate, dgin_gate_dwin, O[IN_GATE])
+	DO_DW_NEW[IN_GATE] += mult_partials(do_do_in, do_in_dwin, O[IN])
 	
 	# weights under
-	do_in_dg1 = mult_partials(do_in_dg3, dg3_dg1[:,np.newaxis], O[L3])
-	do_dg1 = mult_partials(do_do_in, do_in_dg1, O[IN])
-	
-	dg1_dg3under = sq_dlayer_in_nsum(W[L1], OUNDER[F_UNDER])
-	do_dg3under += mult_partials(do_dg1, dg1_dg3under, np.squeeze(O[L1]))
+	dgin_gate_dg3under = linear_F_dx_nsum_g(W[IN_GATE], OUNDER[F_UNDER])
+	do_dgin_gate = mult_partials(do_do_in, do_in_dgin_gate, O[IN])
+	do_dg3under += np.squeeze(mult_partials(do_dgin_gate, dgin_gate_dg3under, O[IN_GATE]))
 	
 	## interp. gradients (wrt o_content)
-	do_in_do_content = interpolate_do_content(O[L3], O[CONTENT])
+	do_in_do_content = interpolate_do_content(O[IN_GATE], O[CONTENT])
 	do_content_dgkey = cosine_sim_expand_dkeys(O[KEY], mem_prev)
 	do_in_dgkey = mult_partials(do_in_do_content, do_content_dgkey, O[CONTENT])
 	
@@ -140,7 +117,7 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	
 	DO_DW_NEW[KEY] += mult_partials(do_do_in, do_in_dwkey, O[IN])
 	
-	# weights under (shift)
+	# weights under (key)
 	dgkey_dg3under = linear_2d_F_dx_nsum(W[KEY])
 	do_content_dg3under = mult_partials(do_content_dgkey, dgkey_dg3under, O[KEY])
 	do_in_dg3under = mult_partials(do_in_do_content, do_content_dg3under, O[CONTENT])
@@ -154,7 +131,7 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 
 ########## ...
 def do_dw__o_prev(W, o_prev, DO_DW, DO_DWUNDER, O, do_do_in):
-	do_in_do_prev = interpolate_do_prev(O[L3], o_prev)
+	do_in_do_prev = interpolate_do_prev(O[IN_GATE], o_prev)
 	do_do_prev = mult_partials(do_do_in, do_in_do_prev, O[IN])
 	
 	DO_DW_NEW = mult_partials__layers(do_do_prev, DO_DW, o_prev)
@@ -163,7 +140,7 @@ def do_dw__o_prev(W, o_prev, DO_DW, DO_DWUNDER, O, do_do_in):
 	return DO_DW_NEW, DO_DWUNDER_NEW
 
 def do_dw__mem_prev(W, DO_DW, DO_DWUNDER, O, mem_prev, DMEM_PREV_DWW, DMEM_PREV_DWUNDER, do_do_in):
-	do_in_do_content = interpolate_do_content(O[L3], O[CONTENT])
+	do_in_do_content = interpolate_do_content(O[IN_GATE], O[CONTENT])
 	do_content_dmem_prev = cosine_sim_expand_dmem(O[KEY], mem_prev)
 	do_in_dmem_prev = mult_partials(do_in_do_content, do_content_dmem_prev, O[CONTENT])
 	do_dmem_prev = mult_partials(do_do_in, do_in_dmem_prev, O[IN])
