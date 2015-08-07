@@ -6,7 +6,7 @@ from scipy.stats import zscore
 import random
 import scipy
 from ntm_gradients import *
-from init_vars2 import *
+from init_vars import *
 
 ##### which gradients to test
 #DERIV_L = L2_UNDER

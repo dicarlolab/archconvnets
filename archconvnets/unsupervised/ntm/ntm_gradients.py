@@ -65,6 +65,23 @@ def focus_key_dbeta_out(keys, above_w):
 	
 	return (above_w * keys).sum(1) # [n_controllers, 1]
 
+def focus_key_dbeta_out_nsum(keys, beta_out): 
+	# beta_out: [n_controllers, 1]
+	n_controllers, m_length = keys.shape
+	
+	g = np.zeros((n_controllers, m_length, n_controllers, 1))
+	g[range(n_controllers),:,range(n_controllers),0] = keys
+	return g
+
+def focus_key_dkeys_nsum(keys, beta_out): 
+	# beta_out: [n_controllers, 1]
+	n_controllers, m_length = keys.shape
+	
+	g = np.zeros((n_controllers, m_length, n_controllers, m_length))
+	for j in range(m_length):
+		g[range(n_controllers),j,range(n_controllers),j] = np.squeeze(beta_out)
+	return g
+
 ############
 # cosine similarity between each controller's key and memory vector
 
