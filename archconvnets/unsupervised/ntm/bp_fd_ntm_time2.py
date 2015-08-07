@@ -32,7 +32,7 @@ def weight_address(W, o_prev, inputs, mem_prev):
 	O[KEY] = linear_2d_F(W[KEY], inputs)
 	O[CONTENT] = cosine_sim(O[KEY], mem_prev)
 	
-	print O[CONTENT].shape
+	#print O[CONTENT].shape
 	
 	# interpolate
 	O[IN_GATE] = linear_F(W[IN_GATE], inputs)
@@ -286,7 +286,7 @@ def g(y):
 		return DWW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e1
+eps = np.sqrt(np.finfo(np.float).eps)*1e0
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

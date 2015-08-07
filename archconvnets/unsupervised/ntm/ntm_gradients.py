@@ -371,7 +371,7 @@ def linear_dlayer_in(F, above_w=1):
 
 def linear_F_dx_nsum(o):
 	n = mem_previ.shape[1]
-	temp = np.zeros((or_previ.shape[0], n, mem_previ.shape[0], n))
+	temp = np.zeros((OR_PREVi[F].shape[0], n, mem_previ.shape[0], n))
 	temp[:,range(n),:,range(n)] = o
 	return temp
 
@@ -382,8 +382,8 @@ def linear_F_dx_nsum_g(o, mem):
 	return temp
 
 def linear_F_dF_nsum(mem):
-	n = or_previ.shape[0]
-	temp = np.zeros((n, mem.shape[1], n, or_previ.shape[1]))
+	n = OR_PREVi[F].shape[0]
+	temp = np.zeros((n, mem.shape[1], n, OR_PREVi[F].shape[1]))
 	temp[range(n),:,range(n)] = mem.T
 	return temp
 
