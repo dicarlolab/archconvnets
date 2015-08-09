@@ -9,14 +9,15 @@ from ntm_gradients import *
 from init_vars2 import *
 
 ##### which gradients to test
-DERIV_L = L2_UNDER
+#DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
-#DERIV_L = KEY
-#gradient_category = 'write'
+DERIV_L = KEY
+#DERIV_L = BETA ## ??
+gradient_category = 'write'
 #gradient_category = 'read'
-gradient_category = 'under'
+#gradient_category = 'under'
 ####
 if gradient_category == 'under':
 	ref = WUNDER[DERIV_L]
@@ -25,7 +26,6 @@ elif gradient_category == 'read':
 else:
 	ref = WW[DERIV_L]
 
-beta_out = np.random.normal(size=(4,1))
 ########
 def weight_address(W, O_PREV, inputs, mem_prev):
 	O = [None]*len(O_PREV)
@@ -107,10 +107,10 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	
 	## interp. gradients (wrt o_content)
 	do_in_do_content = interpolate_do_content(O[IN_GATE], O[CONTENT])
-	
-	# key
 	do_content_dgkey_focused = cosine_sim_expand_dkeys(O[KEY_FOCUSED], mem_prev)
 	do_in_dgkey_focused = mult_partials(do_in_do_content, do_content_dgkey_focused, O[CONTENT])
+	
+	# key
 	dgkey_focused_dgkey = focus_key_dkeys_nsum(O[KEY_FOCUSED], O[BETA])
 	do_content_dgkey = mult_partials(do_content_dgkey_focused, dgkey_focused_dgkey, O[KEY_FOCUSED])
 	do_in_dgkey = mult_partials(do_in_do_content, do_content_dgkey, O[CONTENT])
@@ -119,6 +119,16 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	dgkey_dg3under = linear_2d_F_dx_nsum(W[KEY])
 	DO_DW_NEW[KEY] += mult_partials(do_dgkey, dgkey_dwkey, O[KEY])
 	do_dg3under += mult_partials(do_dgkey, dgkey_dg3under, O[KEY])
+	
+	# beta
+	dgkey_focused_dgbeta = focus_key_dbeta_out_nsum(O[KEY_FOCUSED], O[BETA])
+	do_content_dgbeta = mult_partials(do_content_dgkey_focused, dgkey_focused_dgbeta, O[KEY_FOCUSED])
+	do_in_dgbeta = mult_partials(do_in_do_content, do_content_dgbeta, O[CONTENT])
+	do_dgbeta = mult_partials(do_do_in, do_in_dgbeta, O[IN])
+	dgbeta_dwbeta = linear_F_dF_nsum_g(W[BETA], OUNDER[F_UNDER])
+	dgbeta_dg3under = linear_F_dx_nsum_g(W[BETA], OUNDER[F_UNDER])
+	DO_DW_NEW[BETA] += mult_partials(do_dgbeta, dgbeta_dwbeta, O[BETA])
+	do_dg3under += np.squeeze(mult_partials(do_dgbeta, dgbeta_dg3under, O[BETA]))
 	
 	## combine weights under gradients
 	DG3UNDER_DW = dunder_dw(WUNDER, OUNDER, x)
@@ -281,7 +291,7 @@ def g(y):
 		return DWW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e0
+eps = np.sqrt(np.finfo(np.float).eps)*1e1
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

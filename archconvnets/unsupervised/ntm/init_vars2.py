@@ -10,7 +10,7 @@ n_head_in = 9
 n1_under = 10
 n2_under = 11
 
-SCALE = .6
+SCALE = 1
 N_FRAMES = 4
 SCALE_UNDER = .425
 
