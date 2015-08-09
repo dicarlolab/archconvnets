@@ -17,8 +17,15 @@ SCALE_UNDER = .425
 ## indices
 L1_UNDER = 0; L2_UNDER = 1; F_UNDER = 2
 
-IN_GATE = 0; SHIFT = 1; KEY = 2; ADD = 3
-CONTENT = 4; IN = 5; SQ = 6; F = 7
+# read/write heads:
+N_READ_IN_LAYERS = 4 # layers directly operating on read head inputs
+N_WRITE_IN_LAYERS = N_READ_IN_LAYERS + 1 # plus the add layer
+IN_GATE = 0; SHIFT = 1; KEY = 2; BETA = 3; ADD = 4
+
+N_HEAD_INT_LAYERS = 4 # intermediate layers operating on the outputs of layers processing inputs
+CONTENT = 5; IN = 6; SQ = 7; F = 8
+
+N_TOTAL_HEAD_LAYERS = N_WRITE_IN_LAYERS +  N_HEAD_INT_LAYERS
 
 ## inputs/targets
 x = np.random.normal(size=(N_FRAMES+1, n_in,1)) * SCALE
@@ -33,10 +40,10 @@ WUNDER = [w1, w2, w3]
 OUNDER_PREVi = np.zeros((n_head_in, 1))
 
 ## head weights:
-OR_PREVi = [None] * (3+5); OW_PREVi = [None] * (4+5) # prev states
-OR_SHAPES = [None] * (3+5); OW_SHAPES = [None] * (4+5) # prev state shapes
-WR_SHAPES = [None] * 3; WW_SHAPES = [None] * 4 # weight shapes
-WR = [None] * 3; WW = [None] * 4 # weights
+OR_PREVi = [None] * N_TOTAL_HEAD_LAYERS; OW_PREVi = copy.deepcopy(OR_PREVi) # prev states
+OR_SHAPES = copy.deepcopy(OR_PREVi); OW_SHAPES = copy.deepcopy(OR_PREVi) # prev state shapes
+WR = [None] * N_READ_IN_LAYERS; WW = [None] * N_WRITE_IN_LAYERS # weights
+WR_SHAPES = copy.deepcopy(WR); WW_SHAPES = copy.deepcopy(WW) # weight shapes
 
 # in
 WR_SHAPES[IN_GATE] = (C, n_head_in)
@@ -58,6 +65,13 @@ WW_SHAPES[KEY] = (C, mem_length, n_head_in)
 
 OR_SHAPES[KEY] = (C, mem_length)
 OW_SHAPES[KEY] = (C, mem_length)
+
+# beta
+WR_SHAPES[BETA] = (C, n_head_in)
+WW_SHAPES[BETA] = (C, n_head_in)
+
+OR_SHAPES[BETA] = (C, 1)
+OW_SHAPES[BETA] = (C, 1)
 
 # add
 WW_SHAPES[ADD] = (C, mem_length, n_head_in)

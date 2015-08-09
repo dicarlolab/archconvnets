@@ -12,9 +12,10 @@ from init_vars2 import *
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 #DERIV_L = SHIFT
-DERIV_L = IN_GATE
-#gradient_category = 'write'
-gradient_category = 'read'
+#DERIV_L = IN_GATE
+DERIV_L = KEY
+gradient_category = 'write'
+#gradient_category = 'read'
 #gradient_category = 'under'
 ####
 if gradient_category == 'under':
@@ -24,15 +25,19 @@ elif gradient_category == 'read':
 else:
 	ref = WW[DERIV_L]
 
+beta_out = np.random.normal(size=(4,1))
 ########
 def weight_address(W, o_prev, inputs, mem_prev):
 	O = [None]*(len(W) + 5)
 	
 	# content
 	O[KEY] = linear_2d_F(W[KEY], inputs)
+	O[BETA] = linear_F(W[BETA], inputs)
+	#O[BETA] = linear_F(W[IN_GATE], inputs)
+	#print W[IN_GATE].shape, W[BETA].shape, inputs.shape
+	#O[KEY_FOCUSED] =
+	#print focus_keys(O[KEY], beta_out).shape
 	O[CONTENT] = cosine_sim(O[KEY], mem_prev)
-	
-	#print O[CONTENT].shape
 	
 	# interpolate
 	O[IN_GATE] = linear_F(W[IN_GATE], inputs)
