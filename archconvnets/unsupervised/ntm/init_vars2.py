@@ -22,8 +22,8 @@ N_READ_IN_LAYERS = 4 # layers directly operating on read head inputs
 N_WRITE_IN_LAYERS = N_READ_IN_LAYERS + 1 # plus the add layer
 IN_GATE = 0; SHIFT = 1; KEY = 2; BETA = 3; ADD = 4
 
-N_HEAD_INT_LAYERS = 4 # intermediate layers operating on the outputs of layers processing inputs
-CONTENT = 5; IN = 6; SQ = 7; F = 8
+N_HEAD_INT_LAYERS = 5 # intermediate layers operating on the outputs of layers processing inputs
+CONTENT = 5; KEY_FOCUSED = 6; IN = 7; SQ = 8; F = 9
 
 N_TOTAL_HEAD_LAYERS = N_WRITE_IN_LAYERS +  N_HEAD_INT_LAYERS
 
