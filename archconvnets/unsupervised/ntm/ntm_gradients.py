@@ -118,60 +118,6 @@ def cosine_sim_expand_dkeys(keys, mem):
 			comb[i,j,i] = (dnumer[i,j,i] * denom[i,j] - numer[i,j] * ddenom[i,j,i])/(denom[i,j]**2)
 	return comb
 
-def cosine_sim_numer_expand_dkeys(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	n_controllers = keys.shape[0]
-	numer = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]))
-	
-	numer[range(n_controllers),:,range(n_controllers)] = mem
-		
-	return numer #/ denom # [n_controllers, n_mem_slots]
-
-def cosine_sim_denom_dkeys(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	#numer = np.dot(keys, mem.T)
-	denom = np.zeros((keys.shape[0], mem.shape[0], keys.shape[0], keys.shape[1]))
-	for i in range(keys.shape[0]):
-		for j in range(mem.shape[0]):
-				denom[i,j,i] = keys[i] * np.sqrt(np.sum(mem[j]**2)) / np.sqrt(np.sum(keys[i]**2))
-	
-	return denom # [n_controllers, n_mem_slots]	
-
-def cosine_sim_denom_expand_dkeys(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	#numer = np.dot(keys, mem.T)
-	denom = np.zeros((keys.shape[0], mem.shape[0], keys.shape[0], keys.shape[1]))
-	for i in range(keys.shape[0]):
-		for j in range(mem.shape[0]):
-			for k in range(keys.shape[1]):
-				denom[i,j,i,k] = keys[i,k] * np.sqrt(np.sum(mem[j]**2)) / np.sqrt(np.sum(keys[i]**2))
-	
-	return denom # [n_controllers, n_mem_slots]		
-
-def cosine_sim_denom_expand(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	#numer = np.dot(keys, mem.T)
-	denom = np.zeros((keys.shape[0], mem.shape[0]))
-	for i in range(keys.shape[0]):
-		for j in range(mem.shape[0]):
-			denom[i,j] = np.sqrt(np.sum(keys[i]**2)) * np.sqrt(np.sum(mem[j]**2))
-	
-	return denom # [n_controllers, n_mem_slots]	
-
-def cosine_sim_denom(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	#numer = np.dot(keys, mem.T)
-	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	
-	return denom # [n_controllers, n_mem_slots]	
-
-def cosine_sim_numer(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	numer = np.dot(keys, mem.T)
-	#denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	
-	return numer #/ denom # [n_controllers, n_mem_slots]
-
 def cosine_sim(keys, mem):
 	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
 	numer = np.dot(keys, mem.T)
@@ -280,20 +226,22 @@ def softmax_dlayer_in(layer_out, above_w=1):
 	temp += -np.einsum(np.squeeze(above_w*layer_out), [0,1], np.squeeze(layer_out), [0,2], [0,2]) + above_w*layer_out**2
 	return temp
 
-################# interpolate
-'''def interpolate(w_content, w_prev, interp_gate_out):
-	# w_prev, w_content: [n_controllers, n_mem_slots], interp_gate_out: [n_controllers, 1]
-	return interp_gate_out * w_content + (1 - interp_gate_out) * w_prev
-
-def interpolate_dinterp_gate_out(w_content, w_prev, above_w=1):
-	return (above_w * (w_content - w_prev)).sum(1)[:,np.newaxis] # sum across mem_slots
-
-def interpolate_dw_content(interp_gate_out, above_w=1):
-	return above_w * interp_gate_out
-
-def interpolate_dw_prev(interp_gate_out, above_w):
-	return above_w * (1 - interp_gate_out)'''
-
+def softmax_dlayer_in_nsum(layer_out):
+	g = np.zeros((layer_out.shape[0], layer_out.shape[1], layer_out.shape[0], layer_out.shape[1]))
+	
+	# dsoftmax[:,i]/dlayer_in[:,j] when i = j:
+	temp = (layer_out * (1 - layer_out))
+	for i in range(g.shape[0]):
+		for j in range(g.shape[1]):
+			g[i,j,i,j] = temp[i,j]
+	
+	# i != j
+	for i in range(g.shape[0]):
+		for j in range(g.shape[1]):
+			for k in range(g.shape[1]):
+				if j != k:
+					g[i,j,i,k] -= layer_out[i,j]*layer_out[i,k]
+	return g
 
 ############### shift w
 def shift_w(shift_out, w_interp):	
@@ -461,23 +409,8 @@ def add_mem_dgw(add_out):
 	temp[range(M),:,:,range(M)] = add_out.T
 	return temp
 
-################# interpolate simplified
-def interpolate_simp(w_prev, interp_gate_out):
-	return w_prev * interp_gate_out
-
-def interpolate_simp_dx_nprod(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content):
-	do_in_dx = np.einsum(do_dx + do_content_dx, range(4), g3, [0,1], range(4))
-	do_in_dx += np.einsum(o_prev + o_content, [0,1], dg3_dx, [0,2,3], range(4))
 	
-	return do_in_dx
-	
-def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_do_in):
-	do_in_dx = interpolate_simp_dx_nprod(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content)
-	
-	do_dx = mult_partials(do_do_in, do_in_dx, o_prev)
-	return do_dx
-	
-################# interpolate full
+################# interpolate
 def interpolate(interp_gate_out, o_content, o_prev):
 	return interp_gate_out * o_content + (1 - interp_gate_out) * o_prev
 
