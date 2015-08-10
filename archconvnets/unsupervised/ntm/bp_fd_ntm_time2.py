@@ -12,8 +12,8 @@ from init_vars2 import *
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 #DERIV_L = SHIFT
-#DERIV_L = IN_GATE
-DERIV_L = KEY
+DERIV_L = IN_GATE
+#DERIV_L = KEY
 #DERIV_L = BETA ## ??
 gradient_category = 'write'
 #gradient_category = 'read'
@@ -35,7 +35,7 @@ def weight_address(W, O_PREV, inputs, mem_prev):
 	O[BETA] = linear_F(W[BETA], inputs)
 	O[KEY_FOCUSED] = focus_keys(O[KEY], O[BETA])
 	O[CONTENT] = cosine_sim(O[KEY_FOCUSED], mem_prev)
-	O[CONTENT_SM] = softmax(O[CONTENT])
+	O[CONTENT_SM] = sq_points(O[CONTENT])
 	
 	# interpolate
 	O[IN_GATE] = linear_F(W[IN_GATE], inputs)
@@ -100,6 +100,7 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	
 	## interp. gradients (wrt o_prev; gin_gate)
 	do_in_dgin_gate = interpolate_dinterp_gate_out(O[IN_GATE], O[CONTENT], o_prev)
+	#do_in_dgin_gate = interpolate_dinterp_gate_out(O[IN_GATE], O[CONTENT_SM], o_prev)
 	do_dgin_gate = mult_partials(do_do_in, do_in_dgin_gate, O[IN])
 	dgin_gate_dg3under = linear_F_dx_nsum_g(W[IN_GATE], OUNDER[F_UNDER])
 	dgin_gate_dwin = linear_F_dF_nsum_g(W[IN_GATE], OUNDER[F_UNDER])
@@ -108,6 +109,9 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	
 	## interp. gradients (wrt o_content)
 	do_in_do_content = interpolate_do_content(O[IN_GATE], O[CONTENT])
+	#do_in_do_content_sm = interpolate_do_content(O[IN_GATE], O[CONTENT_SM])
+	#do_content_sm_do_content = sq_points_dinput(O[CONTENT_SM])#softmax_dlayer_in_nsum(O[CONTENT_SM])
+	#do_in_do_content = mult_partials(do_in_do_content_sm, do_content_sm_do_content, O[CONTENT_SM])
 	do_content_dgkey_focused = cosine_sim_expand_dkeys(O[KEY_FOCUSED], mem_prev)
 	do_in_dgkey_focused = mult_partials(do_in_do_content, do_content_dgkey_focused, O[CONTENT])
 	do_dgkey_focused = mult_partials(do_do_in, do_in_dgkey_focused, O[IN])
@@ -148,6 +152,9 @@ def do_dw__mem_prev(W, DO_DW, DO_DWUNDER, O, mem_prev, DMEM_PREV_DWW, DMEM_PREV_
 	do_in_do_content = interpolate_do_content(O[IN_GATE], O[CONTENT])
 	do_content_dmem_prev = cosine_sim_expand_dmem(O[KEY_FOCUSED], mem_prev)
 	do_in_dmem_prev = mult_partials(do_in_do_content, do_content_dmem_prev, O[CONTENT])
+	#do_in_do_content_sm = interpolate_do_content(O[IN_GATE], O[CONTENT_SM])
+	#do_content_sm_dmem_prev = cosine_sim_expand_dmem(O[KEY_FOCUSED], mem_prev)
+	#do_in_dmem_prev = mult_partials(do_in_do_content_sm, do_content_sm_dmem_prev, O[CONTENT_SM])
 	do_dmem_prev = mult_partials(do_do_in, do_in_dmem_prev, O[IN])
 	
 	DO_DW_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DWW, mem_prev, DO_DW)
