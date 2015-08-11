@@ -15,8 +15,8 @@ from init_vars import *
 DERIV_L = IN_GATE
 #DERIV_L = KEY
 #DERIV_L = BETA ## ??
-gradient_category = 'write'
-#gradient_category = 'read'
+#gradient_category = 'write'
+gradient_category = 'read'
 #gradient_category = 'under'
 ####
 if gradient_category == 'under':
