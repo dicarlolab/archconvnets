@@ -195,8 +195,13 @@ def sharpen_dgamma_out(layer_in, gamma_out, above_w=1):
 def sigmoid(layer_in):
 	return 1/(1+np.exp(-layer_in))
 
-def sigmoid_dlayer_in(layer_out, above_w):
-	return above_w * layer_out * (1-layer_out)
+def sigmoid_dlayer_in(layer_out):
+	d = layer_out * (1-layer_out)
+	t = np.zeros(np.concatenate((layer_out.shape, layer_out.shape)))
+	for i in range(layer_out.shape[0]):
+		for j in range(layer_out.shape[1]):
+			t[i,j,i,j] = d[i,j]
+	return t
 
 
 #############
@@ -303,6 +308,26 @@ def shift_w_dw_interp_nsum(shift_out):
 			
 	return temp
 
+############# linear then sigmoid
+def linear_F_sigmoid(F, layer_in):
+	# F: [n1, n_in], layer_in: [n_in, 1]
+	
+	return sigmoid(linear_F(F, layer_in)) # [n1, 1]
+
+def linear_F_sigmoid_dF_nsum_g(out, F, mem):
+	dout_dlin = sigmoid_dlayer_in(out)
+	
+	dlin_dF = linear_F_dF_nsum_g(F, mem)
+	
+	return mult_partials(dout_dlin, dlin_dF, out)
+	
+def linear_F_sigmoid_dx_nsum_g(out, F, mem):
+	dout_dlin = sigmoid_dlayer_in(out)
+	
+	dlin_dx = linear_F_dx_nsum_g(F, mem)
+	
+	return mult_partials(dout_dlin, dlin_dx, out)
+	
 ############## linear layer
 def linear_F(F, layer_in):
 	# F: [n1, n_in], layer_in: [n_in, 1]
@@ -340,6 +365,7 @@ def linear_F_dF_nsum_g(F, mem):
 	temp = np.zeros((n, mem.shape[1], n, F.shape[1]))
 	temp[range(n),:,range(n)] = mem.T
 	return temp
+	
 ################## squared layer
 def sq_F(F, layer_in):
 	# F: [n1, n_in], layer_in: [n_in, 1]
@@ -369,6 +395,20 @@ def sq_dlayer_in(F, layer_in, layer_out, above_w=1):
 
 def sq_dlayer_in_nsum(F, layer_in): # not summed across n1 as sq_dlayer_in() does
 	return 2 * F * linear_F(F,layer_in) # [n1, n_in]
+
+############# softmax <- linear 2d
+def linear_2d_F_softmax(ww,x):
+	return softmax(linear_2d_F(ww,x))
+
+def linear_2d_F_softmax_dF_nsum(out, ww,x):
+	dout_dlin = softmax_dlayer_in_nsum(out)
+	dlin_dF = linear_2d_F_dF_nsum(ww,x)
+	return mult_partials(dout_dlin, dlin_dF, out)
+
+def linear_2d_F_softmax_dx_nsum(out, ww):
+	dout_dlin = softmax_dlayer_in_nsum(out)
+	dlin_dF = linear_2d_F_dx_nsum(ww)
+	return mult_partials(dout_dlin, dlin_dF, out)
 	
 #######
 def linear_2d_F(ww,x):
