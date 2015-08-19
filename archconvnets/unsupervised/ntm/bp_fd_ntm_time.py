@@ -9,15 +9,15 @@ from ntm_gradients import *
 from init_vars import *
 
 ##### which gradients to test
-DERIV_L = L2_UNDER
+#DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
-#DERIV_L = KEY
+DERIV_L = KEY
 #DERIV_L = BETA ## ??
-#gradient_category = 'write'
+gradient_category = 'write'
 #gradient_category = 'read'
-gradient_category = 'under'
+#gradient_category = 'under'
 ####
 if gradient_category == 'under':
 	ref = WUNDER[DERIV_L]
@@ -32,9 +32,7 @@ def weight_address(W, O_PREV, inputs, mem_prev):
 	
 	# content
 	O[KEY] = linear_2d_F(W[KEY], inputs)
-	O[BETA] = linear_F(W[BETA], inputs) ##
-	O[KEY_FOCUSED] = focus_keys(O[KEY], O[BETA])
-	O[CONTENT] = cosine_sim(O[KEY_FOCUSED], mem_prev)
+	O[CONTENT] = cosine_sim(O[KEY], mem_prev)
 	O[CONTENT_SM] = softmax(O[CONTENT])
 	
 	# interpolate
@@ -84,6 +82,14 @@ def dunder_dw(WUNDER, OUNDER, x):
 	
 	return DG3UNDER_DW
 
+def do_do_content__(O, do_do_in):
+	do_in_do_content_sm = interpolate_softmax_do_content(O[IN], O[IN_GATE], O[CONTENT_SM])
+	do_content_sm_do_content = softmax_dlayer_in_nsum(O[CONTENT_SM])
+	do_in_do_content = mult_partials(do_in_do_content_sm, do_content_sm_do_content, O[CONTENT_SM])
+	do_do_content = mult_partials(do_do_in, do_in_do_content, O[IN])
+	
+	return do_do_content
+
 ########## ...
 def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, do_do_in):
 	DO_DW_NEW = copy.deepcopy(DO_DW)
@@ -96,7 +102,7 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	DO_DW_NEW[SHIFT] += mult_partials(do_dgshift, dgshift_dwshift, O[SHIFT])
 	do_dg3under = mult_partials(do_dgshift, dgshift_dg3under, O[SHIFT])
 	
-	## interp. gradients (wrt o_prev; gin_gate)
+	## interp. gradients (wrt gin_gate)
 	do_in_dgin_gate = interpolate_softmax_dinterp_gate_out(O[IN], O[IN_GATE], O[CONTENT_SM], o_prev)
 	do_dgin_gate = mult_partials(do_do_in, do_in_dgin_gate, O[IN])
 	dgin_gate_dg3under = linear_F_sigmoid_dx_nsum_g(O[IN_GATE], W[IN_GATE], OUNDER[F_UNDER])
@@ -104,29 +110,14 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	DO_DW_NEW[IN_GATE] += mult_partials(do_dgin_gate, dgin_gate_dwin, O[IN_GATE])
 	do_dg3under += np.squeeze(mult_partials(do_dgin_gate, dgin_gate_dg3under, O[IN_GATE]))
 	
-	## interp. gradients (wrt o_content)
-	do_in_do_content_sm = interpolate_softmax_do_content(O[IN], O[IN_GATE], O[CONTENT_SM])
-	do_content_sm_do_content = softmax_dlayer_in_nsum(O[CONTENT_SM])
-	do_in_do_content = mult_partials(do_in_do_content_sm, do_content_sm_do_content, O[CONTENT_SM])
-	do_content_dgkey_focused = cosine_sim_expand_dkeys(O[KEY_FOCUSED], mem_prev)
-	do_in_dgkey_focused = mult_partials(do_in_do_content, do_content_dgkey_focused, O[CONTENT])
-	do_dgkey_focused = mult_partials(do_do_in, do_in_dgkey_focused, O[IN])
-	
-	# key
-	dgkey_focused_dgkey = focus_key_dkeys_nsum(O[KEY_FOCUSED], O[BETA])
-	do_dgkey = mult_partials(do_dgkey_focused, dgkey_focused_dgkey, O[KEY_FOCUSED])
+	## interp. gradients (wrt o_content; key)
+	do_do_content = do_do_content__(O, do_do_in)
+	do_content_dgkey = cosine_sim_expand_dkeys(O[KEY], mem_prev)
+	do_dgkey = mult_partials(do_do_content, do_content_dgkey, O[CONTENT])
 	dgkey_dwkey = linear_2d_F_dF_nsum(W[KEY], OUNDER[F_UNDER])
 	dgkey_dg3under = linear_2d_F_dx_nsum(W[KEY])
 	DO_DW_NEW[KEY] += mult_partials(do_dgkey, dgkey_dwkey, O[KEY])
 	do_dg3under += mult_partials(do_dgkey, dgkey_dg3under, O[KEY])
-	
-	# beta
-	dgkey_focused_dgbeta = focus_key_dbeta_out_nsum(O[KEY_FOCUSED], O[BETA])
-	do_dgbeta = mult_partials(do_dgkey_focused, dgkey_focused_dgbeta, O[KEY_FOCUSED])
-	dgbeta_dwbeta = linear_F_dF_nsum_g(W[BETA], OUNDER[F_UNDER])
-	dgbeta_dg3under = linear_F_dx_nsum_g(W[BETA], OUNDER[F_UNDER])
-	DO_DW_NEW[BETA] += mult_partials(do_dgbeta, dgbeta_dwbeta, O[BETA])
-	do_dg3under += np.squeeze(mult_partials(do_dgbeta, dgbeta_dg3under, O[BETA]))
 	
 	## combine weights under gradients
 	DG3UNDER_DW = dunder_dw(WUNDER, OUNDER, x)
@@ -145,13 +136,9 @@ def do_dw__o_prev(W, o_prev, DO_DW, DO_DWUNDER, O, do_do_in):
 	return DO_DW_NEW, DO_DWUNDER_NEW
 
 def do_dw__mem_prev(W, DO_DW, DO_DWUNDER, O, mem_prev, DMEM_PREV_DWW, DMEM_PREV_DWUNDER, do_do_in):
-	do_content_dmem_prev = cosine_sim_expand_dmem(O[KEY_FOCUSED], mem_prev)
-	do_in_do_content_sm = interpolate_softmax_do_content(O[IN], O[IN_GATE], O[CONTENT_SM])
-	do_content_sm_do_content = softmax_dlayer_in_nsum(O[CONTENT_SM])
-	do_content_sm_dmem_prev = mult_partials(do_content_sm_do_content, do_content_dmem_prev, O[CONTENT])
-	do_in_dmem_prev = mult_partials(do_in_do_content_sm, do_content_sm_dmem_prev, O[CONTENT_SM])
-	
-	do_dmem_prev = mult_partials(do_do_in, do_in_dmem_prev, O[IN])
+	do_do_content = do_do_content__(O, do_do_in)
+	do_content_dmem_prev = cosine_sim_expand_dmem(O[KEY], mem_prev)
+	do_dmem_prev = mult_partials(do_do_content, do_content_dmem_prev, O[CONTENT])
 	
 	DO_DW_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DWW, mem_prev, DO_DW)
 	DO_DWUNDER_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DO_DWUNDER)
@@ -229,15 +216,6 @@ def g(y):
 		OR, OW, mem, read_mem, OUNDER = forward_pass(WUNDER, WR, WW, OR_PREV, OW_PREV, mem_prev, x[frame])
 		
 		# reverse
-		#dor_dor_sq = shift_w_dw_interp_nsum(OR[SHIFT])
-		#dow_prev_dow_prev_sq = shift_w_dw_interp_nsum(OW_PREV[SHIFT])
-		
-		#dor_sq_dor_in = sq_points_dinput(OR[IN])
-		#dow_prev_sq_dow_prev_in = sq_points_dinput(OW_PREV[IN])
-		
-		#dor_dor_in = mult_partials(dor_dor_sq, dor_sq_dor_in, OR[SQ])
-		#dow_prev_dow_prev_in = mult_partials(dow_prev_dow_prev_sq, dow_prev_sq_dow_prev_in, OW_PREV[SQ])
-		
 		dor_dor_in = shift_w_dw_interp_nsum(OR[SHIFT])
 		dow_prev_dow_prev_in = shift_w_dw_interp_nsum(OW_PREV[SHIFT])
 		
