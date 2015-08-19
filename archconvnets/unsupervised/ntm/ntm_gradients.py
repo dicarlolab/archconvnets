@@ -3,12 +3,20 @@ import copy
 from init_vars import *
 
 ####
+
 def mult_partials(da_db, db_dc, b):
 	a_ndim = da_db.ndim - b.ndim
 	c_ndim = db_dc.ndim - b.ndim
 	keep_dims = np.concatenate((range(a_ndim), range(da_db.ndim, da_db.ndim + c_ndim)))
 	da_dc = np.einsum(da_db, range(da_db.ndim), db_dc, range(a_ndim, a_ndim + db_dc.ndim), keep_dims)
 	return da_dc
+
+# multiply list of partials
+def mult_partials_chain(DA_DB, B_SZs):
+	DA_DX = DA_DB[0]
+	for x in range(1, len(DA_DB)):
+		DA_DX = mult_partials(DA_DX, DA_DB[x], B_SZs[x-1])
+	return DA_DX
 
 # collapse (sum) over output dims
 def mult_partials_collapse(da_db, db_dc, b):

@@ -23,7 +23,7 @@ N_WRITE_IN_LAYERS = N_READ_IN_LAYERS + 1 # plus the add layer
 IN_GATE = 0; SHIFT = 1; KEY = 2; BETA = 3; ADD = 4
 
 N_HEAD_INT_LAYERS = 6 # intermediate layers operating on the outputs of layers processing inputs
-KEY_FOCUSED = 5; CONTENT = 6; CONTENT_SM = 7; IN = 8; SQ = 9; F = 10
+CONTENT_FOCUSED = 5; CONTENT = 6; CONTENT_SM = 7; IN = 8; SQ = 9; F = 10
 
 N_TOTAL_HEAD_LAYERS = N_WRITE_IN_LAYERS +  N_HEAD_INT_LAYERS
 

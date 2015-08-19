@@ -12,11 +12,11 @@ from init_vars import *
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 #DERIV_L = SHIFT
-#DERIV_L = IN_GATE
-DERIV_L = KEY
+DERIV_L = IN_GATE
+#DERIV_L = KEY
 #DERIV_L = BETA ## ??
-gradient_category = 'write'
-#gradient_category = 'read'
+#gradient_category = 'write'
+gradient_category = 'read'
 #gradient_category = 'under'
 ####
 if gradient_category == 'under':
@@ -32,8 +32,10 @@ def weight_address(W, O_PREV, inputs, mem_prev):
 	
 	# content
 	O[KEY] = linear_2d_F(W[KEY], inputs)
+	O[BETA] = linear_F(W[BETA], inputs)
 	O[CONTENT] = cosine_sim(O[KEY], mem_prev)
-	O[CONTENT_SM] = softmax(O[CONTENT])
+	O[CONTENT_FOCUSED] = focus_keys(O[CONTENT], O[BETA])
+	O[CONTENT_SM] = softmax(O[CONTENT_FOCUSED])
 	
 	# interpolate
 	O[IN_GATE] = linear_F_sigmoid(W[IN_GATE], inputs)
@@ -84,9 +86,10 @@ def dunder_dw(WUNDER, OUNDER, x):
 
 def do_do_content__(O, do_do_in):
 	do_in_do_content_sm = interpolate_softmax_do_content(O[IN], O[IN_GATE], O[CONTENT_SM])
-	do_content_sm_do_content = softmax_dlayer_in_nsum(O[CONTENT_SM])
-	do_in_do_content = mult_partials(do_in_do_content_sm, do_content_sm_do_content, O[CONTENT_SM])
-	do_do_content = mult_partials(do_do_in, do_in_do_content, O[IN])
+	do_content_sm_do_content_focused = softmax_dlayer_in_nsum(O[CONTENT_SM])
+	do_content_focused_do_content = focus_key_dkeys_nsum(O[CONTENT], O[BETA])
+	do_do_content = mult_partials_chain((do_do_in, do_in_do_content_sm, do_content_sm_do_content_focused, do_content_focused_do_content), \
+										(O[IN], O[CONTENT_SM], O[CONTENT_FOCUSED]))
 	
 	return do_do_content
 
