@@ -90,11 +90,11 @@ OW_PREVi[ADD] = np.zeros(WW_SHAPES[ADD])
 	
 ###
 
-OR_PREVi[F] = np.random.normal(size=(C,M))
+OR_PREVi[F] = np.abs(np.random.normal(size=(C,M)))
 
 OW_PREVi[IN] = np.zeros_like(OR_PREVi[F])
 OW_PREVi[SQ] = np.zeros_like(OR_PREVi[F])
-OW_PREVi[F] = np.random.normal(size=(C,M))
+OW_PREVi[F] = np.abs(np.random.normal(size=(C,M)))
 
 OW_PREV_PREVi = copy.deepcopy(OW_PREVi)
 OW_PREV_PREVi[F] = np.zeros_like(OW_PREV_PREVi[F])

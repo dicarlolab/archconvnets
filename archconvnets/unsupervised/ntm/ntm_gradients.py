@@ -449,6 +449,27 @@ def add_mem_dgw(add_out):
 	temp[range(M),:,:,range(M)] = add_out.T
 	return temp
 
+
+################# softmax <- interpolate
+def interpolate_softmax(interp_gate_out, o_content, o_prev):
+	return softmax(interpolate(interp_gate_out, o_content, o_prev))
+
+def interpolate_softmax_dinterp_gate_out(out, interp_gate_out, o_content, o_prev):
+	dout_dlin = softmax_dlayer_in_nsum(out)
+	dlin_dinterp_gate_out = interpolate_dinterp_gate_out(interp_gate_out, o_content, o_prev)
+	return mult_partials(dout_dlin, dlin_dinterp_gate_out, out)
+	
+
+def interpolate_softmax_do_content(out, interp_gate_out, o_content):
+	dout_dlin = softmax_dlayer_in_nsum(out)
+	dlin_do_content = interpolate_do_content(interp_gate_out, o_content)
+	return mult_partials(dout_dlin, dlin_do_content, out)
+
+def interpolate_softmax_do_prev(out, o_gatei, o_previ):
+	dout_dlin = softmax_dlayer_in_nsum(out)
+	dlin_do_prev = interpolate_do_prev(o_gatei, o_previ)
+	return mult_partials(dout_dlin, dlin_do_prev, out)
+
 	
 ################# interpolate
 def interpolate(interp_gate_out, o_content, o_prev):
