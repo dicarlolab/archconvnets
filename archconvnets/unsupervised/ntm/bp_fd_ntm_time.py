@@ -12,11 +12,11 @@ from init_vars import *
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 #DERIV_L = SHIFT
-DERIV_L = IN_GATE
+#DERIV_L = IN_GATE
 #DERIV_L = KEY
-#DERIV_L = BETA ## ??
-#gradient_category = 'write'
-gradient_category = 'read'
+DERIV_L = BETA
+gradient_category = 'write'
+#gradient_category = 'read'
 #gradient_category = 'under'
 ####
 if gradient_category == 'under':
@@ -84,12 +84,20 @@ def dunder_dw(WUNDER, OUNDER, x):
 	
 	return DG3UNDER_DW
 
-def do_do_content__(O, do_do_in):
+
+#### intermediate gradients used in several places in do_dw__inputs() and do_dw__mem_prev()
+def do_do_content_focused__(O, do_do_in):
 	do_in_do_content_sm = interpolate_softmax_do_content(O[IN], O[IN_GATE], O[CONTENT_SM])
 	do_content_sm_do_content_focused = softmax_dlayer_in_nsum(O[CONTENT_SM])
+	do_do_content_focused = mult_partials_chain((do_do_in, do_in_do_content_sm, do_content_sm_do_content_focused), (O[IN], O[CONTENT_SM]))
+	
+	return do_do_content_focused
+
+# one step farther down the path from do_do_content_focused__()
+def do_do_content__(O, do_do_in):
+	do_do_content_focused = do_do_content_focused__(O, do_do_in)
 	do_content_focused_do_content = focus_key_dkeys_nsum(O[CONTENT], O[BETA])
-	do_do_content = mult_partials_chain((do_do_in, do_in_do_content_sm, do_content_sm_do_content_focused, do_content_focused_do_content), \
-										(O[IN], O[CONTENT_SM], O[CONTENT_FOCUSED]))
+	do_do_content = mult_partials(do_do_content_focused, do_content_focused_do_content, O[CONTENT_FOCUSED])
 	
 	return do_do_content
 
@@ -108,8 +116,8 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	## interp. gradients (wrt gin_gate)
 	do_in_dgin_gate = interpolate_softmax_dinterp_gate_out(O[IN], O[IN_GATE], O[CONTENT_SM], o_prev)
 	do_dgin_gate = mult_partials(do_do_in, do_in_dgin_gate, O[IN])
-	dgin_gate_dg3under = linear_F_sigmoid_dx_nsum_g(O[IN_GATE], W[IN_GATE], OUNDER[F_UNDER])
 	dgin_gate_dwin = linear_F_sigmoid_dF_nsum_g(O[IN_GATE], W[IN_GATE], OUNDER[F_UNDER])
+	dgin_gate_dg3under = linear_F_sigmoid_dx_nsum_g(O[IN_GATE], W[IN_GATE], OUNDER[F_UNDER])
 	DO_DW_NEW[IN_GATE] += mult_partials(do_dgin_gate, dgin_gate_dwin, O[IN_GATE])
 	do_dg3under += np.squeeze(mult_partials(do_dgin_gate, dgin_gate_dg3under, O[IN_GATE]))
 	
@@ -121,6 +129,15 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	dgkey_dg3under = linear_2d_F_dx_nsum(W[KEY])
 	DO_DW_NEW[KEY] += mult_partials(do_dgkey, dgkey_dwkey, O[KEY])
 	do_dg3under += mult_partials(do_dgkey, dgkey_dg3under, O[KEY])
+	
+	## interp. gradients (wrt beta)
+	do_do_content_focused = do_do_content_focused__(O, do_do_in)
+	do_content_focused_dgbeta = focus_key_dbeta_out_nsum(O[CONTENT], O[BETA])
+	do_dgbeta = mult_partials(do_do_content_focused, do_content_focused_dgbeta, O[CONTENT_FOCUSED])
+	dgbeta_dwbeta = linear_F_dF_nsum_g(W[BETA], OUNDER[F_UNDER])
+	dgbeta_dg3under = linear_F_dx_nsum_g(W[BETA], OUNDER[F_UNDER])
+	DO_DW_NEW[BETA] += mult_partials(do_dgbeta, dgbeta_dwbeta, O[BETA])
+	do_dg3under += np.squeeze(mult_partials(do_dgbeta, dgbeta_dg3under, O[BETA]))
 	
 	## combine weights under gradients
 	DG3UNDER_DW = dunder_dw(WUNDER, OUNDER, x)
