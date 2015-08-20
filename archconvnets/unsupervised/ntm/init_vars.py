@@ -18,12 +18,12 @@ SCALE_UNDER = .425
 L1_UNDER = 0; L2_UNDER = 1; F_UNDER = 2
 
 # read/write heads:
-N_READ_IN_LAYERS = 4 # layers directly operating on read head inputs
+N_READ_IN_LAYERS = 5 # layers directly operating on read head inputs
 N_WRITE_IN_LAYERS = N_READ_IN_LAYERS + 1 # plus the add layer
-IN_GATE = 0; SHIFT = 1; KEY = 2; BETA = 3; ADD = 4
+IN_GATE = 0; SHIFT = 1; KEY = 2; BETA = 3; SHARPEN = 4; ADD = 5
 
-N_HEAD_INT_LAYERS = 6 # intermediate layers operating on the outputs of layers processing inputs
-CONTENT_FOCUSED = 5; CONTENT = 6; CONTENT_SM = 7; IN = 8; SQ = 9; F = 10
+N_HEAD_INT_LAYERS = 5 # intermediate layers operating on the outputs of layers processing inputs
+CONTENT_FOCUSED = 6; CONTENT = 7; CONTENT_SM = 8; IN = 9; F = 10
 
 N_TOTAL_HEAD_LAYERS = N_WRITE_IN_LAYERS +  N_HEAD_INT_LAYERS
 
@@ -73,6 +73,13 @@ WW_SHAPES[BETA] = (C, n_head_in)
 OR_SHAPES[BETA] = (C, 1)
 OW_SHAPES[BETA] = (C, 1)
 
+# sharpen
+WR_SHAPES[SHARPEN] = (C, n_head_in)
+WW_SHAPES[SHARPEN] = (C, n_head_in)
+
+OR_SHAPES[SHARPEN] = (C, 1)
+OW_SHAPES[SHARPEN] = (C, 1)
+
 # add
 WW_SHAPES[ADD] = (C, mem_length, n_head_in)
 OW_SHAPES[ADD] = (C, mem_length)
@@ -93,7 +100,6 @@ OW_PREVi[ADD] = np.zeros(WW_SHAPES[ADD])
 OR_PREVi[F] = np.abs(np.random.normal(size=(C,M)))
 
 OW_PREVi[IN] = np.zeros_like(OR_PREVi[F])
-OW_PREVi[SQ] = np.zeros_like(OR_PREVi[F])
 OW_PREVi[F] = np.abs(np.random.normal(size=(C,M)))
 
 OW_PREV_PREVi = copy.deepcopy(OW_PREVi)

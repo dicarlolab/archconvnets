@@ -45,6 +45,10 @@ def weight_address(W, O_PREV, inputs, mem_prev):
 	O[SHIFT] = linear_2d_F_softmax(W[SHIFT], inputs)
 	O[F] = shift_w(O[SHIFT], O[IN])
 	
+	# sharpen
+	O[SHARPEN] = linear_F(W[SHARPEN], inputs)
+	print O[SHARPEN].shape, O[F].shape
+	
 	return O
 
 def forward_pass(WUNDER, WR,WW, OR_PREV, OW_PREV, mem_prev, x_cur):
@@ -58,6 +62,8 @@ def forward_pass(WUNDER, WR,WW, OR_PREV, OW_PREV, mem_prev, x_cur):
 	# read/write heads
 	OR = weight_address(WR, OR_PREV, OUNDER[F_UNDER], mem_prev)
 	OW = weight_address(WW, OW_PREV, OUNDER[F_UNDER], mem_prev)
+	
+	# erase [todo]
 	
 	# add output
 	OW[ADD] = linear_2d_F(WW[ADD], OUNDER[F_UNDER])

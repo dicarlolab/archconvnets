@@ -185,6 +185,24 @@ def sharpen_dlayer_in(layer_in, gamma_out, above_w=1):
 	
 	return dsharpen_dlayer_in
 
+def sharpen_dlayer_in_nsum(layer_in, gamma_out):
+	# layer_in, above_w: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
+	layer_in_raised = layer_in**gamma_out
+	layer_in_raised_m1 = layer_in**(gamma_out-1)
+	denom = layer_in_raised.sum(1)[:,np.newaxis] # sum across slots
+	denom2 = denom**2
+	
+	# dsharpen[:,i]/dlayer_in[:,j] when i = j:
+	dsharpen_dlayer_in = above_w*(layer_in_raised_m1 * denom - layer_in_raised * layer_in_raised_m1)
+
+	# dsharpen[:,i]/dlayer_in[:,j] when i != j:
+	dsharpen_dlayer_in -=  np.einsum(layer_in_raised_m1, [0,1], above_w * layer_in_raised, [0,2], [0,1])
+	dsharpen_dlayer_in += above_w * layer_in_raised_m1 * layer_in_raised
+	
+	dsharpen_dlayer_in *= gamma_out / denom2
+	
+	return dsharpen_dlayer_in
+
 def sharpen_dgamma_out(layer_in, gamma_out, above_w=1):
 	# layer_in, above_w: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
 	w_gamma = layer_in**gamma_out
@@ -196,7 +214,27 @@ def sharpen_dgamma_out(layer_in, gamma_out, above_w=1):
 	dw_sum_gamma_dgamma = dw_gamma_dgamma.sum(1)[:,np.newaxis] # sum across slots
 	
 	dw_dgamma = (dw_gamma_dgamma * w_gamma_sum - w_gamma * dw_sum_gamma_dgamma) / (w_gamma_sum**2)
+	
 	return (dw_dgamma * above_w).sum(1)[:,np.newaxis]
+
+def sharpen_dgamma_out_nsum(layer_in, gamma_out):
+	# layer_in, above_w: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
+	w_gamma = layer_in**gamma_out
+	w_gamma_sum = w_gamma.sum(1)[:,np.newaxis] # sum across slots
+	
+	ln_gamma = np.log(layer_in)
+	
+	dw_gamma_dgamma = w_gamma * ln_gamma
+	dw_sum_gamma_dgamma = dw_gamma_dgamma.sum(1)[:,np.newaxis] # sum across slots
+	
+	dw_dgamma = (dw_gamma_dgamma * w_gamma_sum - w_gamma * dw_sum_gamma_dgamma) / (w_gamma_sum**2)
+	
+	t = np.zeros(np.concatenate((layer_in.shape, gamma_out.shape)))
+	
+	print dw_dgamma.shape, t.shape
+	for i in range(layer_in.shape[0]):
+		t[i,:,i] = dw_dgamma[i,:,np.newaxis]
+	return t
 
 ##############
 # sigmoid point-wise
