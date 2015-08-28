@@ -3,12 +3,20 @@ import copy
 from init_vars import *
 
 ####
+
 def mult_partials(da_db, db_dc, b):
 	a_ndim = da_db.ndim - b.ndim
 	c_ndim = db_dc.ndim - b.ndim
 	keep_dims = np.concatenate((range(a_ndim), range(da_db.ndim, da_db.ndim + c_ndim)))
 	da_dc = np.einsum(da_db, range(da_db.ndim), db_dc, range(a_ndim, a_ndim + db_dc.ndim), keep_dims)
 	return da_dc
+
+# multiply list of partials
+def mult_partials_chain(DA_DB, B_SZs):
+	DA_DX = DA_DB[0]
+	for x in range(1, len(DA_DB)):
+		DA_DX = mult_partials(DA_DX, DA_DB[x], B_SZs[x-1])
+	return DA_DX
 
 # collapse (sum) over output dims
 def mult_partials_collapse(da_db, db_dc, b):
@@ -65,6 +73,23 @@ def focus_key_dbeta_out(keys, above_w):
 	
 	return (above_w * keys).sum(1) # [n_controllers, 1]
 
+def focus_key_dbeta_out_nsum(keys, beta_out): 
+	# beta_out: [n_controllers, 1]
+	n_controllers, m_length = keys.shape
+	
+	g = np.zeros((n_controllers, m_length, n_controllers, 1))
+	g[range(n_controllers),:,range(n_controllers),0] = keys
+	return g
+
+def focus_key_dkeys_nsum(keys, beta_out): 
+	# beta_out: [n_controllers, 1]
+	n_controllers, m_length = keys.shape
+	
+	g = np.zeros((n_controllers, m_length, n_controllers, m_length))
+	for j in range(m_length):
+		g[range(n_controllers),j,range(n_controllers),j] = np.squeeze(beta_out)
+	return g
+
 ############
 # cosine similarity between each controller's key and memory vector
 
@@ -100,60 +125,6 @@ def cosine_sim_expand_dkeys(keys, mem):
 			ddenom[i,j,i] = keys[i] * np.sqrt(np.sum(mem[j]**2)) / np.sqrt(np.sum(keys[i]**2))
 			comb[i,j,i] = (dnumer[i,j,i] * denom[i,j] - numer[i,j] * ddenom[i,j,i])/(denom[i,j]**2)
 	return comb
-
-def cosine_sim_numer_expand_dkeys(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	n_controllers = keys.shape[0]
-	numer = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]))
-	
-	numer[range(n_controllers),:,range(n_controllers)] = mem
-		
-	return numer #/ denom # [n_controllers, n_mem_slots]
-
-def cosine_sim_denom_dkeys(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	#numer = np.dot(keys, mem.T)
-	denom = np.zeros((keys.shape[0], mem.shape[0], keys.shape[0], keys.shape[1]))
-	for i in range(keys.shape[0]):
-		for j in range(mem.shape[0]):
-				denom[i,j,i] = keys[i] * np.sqrt(np.sum(mem[j]**2)) / np.sqrt(np.sum(keys[i]**2))
-	
-	return denom # [n_controllers, n_mem_slots]	
-
-def cosine_sim_denom_expand_dkeys(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	#numer = np.dot(keys, mem.T)
-	denom = np.zeros((keys.shape[0], mem.shape[0], keys.shape[0], keys.shape[1]))
-	for i in range(keys.shape[0]):
-		for j in range(mem.shape[0]):
-			for k in range(keys.shape[1]):
-				denom[i,j,i,k] = keys[i,k] * np.sqrt(np.sum(mem[j]**2)) / np.sqrt(np.sum(keys[i]**2))
-	
-	return denom # [n_controllers, n_mem_slots]		
-
-def cosine_sim_denom_expand(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	#numer = np.dot(keys, mem.T)
-	denom = np.zeros((keys.shape[0], mem.shape[0]))
-	for i in range(keys.shape[0]):
-		for j in range(mem.shape[0]):
-			denom[i,j] = np.sqrt(np.sum(keys[i]**2)) * np.sqrt(np.sum(mem[j]**2))
-	
-	return denom # [n_controllers, n_mem_slots]	
-
-def cosine_sim_denom(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	#numer = np.dot(keys, mem.T)
-	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	
-	return denom # [n_controllers, n_mem_slots]	
-
-def cosine_sim_numer(keys, mem):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	numer = np.dot(keys, mem.T)
-	#denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	
-	return numer #/ denom # [n_controllers, n_mem_slots]
 
 def cosine_sim(keys, mem):
 	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
@@ -214,6 +185,24 @@ def sharpen_dlayer_in(layer_in, gamma_out, above_w=1):
 	
 	return dsharpen_dlayer_in
 
+def sharpen_dlayer_in_nsum(layer_in, gamma_out):
+	# layer_in, above_w: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
+	layer_in_raised = layer_in**gamma_out
+	layer_in_raised_m1 = layer_in**(gamma_out-1)
+	denom = layer_in_raised.sum(1)[:,np.newaxis] # sum across slots
+	denom2 = denom**2
+	
+	# dsharpen[:,i]/dlayer_in[:,j] when i = j:
+	dsharpen_dlayer_in = above_w*(layer_in_raised_m1 * denom - layer_in_raised * layer_in_raised_m1)
+
+	# dsharpen[:,i]/dlayer_in[:,j] when i != j:
+	dsharpen_dlayer_in -=  np.einsum(layer_in_raised_m1, [0,1], above_w * layer_in_raised, [0,2], [0,1])
+	dsharpen_dlayer_in += above_w * layer_in_raised_m1 * layer_in_raised
+	
+	dsharpen_dlayer_in *= gamma_out / denom2
+	
+	return dsharpen_dlayer_in
+
 def sharpen_dgamma_out(layer_in, gamma_out, above_w=1):
 	# layer_in, above_w: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
 	w_gamma = layer_in**gamma_out
@@ -225,15 +214,40 @@ def sharpen_dgamma_out(layer_in, gamma_out, above_w=1):
 	dw_sum_gamma_dgamma = dw_gamma_dgamma.sum(1)[:,np.newaxis] # sum across slots
 	
 	dw_dgamma = (dw_gamma_dgamma * w_gamma_sum - w_gamma * dw_sum_gamma_dgamma) / (w_gamma_sum**2)
+	
 	return (dw_dgamma * above_w).sum(1)[:,np.newaxis]
+
+def sharpen_dgamma_out_nsum(layer_in, gamma_out):
+	# layer_in, above_w: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
+	w_gamma = layer_in**gamma_out
+	w_gamma_sum = w_gamma.sum(1)[:,np.newaxis] # sum across slots
+	
+	ln_gamma = np.log(layer_in)
+	
+	dw_gamma_dgamma = w_gamma * ln_gamma
+	dw_sum_gamma_dgamma = dw_gamma_dgamma.sum(1)[:,np.newaxis] # sum across slots
+	
+	dw_dgamma = (dw_gamma_dgamma * w_gamma_sum - w_gamma * dw_sum_gamma_dgamma) / (w_gamma_sum**2)
+	
+	t = np.zeros(np.concatenate((layer_in.shape, gamma_out.shape)))
+	
+	print dw_dgamma.shape, t.shape
+	for i in range(layer_in.shape[0]):
+		t[i,:,i] = dw_dgamma[i,:,np.newaxis]
+	return t
 
 ##############
 # sigmoid point-wise
 def sigmoid(layer_in):
 	return 1/(1+np.exp(-layer_in))
 
-def sigmoid_dlayer_in(layer_out, above_w):
-	return above_w * layer_out * (1-layer_out)
+def sigmoid_dlayer_in(layer_out):
+	d = layer_out * (1-layer_out)
+	t = np.zeros(np.concatenate((layer_out.shape, layer_out.shape)))
+	for i in range(layer_out.shape[0]):
+		for j in range(layer_out.shape[1]):
+			t[i,j,i,j] = d[i,j]
+	return t
 
 
 #############
@@ -263,20 +277,22 @@ def softmax_dlayer_in(layer_out, above_w=1):
 	temp += -np.einsum(np.squeeze(above_w*layer_out), [0,1], np.squeeze(layer_out), [0,2], [0,2]) + above_w*layer_out**2
 	return temp
 
-################# interpolate
-'''def interpolate(w_content, w_prev, interp_gate_out):
-	# w_prev, w_content: [n_controllers, n_mem_slots], interp_gate_out: [n_controllers, 1]
-	return interp_gate_out * w_content + (1 - interp_gate_out) * w_prev
-
-def interpolate_dinterp_gate_out(w_content, w_prev, above_w=1):
-	return (above_w * (w_content - w_prev)).sum(1)[:,np.newaxis] # sum across mem_slots
-
-def interpolate_dw_content(interp_gate_out, above_w=1):
-	return above_w * interp_gate_out
-
-def interpolate_dw_prev(interp_gate_out, above_w):
-	return above_w * (1 - interp_gate_out)'''
-
+def softmax_dlayer_in_nsum(layer_out):
+	g = np.zeros((layer_out.shape[0], layer_out.shape[1], layer_out.shape[0], layer_out.shape[1]))
+	
+	# dsoftmax[:,i]/dlayer_in[:,j] when i = j:
+	temp = (layer_out * (1 - layer_out))
+	for i in range(g.shape[0]):
+		for j in range(g.shape[1]):
+			g[i,j,i,j] = temp[i,j]
+	
+	# i != j
+	for i in range(g.shape[0]):
+		for j in range(g.shape[1]):
+			for k in range(g.shape[1]):
+				if j != k:
+					g[i,j,i,k] -= layer_out[i,j]*layer_out[i,k]
+	return g
 
 ############### shift w
 def shift_w(shift_out, w_interp):	
@@ -338,6 +354,26 @@ def shift_w_dw_interp_nsum(shift_out):
 			
 	return temp
 
+############# linear then sigmoid
+def linear_F_sigmoid(F, layer_in):
+	# F: [n1, n_in], layer_in: [n_in, 1]
+	
+	return sigmoid(linear_F(F, layer_in)) # [n1, 1]
+
+def linear_F_sigmoid_dF_nsum_g(out, F, mem):
+	dout_dlin = sigmoid_dlayer_in(out)
+	
+	dlin_dF = linear_F_dF_nsum_g(F, mem)
+	
+	return mult_partials(dout_dlin, dlin_dF, out)
+	
+def linear_F_sigmoid_dx_nsum_g(out, F, mem):
+	dout_dlin = sigmoid_dlayer_in(out)
+	
+	dlin_dx = linear_F_dx_nsum_g(F, mem)
+	
+	return mult_partials(dout_dlin, dlin_dx, out)
+	
 ############## linear layer
 def linear_F(F, layer_in):
 	# F: [n1, n_in], layer_in: [n_in, 1]
@@ -354,7 +390,7 @@ def linear_dlayer_in(F, above_w=1):
 
 def linear_F_dx_nsum(o):
 	n = mem_previ.shape[1]
-	temp = np.zeros((or_previ.shape[0], n, mem_previ.shape[0], n))
+	temp = np.zeros((OR_PREVi[F].shape[0], n, mem_previ.shape[0], n))
 	temp[:,range(n),:,range(n)] = o
 	return temp
 
@@ -365,8 +401,8 @@ def linear_F_dx_nsum_g(o, mem):
 	return temp
 
 def linear_F_dF_nsum(mem):
-	n = or_previ.shape[0]
-	temp = np.zeros((n, mem.shape[1], n, or_previ.shape[1]))
+	n = OR_PREVi[F].shape[0]
+	temp = np.zeros((n, mem.shape[1], n, OR_PREVi[F].shape[1]))
 	temp[range(n),:,range(n)] = mem.T
 	return temp
 
@@ -375,6 +411,7 @@ def linear_F_dF_nsum_g(F, mem):
 	temp = np.zeros((n, mem.shape[1], n, F.shape[1]))
 	temp[range(n),:,range(n)] = mem.T
 	return temp
+	
 ################## squared layer
 def sq_F(F, layer_in):
 	# F: [n1, n_in], layer_in: [n_in, 1]
@@ -404,6 +441,20 @@ def sq_dlayer_in(F, layer_in, layer_out, above_w=1):
 
 def sq_dlayer_in_nsum(F, layer_in): # not summed across n1 as sq_dlayer_in() does
 	return 2 * F * linear_F(F,layer_in) # [n1, n_in]
+
+############# softmax <- linear 2d
+def linear_2d_F_softmax(ww,x):
+	return softmax(linear_2d_F(ww,x))
+
+def linear_2d_F_softmax_dF_nsum(out, ww,x):
+	dout_dlin = softmax_dlayer_in_nsum(out)
+	dlin_dF = linear_2d_F_dF_nsum(ww,x)
+	return mult_partials(dout_dlin, dlin_dF, out)
+
+def linear_2d_F_softmax_dx_nsum(out, ww):
+	dout_dlin = softmax_dlayer_in_nsum(out)
+	dlin_dF = linear_2d_F_dx_nsum(ww)
+	return mult_partials(dout_dlin, dlin_dF, out)
 	
 #######
 def linear_2d_F(ww,x):
@@ -444,23 +495,29 @@ def add_mem_dgw(add_out):
 	temp[range(M),:,:,range(M)] = add_out.T
 	return temp
 
-################# interpolate simplified
-def interpolate_simp(w_prev, interp_gate_out):
-	return w_prev * interp_gate_out
 
-def interpolate_simp_dx_nprod(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content):
-	do_in_dx = np.einsum(do_dx + do_content_dx, range(4), g3, [0,1], range(4))
-	do_in_dx += np.einsum(o_prev + o_content, [0,1], dg3_dx, [0,2,3], range(4))
+################# softmax <- interpolate
+def interpolate_softmax(interp_gate_out, o_content, o_prev):
+	return softmax(interpolate(interp_gate_out, o_content, o_prev))
+
+def interpolate_softmax_dinterp_gate_out(out, interp_gate_out, o_content, o_prev):
+	dout_dlin = softmax_dlayer_in_nsum(out)
+	dlin_dinterp_gate_out = interpolate_dinterp_gate_out(interp_gate_out, o_content, o_prev)
+	return mult_partials(dout_dlin, dlin_dinterp_gate_out, out)
 	
-	return do_in_dx
+
+def interpolate_softmax_do_content(out, interp_gate_out, o_content):
+	dout_dlin = softmax_dlayer_in_nsum(out)
+	dlin_do_content = interpolate_do_content(interp_gate_out, o_content)
+	return mult_partials(dout_dlin, dlin_do_content, out)
+
+def interpolate_softmax_do_prev(out, o_gatei, o_previ):
+	dout_dlin = softmax_dlayer_in_nsum(out)
+	dlin_do_prev = interpolate_do_prev(o_gatei, o_previ)
+	return mult_partials(dout_dlin, dlin_do_prev, out)
+
 	
-def interpolate_simp_dx(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content, do_do_in):
-	do_in_dx = interpolate_simp_dx_nprod(dg3_dx, do_dx, do_content_dx, g3, o_prev, o_content)
-	
-	do_dx = mult_partials(do_do_in, do_in_dx, o_prev)
-	return do_dx
-	
-################# interpolate full
+################# interpolate
 def interpolate(interp_gate_out, o_content, o_prev):
 	return interp_gate_out * o_content + (1 - interp_gate_out) * o_prev
 
