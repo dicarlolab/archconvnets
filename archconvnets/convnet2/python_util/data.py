@@ -857,7 +857,6 @@ class DLDataMapProvider(DLDataProvider):
                         for mname, pp in zip(map_methods, map_preprocs)]
         self.map_shapes = [m.shape for m in map_list]
         mnames = self.mnames = [mn + '_' + get_id(pp) for mn, pp in zip(map_methods, map_preprocs)]
-
         assert data_dir != ''
         self.data_dir = data_dir
         if not os.path.exists(data_dir):

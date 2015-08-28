@@ -324,6 +324,7 @@ class CroppedGeneralDataProvider(DLDataProvider2):
         self.num_colors = 1 if preproc['mode'] in ['L', 'L_alpha'] else 3
         self.img_size = preproc['resize_to'][0]
 
+        self.noise_level = dp_params.get('noise_level')
         self.border_size = dp_params['crop_border'][0]
         self.inner_size = self.img_size - self.border_size*2
         self.multiview = dp_params['multiview_test'] and test
@@ -443,6 +444,12 @@ class CroppedGeneralDataProvider(DLDataProvider2):
                 t2 = time()
                 if self.img_flip and nr.randint(2) == 0: # also flip the image with 50% probability
                     pic = pic[:,:,::-1]
+                if self.noise_level and nr.randint(2) == 0:
+                    noise_coefficient = n.random.uniform(low=0, high=self.noise_level)
+                    ns = (n.random.RandomState().randn(*pic.shape) * noise_coefficient).astype(pic.dtype)
+                    mx = n.abs(pic).max()
+                    pic += ns
+                    pic *= mx / n.abs(pic).max()
                 t3 = time()
                 target[:,c] = pic.reshape((self.get_data_dims(),))
                 t4 = time()

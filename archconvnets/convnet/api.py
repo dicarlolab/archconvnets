@@ -9,6 +9,7 @@ from . import util
 from . import layer
 from collections import OrderedDict
 
+from yamutils import fast
 
 CDIR = os.path.abspath(os.path.split(__file__)[0])
 
@@ -87,19 +88,48 @@ def setup_training(architecture_params, training_params, training_steps, data_pr
     return commands
 
 
-def assemble_feature_batches(feat_dir, N=None, seed=0, batch_range=None):
+def get_batches(feat_dir):
     p = re.compile('data_batch_([\d]+)')
     L = os.listdir(feat_dir)
     bns = map(int, [p.match(l).groups()[0] for l in L if p.match(l)])
     bns.sort()
+    return bns    
+
+
+def assemble_feature_batches(feat_dir, N=None, seed=0, batch_range=None, shape_reduce=None, perm=None):
+    bns = get_batches(feat_dir)
     if batch_range is not None:
         bns = bns[batch_range[0]: batch_range[1]]
     data = []
     for x in bns:
         ft = unpickle(os.path.join(feat_dir, 'data_batch_%d' % x))['data']
-        if N is not None:
+        if shape_reduce is not None:
+            nf0, nf1 = ft.shape
+            s = int(np.sqrt(nf1 / float(shape_reduce)))
+            ft = ft.reshape((nf0, shape_reduce, s, s))
+            ft1 = ft.mean(2).mean(2)
+            ft2 = ft.sum(1).reshape((nf0, s * s))
+            if N is not None:
+                nf1 = ft1.shape[1]
+                nf2 = ft2.shape[1]
+                rng = np.random.RandomState(seed=seed)
+                units1 = rng.permutation(nf1)[: N/2]
+                units2 = rng.permutation(nf2)[: N - len(units1)]
+                ft = np.column_stack([ft1[:, units1], ft2[:, units2]])
+            else:
+                ft = np.column_stack([ft1, ft2])
+        elif N is not None:
             print('subsetting batch %d' % x)
             ft = ft[:, np.random.RandomState(seed=seed).permutation(ft.shape[1])[:N]]
         #data.append(unpickle(os.path.join(feat_dir, 'data_batch_%d' % x))['data'])
         data.append(ft)
-    return np.row_stack(data)
+    data = np.row_stack(data)
+    if perm == 'random':
+        _perm = np.random.RandomState(0).permutation(len(data))
+        pinv = fast.perminverse(_perm)
+        data = data[pinv]
+    elif perm == None:
+        pass
+    else:
+        raise ValueError("unknown perm type: %s" % perm)
+    return data
