@@ -17,8 +17,8 @@ DERIV_L = KEY
 #DERIV_L = BETA
 #DERIV_L = ADD
 #DERIV_L = ERASE
-gradient_category = 'write'
-#gradient_category = 'read'
+#gradient_category = 'write'
+gradient_category = 'read'
 #gradient_category = 'under'
 ####
 if gradient_category == 'under':
@@ -71,10 +71,7 @@ def forward_pass(WUNDER, WR,WW, OR_PREV, OW_PREV, mem_prev, x_cur):
 	# read then write to mem
 	read_mem = linear_F(OR[F], mem_prev)
 	
-	
 	mem = mem_prev * (1 - add_mem(OW[F], OW[ERASE])) + add_mem(OW[F], OW[ADD])
-	#mem = mem_prev + add_mem(OW[F], OW[ADD])
-	#print add_mem(OW[F], OW[ADD]).shape
 	
 	return OR,OW,mem,read_mem,OUNDER
 
