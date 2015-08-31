@@ -9,17 +9,18 @@ from ntm_gradients import *
 from init_vars import *
 
 ##### which gradients to test
+DERIV_L = L1_UNDER
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
-DERIV_L = KEY
+#DERIV_L = KEY
 #DERIV_L = BETA
 #DERIV_L = ADD
 #DERIV_L = ERASE
 #gradient_category = 'write'
-gradient_category = 'read'
-#gradient_category = 'under'
+#gradient_category = 'read'
+gradient_category = 'under'
 ####
 if gradient_category == 'under':
 	ref = WUNDER[DERIV_L]
@@ -192,7 +193,7 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_DWUNDER, OW_PREV
 	
 	###
 	# W[ERASE] gradients (de wrt W[ERASE])
-	mem_prev_de_derase_out = add_mem_dadd_out(OW_PREV[F]) * mem_prev_prev[:,:,np.newaxis,np.newaxis]
+	mem_prev_de_derase_out = -add_mem_dadd_out(OW_PREV[F]) * mem_prev_prev[:,:,np.newaxis,np.newaxis]
 	
 	derase_out_dwadd = linear_2d_F_dF_nsum(WW[ERASE], OUNDER_PREV[F_UNDER])
 	DMEM_PREV_DWW_NEW[ERASE] += mult_partials(mem_prev_de_derase_out, derase_out_dwadd, OW_PREV[ERASE]) # de_dwadd
