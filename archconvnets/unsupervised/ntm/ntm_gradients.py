@@ -11,6 +11,21 @@ def mult_partials(da_db, db_dc, b):
 	da_dc = np.einsum(da_db, range(da_db.ndim), db_dc, range(a_ndim, a_ndim + db_dc.ndim), keep_dims)
 	return da_dc
 
+# pointwise multiply partials (same for all partials, i.e., broadcasted for dimensions taken wrt)
+def pointwise_mult_partials__layers(mat, DB_DC):
+	DB_DC_NEW = [None] * len(DB_DC)
+	for layer in range(len(DB_DC)):
+		# add singleton dimensions for broadcasting
+		new_shape = mat.shape
+		for add_dim in range(len(DB_DC[layer].shape) - len(mat.shape)):
+			new_shape = np.append(new_shape, 1)
+		
+		mat_axes = mat.reshape(new_shape)
+		
+		DB_DC_NEW[layer] = mat_axes * DB_DC[layer]
+	
+	return DB_DC_NEW
+
 # multiply list of partials
 def mult_partials_chain(DA_DB, B_SZs):
 	DA_DX = DA_DB[0]
