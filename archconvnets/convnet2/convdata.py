@@ -325,7 +325,11 @@ class CroppedGeneralDataProvider(DLDataProvider2):
         self.img_size = preproc['resize_to'][0]
 
         self.noise_level = dp_params.get('noise_level')
-        self.border_size = dp_params['crop_border'][0]
+        if not hasattr(dp_params['crop_border'], '__iter__'):
+            cb = dp_params['crop_border'] 
+        else:
+            cb = dp_params['crop_border'][0]
+        self.border_size = cb
         self.inner_size = self.img_size - self.border_size*2
         self.multiview = dp_params['multiview_test'] and test
 
