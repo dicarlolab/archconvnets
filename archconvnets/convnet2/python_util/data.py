@@ -586,6 +586,7 @@ class DLDataProvider2(DLDataProvider):
         modulename, attrname = dp_params['dataset_name']
         module = importlib.import_module(modulename)
         self.dp_params = dp_params
+        print('DP_PARAMS', dp_params)
         dataset_obj = getattr(module, attrname)
         print(module, attrname)
         dataset_data = dp_params.get('dataset_data', None)
@@ -655,6 +656,7 @@ class DLDataProvider2(DLDataProvider):
             metafile = os.path.join(data_dir, 'batches_%s.meta' % hashval)
         else:
             metafile = os.path.join(data_dir, 'batches.meta')
+        self.metafile = metafile
 
         if os.path.exists(metafile):
             print('Meta file at %s exists, loading' % metafile)
@@ -710,6 +712,9 @@ class DLDataProvider2(DLDataProvider):
 
         LabeledDataProvider.__init__(self, data_dir, batch_range,
                                  init_epoch, init_batchnum, dp_params, test)
+
+    def get_batch_meta(self, data_dir):
+        return unpickle(self.metafile)
 
     def get_metacol(self):
         perm = self.perm    
