@@ -39,9 +39,9 @@ def test_grad_transpose(x, in_channels, filter_sz, n_filters):
                                 grad_t[i] += sign_mat[i,j]*(d_minus_sum_n[j]*d2_sum_sqrt[i] - d_dot_dT[i,j]*d_minus_sum_n_div[i])/(d2_sum_sqrt[j]*d2_sum_sqrt2[i])
         grad_t = grad_t.T.ravel()
 
-        if np.mean(np.abs(corrs)) < 0.15:
-                loss_t = 0
-                grad_t = 0
+        #if np.mean(np.abs(corrs)) < 0.15:
+        #        loss_t = 0
+        #        grad_t = 0
 
         loss = loss_t
         grad = grad_t

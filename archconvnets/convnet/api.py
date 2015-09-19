@@ -98,6 +98,8 @@ def assemble_feature_batches(feat_dir, N=None, seed=0, batch_range=None):
     for x in bns:
         ft = unpickle(os.path.join(feat_dir, 'data_batch_%d' % x))['data']
         if N is not None:
+            print('subsetting batch %d' % x)
             ft = ft[:, np.random.RandomState(seed=seed).permutation(ft.shape[1])[:N]]
-        data.append(unpickle(os.path.join(feat_dir, 'data_batch_%d' % x))['data'])
+        #data.append(unpickle(os.path.join(feat_dir, 'data_batch_%d' % x))['data'])
+        data.append(ft)
     return np.row_stack(data)

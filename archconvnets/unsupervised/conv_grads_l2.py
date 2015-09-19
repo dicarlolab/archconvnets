@@ -86,7 +86,7 @@ for base_batch in base_batches:
 		conv_out = conv_block(temp_filter, [base_batch], [],
 			[], [], [], gpu, tmp_model, feature_path, [], weights_shape, model,
 			neuron_ind, weight_ind, layer_name, output_sz, n_imgs, n_filters)
-		for i in range(n_filters):
+		for i in range(filter_ind):
 			output_deriv[channel_inds[i],filter_i_inds[i],filter_j_inds[i]] = conv_out[i]
 		temp_filter = np.zeros((in_channels, filter_sz, filter_sz,n_filters),dtype='float32')
 		filter_ind = 0

@@ -23,7 +23,8 @@ import sys
 import math as m
 import layer as lay
 from convdata import (ImageDataProvider, CIFARDataProvider, DummyConvNetLogRegDataProvider, 
-                      CroppedGeneralDataProvider, CroppedGeneralDataRandomProvider, CroppedImageAndVectorProvider)
+                      CroppedGeneralDataProvider, CroppedGeneralDataRandomProvider, 
+                      CroppedGeneralDataMapProvider, CroppedImageAndVectorProvider)
 from os import linesep as NL
 import copy as cp
 import os
@@ -100,11 +101,13 @@ class FeatureWriterDriver(Driver):
             print "Wrote feature file %s" % path_out
         if self.batchnum == self.last_batch:
             for fp, nftrs in zip(self.feature_paths, self.num_ftr_list):
+                labels_unique = getattr(self.convnet.train_data_provider, 'labels_unique', None)
+                num_cases_per_batch = self.convnet.train_data_provider.batch_size
                 pickle(os.path.join(fp, 'batches.meta'), {'source_model': self.convnet.load_file, 
                                                           'source_model_query': self.convnet.load_query,
                                                           'num_vis': nftrs,
-                                                          'num_cases_per_batch': self.convnet.test_data_provider.batch_meta['num_cases_per_batch'],
-                                                          'label_names': self.convnet.train_data_provider.labels_unique})
+                                                          'num_cases_per_batch': num_cases_per_batch,
+                                                          'label_names': labels_unique})
 
 class ConvNet(IGPUModel):
     def __init__(self, op, load_dic, dp_params=None):
@@ -133,9 +136,25 @@ class ConvNet(IGPUModel):
         
     def init_model_state(self):
         ms = self.model_state
-        layers = ms['layers'] if self.loaded_from_checkpoint else OrderedDict([])
+        load_layers = self.load_layers
+        if self.loaded_from_checkpoint:
+            layers = ms['layers']
+            if load_layers is not None:
+                pop_keys = []
+                for _n in layers:
+                    if '_neuron' in _n:
+                        if _n.split('_neuron')[0] not in load_layers:
+                            pop_keys.append(_n)
+                    elif _n not in load_layers:
+                        pop_keys.append(_n)
+                for name in pop_keys:
+                    print('Popping layer %s because it is not in load_layers' % name)
+                    layers.pop(name)
+        else:
+            layers = OrderedDict([])
         ms['layers'] = lay.LayerParser.parse_layers(os.path.join(self.layer_path, self.layer_def),
-                                                    os.path.join(self.layer_path, self.layer_params), self, layers=layers)
+                                                    os.path.join(self.layer_path, self.layer_params),
+                                                    self, layers=layers, load_layers=load_layers)
         
         self.do_decouple_conv()
         self.do_unshare_weights()
@@ -256,8 +275,11 @@ class ConvNet(IGPUModel):
         num_cases = sum(t[1] for t in test_outputs)
         for i in xrange(1 ,len(test_outputs)):
             for k,v in test_outputs[i][0].items():
-                for j in xrange(len(v)):
+                if k not in test_outputs[0][0]:
+                    test_outputs[0][0][k] = 0.0
+                for j in xrange(len(v)):                    
                     test_outputs[0][0][k][j] += test_outputs[i][0][k][j]
+                    
         
         return (test_outputs[0][0], num_cases)
     
@@ -269,7 +291,7 @@ class ConvNet(IGPUModel):
         op.add_option("layer-params", "layer_params", StringOptionParser, "Layer parameter file")
         op.add_option("layer-path", "layer_path", StringOptionParser, "Layer file path prefix", default="")
         op.add_option("check-grads", "check_grads", BooleanOptionParser, "Check gradients and quit?", default=0, excuses=['data_path', 'train_batch_range','test_batch_range'])
-        op.add_option("crop-border", "crop_border", IntegerOptionParser, "Cropped DP: crop border size", default=4, set_once=True)        
+        op.add_option("crop-border", "crop_border", ListOptionParser(IntegerOptionParser), "Cropped DP: crop border size", default=[4], set_once=True)        
         op.add_option("multiview-test", "multiview_test", BooleanOptionParser, "Cropped DP: test on multiple patches?", default=0)
         op.add_option("inner-size", "inner_size", IntegerOptionParser, "Cropped DP: crop size (0 = don't crop)", default=0, set_once=True)
         op.add_option("conv-to-local", "conv_to_local", ListOptionParser(StringOptionParser), "Convert given conv layers to unshared local", default=[])
@@ -289,8 +311,11 @@ class ConvNet(IGPUModel):
         op.add_option("feature-path", "feature_path", StringOptionParser,
               "Write features to this path (to be used with --write-features)", default="")
 
+        op.add_option('load-layers', "load_layers", ListOptionParser(StringOptionParser), 
+                      "Load these layers", default="")
+
         op.add_option("img-flip", "img_flip", BooleanOptionParser,
-                "Whether filp training image", default=True )
+                "Whether flip training image", default=True )
 
         op.delete_option('max_test_err')
         op.options["testing_freq"].default = 57
@@ -303,6 +328,7 @@ class ConvNet(IGPUModel):
         DataProvider.register_data_provider('image', 'JPEG-encoded image data provider', ImageDataProvider)
         DataProvider.register_data_provider('cifar', 'CIFAR-10 data provider', CIFARDataProvider)
         DataProvider.register_data_provider('general-cropped', 'Cropped General', CroppedGeneralDataProvider)
+        DataProvider.register_data_provider('general-map-cropped', 'Cropped General Mop', CroppedGeneralDataMapProvider)
         DataProvider.register_data_provider('general-cropped-rand', 'Cropped General Random',
                                             CroppedGeneralDataRandomProvider)                
         DataProvider.register_data_provider('general-cropped-vectors', 'Cropped General_Vector',

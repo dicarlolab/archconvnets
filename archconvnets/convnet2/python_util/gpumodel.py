@@ -32,6 +32,7 @@ import copy
 import collections
 import pymongo as pm
 import gridfs
+import hashlib
 from yamutils.mongo import SONify
 
 
@@ -66,6 +67,36 @@ def cleanup_checkpoint_db(host, port, db_name, fs_name, keep_recents=True):
     conn = pm.Connection(host=host, port=port)
     conn.drop_database(rfs._GridFS__database)
 
+def read_checkpoint_from_file(go, cachefile):
+    """instead of gridfs read() functionality"""
+    from bson.py3compat import b
+    EMPTY = b("")
+
+    go._ensure_file()
+
+    go_position = 0
+    size = int(go.length) - go_position
+
+    received = 0
+    data = open(cachefile, "wb")
+    while received < size:
+        chunk_data = go.readchunk()
+        received += len(chunk_data)
+        data.write(chunk_data)
+    data.close()
+
+    data = open(cachefile)
+    return data.read()
+
+def get_md5(file):
+    BLOCKSIZE = 65536
+    hasher = hashlib.md5()
+    with open(file, 'rb') as f:
+        buf = f.read(BLOCKSIZE)
+        while len(buf) > 0:
+            hasher.update(buf)
+            buf = f.read(BLOCKSIZE)
+    return hasher.hexdigest()
 
 class ModelStateException(Exception):
     pass
@@ -107,7 +138,7 @@ class CheckpointWriter(Thread):
     def run(self):
     
         dic = self.dic
-
+        print('Running checkpoint writer')
         val_dict = get_convenient_mongodb_representation_base(dic['op'], dic['model_state'])
         val_dict['epoch'] = self.epoch
         val_dict['batch_num'] = self.batchnum
@@ -120,7 +151,7 @@ class CheckpointWriter(Thread):
                                           self.checkpoint_db_name,
                                           self.checkpoint_fs_name)
         
-        
+        print('got checkpoint fs')
         if self.save_filters and (self.saving_freq > 0) and (((self.num_batches_done / self.testing_freq) % self.saving_freq) == 0):
             val_dict['saved_filters'] = True
             save_dic = dic
@@ -131,7 +162,9 @@ class CheckpointWriter(Thread):
             msg = 'Saved (without filters) to id %s'
             save_dic = collections.OrderedDict()
             save_recent = self.save_filters and self.save_recent_filters
+        print("getting checkpoint blob")
         blob = cPickle.dumps(save_dic, protocol=cPickle.HIGHEST_PROTOCOL)
+        print("About to dump")
         idval = checkpoint_fs.put(blob, **val_dict)
         print(msg % str(idval))
         
@@ -171,15 +204,22 @@ class IGPUModel:
             self.model_state = load_dic["model_state"]
             if not "experiment_data" in self.options or not self.options["experiment_data"].value_given:
                 self.experiment_data = load_dic["rec"]["experiment_data"]
+            if self.options['starting_epoch'].value_given:
+                self.model_state['epoch'] = self.options["starting_epoch"].value
+            if self.options['starting_batch'].value_given:
+                self.model_state["batchnum"] = self.train_batch_range[self.options["starting_batch"].value]
         else:
             self.model_state = collections.OrderedDict()
             self.model_state["train_outputs"] = []
             self.model_state["test_outputs"] = []
-            self.model_state["epoch"] = 1
-            self.model_state["batchnum"] = self.train_batch_range[0]
+            self.model_state["epoch"] = self.options["starting_epoch"].value 
+            self.model_state["batchnum"] = self.train_batch_range[self.options["starting_batch"].value]
             if not self.options["experiment_data"].value_given:
                 idval = model_name + "_" + '_'.join(['%s_%s' % (char, self.options[opt].get_str_value()) for opt, char in filename_options]) + '_' + strftime('%Y-%m-%d_%H.%M.%S')
                 self.experiment_data = collections.OrderedDict([('experiment_id', idval)])
+    
+        if not self.options["load_layers"].value_given:
+            self.load_layers = None
 
         self.init_data_providers()
         if load_dic: 
@@ -244,6 +284,11 @@ class IGPUModel:
         print "Running on CUDA device(s) %s" % ", ".join("%d" % d for d in self.device_ids)
         print "Current time: %s" % asctime(localtime())
         print "========================="
+
+        if self.save_initial and self.get_num_batches_done() == 1:
+            self.test_outputs += [self.get_test_error()]
+            self.conditional_save()
+
         next_data = self.get_next_batch()
         while self.epoch <= self.num_epochs:
             data = next_data
@@ -255,8 +300,12 @@ class IGPUModel:
             self.start_batch(data)
             
             # load the next batch while the current one is computing
+            t0 = time()
             next_data = self.get_next_batch()
+            t1 = time()
             batch_output = self.finish_batch()
+            t2 = time()
+            print('timing next batch %.4f compute %.4f' % (t1 - t0, t2 - t1))
             self.train_outputs += [batch_output]
             self.print_train_results()
 
@@ -284,7 +333,14 @@ class IGPUModel:
         dp = self.train_data_provider
         if not train:
             dp = self.test_data_provider
-        return self.parse_batch_data(dp.get_next_batch(), train=train)
+        t0 = time()
+        nbatch = dp.get_next_batch()
+        t1 = time()
+        print('call next batch', t1 - t0)
+        res = self.parse_batch_data(nbatch, train=train)
+        t2 = time()
+        print('IGPUmodel parse batch', t2 - t1)
+        return res
     
     def parse_batch_data(self, batch_data, train=True):
         return batch_data[0], batch_data[1], batch_data[2]['data']
@@ -374,6 +430,7 @@ class IGPUModel:
                            ("op", self.op)])
             
         assert self.checkpoint_writer is None
+        print('Creating Checkpoint Writer')
         self.checkpoint_writer = CheckpointWriter(dic,
                                                   self.checkpoint_fs_host,
                                                   self.checkpoint_fs_port,
@@ -388,6 +445,7 @@ class IGPUModel:
                                                   self.get_num_batches_done(),
                                                   self.experiment_data
                                                   )
+        print('About to start checkpoint writer')
         self.checkpoint_writer.start()
         return self.checkpoint_writer
         
@@ -437,7 +495,27 @@ class IGPUModel:
             print('Loading checkpoint from "recent" storage.')
  
         if not only_rec:
-            load_dic = cPickle.loads(fs_to_use.get_last_version(_id=rec['_id']).read())
+            # old one
+            # load_dic = cPickle.loads(fs_to_use.get_last_version(_id=rec['_id']).read())
+            # new code - save to cache
+            go = fs_to_use.get_last_version(_id=rec['_id'])
+             from skdata.data_home import get_data_home
+             cachedir = os.path.join(get_data_home(), 'checkpoint_cache')
+             if not os.path.exists(cachedir):
+                 os.makedirs(cachedir)
+             cachefile = os.path.join(cachedir, str(rec['_id']) + ".pkl")
+             if os.path.exists(cachefile):
+                md5sum = get_md5(cachefile)
+                md5true = go.md5
+                if md5sum == md5true:
+                    print("Loading checkpoint from cache")
+                    load_dic = cPickle.loads(open(cachefile).read())
+                else:
+                    print("Cache file corrupted. Reload checkpoint from db")
+                    load_dic = cPickle.loads(read_checkpoint_from_file(go, cachefile))
+             else:
+                 print("No file in cache. Load checkpoint from db")
+                 load_dic = cPickle.loads(read_checkpoint_from_file(go, cachefile))
         else:
             load_dic = {}
         load_dic['rec'] = rec
@@ -452,14 +530,16 @@ class IGPUModel:
         op.add_option("data-provider", "dp_type", StringOptionParser, "Data provider", default="default")
         op.add_option("test-freq", "testing_freq", IntegerOptionParser, "Testing frequency", default=25)
         op.add_option("epochs", "num_epochs", IntegerOptionParser, "Number of epochs", default=500)
+        op.add_option("start-epoch", "starting_epoch", IntegerOptionParser, "Epoch to begin with", default=1)
+        op.add_option("start-batch", "starting_batch", IntegerOptionParser, "Batch to begin with", default=0)
         op.add_option("data-path", "data_path", StringOptionParser, "Data path")
         
         op.add_option("max-test-err", "max_test_err", FloatOptionParser, "Maximum test error for saving")
         op.add_option("test-only", "test_only", BooleanOptionParser, "Test and quit?", default=0)
         op.add_option("test-one", "test_one", BooleanOptionParser, "Test on one batch at a time?", default=1)
+        op.add_option("save-initial", "save_initial", BooleanOptionParser, "Save initial state as checkpoint before training?", default=0)
         op.add_option("force-save", "force_save", BooleanOptionParser, "Force save before quitting", default=0)
         op.add_option("gpu", "gpu", ListOptionParser(IntegerOptionParser), "GPU override")
-        
         ####### db configs #######
         op.add_option("save-db", "save_db", BooleanOptionParser, "Save checkpoints to mongo database?", default=0)
         op.add_option("save-filters", "save_filters", BooleanOptionParser, "Save filters to database?", default=1)
@@ -518,14 +598,24 @@ class IGPUModel:
         sys.exit()
 
 
-def get_convenient_mongodb_representation_base(op, model_state):
+def get_convenient_mongodb_representation_base(op, model_state, dump=False):
+    if dump:
+        dfile = '/om/user/yamins/bork_state.pkl'
+        with open(dfile, 'wb') as _f:
+            print('dumping to %s' % dfile)
+            cPickle.dump([op, model_state], _f)
     val_dict = collections.OrderedDict([(_o.name, _o.value) for _o in op.get_options_list()])
     def make_mongo_safe(_d):
-        for _k in _d:
+        klist = _d.keys()[:]
+        for _k in klist:
+            if hasattr(_d[_k], 'keys'):
+                print(_k)
+                make_mongo_safe(_d[_k])
             if '.' in _k:
                 _d[_k.replace('.', '___')] = _d.pop(_k)
-    if 'load_query' in val_dict:
-        val_dict['load_query'] = make_mongo_safe(val_dict['load_query'])
+    #if 'load_query' in val_dict:
+    #    val_dict['load_query'] = make_mongo_safe(val_dict['load_query'])
+    
 
     #import cPickle
     #with open('testdump.pkl', 'wb') as _f:
@@ -551,6 +641,7 @@ def get_convenient_mongodb_representation_base(op, model_state):
         else:
             val_dict[k] = model_state[k]
 
+    make_mongo_safe(val_dict)
     return SONify(val_dict)
 
 

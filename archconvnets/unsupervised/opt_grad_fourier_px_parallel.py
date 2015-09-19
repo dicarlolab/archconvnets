@@ -30,7 +30,6 @@ from scipy.io import savemat
 from scipy.stats.mstats import zscore
 import math
 import subprocess
-neuron_ind = 3
 from scipy.spatial.distance import squareform
 import copy
 import time
@@ -44,13 +43,16 @@ from scipy.io import savemat
 from scipy.stats.mstats import zscore
 
 n_cpus = 8
-n_channels_in = 256;
-n_channels_out = 256
-filter_sz = 3
+n_channels_in = 3
+n_channels_out = 48
+filter_sz = 7
 
-n_channels_find = 256
+weight_ind = 2#8
+neuron_ind = 3#9
 
-filename = 'opt_l3.mat'
+n_channels_find = n_channels_out
+
+filename = 'opt_imgnet_l1.mat'
 
 time_save = time.time()
 
@@ -63,6 +65,7 @@ def DFT_matrix_2d(N):
     return W
 
 def second_order_grad(grad_shape, i_inds, in_dims, file_name):
+	global neuron_ind, weight_ind
 	x = loadmat(file_name)
 	sign_mat = np.squeeze(x['sign_mat'])
 	d_minus_sum_n = np.squeeze(x['d_minus_sum_n'])
@@ -97,8 +100,36 @@ def test_grad(x):
         n = n_channels_find
         in_dims = n_channels_in*(filter_sz**2)
         x = np.reshape(x, (in_dims, n_channels_find))
-        
-        corrs = (1-pdist(x,'correlation')) - c_mat_input
+       
+	############################ channel corr
+	grad_c = np.zeros((n_channels_in, filter_sz**2, n_channels_find))
+        loss_c = 0
+        for filter in range(n_channels_find):
+                #print filter
+                x_t = copy.deepcopy(x[:, filter]).reshape((n_channels_in, filter_sz**2))
+                corrs = 1-pdist(x_t,'correlation')
+                loss_c += np.sum(np.abs(corrs))
+                corr_mat = squareform(corrs)
+
+                d = x_t - np.mean(x_t,axis=1)[:,np.newaxis]
+                d_sum_n = np.sum(d, axis=1) / (filter_sz**2)
+                d2_sum_sqrt = np.sqrt(np.sum(d**2, axis=1))
+                d2_sum_sqrt2 = d2_sum_sqrt**2
+                d_minus_sum_n = d - d_sum_n[:,np.newaxis]
+                d_minus_sum_n_div = d_minus_sum_n/d2_sum_sqrt[:,np.newaxis]
+                d_dot_dT = np.dot(d, d.T)
+
+                sign_mat = np.ones((n_channels_in, n_channels_in)) - 2*(corr_mat < 0)
+
+                for i in np.arange(n_channels_in):
+                    for j in np.arange(n_channels_in):
+                        if i != j:
+                                grad_c[i,:,filter] += sign_mat[i,j]*(d_minus_sum_n[j]*d2_sum_sqrt[i] - d_dot_dT[i,j]*d_minus_sum_n_div[i])/(d2_sum_sqrt[j]*d2_sum_sqrt2[i])
+	loss_c = -loss_c
+	grad_c = -grad_c 
+        ########################### second order
+	print pearsonr((1-pdist(x,'correlation')), c_mat_input)
+	corrs = (1-pdist(x,'correlation')) - c_mat_input
         loss = np.sum(np.abs(corrs))
         corr_mat = squareform(corrs)
         
@@ -122,20 +153,34 @@ def test_grad(x):
 	d2_sum_sqrt2 = np.single(d2_sum_sqrt2)
 	l = []
 	n_per_cpu = np.int(in_dims / (n_cpus-1))
-	for cpu in range(n_cpus):
-		remainder = 1
-		if cpu == (n_cpus-1):
-			remainder = in_dims % (n_cpus-1)
-			i_inds = range(cpu*n_per_cpu, cpu*n_per_cpu + remainder)
-		else:
-			i_inds = range(cpu*n_per_cpu, (cpu+1)*n_per_cpu)
-		if remainder != 0:
-			file_name = '/tmp/test' + str(cpu) + '.mat'
-			savemat(file_name, {'sign_mat':sign_mat, 'd_minus_sum_n':d_minus_sum_n, 'd2_sum_sqrt':d2_sum_sqrt, 'd_dot_dT':d_dot_dT, 
-				'd_minus_sum_n_div':d_minus_sum_n_div[i_inds], 'd2_sum_sqrt2':d2_sum_sqrt2[i_inds]})
-			l.append(proc(second_order_grad, grad_shape, i_inds, in_dims, file_name))
-	results = call(l)
-	results = tuple(results)
+	if False:
+		for cpu in range(n_cpus):
+			remainder = 1
+			if cpu == (n_cpus-1):
+				remainder = in_dims % (n_cpus-1)
+				i_inds = range(cpu*n_per_cpu, cpu*n_per_cpu + remainder)
+			else:
+				i_inds = range(cpu*n_per_cpu, (cpu+1)*n_per_cpu)
+			if remainder != 0:
+				file_name = '/tmp/test' + str(cpu) + '.mat'
+				savemat(file_name, {'sign_mat':sign_mat, 'd_minus_sum_n':d_minus_sum_n, 'd2_sum_sqrt':d2_sum_sqrt, 'd_dot_dT':d_dot_dT, 
+					'd_minus_sum_n_div':d_minus_sum_n_div[i_inds], 'd2_sum_sqrt2':d2_sum_sqrt2[i_inds]})
+				l.append(proc(second_order_grad, grad_shape, i_inds, in_dims, file_name))
+		results = call(l)
+		results = tuple(results)
+	else:
+		for cpu in range(n_cpus):
+                        remainder = 1
+                        if cpu == (n_cpus-1):
+                                remainder = in_dims % (n_cpus-1)
+                                i_inds = range(cpu*n_per_cpu, cpu*n_per_cpu + remainder)
+                        else:
+                                i_inds = range(cpu*n_per_cpu, (cpu+1)*n_per_cpu)
+                        if remainder != 0:
+                                file_name = '/tmp/test' + str(cpu) + '.mat'
+                                savemat(file_name, {'sign_mat':sign_mat, 'd_minus_sum_n':d_minus_sum_n, 'd2_sum_sqrt':d2_sum_sqrt, 'd_dot_dT':d_dot_dT,
+                                        'd_minus_sum_n_div':d_minus_sum_n_div[i_inds], 'd2_sum_sqrt2':d2_sum_sqrt2[i_inds]})
+                                second_order_grad(grad_shape, i_inds, in_dims, file_name)
 	for cpu in range(n_cpus-1):
 		file_name = '/tmp/test' + str(cpu) + '.mat'
 		grad += loadmat(file_name)['grad']
@@ -186,32 +231,58 @@ def test_grad(x):
 	grad_f += grad_f2
 	
         #########
-	scale_fourier = 1e-1
+	scale_channel = 1e4###############1*1e-1#1e0#1e3
+	scale_fourier = 1e2############## 1*1e-4#1e-3#1
 	
-	'''thresh = 28066.5/10#33731.274635/2
+	thresh =0 #28066.5#33731.274635/2
 	if fourier_loss < thresh:
+		print '.....'
                 fourier_loss = thresh
                 grad_f = 0
-	'''
-        if (time.time() - time_save) >= 1:
+	
+        if (time.time() - time_save) >= 5:
             savemat(filename, {'x':x_in, 'f': loss})
             time_save = time.time()
-            print 'saving.........', loss, fourier_loss*scale_fourier, filename, time.time() - t_start
+	    s = model4['model_state']['layers'][weight_ind]['weights'][0].shape
+	    model4['model_state']['layers'][neuron_ind]['inputLayers'][0]['weights'][0] = ((x_in).reshape(s)).astype('single')
+	    model4['model_state']['layers'][weight_ind]['weights'][0] = ((x_in).reshape(s)).astype('single')
+	    pickle('/home/darren/tmp_l1.model',model4)
+            print 'saving.........', loss, fourier_loss*scale_fourier, scale_channel*loss_c, time.time() - t_start
+
+	grad = np.zeros_like(grad)
+	loss = np.zeros_like(loss)
 	
-	grad += scale_fourier*grad_f
-	loss += scale_fourier*fourier_loss
+	grad += scale_fourier*grad_f + scale_channel*grad_c.reshape(grad.shape)
+	loss += scale_fourier*fourier_loss + scale_channel*loss_c
 	
         return np.double(loss), np.double(grad.reshape(in_dims*n_channels_find))
 
 X = np.real(DFT_matrix_2d(filter_sz))
 X2 = np.imag(DFT_matrix_2d(filter_sz))
 
-c_mat_input = np.squeeze(loadmat('/home/darren/pool2_zscore.mat')['f'])
-#c_mat_input = squareform(c_mat_input)
-#inds = np.arange(c_mat_input.shape[0])
-#random.shuffle(inds)
-#c_mat_input = c_mat_input[inds][:,inds]
-#c_mat_input = squareform(c_mat_input)
+#model4 = unpickle('/home/darren/imgnet_3layer_256_linear_prelim.model')
+#model4 = unpickle('/home/darren/imgnet_3layer_256_final.model')
+#model4 = unpickle('/export/storage2/tmp2.model')
+model4 = unpickle('/home/darren/imgnet_3layer_48_linear.model')
+#model4 = unpickle('/home/darren/tmp.model')
+#model4 = unpickle('/home/darren/imgnet_3layer_48_optL1.model')
+#model4 = unpickle('/home/darren/imgnet_3layer_48_optL3.model')
+
+c_mat_input = np.squeeze(loadmat('/home/darren/pixels_zscore.mat')['f'])
+#c_mat_input = squareform(np.squeeze(loadmat('/home/darren/pixels_zscore.mat')['f']))
+'''for block in range(3):
+    for block2 in range(3):
+        #c_mat_input[block*49:(block+1)*49, block2*49:(block2+1)*49] -= np.mean(c_mat_input[block*49:(block+1)*49, block2*49:(block2+1)*49])
+	if block != block2:
+		c_mat_input[block*49:(block+1)*49, block2*49:(block2+1)*49] *= 2
+		c_mat_input[block*49:(block+1)*49, block2*49:(block2+1)*49][c_mat_input[block*49:(block+1)*49, block2*49:(block2+1)*49] < 0] = 0
+	c_mat_input[block*49:(block+1)*49, block2*49:(block2+1)*49] -= np.mean(c_mat_input[block*49:(block+1)*49, block2*49:(block2+1)*49])
+c_mat_input = squareform(c_mat_input,checks=False)
+'''
+
+
+#####c_mat_input =  1-pdist(model4['model_state']['layers'][weight_ind]['weights'][0].reshape((n_channels_in*filter_sz*filter_sz, n_channels_out)),'correlation')
+
 x0 = np.random.random((n_channels_in*filter_sz*filter_sz*n_channels_find,1))
 
 t_start = time.time()

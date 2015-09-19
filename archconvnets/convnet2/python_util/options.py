@@ -19,7 +19,12 @@ import re
 #import types
 
 import json
+from bson import json_util
 import collections
+
+import numpy as n
+
+from collections import OrderedDict
 
 TERM_BOLD_START = "\033[1m"
 TERM_BOLD_END = "\033[0m"
@@ -327,16 +332,30 @@ class FloatOptionParser(OptionParser):
 class RangeOptionParser(OptionParser):
     @staticmethod
     def parse(value):
-        m = re.match("^(\d+)\-(\d+)$", value)
-        try:
-            if m: return range(int(m.group(1)), int(m.group(2)) + 1)
-            return [int(value)]
-        except:
-            raise OptionException("argument is neither an integer nor a range")
+        values = value.split(',')
+        parsed = []
+        for value in values:
+            m = re.match("^(\d+)\-(\d+)$", value)
+            try:
+                if m: 
+                    parsed.append(range(int(m.group(1)), int(m.group(2)) + 1))
+                else:
+                    parsed.append([int(value)])
+            except:
+                raise OptionException("argument is neither an integer nor a range")
+        return sorted(list(itertools.chain(*parsed)))
     
     @staticmethod
     def to_string(value):
-        return "%d-%d" % (value[0], value[-1])
+        if len(value) == 1:
+            boundaries = [[value[0], value[0]]]
+        else:
+            valarray = n.array(value)
+            boundaries = valarray[1:] != valarray[:-1] + 1
+            boundariesl = valarray[n.concatenate([[1], boundaries]).astype(n.bool)]
+            boundariesr = valarray[n.concatenate([boundaries, [1]]).astype(n.bool)]
+            boundaries = zip(boundariesl, boundariesr)
+        return ','.join(["%d-%d" % bound for bound in boundaries])
     
     @staticmethod
     def get_type_str():
@@ -346,12 +365,37 @@ class RangeOptionParser(OptionParser):
     def is_type(value):
         return type(value) == list
     
+def opairshook(x):
+    x0 = collections.OrderedDict(x)
+    if hasattr(x, '__iter__'):
+        x1 = json_util.object_hook(collections.OrderedDict(x))
+    else:
+        x1 = json_util.object_hook(x)
+    if hasattr(x1, 'keys'):
+        return x0
+    else:
+        if hasattr(x1, '__iter__'):
+            return collections.OrderedDict(x1)
+        else:
+            return x1
+
+def byteify(input):
+    if hasattr(input, 'keys'):
+        return OrderedDict([(byteify(key), byteify(value)) for key,value in input.iteritems()])
+    elif isinstance(input, list):
+        return [byteify(element) for element in input]
+    elif isinstance(input, unicode):
+        return input.encode('utf-8')
+    else:
+        return input
+
 
 class JSONOptionParser(OptionParser):
     @staticmethod
     def parse(value):
         try: 
-            return json.loads(value, object_pairs_hook=collections.OrderedDict)
+            return byteify(json.loads(value, object_pairs_hook=opairshook))
+            #return json.loads(value, object_hook=opairshook)
         except ValueError, e:
             raise OptionException(e)
 
@@ -417,6 +461,10 @@ class ListOptionParser(OptionParser):
     @staticmethod
     def is_type(value):
         return type(value) == list
+
+
+import itertools
+
     
 class OptionExpression:
     """

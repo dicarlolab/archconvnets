@@ -177,7 +177,7 @@ std::vector<int>& getDeviceCPUs(int deviceID) {
     if (deviceCPUs.count(deviceID) == 0 && deviceID >= 0) {
         struct cudaDeviceProp props;
         checkCudaErrors(cudaGetDeviceProperties(&props, deviceID));
-        char pciString[13];
+/*        char pciString[13];
 
         sprintf(pciString, "%04x", props.pciDomainID);
         pciString[4] = ':';
@@ -194,17 +194,54 @@ std::vector<int>& getDeviceCPUs(int deviceID) {
             std::string cpuString;
             while (getline(f, cpuString, ',')) {
                 int start, end;
-                if (sscanf(cpuString.c_str(), "%d-%d", &start, &end)) {
+                int found = sscanf(cpuString.c_str(), "%d-%d", &start, &end);
+                end = found == 1 ? start : end;
+                if (found > 0) {
                     for (int i = start; i <= end; ++i) {
                         deviceCPUs[deviceID].push_back(i);
                     }
-                }
+                } 
             }
             f.close();
         } else {
             printf("Unable to open %s\n", path.c_str());
         }
+*/
+
+        // Find Cpus_allowed_list by cgroups
+        //printf("print pid: %d\n", getpid());
+        char pid[8];
+        sprintf(pid, "%d", getpid());
+        std::string path_pid = std::string("/proc/") + std::string(pid) + "/status";
+        //printf("print path: %s\n", path_pid.c_str());
+        ifstream file(path_pid.c_str());
+
+        if (file.is_open()) {
+            std::string line;
+            //printf("File is opened\n");
+            while (getline(file, line)) {
+                //printf("line %s\n", line.c_str());
+                if (line.find("Cpus_allowed_list") == std::string::npos)
+                        continue;
+                std::istringstream found(line);
+                std::string list;
+                while (getline(found, list, ':')) {
+                        //printf("cpu list: %s\n", list.c_str());
+
+                        std::istringstream iss(list);
+                        std::string cpu;
+                        while (getline(iss, cpu, ',')) {
+                                deviceCPUs[deviceID].push_back(atoi(cpu.c_str()));
+                                //printf("cpu allowed: %d\n", atoi(cpu.c_str()));
+                        }
+                }
+            }
+            file.close();
+        } else {
+            printf("Unable to open %s\n", path_pid.c_str());
+        }
     }
+
     vector<int>& ret = deviceCPUs[deviceID];
     deviceCPULock.release();
     return ret;
