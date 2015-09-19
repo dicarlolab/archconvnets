@@ -61,23 +61,55 @@ def get_recent_checkpoint_fs(host, port, db_name, fs_name):
     return get_checkpoint_fs(host, port, db_name + "__RECENT", fs_name)
 
 
-def cleanup_checkpoint_db(host, port, db_name, fs_name, keep_recents=True):
+def cleanup_checkpoint_db(host, port, db_name, keep_recents=True, others=None, dry_run=False):
+    conn = pm.Connection(host=host, port=port)
+    db = conn[db_name]
+    fs_names = [_f[:-6] for _f in db.collection_names() if _f.endswith('.files')]
+    for fs_name in fs_names:
 
-    rfs = get_recent_checkpoint_fs(host, port, db_name, fs_name)
-
-    if keep_recents:
+        rfs = get_recent_checkpoint_fs(host, port, db_name, fs_name)
         fs = get_checkpoint_fs(host, port, db_name, fs_name)
         rcoll = rfs._GridFS__files
-        edatas = rcoll.distinct('experiment_data')
-        for ed in edatas:
-            rec = rcoll.find({'experiment_data': ed},
-                             as_class=collections.OrderedDict).sort([('timestamp', -1)])[0]
-            blob = rfs.get_last_version(_id=rec['_id'])
-            idval = fs.put(blob, **rec)    
-            print('saved record with filters to id %s' % repr(idval))
-        
-    conn = pm.Connection(host=host, port=port)
-    conn.drop_database(rfs._GridFS__database)
+
+        if keep_recents:
+            edatas = rcoll.distinct('experiment_data')
+            for ed in edatas:
+                query = {'experiment_data.experiment_id': ed['experiment_id']}
+                if 'config_id' in ed:
+                    query['experiment_data.config_id'] = ed['config_id']
+                    print(query)
+                rec = rcoll.find(query).sort([('timestamp', -1)])[0]
+                if dry_run:
+                    print(rec["_id"])
+                    continue
+                blob = rfs.get_last_version(_id=rec['_id'])
+                try:
+                    idval = fs.put(blob, **rec)    
+                except gridfs.errors.FileExists:
+                    print('already exists at id: %s' % repr(rec['_id']))
+                else:
+                    print('saved record with filters to id %s' % repr(idval))
+
+        if others is not None and others.get(fs_name):
+            keep_ids = others.get(fs_name)
+            for _id in keep_ids: 
+                if dry_run:
+                    print(fs_name, _id)
+                    continue
+                rec = rcoll.find({'_id': _id})[0]
+                blob = rfs.get_last_version(_id=rec['_id'])
+                try:
+                    idval = fs.put(blob, **rec)    
+                except gridfs.errors.FileExists:
+                    print('already exists at id: %s' % repr(rec['_id']))
+                else:
+                    print('saved record with filters to id %s' % repr(idval))
+
+
+        conn = pm.Connection(host=host, port=port)
+        if dry_run:
+            return
+        conn.drop_database(rfs._GridFS__database)
 
 
 class ModelStateException(Exception):
