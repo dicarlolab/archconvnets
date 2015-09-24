@@ -37,7 +37,7 @@ def weight_address(W, O_PREV, inputs, mem_prev):
 	O[KEY] = linear_2d_F(W[KEY], inputs)
 	O[BETA] = linear_F(W[BETA], inputs)
 	O[CONTENT] = cosine_sim(O[KEY], mem_prev)
-	O[CONTENT_FOCUSED] = focus_keys(O[CONTENT], O[BETA])
+	O[CONTENT_FOCUSED] = focus_keys(O[CONTENT], O[BETA]) # beta*cos
 	O[CONTENT_SM] = softmax(O[CONTENT_FOCUSED])
 	
 	# interpolate
