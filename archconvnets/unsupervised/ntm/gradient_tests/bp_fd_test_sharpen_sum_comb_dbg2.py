@@ -27,7 +27,9 @@ t = np.random.normal(size=(8, 15))
 def dwg_dg(w, gamma):
 	g = np.zeros(np.concatenate((w.shape, gamma.shape)))
 	
-	wg_ln_w = 
+	wg = w ** gama
+	
+	wg_ln_w = np.log(w)*wg
 	
 	for i in range(w.shape[0]):
 		for j in range(w.shape[1]):
