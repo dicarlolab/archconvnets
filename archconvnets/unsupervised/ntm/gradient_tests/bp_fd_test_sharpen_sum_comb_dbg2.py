@@ -13,38 +13,21 @@ w = np.abs(np.random.normal(size=(8, 15)))
 
 t = np.random.normal(size=(8, 15))
 
-'''def dwg_dg(w, gamma):
-	g = np.zeros(np.concatenate((w.shape, gamma.shape)))
-	
-	g_temp = np.log(w) * w ** gamma
-	
-	for i in range(w.shape[0]):
-		for j in range(w.shape[1]):
-			g[i,j,i] = g_temp[i,j]
-	
-	return g'''
-
 def dwg_dg(w, gamma):
 	g = np.zeros(np.concatenate((w.shape, gamma.shape)))
 	
-	wg = w ** gama
+	wg = w ** gamma
 	
-	wg_ln_w = np.log(w)*wg
+	ln_w_wg = np.log(w)*wg
 	
-	for i in range(w.shape[0]):
-		for j in range(w.shape[1]):
-			g[i,j,i] = g_temp[i,j]
+	wg_sum = wg.sum(1)[:,np.newaxis]
+	ln_w_wg_sum = ln_w_wg.sum(1)[:,np.newaxis]
 	
-	return g
-
-def dwg_dw(w, gamma):
-	g = np.zeros(np.concatenate((w.shape, w.shape)))
-	
-	g_temp = gamma * w ** (gamma-1)
+	print wg.shape, ln_w_wg.shape, wg_sum.shape, ln_w_wg_sum.shape
 	
 	for i in range(w.shape[0]):
 		for j in range(w.shape[1]):
-			g[i,j,i,j] = g_temp[i,j]
+			g[i,j,i] = (ln_w_wg[i,j] * wg_sum[i] - wg[i,j] * ln_w_wg_sum[i]) / (wg_sum[i]**2)
 	
 	return g
 
@@ -70,14 +53,8 @@ def g(y):
 	##
 	derr_do = sq_points_dinput(o - t)
 	
-	do_dw = dwg_dw(w, gamma)
 	do_dg = dwg_dg(w, gamma)
 	
-	do_dg = (do_dg*denom - numer*do_dg)/(denom**2)
-	
-	print do_dg.shape
-	
-	derr_dw = mult_partials_collapse(derr_do, do_dw, o)
 	derr_dg = mult_partials_collapse(derr_do, do_dg, o)
 	
 	##
