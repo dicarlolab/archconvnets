@@ -177,79 +177,45 @@ def cosine_sim_dmem(keys, mem, above_w=1):
 	return dnumer_mem - ddenom_mem # [n_controllers, m_length]
 
 ############# sharpen across mem_slots separately for each controller
-def sharpen(layer_in, gamma_out):
-	# layer_in: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
-	layer_in_raised = layer_in**gamma_out
-	return layer_in_raised / layer_in_raised.sum(1)[:,np.newaxis]
+def sharpen(w, gamma):
+	wg = w ** gamma
+	return wg / wg.sum(1)[:,np.newaxis]
 
-def sharpen_dlayer_in(layer_in, gamma_out, above_w=1):
-	# layer_in, above_w: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
-	layer_in_raised = layer_in**gamma_out
-	layer_in_raised_m1 = layer_in**(gamma_out-1)
-	denom = layer_in_raised.sum(1)[:,np.newaxis] # sum across slots
-	denom2 = denom**2
+def dsharpen_dgamma(w, gamma):
+	n = w.shape[0]
+	g = np.zeros(np.concatenate((w.shape, gamma.shape)))
 	
-	# dsharpen[:,i]/dlayer_in[:,j] when i = j:
-	dsharpen_dlayer_in = above_w*(layer_in_raised_m1 * denom - layer_in_raised * layer_in_raised_m1)
-
-	# dsharpen[:,i]/dlayer_in[:,j] when i != j:
-	dsharpen_dlayer_in -=  np.einsum(layer_in_raised_m1, [0,1], above_w * layer_in_raised, [0,2], [0,1])
-	dsharpen_dlayer_in += above_w * layer_in_raised_m1 * layer_in_raised
+	wg = w ** gamma
+	ln_w_wg = np.log(w)*wg
+	wg_sum = wg.sum(1)[:,np.newaxis]
+	ln_w_wg_sum = ln_w_wg.sum(1)[:,np.newaxis]
 	
-	dsharpen_dlayer_in *= gamma_out / denom2
+	t = (ln_w_wg * wg_sum - wg * ln_w_wg_sum) / (wg_sum ** 2)
 	
-	return dsharpen_dlayer_in
-
-def sharpen_dlayer_in_nsum(layer_in, gamma_out):
-	# layer_in, above_w: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
-	layer_in_raised = layer_in**gamma_out
-	layer_in_raised_m1 = layer_in**(gamma_out-1)
-	denom = layer_in_raised.sum(1)[:,np.newaxis] # sum across slots
-	denom2 = denom**2
+	g[range(n),:,range(n)] = t[:,:,np.newaxis]
 	
-	# dsharpen[:,i]/dlayer_in[:,j] when i = j:
-	dsharpen_dlayer_in = above_w*(layer_in_raised_m1 * denom - layer_in_raised * layer_in_raised_m1)
-
-	# dsharpen[:,i]/dlayer_in[:,j] when i != j:
-	dsharpen_dlayer_in -=  np.einsum(layer_in_raised_m1, [0,1], above_w * layer_in_raised, [0,2], [0,1])
-	dsharpen_dlayer_in += above_w * layer_in_raised_m1 * layer_in_raised
+	return g
 	
-	dsharpen_dlayer_in *= gamma_out / denom2
+def dsharpen_dw(w, gamma):
+	n = w.shape[0]
+	g = np.zeros(np.concatenate((w.shape, w.shape)))
 	
-	return dsharpen_dlayer_in
-
-def sharpen_dgamma_out(layer_in, gamma_out, above_w=1):
-	# layer_in, above_w: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
-	w_gamma = layer_in**gamma_out
-	w_gamma_sum = w_gamma.sum(1)[:,np.newaxis] # sum across slots
+	wg = w ** gamma
+	wg_sum = wg.sum(1)[:,np.newaxis]
+	wg_sum2 = wg_sum ** 2
+	g_wgm1 = gamma * (w ** (gamma-1))
 	
-	ln_gamma = np.log(layer_in)
+	t = (g_wgm1 / wg_sum2) * (wg_sum - wg)
 	
-	dw_gamma_dgamma = w_gamma * ln_gamma
-	dw_sum_gamma_dgamma = dw_gamma_dgamma.sum(1)[:,np.newaxis] # sum across slots
+	for i in range(w.shape[0]):
+		g[i,:,i,:] = t[i]
 	
-	dw_dgamma = (dw_gamma_dgamma * w_gamma_sum - w_gamma * dw_sum_gamma_dgamma) / (w_gamma_sum**2)
+	for j in range(w.shape[1]):
+		for b in range(w.shape[1]):
+			if b != j:
+				g[range(n),j,range(n),b] = -g_wgm1[:,b] * wg[:,j] / np.squeeze(wg_sum2)
 	
-	return (dw_dgamma * above_w).sum(1)[:,np.newaxis]
-
-def sharpen_dgamma_out_nsum(layer_in, gamma_out):
-	# layer_in, above_w: [n_controllers, n_mem_slots], gamma_out: [n_controllers, 1]
-	w_gamma = layer_in**gamma_out
-	w_gamma_sum = w_gamma.sum(1)[:,np.newaxis] # sum across slots
-	
-	ln_gamma = np.log(layer_in)
-	
-	dw_gamma_dgamma = w_gamma * ln_gamma
-	dw_sum_gamma_dgamma = dw_gamma_dgamma.sum(1)[:,np.newaxis] # sum across slots
-	
-	dw_dgamma = (dw_gamma_dgamma * w_gamma_sum - w_gamma * dw_sum_gamma_dgamma) / (w_gamma_sum**2)
-	
-	t = np.zeros(np.concatenate((layer_in.shape, gamma_out.shape)))
-	
-	print dw_dgamma.shape, t.shape
-	for i in range(layer_in.shape[0]):
-		t[i,:,i] = dw_dgamma[i,:,np.newaxis]
-	return t
+	return g
 
 ##############
 # sigmoid point-wise

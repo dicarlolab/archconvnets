@@ -49,7 +49,8 @@ def weight_address(W, O_PREV, inputs, mem_prev):
 	O[F] = shift_w(O[SHIFT], O[IN])
 	
 	# sharpen
-	O[SHARPEN] = linear_F(W[SHARPEN], inputs)
+	O[GAMMA] = linear_F(W[GAMMA], inputs)
+	
 	
 	return O
 
