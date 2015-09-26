@@ -238,10 +238,14 @@ def relu(layer_in, thresh=0):
 	temp[layer_in < thresh] = thresh
 	return temp
 
-def relu_dlayer_in(layer_in, above_w=1, thresh=0):
-	temp = above_w * np.ones_like(layer_in)
-	temp[layer_in < thresh] = 0
-	return temp
+def relu_dlayer_in(layer_in, thresh=0):
+	temp = np.ones_like(layer_in)
+	temp[layer_in <= thresh] = 0
+	
+	temp2 = np.zeros(np.concatenate((layer_in.shape, layer_in.shape)))
+	temp2[range(layer_in.shape[0]),:,range(layer_in.shape[0])] = temp[:,np.newaxis]
+	
+	return temp2
 	
 
 ############

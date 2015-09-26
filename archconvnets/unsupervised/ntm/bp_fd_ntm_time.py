@@ -46,11 +46,13 @@ def weight_address(W, O_PREV, inputs, mem_prev):
 	
 	# shift
 	O[SHIFT] = linear_2d_F_softmax(W[SHIFT], inputs)
-	O[F] = shift_w(O[SHIFT], O[IN])
+	O[SHIFTED] = shift_w(O[SHIFT], O[IN])
 	
 	# sharpen
-	O[GAMMA] = linear_F(W[GAMMA], inputs)
+	O[GAMMA] = relu(linear_F(W[GAMMA], inputs), thresh=1)
+	O[SHARPENED] = sharpen(O[SHIFTED], O[GAMMA])
 	
+	O[F] = O[SHIFTED]
 	
 	return O
 
@@ -77,6 +79,7 @@ def forward_pass(WUNDER, WR,WW, OR_PREV, OW_PREV, mem_prev, x_cur):
 	
 	return OR,OW,mem,read_mem,OUNDER
 
+# gradients for layers underneath the read/write heads
 def dunder_dw(WUNDER, OUNDER, x):
 	DG3UNDER_DW = [None] * len(OUNDER)
 	

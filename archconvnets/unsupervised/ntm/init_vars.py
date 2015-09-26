@@ -20,14 +20,18 @@ L1_UNDER = 0; L2_UNDER = 1; F_UNDER = 2
 # read/write heads:
 N_READ_IN_LAYERS = 5 # layers directly operating on read head inputs
 N_WRITE_IN_LAYERS = N_READ_IN_LAYERS + 2 # plus the add/erase layers
-IN_GATE = 0; SHIFT = 1; KEY = 2; BETA = 3; GAMMA = 4; ERASE = 5; ADD = 6
+IN_GATE = 0; SHIFT = 1; KEY = 2; BETA = 3; GAMMA = 4; 
+ERASE = 5; ADD = 6
 
-N_HEAD_INT_LAYERS = 5 # intermediate layers operating on the outputs of layers processing inputs
+# intermediate layers operating on the outputs of layers processing inputs (they don't have weights)
+N_HEAD_INT_LAYERS = 7 
 CONTENT_FOCUSED = N_WRITE_IN_LAYERS
 CONTENT = N_WRITE_IN_LAYERS + 1
 CONTENT_SM = N_WRITE_IN_LAYERS + 2
 IN = N_WRITE_IN_LAYERS + 3
-F = N_WRITE_IN_LAYERS + 4
+SHIFTED = N_WRITE_IN_LAYERS + 4
+SHARPENED = N_WRITE_IN_LAYERS + 5
+F = N_WRITE_IN_LAYERS + 6
 
 N_TOTAL_HEAD_LAYERS = N_WRITE_IN_LAYERS +  N_HEAD_INT_LAYERS
 
