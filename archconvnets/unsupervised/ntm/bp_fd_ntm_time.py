@@ -9,8 +9,8 @@ from ntm_gradients import *
 from init_vars import *
 
 ##### which gradients to test
-DERIV_L = L1_UNDER
-#DERIV_L = L2_UNDER
+#DERIV_L = L1_UNDER
+DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
@@ -52,7 +52,8 @@ def weight_address(W, O_PREV, inputs, mem_prev):
 	O[GAMMA] = relu(linear_F(W[GAMMA], inputs), thresh=1)
 	O[SHARPENED] = sharpen(O[SHIFTED], O[GAMMA])
 	
-	O[F] = O[SHIFTED]
+	#O[F] = O[SHIFTED]
+	O[F] = O[SHARPENED]
 	
 	return O
 
@@ -117,6 +118,9 @@ def do_do_content__(O, do_do_in):
 def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, do_do_in):
 	DO_DW_NEW = copy.deepcopy(DO_DW)
 	DO_DWUNDER_NEW = copy.deepcopy(DO_DWUNDER)
+	
+	## sharpen weights
+	do_dgsharpen = dsharpen_dw(O[SHIFTED], O[GAMMA])
 	
 	## shift weights
 	do_dgshift = shift_w_dshift_out_nsum(O[IN])
@@ -280,8 +284,17 @@ def g(y):
 		OR, OW, mem, read_mem, OUNDER = forward_pass(WUNDER, WR, WW, OR_PREV, OW_PREV, mem_prev, x[frame])
 		
 		# reverse
-		dor_dor_in = shift_w_dw_interp_nsum(OR[SHIFT])
-		dow_prev_dow_prev_in = shift_w_dw_interp_nsum(OW_PREV[SHIFT])
+		dor_dgsharpen = dsharpen_dw(OR[SHIFTED], OR[GAMMA])
+		dow_prev_dgsharpen = dsharpen_dw(OW_PREV[SHIFTED], OW_PREV[GAMMA])
+		
+		dgsharpen_dor_in = shift_w_dw_interp_nsum(OR[SHIFT])
+		dgsharpen_dow_prev_in = shift_w_dw_interp_nsum(OW_PREV[SHIFT])
+		
+		dor_dor_in = mult_partials(dor_dgsharpen, dgsharpen_dor_in, OR[SHARPENED])
+		dow_prev_dow_prev_in = mult_partials(dow_prev_dgsharpen, dgsharpen_dow_prev_in, OW_PREV[SHARPENED])
+		
+		#dor_dor_in = shift_w_dw_interp_nsum(OR[SHIFT])
+		#dow_prev_dow_prev_in = shift_w_dw_interp_nsum(OW_PREV[SHIFT])
 		
 		# partials for write head output (OW)
 		if frame > 1:
