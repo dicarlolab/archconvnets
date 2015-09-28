@@ -10,17 +10,18 @@ from init_vars import *
 
 ##### which gradients to test
 #DERIV_L = L1_UNDER
-#DERIV_L = L2_UNDER
+DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
-DERIV_L = SHIFT
+#DERIV_L = SHIFT
 #DERIV_L = IN_GATE
 #DERIV_L = KEY
 #DERIV_L = BETA
 #DERIV_L = ADD
 #DERIV_L = ERASE
+#DERIV_L = GAMMA
 #gradient_category = 'write'
-gradient_category = 'read'
-#gradient_category = 'under'
+#gradient_category = 'read'
+gradient_category = 'under'
 ####
 if gradient_category == 'under':
 	ref = WUNDER[DERIV_L]
@@ -52,7 +53,6 @@ def weight_address(W, O_PREV, inputs, mem_prev):
 	O[GAMMA] = relu(linear_F(W[GAMMA], inputs), thresh=1)
 	O[SHARPENED] = sharpen(O[SHIFTED], O[GAMMA])
 	
-	#O[F] = O[SHIFTED]
 	O[F] = O[SHARPENED]
 	
 	return O
@@ -120,8 +120,13 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	DO_DWUNDER_NEW = copy.deepcopy(DO_DWUNDER)
 	
 	## sharpen weights
-	do_dgamma = dsharpen_dgamma(O[SHIFTED], O[GAMMA])
-	dgamma_dg3under = relu_dlayer_in(O[GAMMA])
+	do_dgammarelu = dsharpen_dgamma(O[SHIFTED], O[GAMMA])
+	dgammarelu_dgamma = relu_dlayer_in(O[GAMMA], thresh=1)
+	do_dgamma = mult_partials(do_dgammarelu, dgammarelu_dgamma, O[GAMMA])
+	dgamma_dwgamma = linear_F_dF_nsum_g(W[GAMMA], OUNDER[F_UNDER])
+	dgamma_dg3under = linear_F_dx_nsum_g(W[GAMMA], OUNDER[F_UNDER])
+	DO_DW_NEW[GAMMA] += mult_partials(do_dgamma, dgamma_dwgamma, O[GAMMA])
+	do_dg3under = np.squeeze(mult_partials(do_dgamma, dgamma_dg3under, O[GAMMA]))
 	
 	## shift weights
 	do_dgshifted = dsharpen_dw(O[SHIFTED], O[GAMMA])
@@ -130,7 +135,7 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	dgshift_dwshift = linear_2d_F_softmax_dF_nsum(O[SHIFT], W[SHIFT], OUNDER[F_UNDER])
 	dgshift_dg3under = linear_2d_F_softmax_dx_nsum(O[SHIFT], W[SHIFT])
 	DO_DW_NEW[SHIFT] += mult_partials(do_dgshift, dgshift_dwshift, O[SHIFT])
-	do_dg3under = mult_partials(do_dgshift, dgshift_dg3under, O[SHIFT])
+	do_dg3under += mult_partials(do_dgshift, dgshift_dg3under, O[SHIFT])
 	
 	## interp. gradients (wrt gin_gate)
 	do_in_dgin_gate = interpolate_softmax_dinterp_gate_out(O[IN], O[IN_GATE], O[CONTENT_SM], o_prev)
@@ -295,10 +300,6 @@ def g(y):
 		
 		dor_dor_in = mult_partials(dor_dgsharpen, dgsharpen_dor_in, OR[SHARPENED])
 		dow_prev_dow_prev_in = mult_partials(dow_prev_dgsharpen, dgsharpen_dow_prev_in, OW_PREV[SHARPENED])
-		
-		#
-		#dor_dor_in = shift_w_dw_interp_nsum(OR[SHIFT])
-		#dow_prev_dow_prev_in = shift_w_dw_interp_nsum(OW_PREV[SHIFT])
 		
 		# partials for write head output (OW)
 		if frame > 1:
