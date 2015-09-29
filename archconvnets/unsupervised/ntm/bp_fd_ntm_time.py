@@ -31,12 +31,12 @@ else:
 	ref = WW[DERIV_L]
 
 ########
-def weight_address(W, O_PREV, inputs, mem_prev):
+def weight_address(W, B, O_PREV, inputs, mem_prev):
 	O = [None]*len(O_PREV)
 	
 	# content
 	O[KEY] = linear_2d_F(W[KEY], inputs)
-	O[BETA] = linear_F(W[BETA], inputs)
+	O[BETA] = linear_F(W[BETA], inputs) + B[BETA]
 	O[CONTENT] = cosine_sim(O[KEY], mem_prev)
 	O[CONTENT_FOCUSED] = focus_keys(O[CONTENT], O[BETA]) # beta*cos
 	O[CONTENT_SM] = softmax(O[CONTENT_FOCUSED])
@@ -57,7 +57,7 @@ def weight_address(W, O_PREV, inputs, mem_prev):
 	
 	return O
 
-def forward_pass(WUNDER, WR,WW, OR_PREV, OW_PREV, mem_prev, x_cur):
+def forward_pass(WUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x_cur):
 	OUNDER = [None]*len(WUNDER)
 	
 	# processing underneath read/write heads
@@ -66,8 +66,8 @@ def forward_pass(WUNDER, WR,WW, OR_PREV, OW_PREV, mem_prev, x_cur):
 	OUNDER[F_UNDER] = sq_F(WUNDER[F_UNDER], OUNDER[L2_UNDER])
 	
 	# read/write heads
-	OR = weight_address(WR, OR_PREV, OUNDER[F_UNDER], mem_prev)
-	OW = weight_address(WW, OW_PREV, OUNDER[F_UNDER], mem_prev)
+	OR = weight_address(WR, BR, OR_PREV, OUNDER[F_UNDER], mem_prev)
+	OW = weight_address(WW, BW, OW_PREV, OUNDER[F_UNDER], mem_prev)
 	
 	# erase/add output
 	OW[ERASE] = linear_2d_F(WW[ERASE], OUNDER[F_UNDER])
@@ -115,8 +115,8 @@ def do_do_content__(O, do_do_in):
 	return do_do_content
 
 ########## ...
-def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, do_do_in):
-	DO_DW_NEW = copy.deepcopy(DO_DW)
+def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, DO_DB, mem_prev, x, do_do_in):
+	DO_DW_NEW = copy.deepcopy(DO_DW); DO_DB_NEW = copy.deepcopy(DO_DB)
 	DO_DWUNDER_NEW = copy.deepcopy(DO_DWUNDER)
 	
 	## sharpen weights
@@ -158,6 +158,7 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	do_do_content_focused = do_do_content_focused__(O, do_do_in)
 	do_content_focused_dgbeta = focus_key_dbeta_out_nsum(O[CONTENT], O[BETA])
 	do_dgbeta = mult_partials(do_do_content_focused, do_content_focused_dgbeta, O[CONTENT_FOCUSED])
+	DO_DB_NEW[BETA] += do_dgbeta
 	dgbeta_dwbeta = linear_F_dF_nsum_g(W[BETA], OUNDER[F_UNDER])
 	dgbeta_dg3under = linear_F_dx_nsum_g(W[BETA], OUNDER[F_UNDER])
 	DO_DW_NEW[BETA] += mult_partials(do_dgbeta, dgbeta_dwbeta, O[BETA])
@@ -167,29 +168,31 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, mem_prev, x, 
 	DG3UNDER_DW = dunder_dw(WUNDER, OUNDER, x)
 	DO_DWUNDER_NEW = mult_partials__layers(do_dg3under, DG3UNDER_DW, np.squeeze(OUNDER[F_UNDER]), DO_DWUNDER_NEW)
 	
-	return DO_DW_NEW, DO_DWUNDER_NEW
+	return DO_DW_NEW, DO_DB_NEW, DO_DWUNDER_NEW
 
 ########## ...
-def do_dw__o_prev(W, o_prev, DO_DW, DO_DWUNDER, O, do_do_in):
+def do_dw__o_prev(W, o_prev, DO_DW, DO_DB, DO_DWUNDER, O, do_do_in):
 	do_in_do_prev = interpolate_softmax_do_prev(O[IN], O[IN_GATE], o_prev)
 	do_do_prev = mult_partials(do_do_in, do_in_do_prev, O[IN])
 	
 	DO_DW_NEW = mult_partials__layers(do_do_prev, DO_DW, o_prev)
+	DO_DB_NEW = mult_partials__layers(do_do_prev, DO_DB, o_prev)
 	DO_DWUNDER_NEW = mult_partials__layers(do_do_prev, DO_DWUNDER, o_prev)
 	
-	return DO_DW_NEW, DO_DWUNDER_NEW
+	return DO_DW_NEW, DO_DB_NEW, DO_DWUNDER_NEW
 
-def do_dw__mem_prev(W, DO_DW, DO_DWUNDER, O, mem_prev, DMEM_PREV_DWW, DMEM_PREV_DWUNDER, do_do_in):
+def do_dw__mem_prev(W, DO_DW, DO_DB, DO_DWUNDER, O, mem_prev, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, do_do_in):
 	do_do_content = do_do_content__(O, do_do_in)
 	do_content_dmem_prev = cosine_sim_expand_dmem(O[KEY], mem_prev)
 	do_dmem_prev = mult_partials(do_do_content, do_content_dmem_prev, O[CONTENT])
 	
 	DO_DW_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DWW, mem_prev, DO_DW)
+	DO_DB_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DBW, mem_prev, DO_DB)
 	DO_DWUNDER_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DO_DWUNDER)
 	
-	return DO_DW_NEW, DO_DWUNDER_NEW
+	return DO_DW_NEW, DO_DB_NEW, DO_DWUNDER_NEW
 
-def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_DWUNDER, OW_PREV, OUNDER_PREV, WW, WUNDER, x_prev, mem_prev_prev):
+def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_DBW,DOW_DWUNDER, OW_PREV, OUNDER_PREV, WW,BW, WUNDER, x_prev, mem_prev_prev):
 	DG3UNDER_DW = dunder_dw(WUNDER, OUNDER_PREV, x_prev)
 	# mem = mem_prev*(1 - e) + a
 	# dmem = dmem_prev*(1 - e) - mem_prev*de + da
@@ -201,10 +204,12 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_DWUNDER, OW_PREV
 	
 	# dmem_prev * (1 - e)
 	DMEM_PREV_DWW_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DWW)
+	DMEM_PREV_DBW_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DBW)
 	DMEM_PREV_DWUNDER_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DWUNDER)
 	
 	# dmem_prev * (1 - e) - mem_prev * de
 	DMEM_PREV_DWW_NEW = mult_partials__layers(mem_prev_de_dow, DOW_DWW, OW_PREV[F], DMEM_PREV_DWW_NEW)
+	DMEM_PREV_DBW_NEW = mult_partials__layers(mem_prev_de_dow, DOW_DBW, OW_PREV[F], DMEM_PREV_DBW_NEW)
 	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(mem_prev_de_dow, DOW_DWUNDER, OW_PREV[F], DMEM_PREV_DWUNDER_NEW)
 	
 	###
@@ -226,6 +231,7 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_DWUNDER, OW_PREV
 	da_dow = add_mem_dgw(OW_PREV[ADD]) # da
 	
 	DMEM_PREV_DWW_NEW = mult_partials__layers(da_dow, DOW_DWW, OW_PREV[F], DMEM_PREV_DWW_NEW) # da_dlayer
+	DMEM_PREV_DBW_NEW = mult_partials__layers(da_dow, DOW_DBW, OW_PREV[F], DMEM_PREV_DBW_NEW) # da_dlayer
 	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(da_dow, DOW_DWUNDER, OW_PREV[F], DMEM_PREV_DWUNDER_NEW)
 	
 	###
@@ -241,7 +247,7 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_DWUNDER, OW_PREV
 	
 	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(da_dg3under, DG3UNDER_DW, np.squeeze(OUNDER_PREV[F_UNDER]), DMEM_PREV_DWUNDER_NEW)
 	
-	return DMEM_PREV_DWW_NEW, DMEM_PREV_DWUNDER_NEW
+	return DMEM_PREV_DWW_NEW, DMEM_PREV_DBW_NEW, DMEM_PREV_DWUNDER_NEW
 
 ########
 def f(y):
@@ -261,7 +267,7 @@ def f(y):
 	mem_prev = copy.deepcopy(mem_previ)
 	
 	for frame in range(1,N_FRAMES+1):
-		OR_PREV, OW_PREV, mem_prev, read_mem = forward_pass(WUNDER, WR, WW, OR_PREV, OW_PREV, mem_prev, x[frame])[:4]
+		OR_PREV, OW_PREV, mem_prev, read_mem = forward_pass(WUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x[frame])[:4]
 	
 	return ((read_mem - t)**2).sum()
 
@@ -282,14 +288,16 @@ def g(y):
 	OR_PREV = copy.deepcopy(OR_PREVi); OW_PREV = copy.deepcopy(OW_PREVi)
 	OW_PREV_PREV = copy.deepcopy(OW_PREV_PREVi); OUNDER_PREV = copy.deepcopy(OUNDER_PREVi)
 	DOR_DWR = copy.deepcopy(DOR_DWRi); DOW_DWW = copy.deepcopy(DOW_DWWi); DOR_DWW = copy.deepcopy(DOR_DWWi)
+	DOR_DBR = copy.deepcopy(DOR_DBRi); DOW_DBW = copy.deepcopy(DOW_DBWi); DOR_DBW = copy.deepcopy(DOR_DBWi)
 	DOW_DWUNDER = copy.deepcopy(DOW_DWUNDERi); DOR_DWUNDER = copy.deepcopy(DOR_DWUNDERi)
 	mem_prev = copy.deepcopy(mem_previ); mem_prev_prev = copy.deepcopy(mem_previ)
 	DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi); DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi)
+	DMEM_PREV_DBW = copy.deepcopy(DMEM_PREV_DBWi)
 	
 	###
 	for frame in range(1,N_FRAMES+1):
 		# forward
-		OR, OW, mem, read_mem, OUNDER = forward_pass(WUNDER, WR, WW, OR_PREV, OW_PREV, mem_prev, x[frame])
+		OR, OW, mem, read_mem, OUNDER = forward_pass(WUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x[frame])
 		
 		# reverse
 		dor_dgsharpen = dsharpen_dw(OR[SHIFTED], OR[GAMMA])
@@ -303,18 +311,22 @@ def g(y):
 		
 		# partials for write head output (OW)
 		if frame > 1:
-			DOW_DWW, DOW_DWUNDER = do_dw__o_prev(WW, OW_PREV_PREV[F], DOW_DWW, DOW_DWUNDER, OW_PREV, dow_prev_dow_prev_in)
-			DOW_DWW, DOW_DWUNDER = do_dw__mem_prev(WW, DOW_DWW, DOW_DWUNDER, OW_PREV, mem_prev_prev, DMEM_PREV_DWW, DMEM_PREV_DWUNDER, dow_prev_dow_prev_in)
-			DOW_DWW, DOW_DWUNDER = do_dw__inputs(WW, WUNDER, OW_PREV_PREV[F], OUNDER_PREV, DOW_DWUNDER, OW_PREV, DOW_DWW, mem_prev_prev, x[frame-1], dow_prev_dow_prev_in)
+			DOW_DWW, DOW_DBW, DOW_DWUNDER = do_dw__o_prev(WW, OW_PREV_PREV[F], DOW_DWW, DOW_DBW, DOW_DWUNDER, OW_PREV, dow_prev_dow_prev_in)
+			DOW_DWW, DOW_DBW, DOW_DWUNDER = do_dw__mem_prev(WW, DOW_DWW, DOW_DBW, DOW_DWUNDER, OW_PREV, \
+												mem_prev_prev, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, dow_prev_dow_prev_in)
+			DOW_DWW, DOW_DBW, DOW_DWUNDER = do_dw__inputs(WW, WUNDER, OW_PREV_PREV[F], OUNDER_PREV, DOW_DWUNDER, \
+												OW_PREV, DOW_DWW, DOW_DBW, mem_prev_prev, x[frame-1], dow_prev_dow_prev_in)
 			
-			DMEM_PREV_DWW, DMEM_PREV_DWUNDER = mem_partials(DMEM_PREV_DWW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_DWUNDER, OW_PREV, OUNDER_PREV, WW, WUNDER, x[frame-1], mem_prev_prev)
+			DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER = mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOW_DWW, \
+												DOW_DBW, DOW_DWUNDER, OW_PREV, OUNDER_PREV, WW, BW, WUNDER, x[frame-1], mem_prev_prev)
 		
 		# partials from read head output (OR)
-		DOR_DWR, DOR_DWUNDER = do_dw__o_prev(WR, OR_PREV[F], DOR_DWR, DOR_DWUNDER, OR, dor_dor_in)
-		DOR_DWR, DOR_DWUNDER = do_dw__inputs(WR, WUNDER, OR_PREV[F], OUNDER, DOR_DWUNDER, OR, DOR_DWR, mem_prev, x[frame], dor_dor_in)
+		DOR_DWR, DOR_DBR, DOR_DWUNDER = do_dw__o_prev(WR, OR_PREV[F], DOR_DWR, DOR_DBR, DOR_DWUNDER, OR, dor_dor_in)
+		DOR_DWR, DOR_DBR, DOR_DWUNDER = do_dw__inputs(WR, WUNDER, OR_PREV[F], OUNDER, DOR_DWUNDER, OR, DOR_DWR, DOR_DBR, mem_prev, x[frame], dor_dor_in)
 		
-		DOR_DWW = do_dw__o_prev(WR, OR_PREV[F], DOR_DWW, DOR_DWUNDER, OR, dor_dor_in)[0] #?
-		DOR_DWW, DOR_DWUNDER = do_dw__mem_prev(WR, DOR_DWW, DOR_DWUNDER, OR, mem_prev, DMEM_PREV_DWW, DMEM_PREV_DWUNDER, dor_dor_in)
+		DOR_DWW, DOR_DBW = do_dw__o_prev(WR, OR_PREV[F], DOR_DWW, DOR_DBW, DOR_DWUNDER, OR, dor_dor_in)[:2] #?
+		DOR_DWW, DOR_DBW, DOR_DWUNDER = do_dw__mem_prev(WR, DOR_DWW, DOR_DBW, DOR_DWUNDER, OR, mem_prev, DMEM_PREV_DWW, \
+											DMEM_PREV_DBW, DMEM_PREV_DWUNDER, dor_dor_in)
 	
 		# update temporal state vars
 		if frame != N_FRAMES:
