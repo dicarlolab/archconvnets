@@ -15,14 +15,14 @@ from init_vars import *
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
 #DERIV_L = KEY
-DERIV_L = BETA
+#DERIV_L = BETA
 #DERIV_L = ADD
 #DERIV_L = ERASE
-#DERIV_L = GAMMA
+DERIV_L = GAMMA
 #gradient_category = 'write'
 gradient_category = 'read'
 #gradient_category = 'under'
-gradient_weights = False
+gradient_weights = False # false means bias terms
 ####
 if gradient_category == 'under':
 	ref = WUNDER[DERIV_L]
@@ -42,7 +42,7 @@ def weight_address(W, B, O_PREV, inputs, mem_prev):
 	O = [None]*len(O_PREV)
 	
 	# content
-	O[KEY] = linear_2d_F(W[KEY], inputs)
+	O[KEY] = linear_2d_F(W[KEY], inputs) + B[KEY]
 	O[BETA] = linear_F(W[BETA], inputs) + B[BETA]
 	O[CONTENT] = cosine_sim(O[KEY], mem_prev)
 	O[CONTENT_FOCUSED] = focus_keys(O[CONTENT], O[BETA]) # beta*cos
@@ -57,7 +57,7 @@ def weight_address(W, B, O_PREV, inputs, mem_prev):
 	O[SHIFTED] = shift_w(O[SHIFT], O[IN])
 	
 	# sharpen
-	O[GAMMA] = relu(linear_F(W[GAMMA], inputs), thresh=1)
+	O[GAMMA] = relu(linear_F(W[GAMMA], inputs) + B[GAMMA], thresh=1)
 	O[SHARPENED] = sharpen(O[SHIFTED], O[GAMMA])
 	
 	O[F] = O[SHARPENED]
@@ -130,6 +130,7 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, DO_DB, mem_pr
 	do_dgammarelu = dsharpen_dgamma(O[SHIFTED], O[GAMMA])
 	dgammarelu_dgamma = relu_dlayer_in(O[GAMMA], thresh=1)
 	do_dgamma = mult_partials(do_dgammarelu, dgammarelu_dgamma, O[GAMMA])
+	DO_DB_NEW[GAMMA] += do_dgamma
 	dgamma_dwgamma = linear_F_dF_nsum_g(W[GAMMA], OUNDER[F_UNDER])
 	dgamma_dg3under = linear_F_dx_nsum_g(W[GAMMA], OUNDER[F_UNDER])
 	DO_DW_NEW[GAMMA] += mult_partials(do_dgamma, dgamma_dwgamma, O[GAMMA])
@@ -156,6 +157,7 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, DO_DB, mem_pr
 	do_do_content = do_do_content__(O, do_do_in)
 	do_content_dgkey = cosine_sim_expand_dkeys(O[KEY], mem_prev)
 	do_dgkey = mult_partials(do_do_content, do_content_dgkey, O[CONTENT])
+	DO_DB_NEW[KEY] += do_dgkey
 	dgkey_dwkey = linear_2d_F_dF_nsum(W[KEY], OUNDER[F_UNDER])
 	dgkey_dg3under = linear_2d_F_dx_nsum(W[KEY])
 	DO_DW_NEW[KEY] += mult_partials(do_dgkey, dgkey_dwkey, O[KEY])
