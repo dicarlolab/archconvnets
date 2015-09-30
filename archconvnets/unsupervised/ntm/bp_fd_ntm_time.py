@@ -12,13 +12,13 @@ from init_vars import *
 #DERIV_L = L1_UNDER
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
-#DERIV_L = SHIFT
+DERIV_L = SHIFT
 #DERIV_L = IN_GATE
 #DERIV_L = KEY
 #DERIV_L = BETA
 #DERIV_L = ADD
 #DERIV_L = ERASE
-DERIV_L = GAMMA
+#DERIV_L = GAMMA
 #gradient_category = 'write'
 gradient_category = 'read'
 #gradient_category = 'under'
@@ -53,7 +53,7 @@ def weight_address(W, B, O_PREV, inputs, mem_prev):
 	O[IN] = interpolate_softmax(O[IN_GATE], O[CONTENT_SM], O_PREV[F])
 	
 	# shift
-	O[SHIFT] = linear_2d_F_softmax(W[SHIFT], inputs)
+	O[SHIFT] = softmax(linear_2d_F(W[SHIFT], inputs) + B[SHIFT])
 	O[SHIFTED] = shift_w(O[SHIFT], O[IN])
 	
 	# sharpen
@@ -137,11 +137,14 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, DO_DB, mem_pr
 	do_dg3under = np.squeeze(mult_partials(do_dgamma, dgamma_dg3under, O[GAMMA]))
 	
 	## shift weights
-	do_dgshifted = dsharpen_dw(O[SHIFTED], O[GAMMA])
-	dgshifted_dgshift = shift_w_dshift_out_nsum(O[IN])
-	do_dgshift = mult_partials(do_dgshifted, dgshifted_dgshift, O[SHARPENED])
-	dgshift_dwshift = linear_2d_F_softmax_dF_nsum(O[SHIFT], W[SHIFT], OUNDER[F_UNDER])
-	dgshift_dg3under = linear_2d_F_softmax_dx_nsum(O[SHIFT], W[SHIFT])
+	do_dgshiftedsm = dsharpen_dw(O[SHIFTED], O[GAMMA])
+	dgshiftedsm_dgshiftsm = shift_w_dshift_out_nsum(O[IN])
+	do_dgshiftsm = mult_partials(do_dgshiftedsm, dgshiftedsm_dgshiftsm, O[SHARPENED])
+	dgshiftsm_gshift = softmax_dlayer_in_nsum(O[SHIFT])
+	do_dgshift = mult_partials(do_dgshiftsm, dgshiftsm_gshift, O[SHIFT])
+	DO_DB_NEW[SHIFT] += do_dgshift
+	dgshift_dwshift = linear_2d_F_dF_nsum(W[SHIFT], OUNDER[F_UNDER])
+	dgshift_dg3under = linear_2d_F_dx_nsum(W[SHIFT])
 	DO_DW_NEW[SHIFT] += mult_partials(do_dgshift, dgshift_dwshift, O[SHIFT])
 	do_dg3under += mult_partials(do_dgshift, dgshift_dg3under, O[SHIFT])
 	
