@@ -10,22 +10,23 @@ from init_vars import *
 
 ##### which gradients to test
 #DERIV_L = L1_UNDER
-#DERIV_L = L2_UNDER
+DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
+
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
 #DERIV_L = KEY
 #DERIV_L = BETA
 #DERIV_L = ADD
-DERIV_L = ERASE
+#DERIV_L = ERASE
 #DERIV_L = GAMMA
 
-gradient_category = 'write'
+#gradient_category = 'write'
 #gradient_category = 'read'
-#gradient_category = 'under'
+gradient_category = 'under'
 
-gradient_weights = False # false means bias terms
-#gradient_weights = True
+#gradient_weights = False # false means bias terms
+gradient_weights = True
 
 ####
 if gradient_category == 'under':
@@ -81,7 +82,7 @@ def forward_pass(WUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x_cur):
 	OW = weight_address(WW, BW, OW_PREV, OUNDER[F_UNDER], mem_prev)
 	
 	# erase/add output
-	OW[ERASE] = linear_2d_F(WW[ERASE], OUNDER[F_UNDER]) + BW[ERASE]
+	OW[ERASE] = sigmoid(linear_2d_F(WW[ERASE], OUNDER[F_UNDER]) + BW[ERASE])
 	OW[ADD] = linear_2d_F(WW[ADD], OUNDER[F_UNDER]) + BW[ADD]
 	
 	# read then write to mem
@@ -233,7 +234,9 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_D
 	
 	###
 	# W[ERASE] gradients (de wrt W[ERASE])
-	mem_prev_de_derase_out = -add_mem_dadd_out(OW_PREV[F]) * mem_prev_prev[:,:,np.newaxis,np.newaxis]
+	mem_prev_de_derase_out_sig = -add_mem_dadd_out(OW_PREV[F]) * mem_prev_prev[:,:,np.newaxis,np.newaxis]
+	derase_out_sig_derase_out = sigmoid_dlayer_in(OW_PREV[ERASE])
+	mem_prev_de_derase_out = mult_partials(mem_prev_de_derase_out_sig, derase_out_sig_derase_out, OW_PREV[ERASE])
 	DMEM_PREV_DBW_NEW[ERASE] += mem_prev_de_derase_out
 	derase_out_dwadd = linear_2d_F_dF_nsum(WW[ERASE], OUNDER_PREV[F_UNDER])
 	DMEM_PREV_DWW_NEW[ERASE] += mult_partials(mem_prev_de_derase_out, derase_out_dwadd, OW_PREV[ERASE]) # de_dwadd
