@@ -10,25 +10,32 @@ from init_vars import *
 
 ##### which gradients to test
 #DERIV_L = L1_UNDER
-DERIV_L = L2_UNDER
+#DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
 #DERIV_L = KEY
-#DERIV_L = BETA
+DERIV_L = BETA
 #DERIV_L = ADD
 #DERIV_L = ERASE
 #DERIV_L = GAMMA
 #gradient_category = 'write'
-#gradient_category = 'read'
-gradient_category = 'under'
+gradient_category = 'read'
+#gradient_category = 'under'
+gradient_weights = False
 ####
 if gradient_category == 'under':
 	ref = WUNDER[DERIV_L]
 elif gradient_category == 'read':
-	ref = WR[DERIV_L]
+	if gradient_weights:
+		ref = WR[DERIV_L]
+	else:
+		ref = BR[DERIV_L]
 else:
-	ref = WW[DERIV_L]
+	if gradient_weights:
+		ref = WW[DERIV_L]
+	else:
+		ref = BW[DERIV_L]
 
 ########
 def weight_address(W, B, O_PREV, inputs, mem_prev):
@@ -254,13 +261,25 @@ def f(y):
 	if ref.ndim == 2 and gradient_category == 'under':
 		WUNDER[DERIV_L][i_ind,j_ind] = y
 	elif ref.ndim == 2 and gradient_category == 'read':
-		WR[DERIV_L][i_ind,j_ind] = y
+		if gradient_weights:
+			WR[DERIV_L][i_ind,j_ind] = y
+		else:
+			BR[DERIV_L][i_ind,j_ind] = y
 	elif gradient_category == 'read':
-		WR[DERIV_L][i_ind,j_ind,k_ind] = y
+		if gradient_weights:
+			WR[DERIV_L][i_ind,j_ind,k_ind] = y
+		else:
+			BR[DERIV_L][i_ind,j_ind,k_ind] = y
 	elif ref.ndim == 2:
-		WW[DERIV_L][i_ind,j_ind] = y
+		if gradient_weights:
+			WW[DERIV_L][i_ind,j_ind] = y
+		else:
+			BW[DERIV_L][i_ind,j_ind] = y
 	else:
-		WW[DERIV_L][i_ind,j_ind,k_ind] = y
+		if gradient_weights:
+			WW[DERIV_L][i_ind,j_ind,k_ind] = y
+		else:
+			BW[DERIV_L][i_ind,j_ind,k_ind] = y
 	##
 	
 	OR_PREV = copy.deepcopy(OR_PREVi); OW_PREV = copy.deepcopy(OW_PREVi)
@@ -276,13 +295,25 @@ def g(y):
 	if ref.ndim == 2 and gradient_category == 'under':
 		WUNDER[DERIV_L][i_ind,j_ind] = y
 	elif ref.ndim == 2 and gradient_category == 'read':
-		WR[DERIV_L][i_ind,j_ind] = y
+		if gradient_weights:
+			WR[DERIV_L][i_ind,j_ind] = y
+		else:
+			BR[DERIV_L][i_ind,j_ind] = y
 	elif gradient_category == 'read':
-		WR[DERIV_L][i_ind,j_ind,k_ind] = y
+		if gradient_weights:
+			WR[DERIV_L][i_ind,j_ind,k_ind] = y
+		else:
+			BR[DERIV_L][i_ind,j_ind,k_ind] = y
 	elif ref.ndim == 2:
-		WW[DERIV_L][i_ind,j_ind] = y
+		if gradient_weights:
+			WW[DERIV_L][i_ind,j_ind] = y
+		else:
+			BW[DERIV_L][i_ind,j_ind] = y
 	else:
-		WW[DERIV_L][i_ind,j_ind,k_ind] = y
+		if gradient_weights:
+			WW[DERIV_L][i_ind,j_ind,k_ind] = y
+		else:
+			BW[DERIV_L][i_ind,j_ind,k_ind] = y
 	##
 	
 	OR_PREV = copy.deepcopy(OR_PREVi); OW_PREV = copy.deepcopy(OW_PREVi)
@@ -343,7 +374,9 @@ def g(y):
 	derr_dor = mult_partials(derr_dread_mem, dread_mem_dor, read_mem)
 	
 	DWR = mult_partials_collapse__layers(derr_dor, DOR_DWR, OR[F])
+	DBR = mult_partials_collapse__layers(derr_dor, DOR_DBR, OR[F])
 	DWW = mult_partials_collapse__layers(derr_dor, DOR_DWW, OR[F])
+	DBW = mult_partials_collapse__layers(derr_dor, DOR_DBW, OR[F])
 	DWUNDER = mult_partials_collapse__layers(derr_dor, DOR_DWUNDER, OR[F])
 	
 	# write weights
@@ -351,6 +384,7 @@ def g(y):
 	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
 	
 	DWW = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWW, mem_prev, DWW)
+	DBW = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DBW, mem_prev, DBW)
 	DWUNDER = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DWUNDER)
 	
 	
@@ -358,13 +392,25 @@ def g(y):
 	if ref.ndim == 2 and gradient_category == 'under':
 		return DWUNDER[DERIV_L][i_ind,j_ind]
 	elif ref.ndim == 2 and gradient_category == 'read':
-		return DWR[DERIV_L][i_ind,j_ind]
+		if gradient_weights:
+			return DWR[DERIV_L][i_ind,j_ind]
+		else:
+			return DBR[DERIV_L][i_ind,j_ind]
 	elif gradient_category == 'read':
-		return DWR[DERIV_L][i_ind,j_ind,k_ind]
+		if gradient_weights:
+			return DWR[DERIV_L][i_ind,j_ind,k_ind]
+		else:
+			return DBR[DERIV_L][i_ind,j_ind,k_ind]
 	elif ref.ndim == 2:
-		return DWW[DERIV_L][i_ind,j_ind]
+		if gradient_weights:
+			return DWW[DERIV_L][i_ind,j_ind]
+		else:
+			return DBW[DERIV_L][i_ind,j_ind]
 	else:
-		return DWW[DERIV_L][i_ind,j_ind,k_ind]
+		if gradient_weights:
+			return DWW[DERIV_L][i_ind,j_ind,k_ind]
+		else:
+			return DBW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
 eps = np.sqrt(np.finfo(np.float).eps)*1e1
