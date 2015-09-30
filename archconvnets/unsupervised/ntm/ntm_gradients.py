@@ -339,26 +339,6 @@ def shift_w_dw_interp_nsum(shift_out):
 			
 	return temp
 
-############# linear then sigmoid
-def linear_F_sigmoid(F, layer_in):
-	# F: [n1, n_in], layer_in: [n_in, 1]
-	
-	return sigmoid(linear_F(F, layer_in)) # [n1, 1]
-
-def linear_F_sigmoid_dF_nsum_g(out, F, mem):
-	dout_dlin = sigmoid_dlayer_in(out)
-	
-	dlin_dF = linear_F_dF_nsum_g(F, mem)
-	
-	return mult_partials(dout_dlin, dlin_dF, out)
-	
-def linear_F_sigmoid_dx_nsum_g(out, F, mem):
-	dout_dlin = sigmoid_dlayer_in(out)
-	
-	dlin_dx = linear_F_dx_nsum_g(F, mem)
-	
-	return mult_partials(dout_dlin, dlin_dx, out)
-	
 ############## linear layer
 def linear_F(F, layer_in):
 	# F: [n1, n_in], layer_in: [n_in, 1]

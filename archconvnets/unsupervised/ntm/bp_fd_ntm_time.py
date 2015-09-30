@@ -12,17 +12,21 @@ from init_vars import *
 #DERIV_L = L1_UNDER
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
-DERIV_L = SHIFT
-#DERIV_L = IN_GATE
+#DERIV_L = SHIFT
+DERIV_L = IN_GATE
 #DERIV_L = KEY
 #DERIV_L = BETA
 #DERIV_L = ADD
 #DERIV_L = ERASE
 #DERIV_L = GAMMA
+
 #gradient_category = 'write'
 gradient_category = 'read'
 #gradient_category = 'under'
+
 gradient_weights = False # false means bias terms
+#gradient_weights = True
+
 ####
 if gradient_category == 'under':
 	ref = WUNDER[DERIV_L]
@@ -49,7 +53,7 @@ def weight_address(W, B, O_PREV, inputs, mem_prev):
 	O[CONTENT_SM] = softmax(O[CONTENT_FOCUSED])
 	
 	# interpolate
-	O[IN_GATE] = linear_F_sigmoid(W[IN_GATE], inputs)
+	O[IN_GATE] = sigmoid(linear_F(W[IN_GATE], inputs) + B[IN_GATE])
 	O[IN] = interpolate_softmax(O[IN_GATE], O[CONTENT_SM], O_PREV[F])
 	
 	# shift
@@ -149,10 +153,13 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, DO_DB, mem_pr
 	do_dg3under += mult_partials(do_dgshift, dgshift_dg3under, O[SHIFT])
 	
 	## interp. gradients (wrt gin_gate)
-	do_in_dgin_gate = interpolate_softmax_dinterp_gate_out(O[IN], O[IN_GATE], O[CONTENT_SM], o_prev)
-	do_dgin_gate = mult_partials(do_do_in, do_in_dgin_gate, O[IN])
-	dgin_gate_dwin = linear_F_sigmoid_dF_nsum_g(O[IN_GATE], W[IN_GATE], OUNDER[F_UNDER])
-	dgin_gate_dg3under = linear_F_sigmoid_dx_nsum_g(O[IN_GATE], W[IN_GATE], OUNDER[F_UNDER])
+	do_in_dgin_gate_sig = interpolate_softmax_dinterp_gate_out(O[IN], O[IN_GATE], O[CONTENT_SM], o_prev)
+	do_dgin_gate_sig = mult_partials(do_do_in, do_in_dgin_gate_sig, O[IN])
+	dgin_gate_sig_dgin_gate = sigmoid_dlayer_in(O[IN_GATE])
+	do_dgin_gate = mult_partials(do_dgin_gate_sig, dgin_gate_sig_dgin_gate, O[IN_GATE])
+	DO_DB_NEW[IN_GATE] += do_dgin_gate
+	dgin_gate_dwin = linear_F_dF_nsum_g(W[IN_GATE], OUNDER[F_UNDER])
+	dgin_gate_dg3under = linear_F_dx_nsum_g(W[IN_GATE], OUNDER[F_UNDER])
 	DO_DW_NEW[IN_GATE] += mult_partials(do_dgin_gate, dgin_gate_dwin, O[IN_GATE])
 	do_dg3under += np.squeeze(mult_partials(do_dgin_gate, dgin_gate_dg3under, O[IN_GATE]))
 	
