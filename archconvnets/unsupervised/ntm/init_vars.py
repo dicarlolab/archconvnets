@@ -111,6 +111,9 @@ for layer in range(len(WR_SHAPES)):
 WW[ADD] = np.random.normal(size = WW_SHAPES[ADD])
 WW[ERASE] = np.random.normal(size = WW_SHAPES[ERASE])
 
+BW[ADD] = np.random.normal(size = OW_SHAPES[ADD])
+BW[ERASE] = np.random.normal(size = OW_SHAPES[ERASE])
+
 OW_PREVi[ADD] = np.zeros(WW_SHAPES[ADD])
 OW_PREVi[ERASE] = np.zeros(WW_SHAPES[ERASE])
 	

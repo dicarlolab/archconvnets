@@ -13,15 +13,15 @@ from init_vars import *
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 #DERIV_L = SHIFT
-DERIV_L = IN_GATE
+#DERIV_L = IN_GATE
 #DERIV_L = KEY
 #DERIV_L = BETA
 #DERIV_L = ADD
-#DERIV_L = ERASE
+DERIV_L = ERASE
 #DERIV_L = GAMMA
 
-#gradient_category = 'write'
-gradient_category = 'read'
+gradient_category = 'write'
+#gradient_category = 'read'
 #gradient_category = 'under'
 
 gradient_weights = False # false means bias terms
@@ -81,8 +81,8 @@ def forward_pass(WUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x_cur):
 	OW = weight_address(WW, BW, OW_PREV, OUNDER[F_UNDER], mem_prev)
 	
 	# erase/add output
-	OW[ERASE] = linear_2d_F(WW[ERASE], OUNDER[F_UNDER])
-	OW[ADD] = linear_2d_F(WW[ADD], OUNDER[F_UNDER])
+	OW[ERASE] = linear_2d_F(WW[ERASE], OUNDER[F_UNDER]) + BW[ERASE]
+	OW[ADD] = linear_2d_F(WW[ADD], OUNDER[F_UNDER]) + BW[ADD]
 	
 	# read then write to mem
 	read_mem = linear_F(OR[F], mem_prev)
@@ -234,7 +234,7 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_D
 	###
 	# W[ERASE] gradients (de wrt W[ERASE])
 	mem_prev_de_derase_out = -add_mem_dadd_out(OW_PREV[F]) * mem_prev_prev[:,:,np.newaxis,np.newaxis]
-	
+	DMEM_PREV_DBW_NEW[ERASE] += mem_prev_de_derase_out
 	derase_out_dwadd = linear_2d_F_dF_nsum(WW[ERASE], OUNDER_PREV[F_UNDER])
 	DMEM_PREV_DWW_NEW[ERASE] += mult_partials(mem_prev_de_derase_out, derase_out_dwadd, OW_PREV[ERASE]) # de_dwadd
 	
@@ -256,7 +256,7 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_D
 	###
 	# W[ADD] gradients
 	da_dadd_out = add_mem_dadd_out(OW_PREV[F])
-	
+	DMEM_PREV_DBW_NEW[ADD] += da_dadd_out
 	dadd_out_dwadd = linear_2d_F_dF_nsum(WW[ADD], OUNDER_PREV[F_UNDER])
 	DMEM_PREV_DWW_NEW[ADD] += mult_partials(da_dadd_out, dadd_out_dwadd, OW_PREV[ADD]) # da_dwadd
 	
@@ -299,7 +299,7 @@ def f(y):
 	
 	for frame in range(1,N_FRAMES+1):
 		OR_PREV, OW_PREV, mem_prev, read_mem = forward_pass(WUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x[frame])[:4]
-	
+		
 	return ((read_mem - t)**2).sum()
 
 
