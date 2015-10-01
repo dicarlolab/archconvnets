@@ -38,9 +38,9 @@ def forward_pass(WUNDER,BUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x_cur):
 	OUNDER = [None]*len(WUNDER)
 	
 	# processing underneath read/write heads
-	OUNDER[L1_UNDER] = linear_F(WUNDER[L1_UNDER], x_cur) + BUNDER[L1_UNDER]
-	OUNDER[L2_UNDER] = sq_F(WUNDER[L2_UNDER], OUNDER[L1_UNDER])
-	OUNDER[F_UNDER] = sq_F(WUNDER[F_UNDER], OUNDER[L2_UNDER])
+	OUNDER[L1_UNDER] = relu(linear_F(WUNDER[L1_UNDER], x_cur) + BUNDER[L1_UNDER])
+	OUNDER[L2_UNDER] = sq_F(WUNDER[L2_UNDER], OUNDER[L1_UNDER]) + BUNDER[L2_UNDER]
+	OUNDER[F_UNDER] = sq_F(WUNDER[F_UNDER], OUNDER[L2_UNDER]) #+ BUNDER[F_UNDER]
 	
 	# read/write heads
 	OR = weight_address(WR, BR, OR_PREV, OUNDER[F_UNDER], mem_prev)
@@ -58,7 +58,7 @@ def forward_pass(WUNDER,BUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x_cur):
 	return OR,OW,mem,read_mem,OUNDER
 
 # gradients for layers underneath the read/write heads
-def dunder_dw(WUNDER, BUNDER, OUNDER, x):
+def dunder(WUNDER, BUNDER, OUNDER, x):
 	DG3UNDER_DW = [None] * len(OUNDER); DG3UNDER_DB = [None] * len(OUNDER)
 	
 	DG3UNDER_DB[F_UNDER] = np.ones((9,9,1)) ###########np.ones_like(OUNDER[F_UNDER])
@@ -69,7 +69,9 @@ def dunder_dw(WUNDER, BUNDER, OUNDER, x):
 	DG3UNDER_DB[L2_UNDER] = dg3under_dg2under[:,:,np.newaxis]
 	DG3UNDER_DW[L2_UNDER] = mult_partials(dg3under_dg2under, dg2under_dw2under,  np.squeeze(OUNDER[L2_UNDER]))
 	
-	dg2under_dg1under = sq_dlayer_in_nsum(WUNDER[L2_UNDER], OUNDER[L1_UNDER])
+	dg2under_dg1under_relu = sq_dlayer_in_nsum(WUNDER[L2_UNDER], OUNDER[L1_UNDER])
+	dg1under_relu_dg1under = relu_dlayer_in(OUNDER[L1_UNDER])
+	dg2under_dg1under = np.squeeze(mult_partials(dg2under_dg1under_relu[:,:,np.newaxis], dg1under_relu_dg1under, OUNDER[L1_UNDER]))
 	dg1under_dw1under = linear_F_dF_nsum_g(WUNDER[L1_UNDER], x);    dg1under_dw1under = np.squeeze(dg1under_dw1under)
 	dg2under_dw1under = mult_partials(dg2under_dg1under, dg1under_dw1under,  np.squeeze(OUNDER[L1_UNDER]))
 	DG3UNDER_DB[L1_UNDER] = mult_partials(dg3under_dg2under, dg2under_dg1under, np.squeeze(OUNDER[L2_UNDER]))[:,:,np.newaxis]
@@ -153,7 +155,7 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	do_dg3under += np.squeeze(mult_partials(do_dgbeta, dgbeta_dg3under, O[BETA]))
 	
 	## combine weights under gradients
-	DG3UNDER_DW, DG3UNDER_DB = dunder_dw(WUNDER, BUNDER, OUNDER, x)
+	DG3UNDER_DW, DG3UNDER_DB = dunder(WUNDER, BUNDER, OUNDER, x)
 	DO_DWUNDER_NEW = mult_partials__layers(do_dg3under, DG3UNDER_DW, np.squeeze(OUNDER[F_UNDER]), DO_DWUNDER_NEW)
 	DO_DBUNDER_NEW = mult_partials__layers(do_dg3under, DG3UNDER_DB, np.squeeze(OUNDER[F_UNDER]), DO_DBUNDER_NEW)
 	
@@ -186,7 +188,7 @@ def do_dw__mem_prev(W, DO_DW, DO_DB, DO_DWUNDER,DO_DBUNDER, O, mem_prev, DMEM_PR
 
 def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_DBUNDER, DOW_DWW, DOW_DBW,DOW_DWUNDER,DOW_DBUNDER,\
 			OW_PREV, OUNDER_PREV, WW,BW, WUNDER, BUNDER, x_prev, mem_prev_prev):
-	DG3UNDER_DW, DG3UNDER_DB = dunder_dw(WUNDER, BUNDER, OUNDER_PREV, x_prev)
+	DG3UNDER_DW, DG3UNDER_DB = dunder(WUNDER, BUNDER, OUNDER_PREV, x_prev)
 	# mem = mem_prev*(1 - e) + a
 	# dmem = dmem_prev*(1 - e) - mem_prev*de + da
 	

@@ -11,8 +11,8 @@ from ntm_core import *
 
 ##### which gradients to test
 #DERIV_L = L1_UNDER
-DERIV_L = L2_UNDER
-#DERIV_L = F_UNDER
+#DERIV_L = L2_UNDER
+DERIV_L = F_UNDER
 
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
