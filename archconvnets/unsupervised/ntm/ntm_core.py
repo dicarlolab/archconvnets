@@ -34,11 +34,11 @@ def weight_address(W, B, O_PREV, inputs, mem_prev):
 	
 	return O
 
-def forward_pass(WUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x_cur):
+def forward_pass(WUNDER,BUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x_cur):
 	OUNDER = [None]*len(WUNDER)
 	
 	# processing underneath read/write heads
-	OUNDER[L1_UNDER] = sq_F(WUNDER[L1_UNDER], x_cur)
+	OUNDER[L1_UNDER] = linear_F(WUNDER[L1_UNDER], x_cur) + BUNDER[L1_UNDER]
 	OUNDER[L2_UNDER] = sq_F(WUNDER[L2_UNDER], OUNDER[L1_UNDER])
 	OUNDER[F_UNDER] = sq_F(WUNDER[F_UNDER], OUNDER[L2_UNDER])
 	
@@ -58,21 +58,24 @@ def forward_pass(WUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x_cur):
 	return OR,OW,mem,read_mem,OUNDER
 
 # gradients for layers underneath the read/write heads
-def dunder_dw(WUNDER, OUNDER, x):
-	DG3UNDER_DW = [None] * len(OUNDER)
+def dunder_dw(WUNDER, BUNDER, OUNDER, x):
+	DG3UNDER_DW = [None] * len(OUNDER); DG3UNDER_DB = [None] * len(OUNDER)
 	
+	DG3UNDER_DB[F_UNDER] = np.ones((9,9,1)) ###########np.ones_like(OUNDER[F_UNDER])
 	DG3UNDER_DW[F_UNDER] = sq_dF_nsum(WUNDER[F_UNDER], OUNDER[L2_UNDER], OUNDER[F_UNDER])
 	
 	dg3under_dg2under = sq_dlayer_in_nsum(WUNDER[F_UNDER], OUNDER[L2_UNDER])
 	dg2under_dw2under = sq_dF_nsum(WUNDER[L2_UNDER], OUNDER[L1_UNDER], OUNDER[L2_UNDER])
+	DG3UNDER_DB[L2_UNDER] = dg3under_dg2under[:,:,np.newaxis]
 	DG3UNDER_DW[L2_UNDER] = mult_partials(dg3under_dg2under, dg2under_dw2under,  np.squeeze(OUNDER[L2_UNDER]))
 	
 	dg2under_dg1under = sq_dlayer_in_nsum(WUNDER[L2_UNDER], OUNDER[L1_UNDER])
-	dg1under_dw1under = sq_dF_nsum(WUNDER[L1_UNDER], x, OUNDER[L1_UNDER])
+	dg1under_dw1under = linear_F_dF_nsum_g(WUNDER[L1_UNDER], x);    dg1under_dw1under = np.squeeze(dg1under_dw1under)
 	dg2under_dw1under = mult_partials(dg2under_dg1under, dg1under_dw1under,  np.squeeze(OUNDER[L1_UNDER]))
+	DG3UNDER_DB[L1_UNDER] = mult_partials(dg3under_dg2under, dg2under_dg1under, np.squeeze(OUNDER[L2_UNDER]))[:,:,np.newaxis]
 	DG3UNDER_DW[L1_UNDER] = mult_partials(dg3under_dg2under, dg2under_dw1under, np.squeeze(OUNDER[L2_UNDER]))
 	
-	return DG3UNDER_DW
+	return DG3UNDER_DW, DG3UNDER_DB
 
 
 #### intermediate gradients used in several places in do_dw__inputs() and do_dw__mem_prev()
@@ -92,9 +95,9 @@ def do_do_content__(O, do_do_in):
 	return do_do_content
 
 ########## ...
-def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, DO_DB, mem_prev, x, do_do_in):
+def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, DO_DW, DO_DB, mem_prev, x, do_do_in):
 	DO_DW_NEW = copy.deepcopy(DO_DW); DO_DB_NEW = copy.deepcopy(DO_DB)
-	DO_DWUNDER_NEW = copy.deepcopy(DO_DWUNDER)
+	DO_DWUNDER_NEW = copy.deepcopy(DO_DWUNDER); DO_DBUNDER_NEW = copy.deepcopy(DO_DBUNDER)
 	
 	## sharpen weights
 	do_dgammarelu = dsharpen_dgamma(O[SHIFTED], O[GAMMA])
@@ -150,23 +153,26 @@ def do_dw__inputs(W, WUNDER, o_prev, OUNDER, DO_DWUNDER, O, DO_DW, DO_DB, mem_pr
 	do_dg3under += np.squeeze(mult_partials(do_dgbeta, dgbeta_dg3under, O[BETA]))
 	
 	## combine weights under gradients
-	DG3UNDER_DW = dunder_dw(WUNDER, OUNDER, x)
+	DG3UNDER_DW, DG3UNDER_DB = dunder_dw(WUNDER, BUNDER, OUNDER, x)
 	DO_DWUNDER_NEW = mult_partials__layers(do_dg3under, DG3UNDER_DW, np.squeeze(OUNDER[F_UNDER]), DO_DWUNDER_NEW)
+	DO_DBUNDER_NEW = mult_partials__layers(do_dg3under, DG3UNDER_DB, np.squeeze(OUNDER[F_UNDER]), DO_DBUNDER_NEW)
 	
-	return DO_DW_NEW, DO_DB_NEW, DO_DWUNDER_NEW
+	return DO_DW_NEW, DO_DB_NEW, DO_DWUNDER_NEW, DO_DBUNDER_NEW
 
 ########## ...
-def do_dw__o_prev(W, o_prev, DO_DW, DO_DB, DO_DWUNDER, O, do_do_in):
+def do_dw__o_prev(W, o_prev, DO_DW, DO_DB, DO_DWUNDER,DO_DBUNDER, O, do_do_in):
 	do_in_do_prev = interpolate_softmax_do_prev(O[IN], O[IN_GATE], o_prev)
 	do_do_prev = mult_partials(do_do_in, do_in_do_prev, O[IN])
 	
 	DO_DW_NEW = mult_partials__layers(do_do_prev, DO_DW, o_prev)
 	DO_DB_NEW = mult_partials__layers(do_do_prev, DO_DB, o_prev)
 	DO_DWUNDER_NEW = mult_partials__layers(do_do_prev, DO_DWUNDER, o_prev)
+	DO_DBUNDER_NEW = mult_partials__layers(do_do_prev, DO_DBUNDER, o_prev)
 	
-	return DO_DW_NEW, DO_DB_NEW, DO_DWUNDER_NEW
+	return DO_DW_NEW, DO_DB_NEW, DO_DWUNDER_NEW, DO_DBUNDER_NEW
 
-def do_dw__mem_prev(W, DO_DW, DO_DB, DO_DWUNDER, O, mem_prev, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, do_do_in):
+def do_dw__mem_prev(W, DO_DW, DO_DB, DO_DWUNDER,DO_DBUNDER, O, mem_prev, DMEM_PREV_DWW, DMEM_PREV_DBW, \
+			DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, do_do_in):
 	do_do_content = do_do_content__(O, do_do_in)
 	do_content_dmem_prev = cosine_sim_expand_dmem(O[KEY], mem_prev)
 	do_dmem_prev = mult_partials(do_do_content, do_content_dmem_prev, O[CONTENT])
@@ -174,11 +180,13 @@ def do_dw__mem_prev(W, DO_DW, DO_DB, DO_DWUNDER, O, mem_prev, DMEM_PREV_DWW, DME
 	DO_DW_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DWW, mem_prev, DO_DW)
 	DO_DB_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DBW, mem_prev, DO_DB)
 	DO_DWUNDER_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DO_DWUNDER)
+	DO_DBUNDER_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DBUNDER, mem_prev, DO_DBUNDER)
 	
-	return DO_DW_NEW, DO_DB_NEW, DO_DWUNDER_NEW
+	return DO_DW_NEW, DO_DB_NEW, DO_DWUNDER_NEW, DO_DBUNDER_NEW
 
-def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_DBW,DOW_DWUNDER, OW_PREV, OUNDER_PREV, WW,BW, WUNDER, x_prev, mem_prev_prev):
-	DG3UNDER_DW = dunder_dw(WUNDER, OUNDER_PREV, x_prev)
+def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_DBUNDER, DOW_DWW, DOW_DBW,DOW_DWUNDER,DOW_DBUNDER,\
+			OW_PREV, OUNDER_PREV, WW,BW, WUNDER, BUNDER, x_prev, mem_prev_prev):
+	DG3UNDER_DW, DG3UNDER_DB = dunder_dw(WUNDER, BUNDER, OUNDER_PREV, x_prev)
 	# mem = mem_prev*(1 - e) + a
 	# dmem = dmem_prev*(1 - e) - mem_prev*de + da
 	
@@ -191,11 +199,13 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_D
 	DMEM_PREV_DWW_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DWW)
 	DMEM_PREV_DBW_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DBW)
 	DMEM_PREV_DWUNDER_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DWUNDER)
+	DMEM_PREV_DBUNDER_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DBUNDER)
 	
 	# dmem_prev * (1 - e) - mem_prev * de
 	DMEM_PREV_DWW_NEW = mult_partials__layers(mem_prev_de_dow, DOW_DWW, OW_PREV[F], DMEM_PREV_DWW_NEW)
 	DMEM_PREV_DBW_NEW = mult_partials__layers(mem_prev_de_dow, DOW_DBW, OW_PREV[F], DMEM_PREV_DBW_NEW)
 	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(mem_prev_de_dow, DOW_DWUNDER, OW_PREV[F], DMEM_PREV_DWUNDER_NEW)
+	DMEM_PREV_DBUNDER_NEW = mult_partials__layers(mem_prev_de_dow, DOW_DBUNDER, OW_PREV[F], DMEM_PREV_DBUNDER_NEW)
 	
 	###
 	# W[ERASE] gradients (de wrt W[ERASE])
@@ -211,6 +221,7 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_D
 	mem_prev_de_dg3under = mult_partials(mem_prev_de_derase_out, derase_out_dg3under, OW_PREV[ERASE])
 	
 	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(mem_prev_de_dg3under, DG3UNDER_DW, np.squeeze(OUNDER_PREV[F_UNDER]), DMEM_PREV_DWUNDER_NEW)
+	DMEM_PREV_DBUNDER_NEW = mult_partials__layers(mem_prev_de_dg3under, DG3UNDER_DB, np.squeeze(OUNDER_PREV[F_UNDER]), DMEM_PREV_DBUNDER_NEW)
 	
 	
 	################
@@ -220,6 +231,7 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_D
 	DMEM_PREV_DWW_NEW = mult_partials__layers(da_dow, DOW_DWW, OW_PREV[F], DMEM_PREV_DWW_NEW) # da_dlayer
 	DMEM_PREV_DBW_NEW = mult_partials__layers(da_dow, DOW_DBW, OW_PREV[F], DMEM_PREV_DBW_NEW) # da_dlayer
 	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(da_dow, DOW_DWUNDER, OW_PREV[F], DMEM_PREV_DWUNDER_NEW)
+	DMEM_PREV_DBUNDER_NEW = mult_partials__layers(da_dow, DOW_DBUNDER, OW_PREV[F], DMEM_PREV_DBUNDER_NEW)
 	
 	###
 	# W[ADD] gradients
@@ -233,14 +245,16 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOW_DWW, DOW_D
 	da_dg3under = mult_partials(da_dadd_out, dadd_out_dg3under, OW_PREV[ADD]) # da_dwunder
 	
 	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(da_dg3under, DG3UNDER_DW, np.squeeze(OUNDER_PREV[F_UNDER]), DMEM_PREV_DWUNDER_NEW)
+	DMEM_PREV_DBUNDER_NEW = mult_partials__layers(da_dg3under, DG3UNDER_DB, np.squeeze(OUNDER_PREV[F_UNDER]), DMEM_PREV_DBUNDER_NEW)
 	
-	return DMEM_PREV_DWW_NEW, DMEM_PREV_DBW_NEW, DMEM_PREV_DWUNDER_NEW
+	return DMEM_PREV_DWW_NEW, DMEM_PREV_DBW_NEW, DMEM_PREV_DWUNDER_NEW, DMEM_PREV_DBUNDER_NEW
 	
 
 ### compute state partials (stores history, in a sense) 
-def reverse_pass_partials(WUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, OR_PREV, OW_PREV, \
+def reverse_pass_partials(WUNDER,BUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, OR_PREV, OW_PREV, \
 				OW_PREV_PREV, mem_prev, mem_prev_prev, x, x_prev, frame, DOW_DWW, DOW_DBW, \
-				DOW_DWUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DWW, DOR_DBW):
+				DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, \
+				DMEM_PREV_DBUNDER, DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW):
 	dor_dgsharpen = dsharpen_dw(OR[SHIFTED], OR[GAMMA])
 	dow_prev_dgsharpen = dsharpen_dw(OW_PREV[SHIFTED], OW_PREV[GAMMA])
 	
@@ -252,31 +266,37 @@ def reverse_pass_partials(WUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, OR_PREV,
 	
 	# partials for write head output (OW)
 	if frame > 1:
-		DOW_DWW, DOW_DBW, DOW_DWUNDER = do_dw__o_prev(WW, OW_PREV_PREV[F], DOW_DWW, DOW_DBW, DOW_DWUNDER, OW_PREV, dow_prev_dow_prev_in)
-		DOW_DWW, DOW_DBW, DOW_DWUNDER = do_dw__mem_prev(WW, DOW_DWW, DOW_DBW, DOW_DWUNDER, OW_PREV, \
-											mem_prev_prev, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, dow_prev_dow_prev_in)
-		DOW_DWW, DOW_DBW, DOW_DWUNDER = do_dw__inputs(WW, WUNDER, OW_PREV_PREV[F], OUNDER_PREV, DOW_DWUNDER, \
-											OW_PREV, DOW_DWW, DOW_DBW, mem_prev_prev, x_prev, dow_prev_dow_prev_in)
+		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER = do_dw__o_prev(WW, OW_PREV_PREV[F], DOW_DWW, DOW_DBW, DOW_DWUNDER,\
+											DOW_DBUNDER, OW_PREV, dow_prev_dow_prev_in)
+		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER = do_dw__mem_prev(WW, DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, OW_PREV, \
+											mem_prev_prev, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, \
+											DMEM_PREV_DBUNDER,  dow_prev_dow_prev_in)
+		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER = do_dw__inputs(WW, WUNDER, BUNDER, OW_PREV_PREV[F], OUNDER_PREV, DOW_DWUNDER, \
+											DOW_DBUNDER, OW_PREV, DOW_DWW, DOW_DBW, mem_prev_prev, x_prev, dow_prev_dow_prev_in)
 		
-		DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER = mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOW_DWW, \
-											DOW_DBW, DOW_DWUNDER, OW_PREV, OUNDER_PREV, WW, BW, WUNDER, x_prev, mem_prev_prev)
+		DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER = mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, \
+											DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, DOW_DWW, \
+											DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, OW_PREV, OUNDER_PREV, WW, BW, \
+											WUNDER, BUNDER, x_prev, mem_prev_prev)
 	
 	# partials from read head output (OR)
-	DOR_DWR, DOR_DBR, DOR_DWUNDER = do_dw__o_prev(WR, OR_PREV[F], DOR_DWR, DOR_DBR, DOR_DWUNDER, OR, dor_dor_in)
-	DOR_DWR, DOR_DBR, DOR_DWUNDER = do_dw__inputs(WR, WUNDER, OR_PREV[F], OUNDER, DOR_DWUNDER, OR, DOR_DWR, DOR_DBR, mem_prev, x, dor_dor_in)
+	DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER = do_dw__o_prev(WR, OR_PREV[F], DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, OR, dor_dor_in)
+	DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER = do_dw__inputs(WR, WUNDER, BUNDER, OR_PREV[F], OUNDER, DOR_DWUNDER, DOR_DBUNDER, \
+										OR, DOR_DWR, DOR_DBR, mem_prev, x, dor_dor_in)
 	
-	DOR_DWW, DOR_DBW = do_dw__o_prev(WR, OR_PREV[F], DOR_DWW, DOR_DBW, DOR_DWUNDER, OR, dor_dor_in)[:2] #?
-	DOR_DWW, DOR_DBW, DOR_DWUNDER = do_dw__mem_prev(WR, DOR_DWW, DOR_DBW, DOR_DWUNDER, OR, mem_prev, DMEM_PREV_DWW, \
-										DMEM_PREV_DBW, DMEM_PREV_DWUNDER, dor_dor_in)
+	DOR_DWW, DOR_DBW = do_dw__o_prev(WR, OR_PREV[F], DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, dor_dor_in)[:2] #?
+	DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER = do_dw__mem_prev(WR, DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, \
+										mem_prev, DMEM_PREV_DWW, \
+										DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, dor_dor_in)
 	
-	return DOW_DWW, DOW_DBW, DOW_DWUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, \
-			DMEM_PREV_DWUNDER, DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DWW, DOR_DBW
+	return DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, \
+			DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW
 
 
 
 ### compute full gradients from state partials
-def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DOR_DWUNDER, OR, DMEM_PREV_DWW, \
-			DMEM_PREV_DBW, DMEM_PREV_DWUNDER):
+def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DOR_DWUNDER,DOR_DBUNDER, OR, DMEM_PREV_DWW, \
+			DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER):
 	derr_dread_mem = sq_points_dinput(read_mem - t)
 	
 	# read weights
@@ -288,6 +308,7 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	DWW = mult_partials_collapse__layers(derr_dor, DOR_DWW, OR[F])
 	DBW = mult_partials_collapse__layers(derr_dor, DOR_DBW, OR[F])
 	DWUNDER = mult_partials_collapse__layers(derr_dor, DOR_DWUNDER, OR[F])
+	DBUNDER = mult_partials_collapse__layers(derr_dor, DOR_DBUNDER, OR[F])
 	
 	# write weights
 	dread_mem_dmem_prev = linear_F_dx_nsum(OR[F])
@@ -296,6 +317,7 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	DWW = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWW, mem_prev, DWW)
 	DBW = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DBW, mem_prev, DBW)
 	DWUNDER = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DWUNDER)
+	DBUNDER = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DBUNDER, mem_prev, DBUNDER)
 	
-	return DWR, DBR, DWW, DBW, DWUNDER
+	return DWR, DBR, DWW, DBW, DWUNDER, DBUNDER
 

@@ -11,27 +11,30 @@ from ntm_core import *
 
 ##### which gradients to test
 #DERIV_L = L1_UNDER
-#DERIV_L = L2_UNDER
+DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 
 #DERIV_L = SHIFT
-DERIV_L = IN_GATE
+#DERIV_L = IN_GATE
 #DERIV_L = KEY
 #DERIV_L = BETA
 #DERIV_L = ADD
 #DERIV_L = ERASE
 #DERIV_L = GAMMA
 
-gradient_category = 'write'
+#gradient_category = 'write'
 #gradient_category = 'read'
-#gradient_category = 'under'
+gradient_category = 'under'
 
-gradient_weights = False # false means bias terms
-#gradient_weights = True
+#gradient_weights = False # false means bias terms
+gradient_weights = True
 
 ####
 if gradient_category == 'under':
-	ref = WUNDER[DERIV_L]
+	if gradient_weights:
+		ref = WUNDER[DERIV_L]
+	else:
+		ref = BUNDER[DERIV_L]
 elif gradient_category == 'read':
 	if gradient_weights:
 		ref = WR[DERIV_L]
@@ -48,7 +51,10 @@ else:
 ########
 def f(y):
 	if ref.ndim == 2 and gradient_category == 'under':
-		WUNDER[DERIV_L][i_ind,j_ind] = y
+		if gradient_weights:
+			WUNDER[DERIV_L][i_ind,j_ind] = y
+		else:
+			BUNDER[DERIV_L][i_ind,j_ind] = y
 	elif ref.ndim == 2 and gradient_category == 'read':
 		if gradient_weights:
 			WR[DERIV_L][i_ind,j_ind] = y
@@ -75,14 +81,17 @@ def f(y):
 	mem_prev = copy.deepcopy(mem_previ)
 	
 	for frame in range(1,N_FRAMES+1):
-		OR_PREV, OW_PREV, mem_prev, read_mem = forward_pass(WUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x[frame])[:4]
+		OR_PREV, OW_PREV, mem_prev, read_mem = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x[frame])[:4]
 		
 	return ((read_mem - t)**2).sum()
 
 
 def g(y):
 	if ref.ndim == 2 and gradient_category == 'under':
-		WUNDER[DERIV_L][i_ind,j_ind] = y
+		if gradient_weights:
+			WUNDER[DERIV_L][i_ind,j_ind] = y
+		else:
+			BUNDER[DERIV_L][i_ind,j_ind] = y
 	elif ref.ndim == 2 and gradient_category == 'read':
 		if gradient_weights:
 			WR[DERIV_L][i_ind,j_ind] = y
@@ -110,19 +119,24 @@ def g(y):
 	DOR_DWR = copy.deepcopy(DOR_DWRi); DOW_DWW = copy.deepcopy(DOW_DWWi); DOR_DWW = copy.deepcopy(DOR_DWWi)
 	DOR_DBR = copy.deepcopy(DOR_DBRi); DOW_DBW = copy.deepcopy(DOW_DBWi); DOR_DBW = copy.deepcopy(DOR_DBWi)
 	DOW_DWUNDER = copy.deepcopy(DOW_DWUNDERi); DOR_DWUNDER = copy.deepcopy(DOR_DWUNDERi)
+	DOW_DBUNDER = copy.deepcopy(DOW_DBUNDERi); DOR_DBUNDER = copy.deepcopy(DOR_DBUNDERi)
 	mem_prev = copy.deepcopy(mem_previ); mem_prev_prev = copy.deepcopy(mem_previ)
-	DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi); DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi)
-	DMEM_PREV_DBW = copy.deepcopy(DMEM_PREV_DBWi)
+	DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi); DMEM_PREV_DBW = copy.deepcopy(DMEM_PREV_DBWi)
+	DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.deepcopy(DMEM_PREV_DBUNDERi)
+	
 	
 	###
 	for frame in range(1,N_FRAMES+1):
 		# forward
-		OR, OW, mem, read_mem, OUNDER = forward_pass(WUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x[frame])
+		OR, OW, mem, read_mem, OUNDER = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x[frame])
 		
 		# reverse (compute memory partials)
-		DOW_DWW, DOW_DBW, DOW_DWUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DWW, DOR_DBW = reverse_pass_partials(WUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, OR_PREV, OW_PREV, OW_PREV_PREV, \
+		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, \
+		DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW = reverse_pass_partials(WUNDER, BUNDER, WR,WW,BR,BW, \
+				OUNDER, OUNDER_PREV, OR, OR_PREV, OW_PREV, OW_PREV_PREV, \
 				mem_prev, mem_prev_prev, x[frame], x[frame-1], frame, DOW_DWW, DOW_DBW, \
-				DOW_DWUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DWW, DOR_DBW)
+				DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER,\
+				DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW)
 
 	
 		# update temporal state vars
@@ -132,12 +146,15 @@ def g(y):
 			mem_prev_prev = copy.deepcopy(mem_prev); mem_prev = copy.deepcopy(mem)
 	
 	# full gradients from partials
-	DWR, DBR, DWW, DBW, DWUNDER = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
-			DOR_DWW, DOR_DBW, DOR_DWUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER)
+	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
+			DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER)
 	
 	####
 	if ref.ndim == 2 and gradient_category == 'under':
-		return DWUNDER[DERIV_L][i_ind,j_ind]
+		if gradient_weights:
+			return DWUNDER[DERIV_L][i_ind,j_ind]
+		else:
+			return DBUNDER[DERIV_L][i_ind,j_ind]
 	elif ref.ndim == 2 and gradient_category == 'read':
 		if gradient_weights:
 			return DWR[DERIV_L][i_ind,j_ind]
