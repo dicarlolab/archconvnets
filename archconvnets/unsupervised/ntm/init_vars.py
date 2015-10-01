@@ -5,14 +5,14 @@ n_shifts = 3
 C = 4 # number of controllers
 M = 5 # mem slots
 mem_length = 8
-n_in = 3
+n_in = 2
 n_head_in = 9
 n1_under = 10
 n2_under = 11
 
-SCALE = 1 # scale of weight initializations
+SCALE = 1e-2 # scale of weight initializations
 N_FRAMES = 4
-SCALE_UNDER = .425
+SCALE_UNDER = 1e-1
 
 ## indices
 L1_UNDER = 0; L2_UNDER = 1; F_UNDER = 2

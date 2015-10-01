@@ -4,6 +4,15 @@ from init_vars import *
 
 ####
 
+# pointwise multiply partials with scalar then add two sets of partials (A + B*s)
+def pointwise_mult_partials_add__layers(A, B, s):
+	assert len(A) == len(B)
+	C = [None] * len(A)
+	for layer in range(len(A)):
+		C[layer] = A[layer] + B[layer] * s
+	
+	return C
+
 def mult_partials(da_db, db_dc, b):
 	a_ndim = da_db.ndim - b.ndim
 	c_ndim = db_dc.ndim - b.ndim
