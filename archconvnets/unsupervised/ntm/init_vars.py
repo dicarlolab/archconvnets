@@ -2,8 +2,8 @@ import numpy as np
 import copy
 
 n_shifts = 3
-C = 4 # number of controllers
-M = 5 # mem slots
+C = 16 # number of controllers
+M = 6 # mem slots
 mem_length = 8
 n_in = 2
 n_head_in = 9
