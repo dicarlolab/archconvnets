@@ -22,15 +22,19 @@ DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.
 inputs_prev = np.zeros((2,1))
 inputs = np.zeros((2,1))
 
-EPS = 1e-20
+EPS = -1e-2
 MAX_TIME = 4
 SAVE_FREQ = 50
+
 
 time_length = np.random.randint(MAX_TIME-1) + 1
 elapsed_time = 0
 p_start = .1
 frame = 0
 err = 0
+
+target_buffer = np.zeros(SAVE_FREQ)
+output_buffer = np.zeros(SAVE_FREQ)
 
 t_start = time.time()
 while True:
@@ -50,6 +54,9 @@ while True:
 	
 	err += np.sum((target - read_mem)**2)
 	
+	target_buffer[frame % SAVE_FREQ] = target
+	output_buffer[frame % SAVE_FREQ] = read_mem.sum()
+	
 	# reverse (compute memory partials)
 	DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, \
 	DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW = reverse_pass_partials(WUNDER, BUNDER, WR,WW,BR,BW, \
@@ -58,7 +65,8 @@ while True:
 			DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER,\
 			DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW)
 
-
+	#print 'fin reverse_pass_partials'
+	
 	# update temporal state vars
 	if frame != N_FRAMES:
 		OW_PREV_PREV = copy.deepcopy(OW_PREV)
@@ -70,17 +78,22 @@ while True:
 			DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER)
 	
 	# take step
-	WR = pointwise_mult_partials_add__layers(WR, DWR, EPS)
-	BR = pointwise_mult_partials_add__layers(BR, DBR, EPS)
-	WW = pointwise_mult_partials_add__layers(WW, DWW, EPS)
-	BW = pointwise_mult_partials_add__layers(BW, DBW, EPS)
-	WUNDER = pointwise_mult_partials_add__layers(WUNDER, DWUNDER, EPS)
-	BUNDER = pointwise_mult_partials_add__layers(BUNDER, DBUNDER, EPS)
+	if frame < 1250:
+		WR = pointwise_mult_partials_add__layers(WR, DWR, EPS)
+		BR = pointwise_mult_partials_add__layers(BR, DBR, EPS)
+		WW = pointwise_mult_partials_add__layers(WW, DWW, EPS)
+		BW = pointwise_mult_partials_add__layers(BW, DBW, EPS)
+		#WUNDER = pointwise_mult_partials_add__layers(WUNDER, DWUNDER, EPS)
+		BUNDER = pointwise_mult_partials_add__layers(BUNDER, DBUNDER, EPS)
 	
-	if frame % SAVE_FREQ == 0:
-		print err / SAVE_FREQ, time.time() - t_start
+	if frame % SAVE_FREQ == 0 and frame != 0:
+		print 'err: ', err / SAVE_FREQ, frame, time.time() - t_start
 		err = 0
 		t_start = time.time()
 	frame += 1
-
+	elapsed_time += 1
+	if frame == 1250:
+		print 'stopping'
+	if frame == 2000:
+		break
 
