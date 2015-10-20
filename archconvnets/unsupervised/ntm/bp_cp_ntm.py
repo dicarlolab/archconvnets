@@ -2,7 +2,7 @@ import time
 import numpy as np
 from scipy.io import savemat, loadmat
 import copy
-from scipy.stats import zscore
+from scipy.stats import zscore, pearsonr
 import random
 import scipy
 from ntm_gradients import *
@@ -22,25 +22,31 @@ DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.
 inputs_prev = np.zeros((2,1))
 inputs = np.zeros((2,1))
 
-EPS_BR = EPS_WW = EPS_BW = EPS_WR = -5e-3 #-5e-4
-EPS_BUNDER = -1e-5 #-1e-6
+EPS_BR = EPS_WW = EPS_BW = EPS_WR = -5e-4
+EPS_BUNDER = -1e-4
+EPS_WUNDER = -1e-4
 
-SAVE_FREQ = 50
-STOP_POINT = 12500
+SAVE_FREQ = 200
+STOP_POINT = 200*1000*3 #1250*300
 
 training = 0
-time_length = 4
+time_length = 3
 elapsed_time = 1000
 frame = 0
 err = 0
 
 START_SIGNAL = 0; TRAIN_SIGNAL = 1
 
-target_seq = np.random.randint(2,size=time_length) - .5
+#target_seq = np.random.randint(2,size=time_length) - .5
+target_seq = np.random.normal(size=time_length)
+output_seq = np.zeros_like(target_seq)
+
 inputs[START_SIGNAL] = 1 # start signal
 
+train_buffer = np.zeros(SAVE_FREQ)
 target_buffer = np.zeros(SAVE_FREQ)
 output_buffer = np.zeros(SAVE_FREQ)
+corr_buffer = np.zeros(SAVE_FREQ)
 err_log = []
 
 t_start = time.time()
@@ -53,7 +59,10 @@ while True:
 		training = 1 - training
 		elapsed_time = 0
 		if training == 1: # new training sequence
-			target_seq = np.random.randint(2,size=time_length) - .5
+			corr_buffer[frame % SAVE_FREQ] = pearsonr(output_seq, target_seq)[0]
+			
+			#target_seq = np.random.randint(2,size=time_length) - .5
+			target_seq = np.random.normal(size=time_length)
 			inputs[START_SIGNAL] = 1
 			
 	
@@ -65,16 +74,15 @@ while True:
 		inputs[TRAIN_SIGNAL] = 0
 		target = target_seq[elapsed_time]
 
-	elapsed_time += 1
-	
-	
 	# forward
 	OR, OW, mem, read_mem, OUNDER = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, inputs)
 	
 	err += np.sum((target - read_mem)**2)
 	
-	target_buffer[frame % SAVE_FREQ] = target
+	train_buffer[frame % SAVE_FREQ] = copy.deepcopy(inputs[TRAIN_SIGNAL])
+	target_buffer[frame % SAVE_FREQ] = copy.deepcopy(target)
 	output_buffer[frame % SAVE_FREQ] = read_mem.sum()
+	output_seq[elapsed_time] = read_mem.sum()
 	
 	# reverse (compute memory partials)
 	DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, \
@@ -104,7 +112,7 @@ while True:
 		BR = pointwise_mult_partials_add__layers(BR, DBR, EPS_BR)
 		WW = pointwise_mult_partials_add__layers(WW, DWW, EPS_WW)
 		BW = pointwise_mult_partials_add__layers(BW, DBW, EPS_BW)
-		#WUNDER = pointwise_mult_partials_add__layers(WUNDER, DWUNDER, EPS)
+		WUNDER = pointwise_mult_partials_add__layers(WUNDER, DWUNDER, EPS_WUNDER)
 		BUNDER = pointwise_mult_partials_add__layers(BUNDER, DBUNDER, EPS_BUNDER)
 	
 	if frame % SAVE_FREQ == 0 and frame != 0:
@@ -114,7 +122,7 @@ while True:
 		err = 0
 		t_start = time.time()
 		
-		savemat('/home/darren/ntm_test.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log})
+		savemat('/home/darren/ntm_test3.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_buffer': corr_buffer, 'train_buffer': train_buffer})
 		'''DOR_DWR = copy.deepcopy(DOR_DWRi); DOW_DWW = copy.deepcopy(DOW_DWWi); DOR_DWW = copy.deepcopy(DOR_DWWi)
 		DOR_DBR = copy.deepcopy(DOR_DBRi); DOW_DBW = copy.deepcopy(DOW_DBWi); DOR_DBW = copy.deepcopy(DOR_DBWi)
 		DOW_DWUNDER = copy.deepcopy(DOW_DWUNDERi); DOR_DWUNDER = copy.deepcopy(DOR_DWUNDERi)
@@ -127,6 +135,6 @@ while True:
 	elapsed_time += 1
 	if frame == STOP_POINT:
 		print 'stopping'
-	if frame == (STOP_POINT + 2*SAVE_FREQ):
+	if frame == (STOP_POINT + 3*SAVE_FREQ):
 		break
 

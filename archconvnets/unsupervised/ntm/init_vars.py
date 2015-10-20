@@ -7,8 +7,8 @@ M = 6 # mem slots
 mem_length = 8
 n_in = 2
 n_head_in = 9
-n1_under = 10
-n2_under = 11
+n1_under = 10*2
+n2_under = 11*2
 
 SCALE = 1e-2 # scale of weight initializations
 N_FRAMES = 4
