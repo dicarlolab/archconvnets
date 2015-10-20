@@ -26,11 +26,19 @@ EPS_BR = EPS_WW = EPS_BW = EPS_WR = -5e-4
 EPS_BUNDER = -1e-4
 EPS_WUNDER = -1e-4
 
+<<<<<<< HEAD
 SAVE_FREQ = 200
 STOP_POINT = 200*1000*3 #1250*300
 
 training = 0
 time_length = 3
+=======
+SAVE_FREQ = 100
+STOP_POINT = 1250*2
+
+training = 0
+time_length = 8
+>>>>>>> 66909071baa643efece425d96d72dac8682426c8
 elapsed_time = 1000
 frame = 0
 err = 0
@@ -79,8 +87,13 @@ while True:
 	
 	err += np.sum((target - read_mem)**2)
 	
+<<<<<<< HEAD
 	train_buffer[frame % SAVE_FREQ] = copy.deepcopy(inputs[TRAIN_SIGNAL])
 	target_buffer[frame % SAVE_FREQ] = copy.deepcopy(target)
+=======
+	train_buffer[frame % SAVE_FREQ] = training
+	target_buffer[frame % SAVE_FREQ] = target
+>>>>>>> 66909071baa643efece425d96d72dac8682426c8
 	output_buffer[frame % SAVE_FREQ] = read_mem.sum()
 	output_seq[elapsed_time] = read_mem.sum()
 	
@@ -122,7 +135,11 @@ while True:
 		err = 0
 		t_start = time.time()
 		
+<<<<<<< HEAD
 		savemat('/home/darren/ntm_test3.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_buffer': corr_buffer, 'train_buffer': train_buffer})
+=======
+		savemat('/home/darren/ntm_test.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_buffer': corr_buffer, 'train_buffer': train_buffer})
+>>>>>>> 66909071baa643efece425d96d72dac8682426c8
 		'''DOR_DWR = copy.deepcopy(DOR_DWRi); DOW_DWW = copy.deepcopy(DOW_DWWi); DOR_DWW = copy.deepcopy(DOR_DWWi)
 		DOR_DBR = copy.deepcopy(DOR_DBRi); DOW_DBW = copy.deepcopy(DOW_DBWi); DOR_DBW = copy.deepcopy(DOR_DBWi)
 		DOW_DWUNDER = copy.deepcopy(DOW_DWUNDERi); DOR_DWUNDER = copy.deepcopy(DOR_DWUNDERi)
@@ -135,6 +152,10 @@ while True:
 	elapsed_time += 1
 	if frame == STOP_POINT:
 		print 'stopping'
+<<<<<<< HEAD
 	if frame == (STOP_POINT + 3*SAVE_FREQ):
+=======
+	if frame == (STOP_POINT + 10*SAVE_FREQ):
+>>>>>>> 66909071baa643efece425d96d72dac8682426c8
 		break
 
