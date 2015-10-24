@@ -10,7 +10,7 @@ from ntm_gradients import *
 from init_vars import *
 from ntm_core import *
 
-save_name = 'ntm_test_reset2'
+save_name = 'ntm_test_reset_no_learning'
 n_saves = 0
 
 WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
@@ -29,12 +29,12 @@ DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.
 inputs_prev = np.zeros((2,1))
 inputs = np.zeros((2,1))
 
-EPS_BR = EPS_WW = EPS_BW = EPS_WR = -5e-4
-EPS_BUNDER = -1e-4
-EPS_WUNDER = -1e-4
+EPS_BR = EPS_WW = EPS_BW = EPS_WR = 0#-5e-4
+EPS_BUNDER = 0#-1e-4
+EPS_WUNDER = 0#-1e-4
 
 SAVE_FREQ = 200
-WRITE_FREQ = 10000
+WRITE_FREQ = 2000
 STOP_POINT = 200*1000*3*10 #1250*300
 
 training = 0
@@ -138,13 +138,14 @@ while True:
 		
 		err_log.append(err / SAVE_FREQ)
 		err = 0
+		
+		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_buffer': corr_buffer, 'train_buffer': train_buffer})
+		
 		t_start = time.time()
 	
 	# write
 	if frame % WRITE_FREQ == 0:
 		print 'writing'
-		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_buffer': corr_buffer, 'train_buffer': train_buffer})
-		
 		file = open('/home/darren/ntm_saves/' + save_name + '_' + str(n_saves) + '.pk','w')
 		pk.dump({'WR': WR, 'BR': BR, 'WW': WW, 'BW': BW, 'WUNDER': WUNDER, 'BUNDER': BUNDER, 'frame': frame}, file)
 		file.close()
