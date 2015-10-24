@@ -58,6 +58,7 @@ def forward_pass(WUNDER,BUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x_cur):
 	return OR,OW,mem,read_mem,OUNDER
 
 # gradients for layers underneath the read/write heads
+# (used in mem_partials() and do_dw__inputs()
 def dunder(WUNDER, BUNDER, OUNDER, x):
 	DG3UNDER_DW = [None] * len(OUNDER); DG3UNDER_DB = [None] * len(OUNDER)
 	
@@ -89,6 +90,7 @@ def do_do_content_focused__(O, do_do_in):
 	return do_do_content_focused
 
 # one step farther down the path from do_do_content_focused__()
+# used in do_dw__inputs() and do_dw__mem_prev()
 def do_do_content__(O, do_do_in):
 	do_do_content_focused = do_do_content_focused__(O, do_do_in)
 	do_content_focused_do_content = focus_key_dkeys_nsum(O[CONTENT], O[BETA])
@@ -97,6 +99,8 @@ def do_do_content__(O, do_do_in):
 	return do_do_content
 
 ########## ...
+# 25.2% of reverse_pass_partials()
+#@profile
 def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, DO_DW, DO_DB, mem_prev, x, do_do_in):
 	DO_DW_NEW = copy.deepcopy(DO_DW); DO_DB_NEW = copy.deepcopy(DO_DB)
 	DO_DWUNDER_NEW = copy.deepcopy(DO_DWUNDER); DO_DBUNDER_NEW = copy.deepcopy(DO_DBUNDER)
@@ -162,30 +166,34 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	return DO_DW_NEW, DO_DB_NEW, DO_DWUNDER_NEW, DO_DBUNDER_NEW
 
 ########## ...
+# 34.2% of reverse_pass_partials()
 def do_dw__o_prev(W, o_prev, DO_DW, DO_DB, DO_DWUNDER,DO_DBUNDER, O, do_do_in):
-	do_in_do_prev = interpolate_softmax_do_prev(O[IN], O[IN_GATE], o_prev)
+	do_in_do_prev = interpolate_softmax_do_prev(O[IN], O[IN_GATE], o_prev) # 6.2%
 	do_do_prev = mult_partials(do_do_in, do_in_do_prev, O[IN])
 	
-	DO_DW_NEW = mult_partials__layers(do_do_prev, DO_DW, o_prev)
-	DO_DB_NEW = mult_partials__layers(do_do_prev, DO_DB, o_prev)
-	DO_DWUNDER_NEW = mult_partials__layers(do_do_prev, DO_DWUNDER, o_prev)
+	DO_DW_NEW = mult_partials__layers(do_do_prev, DO_DW, o_prev) # 67.9%
+	DO_DB_NEW = mult_partials__layers(do_do_prev, DO_DB, o_prev) # 8.8%
+	DO_DWUNDER_NEW = mult_partials__layers(do_do_prev, DO_DWUNDER, o_prev) # 13.3%
 	DO_DBUNDER_NEW = mult_partials__layers(do_do_prev, DO_DBUNDER, o_prev)
 	
 	return DO_DW_NEW, DO_DB_NEW, DO_DWUNDER_NEW, DO_DBUNDER_NEW
 
+#########
+# 20.8% of reverse_pass_partials()
 def do_dw__mem_prev(W, DO_DW, DO_DB, DO_DWUNDER,DO_DBUNDER, O, mem_prev, DMEM_PREV_DWW, DMEM_PREV_DBW, \
 			DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, do_do_in):
-	do_do_content = do_do_content__(O, do_do_in)
-	do_content_dmem_prev = cosine_sim_expand_dmem(O[KEY], mem_prev)
+	do_do_content = do_do_content__(O, do_do_in) # 17.9%
+	do_content_dmem_prev = cosine_sim_expand_dmem(O[KEY], mem_prev) # 15.5%
 	do_dmem_prev = mult_partials(do_do_content, do_content_dmem_prev, O[CONTENT])
 	
-	DO_DW_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DWW, mem_prev, DO_DW)
+	DO_DW_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DWW, mem_prev, DO_DW) # 49.6%
 	DO_DB_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DBW, mem_prev, DO_DB)
 	DO_DWUNDER_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DO_DWUNDER)
 	DO_DBUNDER_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DBUNDER, mem_prev, DO_DBUNDER)
 	
 	return DO_DW_NEW, DO_DB_NEW, DO_DWUNDER_NEW, DO_DBUNDER_NEW
 
+# 18.6% of reverse_pass_partials()
 def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_DBUNDER, DOW_DWW, DOW_DBW,DOW_DWUNDER,DOW_DBUNDER,\
 			OW_PREV, OUNDER_PREV, WW,BW, WUNDER, BUNDER, x_prev, mem_prev_prev):
 	DG3UNDER_DW, DG3UNDER_DB = dunder(WUNDER, BUNDER, OUNDER_PREV, x_prev)
@@ -253,6 +261,7 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_DBUND
 	
 
 ### compute state partials (stores history, in a sense) 
+# 74.7% of main()
 def reverse_pass_partials(WUNDER,BUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, OR_PREV, OW_PREV, \
 				OW_PREV_PREV, mem_prev, mem_prev_prev, x, x_prev, frame, DOW_DWW, DOW_DBW, \
 				DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, \
@@ -269,27 +278,27 @@ def reverse_pass_partials(WUNDER,BUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, O
 	# partials for write head output (OW)
 	if frame > 1:
 		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER = do_dw__o_prev(WW, OW_PREV_PREV[F], DOW_DWW, DOW_DBW, DOW_DWUNDER,\
-											DOW_DBUNDER, OW_PREV, dow_prev_dow_prev_in)
+											DOW_DBUNDER, OW_PREV, dow_prev_dow_prev_in) # 13.4%
 		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER = do_dw__mem_prev(WW, DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, OW_PREV, \
 											mem_prev_prev, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, \
-											DMEM_PREV_DBUNDER,  dow_prev_dow_prev_in)
+											DMEM_PREV_DBUNDER,  dow_prev_dow_prev_in) # 10.3%
 		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER = do_dw__inputs(WW, WUNDER, BUNDER, OW_PREV_PREV[F], OUNDER_PREV, DOW_DWUNDER, \
-											DOW_DBUNDER, OW_PREV, DOW_DWW, DOW_DBW, mem_prev_prev, x_prev, dow_prev_dow_prev_in)
+											DOW_DBUNDER, OW_PREV, DOW_DWW, DOW_DBW, mem_prev_prev, x_prev, dow_prev_dow_prev_in) # 12.6%
 		
 		DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER = mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, \
 											DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, DOW_DWW, \
 											DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, OW_PREV, OUNDER_PREV, WW, BW, \
-											WUNDER, BUNDER, x_prev, mem_prev_prev)
+											WUNDER, BUNDER, x_prev, mem_prev_prev) # 18.6%
 	
 	# partials from read head output (OR)
-	DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER = do_dw__o_prev(WR, OR_PREV[F], DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, OR, dor_dor_in)
+	DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER = do_dw__o_prev(WR, OR_PREV[F], DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, OR, dor_dor_in) # 7.8%
 	DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER = do_dw__inputs(WR, WUNDER, BUNDER, OR_PREV[F], OUNDER, DOR_DWUNDER, DOR_DBUNDER, \
-										OR, DOR_DWR, DOR_DBR, mem_prev, x, dor_dor_in)
+										OR, DOR_DWR, DOR_DBR, mem_prev, x, dor_dor_in) # 12.3%
 	
-	DOR_DWW, DOR_DBW = do_dw__o_prev(WR, OR_PREV[F], DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, dor_dor_in)[:2] #?
+	DOR_DWW, DOR_DBW = do_dw__o_prev(WR, OR_PREV[F], DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, dor_dor_in)[:2] #?... 13.4%
 	DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER = do_dw__mem_prev(WR, DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, \
 										mem_prev, DMEM_PREV_DWW, \
-										DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, dor_dor_in)
+										DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, dor_dor_in) # 10.4%
 	
 	return DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, \
 			DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW
@@ -297,6 +306,7 @@ def reverse_pass_partials(WUNDER,BUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, O
 
 
 ### compute full gradients from state partials
+# 24.8 of main()
 def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DOR_DWUNDER,DOR_DBUNDER, OR, DMEM_PREV_DWW, \
 			DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER):
 	derr_dread_mem = sq_points_dinput(read_mem - t)
@@ -305,9 +315,9 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	dread_mem_dor = linear_F_dF_nsum(mem_prev)
 	derr_dor = mult_partials(derr_dread_mem, dread_mem_dor, read_mem)
 	
-	DWR = mult_partials_collapse__layers(derr_dor, DOR_DWR, OR[F])
+	DWR = mult_partials_collapse__layers(derr_dor, DOR_DWR, OR[F]) # 18.3%
 	DBR = mult_partials_collapse__layers(derr_dor, DOR_DBR, OR[F])
-	DWW = mult_partials_collapse__layers(derr_dor, DOR_DWW, OR[F])
+	DWW = mult_partials_collapse__layers(derr_dor, DOR_DWW, OR[F]) # 38.5%
 	DBW = mult_partials_collapse__layers(derr_dor, DOR_DBW, OR[F])
 	DWUNDER = mult_partials_collapse__layers(derr_dor, DOR_DWUNDER, OR[F])
 	DBUNDER = mult_partials_collapse__layers(derr_dor, DOR_DBUNDER, OR[F])
@@ -316,7 +326,7 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	dread_mem_dmem_prev = linear_F_dx_nsum(OR[F])
 	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
 	
-	DWW = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWW, mem_prev, DWW)
+	DWW = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWW, mem_prev, DWW) # 20%
 	DBW = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DBW, mem_prev, DBW)
 	DWUNDER = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DWUNDER)
 	DBUNDER = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DBUNDER, mem_prev, DBUNDER)

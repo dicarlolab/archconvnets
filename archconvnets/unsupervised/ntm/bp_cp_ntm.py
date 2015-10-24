@@ -5,10 +5,17 @@ import copy
 from scipy.stats import zscore, pearsonr
 import random
 import scipy
+import pickle as pk
 from ntm_gradients import *
 from init_vars import *
 from ntm_core import *
 
+save_name = 'ntm_test_reset2'
+n_saves = 0
+
+WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
+BW = copy.deepcopy(BWi); BR = copy.deepcopy(BRi);
+WUNDER = copy.deepcopy(WUNDERi); BUNDER = copy.deepcopy(BUNDERi);
 OR_PREV = copy.deepcopy(OR_PREVi); OW_PREV = copy.deepcopy(OW_PREVi)
 OW_PREV_PREV = copy.deepcopy(OW_PREV_PREVi); OUNDER_PREV = copy.deepcopy(OUNDER_PREVi)
 DOR_DWR = copy.deepcopy(DOR_DWRi); DOW_DWW = copy.deepcopy(DOW_DWWi); DOR_DWW = copy.deepcopy(DOR_DWWi)
@@ -27,6 +34,7 @@ EPS_BUNDER = -1e-4
 EPS_WUNDER = -1e-4
 
 SAVE_FREQ = 200
+WRITE_FREQ = 10000
 STOP_POINT = 200*1000*3*10 #1250*300
 
 training = 0
@@ -59,6 +67,15 @@ while True:
 		training = 1 - training
 		elapsed_time = 0
 		if training == 1: # new training sequence
+			
+			DOR_DWR = copy.deepcopy(DOR_DWRi); DOW_DWW = copy.deepcopy(DOW_DWWi); DOR_DWW = copy.deepcopy(DOR_DWWi)
+			DOR_DBR = copy.deepcopy(DOR_DBRi); DOW_DBW = copy.deepcopy(DOW_DBWi); DOR_DBW = copy.deepcopy(DOR_DBWi)
+			DOW_DWUNDER = copy.deepcopy(DOW_DWUNDERi); DOR_DWUNDER = copy.deepcopy(DOR_DWUNDERi)
+			DOW_DBUNDER = copy.deepcopy(DOW_DBUNDERi); DOR_DBUNDER = copy.deepcopy(DOR_DBUNDERi)
+			mem_prev = copy.deepcopy(mem_previ); mem_prev_prev = copy.deepcopy(mem_previ)
+			DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi); DMEM_PREV_DBW = copy.deepcopy(DMEM_PREV_DBWi)
+			DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.deepcopy(DMEM_PREV_DBUNDERi)
+			
 			corr_buffer[frame % SAVE_FREQ] = pearsonr(output_seq, target_seq)[0]
 			
 			#target_seq = np.random.randint(2,size=time_length) - .5
@@ -115,21 +132,25 @@ while True:
 		WUNDER = pointwise_mult_partials_add__layers(WUNDER, DWUNDER, EPS_WUNDER)
 		BUNDER = pointwise_mult_partials_add__layers(BUNDER, DBUNDER, EPS_BUNDER)
 	
+	# print
 	if frame % SAVE_FREQ == 0 and frame != 0:
-		print 'err: ', err / SAVE_FREQ, frame, time.time() - t_start
-		#print EPS_WR*np.median(DWR[IN_GATE]/WR[IN_GATE]), EPS_BR*np.median(DBR[IN_GATE]/BR[IN_GATE]), EPS_WW*np.median(DWW[IN_GATE]/WW[IN_GATE]), EPS_BW*np.median(DBW[IN_GATE]/BW[IN_GATE]), EPS_BUNDER*np.median(DBUNDER[F_UNDER]/BUNDER[F_UNDER])
+		print 'err: ', err / SAVE_FREQ, frame, EPS_WR*np.median(DWR[IN_GATE]/WR[IN_GATE]), EPS_BR*np.median(DBR[IN_GATE]/BR[IN_GATE]), EPS_WW*np.median(DWW[IN_GATE]/WW[IN_GATE]), EPS_BW*np.median(DBW[IN_GATE]/BW[IN_GATE]), EPS_BUNDER*np.median(DBUNDER[F_UNDER]/BUNDER[F_UNDER]), time.time() - t_start, save_name
+		
 		err_log.append(err / SAVE_FREQ)
 		err = 0
 		t_start = time.time()
+	
+	# write
+	if frame % WRITE_FREQ == 0:
+		print 'writing'
+		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_buffer': corr_buffer, 'train_buffer': train_buffer})
 		
-		savemat('/home/darren/ntm_test3_longer.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_buffer': corr_buffer, 'train_buffer': train_buffer})
-		'''DOR_DWR = copy.deepcopy(DOR_DWRi); DOW_DWW = copy.deepcopy(DOW_DWWi); DOR_DWW = copy.deepcopy(DOR_DWWi)
-		DOR_DBR = copy.deepcopy(DOR_DBRi); DOW_DBW = copy.deepcopy(DOW_DBWi); DOR_DBW = copy.deepcopy(DOR_DBWi)
-		DOW_DWUNDER = copy.deepcopy(DOW_DWUNDERi); DOR_DWUNDER = copy.deepcopy(DOR_DWUNDERi)
-		DOW_DBUNDER = copy.deepcopy(DOW_DBUNDERi); DOR_DBUNDER = copy.deepcopy(DOR_DBUNDERi)
-		mem_prev = copy.deepcopy(mem_previ); mem_prev_prev = copy.deepcopy(mem_previ)
-		DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi); DMEM_PREV_DBW = copy.deepcopy(DMEM_PREV_DBWi)
-		DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.deepcopy(DMEM_PREV_DBUNDERi)'''
+		file = open('/home/darren/ntm_saves/' + save_name + '_' + str(n_saves) + '.pk','w')
+		pk.dump({'WR': WR, 'BR': BR, 'WW': WW, 'BW': BW, 'WUNDER': WUNDER, 'BUNDER': BUNDER, 'frame': frame}, file)
+		file.close()
+		
+		n_saves += 1
+		
 		
 	frame += 1
 	elapsed_time += 1

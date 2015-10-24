@@ -48,16 +48,16 @@ b1 = np.random.normal(size=(n1_under, 1)) * SCALE_UNDER
 b2 = np.random.normal(size=(n2_under, 1)) * SCALE_UNDER
 b3 = np.random.normal(size=(n_head_in, 1)) * SCALE_UNDER
 
-WUNDER = [w1, w2, w3]
-BUNDER = [b1, b2, b3]
+WUNDERi = [w1, w2, w3]
+BUNDERi = [b1, b2, b3]
 OUNDER_PREVi = np.zeros((n_head_in, 1))
 
 ## head weights:
 OR_PREVi = [None] * N_TOTAL_HEAD_LAYERS; OW_PREVi = copy.deepcopy(OR_PREVi) # prev states
 OR_SHAPES = copy.deepcopy(OR_PREVi); OW_SHAPES = copy.deepcopy(OR_PREVi) # prev state shapes
-WR = [None] * N_READ_IN_LAYERS; WW = [None] * N_WRITE_IN_LAYERS # weights
-BR = [None] * N_READ_IN_LAYERS; BW = [None] * N_WRITE_IN_LAYERS # weights
-WR_SHAPES = copy.deepcopy(WR); WW_SHAPES = copy.deepcopy(WW) # weight shapes
+WRi = [None] * N_READ_IN_LAYERS; WWi = [None] * N_WRITE_IN_LAYERS # weights
+BRi = [None] * N_READ_IN_LAYERS; BWi = [None] * N_WRITE_IN_LAYERS # weights
+WR_SHAPES = copy.deepcopy(WRi); WW_SHAPES = copy.deepcopy(WWi) # weight shapes
 
 # in
 WR_SHAPES[IN_GATE] = (C, n_head_in)
@@ -104,20 +104,20 @@ OW_SHAPES[ADD] = (C, mem_length)
 
 # init weights
 for layer in range(len(WR_SHAPES)):
-	WR[layer] = np.random.normal(size = WR_SHAPES[layer]) * SCALE
-	WW[layer] = np.random.normal(size = WW_SHAPES[layer]) * SCALE
+	WRi[layer] = np.random.normal(size = WR_SHAPES[layer]) * SCALE
+	WWi[layer] = np.random.normal(size = WW_SHAPES[layer]) * SCALE
 	
-	BR[layer] = np.random.normal(size = OR_SHAPES[layer]) * SCALE
-	BW[layer] = np.random.normal(size = OW_SHAPES[layer]) * SCALE
+	BRi[layer] = np.random.normal(size = OR_SHAPES[layer]) * SCALE
+	BWi[layer] = np.random.normal(size = OW_SHAPES[layer]) * SCALE
 	
 	OR_PREVi[layer] = np.zeros(OR_SHAPES[layer])
 	OW_PREVi[layer] = np.zeros(OW_SHAPES[layer])
 
-WW[ADD] = np.random.normal(size = WW_SHAPES[ADD])
-WW[ERASE] = np.random.normal(size = WW_SHAPES[ERASE])
+WWi[ADD] = np.random.normal(size = WW_SHAPES[ADD])
+WWi[ERASE] = np.random.normal(size = WW_SHAPES[ERASE])
 
-BW[ADD] = np.random.normal(size = OW_SHAPES[ADD])
-BW[ERASE] = np.random.normal(size = OW_SHAPES[ERASE])
+BWi[ADD] = np.random.normal(size = OW_SHAPES[ADD])
+BWi[ERASE] = np.random.normal(size = OW_SHAPES[ERASE])
 
 OW_PREVi[ADD] = np.zeros(WW_SHAPES[ADD])
 OW_PREVi[ERASE] = np.zeros(WW_SHAPES[ERASE])
@@ -137,30 +137,30 @@ OW_PREV_PREVi[F] = np.zeros_like(OW_PREV_PREVi[F])
 
 ###
 
-DWR = [None] * len(WR); DBR = [None] * len(WR)
-DWW = [None] * len(WW); DBW = [None] * len(WW)
+DWR = [None] * len(WRi); DBR = [None] * len(WRi)
+DWW = [None] * len(WWi); DBW = [None] * len(WWi)
 
 ## address and mem partials:
-DOR_DWUNDERi = [None] * len(WUNDER)
-DOR_DBUNDERi = [None] * len(BUNDER)
-DOR_DWRi = [None] * len(WR); DOR_DBRi = [None] * len(WR)
-DOR_DWWi = [None] * len(WW); DOR_DBWi = [None] * len(WW)
+DOR_DWUNDERi = [None] * len(WUNDERi)
+DOR_DBUNDERi = [None] * len(BUNDERi)
+DOR_DWRi = [None] * len(WRi); DOR_DBRi = [None] * len(WRi)
+DOR_DWWi = [None] * len(WWi); DOR_DBWi = [None] * len(WWi)
 
-DMEM_PREV_DWWi = [None] * len(WW); DMEM_PREV_DBWi = [None] * len(WW)
-DMEM_PREV_DWUNDERi = [None] * len(WUNDER)
-DMEM_PREV_DBUNDERi = [None] * len(BUNDER)
+DMEM_PREV_DWWi = [None] * len(WWi); DMEM_PREV_DBWi = [None] * len(WWi)
+DMEM_PREV_DWUNDERi = [None] * len(WUNDERi)
+DMEM_PREV_DBUNDERi = [None] * len(BUNDERi)
 
-for layer in range(len(WR)):
+for layer in range(len(WRi)):
 	DOR_DWRi[layer] = np.zeros(np.concatenate(((C, M), WR_SHAPES[layer])))
 	DOR_DBRi[layer] = np.zeros(np.concatenate(((C, M), OR_SHAPES[layer])))
 
-for layer in range(len(WUNDER)):
-	DOR_DWUNDERi[layer] = np.zeros(np.concatenate(((C, M), WUNDER[layer].shape)))
-	DOR_DBUNDERi[layer] = np.zeros(np.concatenate(((C, M), BUNDER[layer].shape)))
-	DMEM_PREV_DWUNDERi[layer] = np.zeros(np.concatenate(((M, mem_length), WUNDER[layer].shape)))
-	DMEM_PREV_DBUNDERi[layer] = np.zeros(np.concatenate(((M, mem_length), BUNDER[layer].shape)))
+for layer in range(len(WUNDERi)):
+	DOR_DWUNDERi[layer] = np.zeros(np.concatenate(((C, M), WUNDERi[layer].shape)))
+	DOR_DBUNDERi[layer] = np.zeros(np.concatenate(((C, M), BUNDERi[layer].shape)))
+	DMEM_PREV_DWUNDERi[layer] = np.zeros(np.concatenate(((M, mem_length), WUNDERi[layer].shape)))
+	DMEM_PREV_DBUNDERi[layer] = np.zeros(np.concatenate(((M, mem_length), BUNDERi[layer].shape)))
 
-for layer in range(len(WW)):
+for layer in range(len(WWi)):
 	DOR_DWWi[layer] = np.zeros(np.concatenate(((C, M), WW_SHAPES[layer])))
 	DOR_DBWi[layer] = np.zeros(np.concatenate(((C, M), OW_SHAPES[layer])))
 	DMEM_PREV_DWWi[layer] = np.zeros(np.concatenate(((M, mem_length), WW_SHAPES[layer])))
