@@ -100,9 +100,9 @@ def do_do_content__(O, do_do_in):
 
 ########## ...
 # 25.2% of reverse_pass_partials()
-#@profile
+@profile
 def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, DO_DW, DO_DB, mem_prev, x, do_do_in):
-	DO_DW_NEW = copy.deepcopy(DO_DW); DO_DB_NEW = copy.deepcopy(DO_DB)
+	DO_DW_NEW = copy.deepcopy(DO_DW); DO_DB_NEW = copy.deepcopy(DO_DB) # 3.5%
 	DO_DWUNDER_NEW = copy.deepcopy(DO_DWUNDER); DO_DBUNDER_NEW = copy.deepcopy(DO_DBUNDER)
 	
 	## sharpen weights
@@ -128,7 +128,7 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	do_dg3under += mult_partials(do_dgshift, dgshift_dg3under, O[SHIFT])
 	
 	## interp. gradients (wrt gin_gate)
-	do_in_dgin_gate_sig = interpolate_softmax_dinterp_gate_out(O[IN], O[IN_GATE], O[CONTENT_SM], o_prev)
+	do_in_dgin_gate_sig = interpolate_softmax_dinterp_gate_out(O[IN], O[IN_GATE], O[CONTENT_SM], o_prev) # 4.2%
 	do_dgin_gate_sig = mult_partials(do_do_in, do_in_dgin_gate_sig, O[IN])
 	dgin_gate_sig_dgin_gate = sigmoid_dlayer_in(O[IN_GATE])
 	do_dgin_gate = mult_partials(do_dgin_gate_sig, dgin_gate_sig_dgin_gate, O[IN_GATE])
@@ -139,17 +139,17 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	do_dg3under += np.squeeze(mult_partials(do_dgin_gate, dgin_gate_dg3under, O[IN_GATE]))
 	
 	## interp. gradients (wrt o_content; key)
-	do_do_content = do_do_content__(O, do_do_in)
-	do_content_dgkey = cosine_sim_expand_dkeys(O[KEY], mem_prev)
+	do_do_content = do_do_content__(O, do_do_in) # 14%
+	do_content_dgkey = cosine_sim_expand_dkeys(O[KEY], mem_prev) # 12.3%
 	do_dgkey = mult_partials(do_do_content, do_content_dgkey, O[CONTENT])
 	DO_DB_NEW[KEY] += do_dgkey
 	dgkey_dwkey = linear_2d_F_dF_nsum(W[KEY], OUNDER[F_UNDER])
 	dgkey_dg3under = linear_2d_F_dx_nsum(W[KEY])
-	DO_DW_NEW[KEY] += mult_partials(do_dgkey, dgkey_dwkey, O[KEY])
+	DO_DW_NEW[KEY] += mult_partials(do_dgkey, dgkey_dwkey, O[KEY]) # 28.6%
 	do_dg3under += mult_partials(do_dgkey, dgkey_dg3under, O[KEY])
 	
 	## interp. gradients (wrt beta)
-	do_do_content_focused = do_do_content_focused__(O, do_do_in)
+	do_do_content_focused = do_do_content_focused__(O, do_do_in) # 12.2%
 	do_content_focused_dgbeta = focus_key_dbeta_out_nsum(O[CONTENT], O[BETA])
 	do_dgbeta = mult_partials(do_do_content_focused, do_content_focused_dgbeta, O[CONTENT_FOCUSED])
 	DO_DB_NEW[BETA] += do_dgbeta

@@ -10,7 +10,7 @@ from ntm_gradients import *
 from init_vars import *
 from ntm_core import *
 
-save_name = 'ntm_test_reset_no_learning'
+save_name = 'ntm_test_reset_slower_learning2_faster_mem'
 n_saves = 0
 
 WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
@@ -29,9 +29,9 @@ DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.
 inputs_prev = np.zeros((2,1))
 inputs = np.zeros((2,1))
 
-EPS_BR = EPS_WW = EPS_BW = EPS_WR = 0#-5e-4
-EPS_BUNDER = 0#-1e-4
-EPS_WUNDER = 0#-1e-4
+EPS_BR = EPS_WW = EPS_BW = EPS_WR = -5e-3
+EPS_BUNDER = -1e-7
+EPS_WUNDER = -1e-7
 
 SAVE_FREQ = 200
 WRITE_FREQ = 2000
@@ -147,7 +147,8 @@ while True:
 	if frame % WRITE_FREQ == 0:
 		print 'writing'
 		file = open('/home/darren/ntm_saves/' + save_name + '_' + str(n_saves) + '.pk','w')
-		pk.dump({'WR': WR, 'BR': BR, 'WW': WW, 'BW': BW, 'WUNDER': WUNDER, 'BUNDER': BUNDER, 'frame': frame}, file)
+		pk.dump({'WR': WR, 'BR': BR, 'WW': WW, 'BW': BW, 'WUNDER': WUNDER, 'BUNDER': BUNDER, 'frame': frame, \
+			'EPS_BR': EPS_BR, 'EPS_WW': EPS_WW, 'EPS_WR': EPS_WR, 'EPS_BUNDER': EPS_BUNDER, 'EPS_WUNDER': EPS_WUNDER}, file)
 		file.close()
 		
 		n_saves += 1
