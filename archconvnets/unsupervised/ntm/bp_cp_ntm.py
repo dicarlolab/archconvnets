@@ -134,7 +134,7 @@ while True:
 	
 	# print
 	if frame % SAVE_FREQ == 0 and frame != 0:
-		print 'err: ', err / SAVE_FREQ, frame, EPS_WR*np.median(DWR[IN_GATE]/WR[IN_GATE]), EPS_BR*np.median(DBR[IN_GATE]/BR[IN_GATE]), EPS_WW*np.median(DWW[IN_GATE]/WW[IN_GATE]), EPS_BW*np.median(DBW[IN_GATE]/BW[IN_GATE]), EPS_BUNDER*np.median(DBUNDER[F_UNDER]/BUNDER[F_UNDER]), time.time() - t_start, save_name
+		print err / SAVE_FREQ, frame, EPS_WR*np.median(DWR[IN_GATE]/WR[IN_GATE]), EPS_BR*np.median(DBR[IN_GATE]/BR[IN_GATE]), EPS_WW*np.median(DWW[IN_GATE]/WW[IN_GATE]), EPS_BW*np.median(DBW[IN_GATE]/BW[IN_GATE]), EPS_BUNDER*np.median(DBUNDER[F_UNDER]/BUNDER[F_UNDER]), time.time() - t_start, save_name
 		
 		err_log.append(err / SAVE_FREQ)
 		err = 0
