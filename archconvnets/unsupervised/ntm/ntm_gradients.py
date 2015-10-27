@@ -121,21 +121,28 @@ def focus_key_dkeys_nsum(keys, beta_out):
 # cosine similarity between each controller's key and memory vector
 
 def cosine_sim_expand_dmem(keys, mem):
-	n_controllers = keys.shape[0]
-	dnumer = np.zeros((n_controllers, mem.shape[0], mem.shape[0], mem.shape[1]))
-	ddenom = np.zeros_like(dnumer); comb = np.zeros_like(dnumer)
-	
-	for j in range(mem.shape[0]):
-		dnumer[:,j,j] = keys
-	
-	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	numer = np.dot(keys, mem.T)
-	
-	for i in range(keys.shape[0]):
-		for j in range(mem.shape[0]):
-			ddenom[i,j,j] = mem[j] * np.sqrt(np.sum(keys[i]**2)) / np.sqrt(np.sum(mem[j]**2))
-			comb[i,j,j] = (dnumer[i,j,j] * denom[i,j] - numer[i,j] * ddenom[i,j,j])/(denom[i,j]**2)
-	return comb
+        n_controllers = keys.shape[0]
+        comb = np.zeros((n_controllers, mem.shape[0], mem.shape[0], mem.shape[1]))
+
+        keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
+        mem_sq_sum = np.sqrt(np.sum(mem**2, 1))
+
+        denom = np.einsum(keys_sq_sum, [0], mem_sq_sum, [1], [0,1])
+        numer = np.dot(keys, mem.T)
+
+        numer = numer / denom**2
+        denom = 1 / denom # = denom/denom**2
+
+        mem = mem / mem_sq_sum[:,np.newaxis]
+
+        temp = np.einsum(mem, [0,2], numer*keys_sq_sum[:,np.newaxis], [1,0], [1,0,2])
+        
+        keys_denom = keys[:,np.newaxis] * denom[:,:,np.newaxis]
+        comb2 = keys_denom - temp
+        
+        comb[:,range(mem.shape[0]),range(mem.shape[0])] = comb2
+        
+        return comb
 
 def cosine_sim_expand_dkeys(keys, mem):
 	n_controllers = keys.shape[0]
