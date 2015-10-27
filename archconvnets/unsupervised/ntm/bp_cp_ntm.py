@@ -10,7 +10,7 @@ from ntm_gradients import *
 from init_vars import *
 from ntm_core import *
 
-save_name = 'ntm_test_reset_slower_learning2_faster_mem'
+save_name = 'ntm_test1_slower'
 n_saves = 0
 
 WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
@@ -29,13 +29,13 @@ DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.
 inputs_prev = np.zeros((2,1))
 inputs = np.zeros((2,1))
 
-EPS_BR = EPS_WW = EPS_BW = EPS_WR = -5e-3
-EPS_BUNDER = -1e-7
-EPS_WUNDER = -1e-7
+EPS_BR = EPS_WW = EPS_BW = EPS_WR = -5e-4
+EPS_BUNDER = -1e-8
+EPS_WUNDER = -1e-8
 
 SAVE_FREQ = 200
 WRITE_FREQ = 2000
-STOP_POINT = 200*1000*3*10 #1250*300
+STOP_POINT = np.inf #200*1000*3*10 #1250*300
 
 training = 0
 time_length = 3
@@ -109,8 +109,7 @@ while True:
 			DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER,\
 			DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW)
 
-	#print 'fin reverse_pass_partials'
-	
+
 	# update temporal state vars
 	if frame != N_FRAMES:
 		OW_PREV_PREV = copy.deepcopy(OW_PREV)
@@ -122,7 +121,7 @@ while True:
 			DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER)
 	
 	# take step
-	if frame < STOP_POINT:
+	if frame < STOP_POINT and frame > SAVE_FREQ:
 		DWUNDER[L2_UNDER][np.isnan(DWUNDER[L2_UNDER])] = 0
 		
 		WR = pointwise_mult_partials_add__layers(WR, DWR, EPS_WR)
@@ -134,18 +133,43 @@ while True:
 	
 	# print
 	if frame % SAVE_FREQ == 0 and frame != 0:
-		print err / SAVE_FREQ, frame, EPS_WR*np.median(DWR[IN_GATE]/WR[IN_GATE]), EPS_BR*np.median(DBR[IN_GATE]/BR[IN_GATE]), EPS_WW*np.median(DWW[IN_GATE]/WW[IN_GATE]), EPS_BW*np.median(DBW[IN_GATE]/BW[IN_GATE]), EPS_BUNDER*np.median(DBUNDER[F_UNDER]/BUNDER[F_UNDER]), time.time() - t_start, save_name
+		print 'err: ', err / SAVE_FREQ, 'frame: ', frame, 'time: ', time.time() - t_start, save_name
+
+		PRINT_KEYS = [L1_UNDER, L2_UNDER, F_UNDER, KEY, BETA, IN_GATE, SHIFT, GAMMA]
+		print_names = ['L1_UNDER', 'L2_UNDER', 'F_UNDER', 'KEY', 'BETA', 'IN_GATE', 'SHIFT', 'GAMMA']
+		print_under = np.zeros(len(print_names)); print_under[:3] = 1
+		
+		max_print_len = 0
+		for i in range(len(print_names)):
+			if len(print_names[i]) > max_print_len:
+				max_print_len = len(print_names[i])
+		
+		for i in range(len(print_names)):
+			if print_under[i] == 1:
+				print '  ', print_names[i], ' '*(max_print_len - len(print_names[i])), \
+					' W: %.1e %.1e (%.1e)  B: %.1e %.1e (%.1e)' % (\
+				np.min(WUNDER[PRINT_KEYS[i]]), np.max(WUNDER[PRINT_KEYS[i]]), -EPS_WUNDER*np.median(np.abs(DWUNDER[PRINT_KEYS[i]]/WUNDER[PRINT_KEYS[i]])), \
+				np.min(BUNDER[PRINT_KEYS[i]]), np.max(BUNDER[PRINT_KEYS[i]]), -EPS_BUNDER*np.median(np.abs(DBUNDER[PRINT_KEYS[i]]/BUNDER[PRINT_KEYS[i]])))
+			else:
+				print '  ', print_names[i], ' '*(max_print_len - len(print_names[i])), \
+					' WR: %.1e %.1e (%.1e)  BR: %.1e %.1e (%.1e)  WW: %.1e %.1e (%.1e)  BW: %.1e %.1e (%.1e)' % (\
+					np.min(WR[PRINT_KEYS[i]]), np.max(WR[PRINT_KEYS[i]]), -EPS_WR*np.median(np.abs(DWR[PRINT_KEYS[i]]/WR[PRINT_KEYS[i]])), \
+					np.min(BR[PRINT_KEYS[i]]), np.max(BR[PRINT_KEYS[i]]), -EPS_BR*np.median(np.abs(DBR[PRINT_KEYS[i]]/BR[PRINT_KEYS[i]])), \
+					np.min(WW[PRINT_KEYS[i]]), np.max(WW[PRINT_KEYS[i]]), -EPS_WW*np.median(np.abs(DWW[PRINT_KEYS[i]]/WW[PRINT_KEYS[i]])), \
+					np.min(BW[PRINT_KEYS[i]]), np.max(BW[PRINT_KEYS[i]]), -EPS_BW*np.median(np.abs(DBW[PRINT_KEYS[i]]/BW[PRINT_KEYS[i]])))
+		print	
+		
 		
 		err_log.append(err / SAVE_FREQ)
 		err = 0
 		
-		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_buffer': corr_buffer, 'train_buffer': train_buffer})
+		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_buffer': corr_buffer, 'train_buffer': train_buffer, 'EPS_BR': EPS_BR, 'EPS_WW': EPS_WW, 'EPS_WR': EPS_WR, 'EPS_BUNDER': EPS_BUNDER, 'EPS_WUNDER': EPS_WUNDER})
 		
 		t_start = time.time()
 	
 	# write
 	if frame % WRITE_FREQ == 0:
-		print 'writing'
+		print 'writing', save_name
 		file = open('/home/darren/ntm_saves/' + save_name + '_' + str(n_saves) + '.pk','w')
 		pk.dump({'WR': WR, 'BR': BR, 'WW': WW, 'BW': BW, 'WUNDER': WUNDER, 'BUNDER': BUNDER, 'frame': frame, \
 			'EPS_BR': EPS_BR, 'EPS_WW': EPS_WW, 'EPS_WR': EPS_WR, 'EPS_BUNDER': EPS_BUNDER, 'EPS_WUNDER': EPS_WUNDER}, file)
