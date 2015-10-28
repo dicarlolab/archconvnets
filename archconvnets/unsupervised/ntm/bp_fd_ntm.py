@@ -1,4 +1,3 @@
-#from archconvnets.unsupervised.cudnn_module.cudnn_module import *
 import time
 import numpy as np
 from scipy.io import savemat, loadmat
@@ -7,231 +6,201 @@ from scipy.stats import zscore
 import random
 import scipy
 from ntm_gradients import *
+from init_vars import *
+from ntm_core import *
 
-n_out = 7
-n_in = 5
-n_shifts = 3 # must be 3 [shift_w()]
-n_controllers = 4
-n_mem_slots = 2 # "M"
-m_length = 7 # "N"
+##### which gradients to test
+#DERIV_L = L1_UNDER
+#DERIV_L = L2_UNDER
+DERIV_L = F_UNDER
 
-SCALE = 1e-1
+#DERIV_L = SHIFT
+#DERIV_L = IN_GATE
+#DERIV_L = KEY
+#DERIV_L = BETA
+#DERIV_L = ADD
+#DERIV_L = ERASE
+#DERIV_L = GAMMA
 
-BETA = 0
-GAMMA = 1
-INTERP = 2
-SHIFT = 3
-KEY = 4
+#gradient_category = 'write'
+#gradient_category = 'read'
+gradient_category = 'under'
 
-O_KEYS = 0
-O_KEYS_RELU = 1
-O_BETA_OUT = 2
-O_BETA_OUT_RELU = 3
-O_KEYS_FOCUSED = 4
-O_W_CONTENT = 5
-O_W_CONTENT_SMAX = 6
-O_INTERP_GATE_OUT = 7
-O_INTERP_GATE_OUT_SIGM = 8
-O_W_INTERP = 9
-O_SHIFT_OUT = 10
-O_SHIFT_OUT_RELU = 11
-O_SHIFT_OUT_RELU_SMAX = 12
-O_W_TILDE = 13
-O_GAMMA_OUT = 14
-O_GAMMA_OUT_RELU = 15
-O_W = 16
+#gradient_weights = False # false means bias terms
+gradient_weights = True
 
-## head weights
-beta_weights = np.random.normal(size=(n_controllers, n_in)) * SCALE
-gamma_weights = np.random.normal(size=(n_controllers, n_in)) * SCALE
-interp_weights = np.random.normal(size=(n_controllers, n_in)) * SCALE
-shift_weights = np.random.normal(size=(n_controllers*n_shifts, n_in)) * SCALE
-key_weights = np.random.normal(size=(n_controllers*m_length, n_in)) * SCALE
+####
+if gradient_category == 'under':
+	if gradient_weights:
+		ref = WUNDERi[DERIV_L]
+	else:
+		ref = BUNDERi[DERIV_L]
+elif gradient_category == 'read':
+	if gradient_weights:
+		ref = WRi[DERIV_L]
+	else:
+		ref = BRi[DERIV_L]
+else:
+	if gradient_weights:
+		ref = WWi[DERIV_L]
+	else:
+		ref = BWi[DERIV_L]
 
-beta_biases = 1 + np.random.normal(size=(n_controllers, 1)) * SCALE
-gamma_biases = np.random.normal(size=(n_controllers, 1)) * SCALE
-interp_biases = np.random.normal(size=(n_controllers, 1)) * SCALE
-shift_biases = np.random.normal(size=(n_controllers*n_shifts, 1)) * SCALE
-key_biases = np.random.normal(size=(n_controllers*m_length, 1)) * SCALE
 
-##
-out_weights = np.random.normal(size=(n_out, n_controllers*m_length)) * SCALE
-out_bypass_weights = np.random.normal(size=(n_out, n_in)) * SCALE
 
-out_biases = np.random.normal(size=(n_out, 1)) * SCALE
-
-w_prev = np.abs(np.random.normal(size=(n_controllers, n_mem_slots))) * SCALE
-
-mem = np.random.normal(size=(n_mem_slots, m_length)) * SCALE
-
-x = np.random.normal(size=(n_in,1)) * SCALE
-t = np.random.normal(size=(n_out, 1)) * SCALE
-
-W_READ = [beta_weights, gamma_weights, interp_weights, shift_weights, key_weights]
-B_READ = [beta_biases, gamma_biases, interp_biases, shift_biases, key_biases]
-
-W_WRITE = copy.deepcopy(W_READ)
-B_WRITE = copy.deepcopy(B_READ)
-
-REF = INTERP
-
-def head_forward(x, W, B, w_prev, mem):
-	# content
-	keys = (linear_F(W[KEY], x) + B[KEY]).reshape((n_controllers, m_length))
-	keys_relu = relu(keys)
-	
-	beta_out = linear_F(W[BETA], x) + B[BETA] ##?
-	beta_out_relu = relu(beta_out)
-	
-	keys_focused = focus_keys(keys_relu, beta_out_relu)
-	w_content = cosine_sim(keys_focused, mem)
-	w_content_smax = softmax(w_content)
-	
-	# interpolation
-	interp_gate_out = linear_F(W[INTERP], x) + B[INTERP]
-	interp_gate_out_sigm = sigmoid(interp_gate_out)
-	w_interp = interpolate(w_content_smax, w_prev, interp_gate_out_sigm)
-	
-	# shift
-	shift_out = linear_F(W[SHIFT], x) + B[SHIFT]
-	shift_out_relu = relu(shift_out)
-	
-	shift_out_relu_smax = softmax(shift_out_relu.reshape((n_controllers, n_shifts)))
-	w_tilde = shift_w(shift_out_relu_smax, w_interp)
-	
-	# sharpen
-	gamma_out = linear_F(W[GAMMA], x) + B[GAMMA]
-	gamma_out_relu = relu(gamma_out,1)
-	
-	w = sharpen(w_tilde, gamma_out_relu)
-	
-	OUT = [keys, keys_relu, beta_out, beta_out_relu, keys_focused, w_content, w_content_smax, interp_gate_out, interp_gate_out_sigm, w_interp,\
-			shift_out, shift_out_relu, shift_out_relu_smax, w_tilde, gamma_out, gamma_out_relu, w]
-	
-	return OUT
-	
-def head_backward(x, W, B, w_prev, mem, OUT, above_w):
-	# sharpen
-	dsharpen_dw_tilde = sharpen_dlayer_in(OUT[O_W_TILDE], OUT[O_GAMMA_OUT_RELU], above_w) # sharpen
-	dw_dgamma_out_relu = sharpen_dgamma_out(OUT[O_W_TILDE], OUT[O_GAMMA_OUT_RELU], above_w) # sharpen
-	dw_dgamma_out = relu_dlayer_in(OUT[O_GAMMA_OUT], dw_dgamma_out_relu, 1) # relu
-	
-	# shift
-	dw_tilde_dshift_out = shift_w_dshift_out(OUT[O_W_INTERP], dsharpen_dw_tilde) # shift
-	dshift_out_relu_smax_dshift_out = softmax_dlayer_in(OUT[O_SHIFT_OUT_RELU_SMAX], dw_tilde_dshift_out) # softmax
-	dshift_out_relu_dshift_out = relu_dlayer_in(OUT[O_SHIFT_OUT], dshift_out_relu_smax_dshift_out.ravel()[:,np.newaxis]) # relu
-
-	# interpolation
-	dw_tilde_dw_interp = shift_w_dw_interp(OUT[O_SHIFT_OUT_RELU_SMAX], dsharpen_dw_tilde) # shift
-	dw_interp_dw_content_smax = interpolate_dw_content(OUT[O_INTERP_GATE_OUT_SIGM], dw_tilde_dw_interp) # interpolate
-	
-	dw_interp_dinterp_gate_out_sigm = interpolate_dinterp_gate_out(OUT[O_W_CONTENT_SMAX], w_prev, dw_tilde_dw_interp) # interpolate ############
-	dinterp_gate_out_sigm_dinterp_gate_out = sigmoid_dlayer_in(OUT[O_INTERP_GATE_OUT_SIGM], dw_interp_dinterp_gate_out_sigm) # sigmoid
-	
-	# content
-	dw_content_smax_dw_content = softmax_dlayer_in(OUT[O_W_CONTENT_SMAX], dw_interp_dw_content_smax) # softmax
-	
-	dw_content_dkeys_focused = cosine_sim_dkeys(OUT[O_KEYS_FOCUSED], mem, dw_content_smax_dw_content) # cosine
-	dw_content_dmem = cosine_sim_dmem(OUT[O_KEYS_FOCUSED], mem, dw_content_smax_dw_content) # cosine ########################
-	
-	dfocus_key_dbeta_out_relu = focus_key_dbeta_out(OUT[O_KEYS_RELU], dw_content_dkeys_focused) # focus, dbeta
-	dbeta_out_relu_dbeta_out = relu_dlayer_in(OUT[O_BETA_OUT_RELU], dfocus_key_dbeta_out_relu).ravel()[:,np.newaxis] # relu, dbeta
-	
-	dfocus_key_dkeys_relu = focus_key_dkeys(OUT[O_BETA_OUT_RELU], dw_content_dkeys_focused) # focus, dkeys
-	dkeys_relu_dkeys = relu_dlayer_in(OUT[O_KEYS], dfocus_key_dkeys_relu).ravel()[:,np.newaxis] # relu, dkeys
-	
-	##########
-	# backward (filters):
-	dgamma_out_dgamma_weights = linear_dF(x, dw_dgamma_out) # gamma
-	dshift_out_dshift_weights = linear_dF(x, dshift_out_relu_dshift_out) # shift_weights
-	dinterp_gate_out_dinterp_weights = linear_dF(x, dinterp_gate_out_sigm_dinterp_gate_out) # interp_weights
-	dbeta_out_dbeta_weights = linear_dF(x, dbeta_out_relu_dbeta_out) # beta_weights
-	dkeys_dkey_weights = linear_dF(x, dkeys_relu_dkeys) # key_weights
-	
-	DW = [dbeta_out_dbeta_weights, dgamma_out_dgamma_weights, dinterp_gate_out_dinterp_weights, \
-			dshift_out_dshift_weights, dkeys_dkey_weights]
-	DB = [dbeta_out_relu_dbeta_out, dw_dgamma_out, dinterp_gate_out_sigm_dinterp_gate_out, \
-			dshift_out_relu_dshift_out, dkeys_relu_dkeys]
-	
-	return DW, DB, dw_content_dmem
-
+########
 def f(y):
-	#mem[i_ind,j_ind] = y
+	WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
+	BW = copy.deepcopy(BWi); BR = copy.deepcopy(BRi);
+	WUNDER = copy.deepcopy(WUNDERi); BUNDER = copy.deepcopy(BUNDERi);
+	##
 	
-	#out_weights[i_ind,j_ind] = y
-	#out_bypass_weights[i_ind,j_ind] = y
+	if ref.ndim == 2 and gradient_category == 'under':
+		if gradient_weights:
+			WUNDER[DERIV_L][i_ind,j_ind] = y
+		else:
+			BUNDER[DERIV_L][i_ind,j_ind] = y
+	elif ref.ndim == 2 and gradient_category == 'read':
+		if gradient_weights:
+			WR[DERIV_L][i_ind,j_ind] = y
+		else:
+			BR[DERIV_L][i_ind,j_ind] = y
+	elif gradient_category == 'read':
+		if gradient_weights:
+			WR[DERIV_L][i_ind,j_ind,k_ind] = y
+		else:
+			BR[DERIV_L][i_ind,j_ind,k_ind] = y
+	elif ref.ndim == 2:
+		if gradient_weights:
+			WW[DERIV_L][i_ind,j_ind] = y
+		else:
+			BW[DERIV_L][i_ind,j_ind] = y
+	else:
+		if gradient_weights:
+			WW[DERIV_L][i_ind,j_ind,k_ind] = y
+		else:
+			BW[DERIV_L][i_ind,j_ind,k_ind] = y
+	##
 	
-	W_READ[REF][i_ind,j_ind] = y
-	#B_READ[REF][i_ind] = y
+	OR_PREV = copy.deepcopy(OR_PREVi); OW_PREV = copy.deepcopy(OW_PREVi)
+	mem_prev = copy.deepcopy(mem_previ)
 	
-	OUT_READ = head_forward(x, W_READ, B_READ, w_prev, mem)
-	
-	# read mem
-	read_mem = read_from_mem(OUT_READ[O_W], mem)
-	
-	# output layer
-	out = linear_F(out_weights, read_mem.ravel()[:,np.newaxis]) + out_biases
-	out += linear_F(out_bypass_weights, x)
-	
-	return ((out - t)**2).sum()
+	for frame in range(1,N_FRAMES+1):
+		OR_PREV, OW_PREV, mem_prev, read_mem = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x[frame])[:4]
+		
+	return ((read_mem - t)**2).sum()
 
 
 def g(y):
-	#mem[i_ind,j_ind] = y
+	WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
+	BW = copy.deepcopy(BWi); BR = copy.deepcopy(BRi);
+	WUNDER = copy.deepcopy(WUNDERi); BUNDER = copy.deepcopy(BUNDERi);
+	OR_PREV = copy.deepcopy(OR_PREVi); OW_PREV = copy.deepcopy(OW_PREVi)
+	OW_PREV_PREV = copy.deepcopy(OW_PREV_PREVi); OUNDER_PREV = copy.deepcopy(OUNDER_PREVi)
+	DOR_DWR = copy.deepcopy(DOR_DWRi); DOW_DWW = copy.deepcopy(DOW_DWWi); DOR_DWW = copy.deepcopy(DOR_DWWi)
+	DOR_DBR = copy.deepcopy(DOR_DBRi); DOW_DBW = copy.deepcopy(DOW_DBWi); DOR_DBW = copy.deepcopy(DOR_DBWi)
+	DOW_DWUNDER = copy.deepcopy(DOW_DWUNDERi); DOR_DWUNDER = copy.deepcopy(DOR_DWUNDERi)
+	DOW_DBUNDER = copy.deepcopy(DOW_DBUNDERi); DOR_DBUNDER = copy.deepcopy(DOR_DBUNDERi)
+	mem_prev = copy.deepcopy(mem_previ); mem_prev_prev = copy.deepcopy(mem_previ)
+	DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi); DMEM_PREV_DBW = copy.deepcopy(DMEM_PREV_DBWi)
+	DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.deepcopy(DMEM_PREV_DBUNDERi)
 	
-	#out_weights[i_ind,j_ind] = y
-	#out_bypass_weights[i_ind,j_ind] = y
+	##
+	if ref.ndim == 2 and gradient_category == 'under':
+		if gradient_weights:
+			WUNDER[DERIV_L][i_ind,j_ind] = y
+		else:
+			BUNDER[DERIV_L][i_ind,j_ind] = y
+	elif ref.ndim == 2 and gradient_category == 'read':
+		if gradient_weights:
+			WR[DERIV_L][i_ind,j_ind] = y
+		else:
+			BR[DERIV_L][i_ind,j_ind] = y
+	elif gradient_category == 'read':
+		if gradient_weights:
+			WR[DERIV_L][i_ind,j_ind,k_ind] = y
+		else:
+			BR[DERIV_L][i_ind,j_ind,k_ind] = y
+	elif ref.ndim == 2:
+		if gradient_weights:
+			WW[DERIV_L][i_ind,j_ind] = y
+		else:
+			BW[DERIV_L][i_ind,j_ind] = y
+	else:
+		if gradient_weights:
+			WW[DERIV_L][i_ind,j_ind,k_ind] = y
+		else:
+			BW[DERIV_L][i_ind,j_ind,k_ind] = y
+	##
 	
-	W_READ[REF][i_ind,j_ind] = y
-	#B_READ[REF][i_ind] = y
 	
-	OUT_READ = head_forward(x, W_READ, B_READ, w_prev, mem)
-	
-	# read mem
-	read_mem = read_from_mem(OUT_READ[O_W], mem)
-	
-	# output layer
-	out = linear_F(out_weights, read_mem.ravel()[:,np.newaxis]) + out_biases
-	out += linear_F(out_bypass_weights, x)
-	
-	##########
-	# backward (data):
-	
-	# output layer
-	dout_dread_mem = linear_dlayer_in(out_weights, 2*(out - t)).reshape((n_controllers, m_length))
-	
-	# read mem
-	dread_from_mem_dw = read_from_mem_dw(mem, dout_dread_mem) # read mem, dw
-	dread_from_mem_dmem = read_from_mem_dmem(OUT_READ[O_W], dout_dread_mem) # read mem, dmem ##############################
-	
-	DW, DB, dmem = head_backward(x, W_READ, B_READ, w_prev, mem, OUT_READ, dread_from_mem_dw)
-	
-	dout_dout_weights = linear_dF(read_mem.ravel()[:,np.newaxis], 2*(out - t)) # out_weights
-	dout_dout_bypass_weights = linear_dF(x, 2*(out - t)) # out_bypass_weights
-	
-	#return DB[REF][i_ind]
-	return DW[REF][i_ind,j_ind]
+	###
+	for frame in range(1,N_FRAMES+1):
+		# forward
+		OR, OW, mem, read_mem, OUNDER = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x[frame])
+		
+		# reverse (compute memory partials)
+		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, \
+		DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW = reverse_pass_partials(WUNDER, BUNDER, WR,WW,BR,BW, \
+				OUNDER, OUNDER_PREV, OR, OR_PREV, OW_PREV, OW_PREV_PREV, \
+				mem_prev, mem_prev_prev, x[frame], x[frame-1], frame, DOW_DWW, DOW_DBW, \
+				DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER,\
+				DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW)
 
-	#return dmem[i_ind,j_ind] + dread_from_mem_dmem[i_ind,j_ind]
-	#return dout_dout_bypass_weights[i_ind,j_ind]
-	#return (2*(out - t))[i_ind]
+	
+		# update temporal state vars
+		if frame != N_FRAMES:
+			OW_PREV_PREV = copy.deepcopy(OW_PREV)
+			OR_PREV = copy.deepcopy(OR); OW_PREV = copy.deepcopy(OW); OUNDER_PREV = copy.deepcopy(OUNDER)
+			mem_prev_prev = copy.deepcopy(mem_prev); mem_prev = copy.deepcopy(mem)
+	
+	# full gradients from partials
+	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
+			DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER)
+	
+	####
+	if ref.ndim == 2 and gradient_category == 'under':
+		if gradient_weights:
+			return DWUNDER[DERIV_L][i_ind,j_ind]
+		else:
+			return DBUNDER[DERIV_L][i_ind,j_ind]
+	elif ref.ndim == 2 and gradient_category == 'read':
+		if gradient_weights:
+			return DWR[DERIV_L][i_ind,j_ind]
+		else:
+			return DBR[DERIV_L][i_ind,j_ind]
+	elif gradient_category == 'read':
+		if gradient_weights:
+			return DWR[DERIV_L][i_ind,j_ind,k_ind]
+		else:
+			return DBR[DERIV_L][i_ind,j_ind,k_ind]
+	elif ref.ndim == 2:
+		if gradient_weights:
+			return DWW[DERIV_L][i_ind,j_ind]
+		else:
+			return DBW[DERIV_L][i_ind,j_ind]
+	else:
+		if gradient_weights:
+			return DWW[DERIV_L][i_ind,j_ind,k_ind]
+		else:
+			return DBW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e0
-
+eps = np.sqrt(np.finfo(np.float).eps)*1e1
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
 for sample in range(N_SAMPLES):
-
-	ref = W_READ[REF]
 	i_ind = np.random.randint(ref.shape[0])
 	j_ind = np.random.randint(ref.shape[1])
-	y = -1e0*ref[i_ind,j_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
-		
-	#i_ind = np.random.randint(ref.shape[0])
-	#y = -1e0*ref[i_ind]; gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
-		
+	if ref.ndim == 2:
+		y = -1e0*ref[i_ind,j_ind]
+	else:
+		k_ind = np.random.randint(ref.shape[2])
+		y = -1e0*ref[i_ind,j_ind,k_ind]
+	
+	gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	
 	if gtx == 0:
 		ratios[sample] = 1
 	else:
@@ -239,4 +208,3 @@ for sample in range(N_SAMPLES):
 	print gt, gtx, ratios[sample]
 	
 print ratios.mean(), ratios.std()
-
