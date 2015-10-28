@@ -32,24 +32,29 @@ gradient_weights = True
 ####
 if gradient_category == 'under':
 	if gradient_weights:
-		ref = WUNDER[DERIV_L]
+		ref = WUNDERi[DERIV_L]
 	else:
-		ref = BUNDER[DERIV_L]
+		ref = BUNDERi[DERIV_L]
 elif gradient_category == 'read':
 	if gradient_weights:
-		ref = WR[DERIV_L]
+		ref = WRi[DERIV_L]
 	else:
-		ref = BR[DERIV_L]
+		ref = BRi[DERIV_L]
 else:
 	if gradient_weights:
-		ref = WW[DERIV_L]
+		ref = WWi[DERIV_L]
 	else:
-		ref = BW[DERIV_L]
+		ref = BWi[DERIV_L]
 
 
 
 ########
 def f(y):
+	WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
+	BW = copy.deepcopy(BWi); BR = copy.deepcopy(BRi);
+	WUNDER = copy.deepcopy(WUNDERi); BUNDER = copy.deepcopy(BUNDERi);
+	##
+	
 	if ref.ndim == 2 and gradient_category == 'under':
 		if gradient_weights:
 			WUNDER[DERIV_L][i_ind,j_ind] = y
@@ -87,6 +92,20 @@ def f(y):
 
 
 def g(y):
+	WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
+	BW = copy.deepcopy(BWi); BR = copy.deepcopy(BRi);
+	WUNDER = copy.deepcopy(WUNDERi); BUNDER = copy.deepcopy(BUNDERi);
+	OR_PREV = copy.deepcopy(OR_PREVi); OW_PREV = copy.deepcopy(OW_PREVi)
+	OW_PREV_PREV = copy.deepcopy(OW_PREV_PREVi); OUNDER_PREV = copy.deepcopy(OUNDER_PREVi)
+	DOR_DWR = copy.deepcopy(DOR_DWRi); DOW_DWW = copy.deepcopy(DOW_DWWi); DOR_DWW = copy.deepcopy(DOR_DWWi)
+	DOR_DBR = copy.deepcopy(DOR_DBRi); DOW_DBW = copy.deepcopy(DOW_DBWi); DOR_DBW = copy.deepcopy(DOR_DBWi)
+	DOW_DWUNDER = copy.deepcopy(DOW_DWUNDERi); DOR_DWUNDER = copy.deepcopy(DOR_DWUNDERi)
+	DOW_DBUNDER = copy.deepcopy(DOW_DBUNDERi); DOR_DBUNDER = copy.deepcopy(DOR_DBUNDERi)
+	mem_prev = copy.deepcopy(mem_previ); mem_prev_prev = copy.deepcopy(mem_previ)
+	DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi); DMEM_PREV_DBW = copy.deepcopy(DMEM_PREV_DBWi)
+	DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.deepcopy(DMEM_PREV_DBUNDERi)
+	
+	##
 	if ref.ndim == 2 and gradient_category == 'under':
 		if gradient_weights:
 			WUNDER[DERIV_L][i_ind,j_ind] = y
@@ -113,16 +132,6 @@ def g(y):
 		else:
 			BW[DERIV_L][i_ind,j_ind,k_ind] = y
 	##
-	
-	OR_PREV = copy.deepcopy(OR_PREVi); OW_PREV = copy.deepcopy(OW_PREVi)
-	OW_PREV_PREV = copy.deepcopy(OW_PREV_PREVi); OUNDER_PREV = copy.deepcopy(OUNDER_PREVi)
-	DOR_DWR = copy.deepcopy(DOR_DWRi); DOW_DWW = copy.deepcopy(DOW_DWWi); DOR_DWW = copy.deepcopy(DOR_DWWi)
-	DOR_DBR = copy.deepcopy(DOR_DBRi); DOW_DBW = copy.deepcopy(DOW_DBWi); DOR_DBW = copy.deepcopy(DOR_DBWi)
-	DOW_DWUNDER = copy.deepcopy(DOW_DWUNDERi); DOR_DWUNDER = copy.deepcopy(DOR_DWUNDERi)
-	DOW_DBUNDER = copy.deepcopy(DOW_DBUNDERi); DOR_DBUNDER = copy.deepcopy(DOR_DBUNDERi)
-	mem_prev = copy.deepcopy(mem_previ); mem_prev_prev = copy.deepcopy(mem_previ)
-	DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi); DMEM_PREV_DBW = copy.deepcopy(DMEM_PREV_DBWi)
-	DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.deepcopy(DMEM_PREV_DBUNDERi)
 	
 	
 	###
