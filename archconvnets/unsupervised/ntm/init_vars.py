@@ -10,9 +10,13 @@ n_head_in = 9
 n1_under = 10*2
 n2_under = 11*2
 
+n1_above = 13
+n2_above = 1 # output dimensionality of network
+
 SCALE = 1e-2 # scale of weight initializations
 N_FRAMES = 4
 SCALE_UNDER = 1e-1
+SCALE_ABOVE = 1e-1
 
 ## indices
 L1_UNDER = 0; L2_UNDER = 1; F_UNDER = 2
@@ -33,6 +37,9 @@ SHIFTED = N_WRITE_IN_LAYERS + 4
 SHARPENED = N_WRITE_IN_LAYERS + 5
 F = N_WRITE_IN_LAYERS + 6
 
+L1_ABOVE = 0
+F_ABOVE = 1
+
 N_TOTAL_HEAD_LAYERS = N_WRITE_IN_LAYERS +  N_HEAD_INT_LAYERS
 
 ## inputs/targets
@@ -51,6 +58,16 @@ b3 = np.random.normal(size=(n_head_in, 1)) * SCALE_UNDER
 WUNDERi = [w1, w2, w3]
 BUNDERi = [b1, b2, b3]
 OUNDER_PREVi = np.zeros((n_head_in, 1))
+
+# above weights
+wa1 = np.random.normal(size=(n1_above, C*mem_length)) * SCALE_ABOVE
+wa2 = np.random.normal(size=(n2_above, n1_above)) * SCALE_ABOVE
+
+ba1 = np.random.normal(size=(n1_above, 1)) * SCALE_ABOVE
+ba2 = np.random.normal(size=(n2_above, 1)) * SCALE_ABOVE
+
+WABOVEi = [wa1, wa2]
+BABOVEi = [ba1, ba2]
 
 ## head weights:
 OR_PREVi = [None] * N_TOTAL_HEAD_LAYERS; OW_PREVi = copy.deepcopy(OR_PREVi) # prev states
