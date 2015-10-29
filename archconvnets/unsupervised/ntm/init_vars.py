@@ -45,6 +45,7 @@ N_TOTAL_HEAD_LAYERS = N_WRITE_IN_LAYERS +  N_HEAD_INT_LAYERS
 ## inputs/targets
 x = np.random.normal(size=(N_FRAMES+1, n_in,1)) * SCALE
 t = np.random.normal(size=(C,mem_length))
+tf = np.random.normal(size=(1,1))
 
 ## under weights:
 w1 = np.random.normal(size=(n1_under, n_in)) * SCALE_UNDER

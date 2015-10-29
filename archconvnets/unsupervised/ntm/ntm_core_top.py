@@ -57,11 +57,11 @@ def forward_pass(WUNDER,BUNDER, WR,WW,BR,BW, WABOVE, BABOVE, OR_PREV, OW_PREV, m
 	mem = mem_prev * (1 - add_mem(OW[F], OW[ERASE])) + add_mem(OW[F], OW[ADD])
 
 	# above
-	OABOVE[L1_ABOVE] = relu(linear_F(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))) + BABOVE[L1_ABOVE]
-	OABOVE[F_ABOVE] = linear_F(WABOVE[F_ABOVE], OABOVE[L1_ABOVE]) + BABOVE[F_ABOVE]
+	OABOVE[L1_ABOVE] = relu(linear_F(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1)) + BABOVE[L1_ABOVE])
+	OABOVE[F_ABOVE] = relu(linear_F(WABOVE[F_ABOVE], OABOVE[L1_ABOVE]) + BABOVE[F_ABOVE])
 	
 		
-	return OR,OW,mem,read_mem,OUNDER
+	return OR,OW,mem,read_mem,OUNDER,OABOVE
 
 # gradients for layers underneath the read/write heads
 # (used in mem_partials() and do_dw__inputs()
@@ -313,8 +313,21 @@ def reverse_pass_partials(WUNDER,BUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, O
 
 ### compute full gradients from state partials
 # 24.8 of main()
-def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DOR_DWUNDER,DOR_DBUNDER, OR, DMEM_PREV_DWW, \
-			DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER):
+def full_gradients(read_mem, t, tf, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DOR_DWUNDER,DOR_DBUNDER, OR, DMEM_PREV_DWW, \
+			DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE):
+	
+	# above the read/write heads
+	derr_dg2above_relu = sq_points_dinput(OABOVE[F_ABOVE] - tf)
+	dg2above_relu_dg2above = relu_dlayer_in(OABOVE[F_ABOVE])
+	derr_dg2above = np.squeeze(mult_partials(derr_dg2above_relu[:,:,np.newaxis], dg2above_relu_dg2above, OABOVE[F_ABOVE]))
+	dg2above_dg1above_relu = linear_F_dx_nsum_g(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
+	dg1above_relu_dg1above = relu_dlayer_in(OABOVE[L1_ABOVE])
+	dg1above_dread_mem = linear_F_dx_nsum_g(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
+	derr_dread_mem = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above, dg1above_dread_mem), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE], OABOVE[L1_ABOVE]))
+
+	########
+	
+
 	derr_dread_mem = sq_points_dinput(read_mem - t)
 	
 	# read weights

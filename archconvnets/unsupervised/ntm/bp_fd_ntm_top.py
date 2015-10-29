@@ -87,7 +87,7 @@ def f(y):
 	mem_prev = copy.deepcopy(mem_previ)
 	
 	for frame in range(1,N_FRAMES+1):
-		OR_PREV, OW_PREV, mem_prev, read_mem = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, WABOVE, BABOVE,OR_PREV, OW_PREV, mem_prev, x[frame])[:4]
+		OR_PREV,OW_PREV,mem_prev,read_mem = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, WABOVE, BABOVE,OR_PREV, OW_PREV, mem_prev, x[frame])[:4]
 		
 	return ((read_mem - t)**2).sum()
 
@@ -139,7 +139,7 @@ def g(y):
 	###
 	for frame in range(1,N_FRAMES+1):
 		# forward
-		OR, OW, mem, read_mem, OUNDER = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, WABOVE, BABOVE, OR_PREV, OW_PREV, mem_prev, x[frame])
+		OR,OW,mem,read_mem,OUNDER,OABOVE = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, WABOVE, BABOVE, OR_PREV, OW_PREV, mem_prev, x[frame])
 		
 		# reverse (compute memory partials)
 		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, \
@@ -157,8 +157,9 @@ def g(y):
 			mem_prev_prev = copy.deepcopy(mem_prev); mem_prev = copy.deepcopy(mem)
 	
 	# full gradients from partials
-	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
-			DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER)
+	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER = full_gradients(read_mem, t, tf, mem_prev, DOR_DWR, DOR_DBR, \
+			DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, \
+			DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE)
 	
 	####
 	if ref.ndim == 2 and gradient_category == 'under':
