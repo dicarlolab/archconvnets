@@ -12,7 +12,10 @@ from ntm_core import *
 ##### which gradients to test
 #DERIV_L = L1_UNDER
 #DERIV_L = L2_UNDER
-DERIV_L = F_UNDER
+#DERIV_L = F_UNDER
+
+#DERIV_L = L1_ABOVE
+#DERIV_L = F_ABOVE
 
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
@@ -20,17 +23,20 @@ DERIV_L = F_UNDER
 #DERIV_L = BETA
 #DERIV_L = ADD
 #DERIV_L = ERASE
-#DERIV_L = GAMMA
+DERIV_L = GAMMA
 
-#gradient_category = 'write'
+gradient_category = 'write'
 #gradient_category = 'read'
-gradient_category = 'under'
+#gradient_category = 'under'
+#gradient_category = 'above'
 
 #gradient_weights = False # false means bias terms
 gradient_weights = True
 
 ####
-if gradient_category == 'under':
+if gradient_category == 'above':
+	ref = WABOVEi[DERIV_L]
+elif gradient_category == 'under':
 	if gradient_weights:
 		ref = WUNDERi[DERIV_L]
 	else:
@@ -53,9 +59,12 @@ def f(y):
 	WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
 	BW = copy.deepcopy(BWi); BR = copy.deepcopy(BRi);
 	WUNDER = copy.deepcopy(WUNDERi); BUNDER = copy.deepcopy(BUNDERi);
+	WABOVE = copy.deepcopy(WABOVEi); BABOVE = copy.deepcopy(BABOVEi);
 	##
 	
-	if ref.ndim == 2 and gradient_category == 'under':
+	if gradient_category == 'above':
+		WABOVE[DERIV_L][i_ind,j_ind] = y
+	elif ref.ndim == 2 and gradient_category == 'under':
 		if gradient_weights:
 			WUNDER[DERIV_L][i_ind,j_ind] = y
 		else:
@@ -86,15 +95,16 @@ def f(y):
 	mem_prev = copy.deepcopy(mem_previ)
 	
 	for frame in range(1,N_FRAMES+1):
-		OR_PREV, OW_PREV, mem_prev, read_mem = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x[frame])[:4]
+		OR_PREV,OW_PREV,mem_prev,read_mem,junk,OABOVE = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, WABOVE, BABOVE,OR_PREV, OW_PREV, mem_prev, x[frame])
 		
-	return ((read_mem - t)**2).sum()
+	return ((OABOVE[F_ABOVE] - t)**2).sum()
 
 
 def g(y):
 	WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
 	BW = copy.deepcopy(BWi); BR = copy.deepcopy(BRi);
 	WUNDER = copy.deepcopy(WUNDERi); BUNDER = copy.deepcopy(BUNDERi);
+	WABOVE = copy.deepcopy(WABOVEi); BABOVE = copy.deepcopy(BABOVEi);
 	OR_PREV = copy.deepcopy(OR_PREVi); OW_PREV = copy.deepcopy(OW_PREVi)
 	OW_PREV_PREV = copy.deepcopy(OW_PREV_PREVi); OUNDER_PREV = copy.deepcopy(OUNDER_PREVi)
 	DOR_DWR = copy.deepcopy(DOR_DWRi); DOW_DWW = copy.deepcopy(DOW_DWWi); DOR_DWW = copy.deepcopy(DOR_DWWi)
@@ -106,7 +116,9 @@ def g(y):
 	DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.deepcopy(DMEM_PREV_DBUNDERi)
 	
 	##
-	if ref.ndim == 2 and gradient_category == 'under':
+	if gradient_category == 'above':
+		WABOVE[DERIV_L][i_ind,j_ind] = y
+	elif ref.ndim == 2 and gradient_category == 'under':
 		if gradient_weights:
 			WUNDER[DERIV_L][i_ind,j_ind] = y
 		else:
@@ -137,7 +149,7 @@ def g(y):
 	###
 	for frame in range(1,N_FRAMES+1):
 		# forward
-		OR, OW, mem, read_mem, OUNDER = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, OR_PREV, OW_PREV, mem_prev, x[frame])
+		OR,OW,mem,read_mem,OUNDER,OABOVE = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, WABOVE, BABOVE, OR_PREV, OW_PREV, mem_prev, x[frame])
 		
 		# reverse (compute memory partials)
 		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, \
@@ -155,11 +167,14 @@ def g(y):
 			mem_prev_prev = copy.deepcopy(mem_prev); mem_prev = copy.deepcopy(mem)
 	
 	# full gradients from partials
-	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
-			DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER)
+	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DABOVE = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
+			DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, \
+			DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE)
 	
 	####
-	if ref.ndim == 2 and gradient_category == 'under':
+	if gradient_category == 'above':
+		return DABOVE[DERIV_L][i_ind,j_ind]
+	elif ref.ndim == 2 and gradient_category == 'under':
 		if gradient_weights:
 			return DWUNDER[DERIV_L][i_ind,j_ind]
 		else:
