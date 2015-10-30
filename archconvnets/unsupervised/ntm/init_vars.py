@@ -13,10 +13,10 @@ n2_under = 11*2
 n1_above = 13
 n2_above = 1 # output dimensionality of network
 
-SCALE = 1e-2 # scale of weight initializations
+SCALE = 2e0 # scale of weight initializations
 N_FRAMES = 4
-SCALE_UNDER = 1e-1
-SCALE_ABOVE = 1e-1
+SCALE_UNDER = 4e-1
+SCALE_ABOVE = 1e0
 
 ## indices
 L1_UNDER = 0; L2_UNDER = 1; F_UNDER = 2

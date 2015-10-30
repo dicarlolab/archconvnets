@@ -30,8 +30,8 @@ DERIV_L = L1_ABOVE
 #gradient_category = 'under'
 gradient_category = 'above'
 
-#gradient_weights = False # false means bias terms
-gradient_weights = True
+gradient_weights = False # false means bias terms
+#gradient_weights = True
 
 ####
 if gradient_category == 'above':
