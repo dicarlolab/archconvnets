@@ -130,6 +130,8 @@ for layer in range(len(WR_SHAPES)):
 	OR_PREVi[layer] = np.zeros(OR_SHAPES[layer])
 	OW_PREVi[layer] = np.zeros(OW_SHAPES[layer])
 
+BWi[GAMMA] += 1; BRi[GAMMA] += 1
+
 WWi[ADD] = np.random.normal(size = WW_SHAPES[ADD])
 WWi[ERASE] = np.random.normal(size = WW_SHAPES[ERASE])
 

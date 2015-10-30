@@ -14,7 +14,7 @@ from ntm_core_top import *
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 
-DERIV_L = L1_ABOVE
+#DERIV_L = L1_ABOVE
 #DERIV_L = F_ABOVE
 
 #DERIV_L = SHIFT
@@ -23,15 +23,15 @@ DERIV_L = L1_ABOVE
 #DERIV_L = BETA
 #DERIV_L = ADD
 #DERIV_L = ERASE
-#DERIV_L = GAMMA
+DERIV_L = GAMMA
 
-#gradient_category = 'write'
+gradient_category = 'write'
 #gradient_category = 'read'
 #gradient_category = 'under'
-gradient_category = 'above'
+#gradient_category = 'above'
 
-gradient_weights = False # false means bias terms
-#gradient_weights = True
+#gradient_weights = False # false means bias terms
+gradient_weights = True
 
 ####
 if gradient_category == 'above':
