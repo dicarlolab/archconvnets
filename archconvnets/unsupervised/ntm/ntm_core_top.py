@@ -322,9 +322,17 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	dg2above_dg1above_relu = linear_F_dx_nsum_g(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
 	dg1above_relu_dg1above = relu_dlayer_in(OABOVE[L1_ABOVE])
 	dg1above_dread_mem = linear_F_dx_nsum_g(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
-	derr_dread_mem = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above, dg1above_dread_mem), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE], OABOVE[L1_ABOVE]))
-
+	derr_dg1above = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))
+	
+	# above weight gradients
+	DABOVE = [None]*len(WABOVE)
+	dg2above_dw2above = linear_F_dF_nsum_g(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
+	dg1above_dw1above = linear_F_dF_nsum_g(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
+	DABOVE[F_ABOVE] = mult_partials(derr_dg2above, dg2above_dw2above, OABOVE[F_ABOVE])
+	DABOVE[L1_ABOVE] = mult_partials(derr_dg1above, dg1above_dw1above, OABOVE[L1_ABOVE])
+	
 	# read weights
+	derr_dread_mem = mult_partials(derr_dg1above, dg1above_dread_mem, OABOVE[L1_ABOVE])
 	dread_mem_dor = linear_F_dF_nsum(mem_prev)
 	derr_dor = mult_partials(derr_dread_mem, dread_mem_dor, read_mem)
 	
@@ -344,5 +352,5 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	DWUNDER = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DWUNDER)
 	DBUNDER = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DBUNDER, mem_prev, DBUNDER)
 	
-	return DWR, DBR, DWW, DBW, DWUNDER, DBUNDER
+	return DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DABOVE
 

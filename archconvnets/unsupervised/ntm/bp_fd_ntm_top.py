@@ -12,7 +12,10 @@ from ntm_core_top import *
 ##### which gradients to test
 #DERIV_L = L1_UNDER
 #DERIV_L = L2_UNDER
-DERIV_L = F_UNDER
+#DERIV_L = F_UNDER
+
+DERIV_L = L1_ABOVE
+#DERIV_L = F_ABOVE
 
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
@@ -24,13 +27,16 @@ DERIV_L = F_UNDER
 
 #gradient_category = 'write'
 #gradient_category = 'read'
-gradient_category = 'under'
+#gradient_category = 'under'
+gradient_category = 'above'
 
 #gradient_weights = False # false means bias terms
 gradient_weights = True
 
 ####
-if gradient_category == 'under':
+if gradient_category == 'above':
+	ref = WABOVEi[DERIV_L]
+elif gradient_category == 'under':
 	if gradient_weights:
 		ref = WUNDERi[DERIV_L]
 	else:
@@ -56,7 +62,9 @@ def f(y):
 	WABOVE = copy.deepcopy(WABOVEi); BABOVE = copy.deepcopy(BABOVEi);
 	##
 	
-	if ref.ndim == 2 and gradient_category == 'under':
+	if gradient_category == 'above':
+		WABOVE[DERIV_L][i_ind,j_ind] = y
+	elif ref.ndim == 2 and gradient_category == 'under':
 		if gradient_weights:
 			WUNDER[DERIV_L][i_ind,j_ind] = y
 		else:
@@ -108,7 +116,9 @@ def g(y):
 	DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.deepcopy(DMEM_PREV_DBUNDERi)
 	
 	##
-	if ref.ndim == 2 and gradient_category == 'under':
+	if gradient_category == 'above':
+		WABOVE[DERIV_L][i_ind,j_ind] = y
+	elif ref.ndim == 2 and gradient_category == 'under':
 		if gradient_weights:
 			WUNDER[DERIV_L][i_ind,j_ind] = y
 		else:
@@ -157,12 +167,14 @@ def g(y):
 			mem_prev_prev = copy.deepcopy(mem_prev); mem_prev = copy.deepcopy(mem)
 	
 	# full gradients from partials
-	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
+	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DABOVE = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
 			DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, \
 			DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE)
 	
 	####
-	if ref.ndim == 2 and gradient_category == 'under':
+	if gradient_category == 'above':
+		return DABOVE[DERIV_L][i_ind,j_ind]
+	elif ref.ndim == 2 and gradient_category == 'under':
 		if gradient_weights:
 			return DWUNDER[DERIV_L][i_ind,j_ind]
 		else:
