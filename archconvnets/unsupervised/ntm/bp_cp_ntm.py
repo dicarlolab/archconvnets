@@ -10,7 +10,7 @@ from ntm_gradients import *
 from init_vars import *
 from ntm_core import *
 
-save_name = 'ntm_test'
+save_name = 'ntm_test_no_learning'
 n_saves = 0
 
 WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
@@ -31,9 +31,9 @@ DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.
 inputs_prev = np.zeros((2,1))
 inputs = np.zeros((2,1))
 
-EPS_BR = EPS_WW = EPS_BW = EPS_WR = -5e-4
-EPS_BUNDER = -1e-8
-EPS_WUNDER = -1e-8
+EPS_BR = EPS_WW = EPS_BW = EPS_WR = 0#-1e-7
+EPS_BUNDER = 0#-1e-7
+EPS_WUNDER = 0#-1e-7
 
 SAVE_FREQ = 200
 WRITE_FREQ = 2000
@@ -47,7 +47,6 @@ err = 0
 
 START_SIGNAL = 0; TRAIN_SIGNAL = 1
 
-#target_seq = np.random.randint(2,size=time_length) - .5
 target_seq = np.random.normal(size=time_length)
 output_seq = np.zeros_like(target_seq)
 
@@ -57,7 +56,7 @@ train_buffer = np.zeros(SAVE_FREQ)
 target_buffer = np.zeros(SAVE_FREQ)
 output_buffer = np.zeros(SAVE_FREQ)
 corr_buffer = np.zeros(SAVE_FREQ)
-err_log = []
+err_log = []; corr_log = []
 
 t_start = time.time()
 while True:
@@ -96,12 +95,11 @@ while True:
 	# forward
 	OR,OW,mem,read_mem,OUNDER,OABOVE = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, WABOVE,BABOVE,OR_PREV, OW_PREV, mem_prev, inputs)
 	
-	err += np.sum((target - OUNDER[F_UNDER])**2)
+	err += np.sum((target - OABOVE[F_ABOVE])**2)
 	
 	train_buffer[frame % SAVE_FREQ] = copy.deepcopy(inputs[TRAIN_SIGNAL])
 	target_buffer[frame % SAVE_FREQ] = copy.deepcopy(target)
-	output_buffer[frame % SAVE_FREQ] = read_mem.sum()
-	output_seq[elapsed_time] = read_mem.sum()
+	output_buffer[frame % SAVE_FREQ] =  OABOVE[F_ABOVE]
 	
 	# reverse (compute memory partials)
 	DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, \
@@ -162,11 +160,11 @@ while True:
 					np.min(BW[PRINT_KEYS[i]]), np.max(BW[PRINT_KEYS[i]]), -EPS_BW*np.median(np.abs(DBW[PRINT_KEYS[i]]/BW[PRINT_KEYS[i]])))
 		print	
 		
-		
+		corr_log.append(pearsonr(target_buffer, output_buffer)[0])
 		err_log.append(err / SAVE_FREQ)
 		err = 0
 		
-		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_buffer': corr_buffer, 'train_buffer': train_buffer, 'EPS_BR': EPS_BR, 'EPS_WW': EPS_WW, 'EPS_WR': EPS_WR, 'EPS_BUNDER': EPS_BUNDER, 'EPS_WUNDER': EPS_WUNDER})
+		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS_BR': EPS_BR, 'EPS_WW': EPS_WW, 'EPS_WR': EPS_WR, 'EPS_BUNDER': EPS_BUNDER, 'EPS_WUNDER': EPS_WUNDER})
 		
 		t_start = time.time()
 	
