@@ -10,7 +10,7 @@ from ntm_gradients import *
 from init_vars import *
 from ntm_core import *
 
-save_name = 'ntm_test_no_learning'
+save_name = 'ntm_test_only_learning_5eps8_longer_buffer.mat'
 n_saves = 0
 
 WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
@@ -31,31 +31,31 @@ DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.
 inputs_prev = np.zeros((2,1))
 inputs = np.zeros((2,1))
 
-EPS_BR = EPS_WW = EPS_BW = EPS_WR = 0#-1e-7
-EPS_BUNDER = 0#-1e-7
-EPS_WUNDER = 0#-1e-7
+EPS_BR = EPS_WW = EPS_BW = EPS_WR = -5e-8
+EPS_BUNDER = -5e-8
+EPS_WUNDER = -5e-8
 
-SAVE_FREQ = 200
+SAVE_FREQ = 500
 WRITE_FREQ = 2000
 STOP_POINT = np.inf #200*1000*3*10 #1250*300
 
 training = 0
-time_length = 3
+time_length = 5
 elapsed_time = 1000
 frame = 0
 err = 0
 
 START_SIGNAL = 0; TRAIN_SIGNAL = 1
 
-target_seq = np.random.normal(size=time_length)
+target_seq = np.abs(np.random.normal(size=time_length))
 output_seq = np.zeros_like(target_seq)
 
 inputs[START_SIGNAL] = 1 # start signal
 
+training_flag_buffer = np.zeros(SAVE_FREQ)
 train_buffer = np.zeros(SAVE_FREQ)
 target_buffer = np.zeros(SAVE_FREQ)
 output_buffer = np.zeros(SAVE_FREQ)
-corr_buffer = np.zeros(SAVE_FREQ)
 err_log = []; corr_log = []
 
 t_start = time.time()
@@ -77,10 +77,8 @@ while True:
 			DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi); DMEM_PREV_DBW = copy.deepcopy(DMEM_PREV_DBWi)
 			DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.deepcopy(DMEM_PREV_DBUNDERi)
 			
-			corr_buffer[frame % SAVE_FREQ] = pearsonr(output_seq, target_seq)[0]
-			
 			#target_seq = np.random.randint(2,size=time_length) - .5
-			target_seq = np.random.normal(size=time_length)
+			target_seq = np.abs(np.random.normal(size=time_length))
 			inputs[START_SIGNAL] = 1
 			
 	
@@ -95,8 +93,10 @@ while True:
 	# forward
 	OR,OW,mem,read_mem,OUNDER,OABOVE = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, WABOVE,BABOVE,OR_PREV, OW_PREV, mem_prev, inputs)
 	
-	err += np.sum((target - OABOVE[F_ABOVE])**2)
+	if training != 1:
+		err += np.sum((target - OABOVE[F_ABOVE])**2)
 	
+	training_flag_buffer[frame % SAVE_FREQ] = copy.deepcopy(training)
 	train_buffer[frame % SAVE_FREQ] = copy.deepcopy(inputs[TRAIN_SIGNAL])
 	target_buffer[frame % SAVE_FREQ] = copy.deepcopy(target)
 	output_buffer[frame % SAVE_FREQ] =  OABOVE[F_ABOVE]
@@ -116,10 +116,11 @@ while True:
 		OR_PREV = copy.deepcopy(OR); OW_PREV = copy.deepcopy(OW); OUNDER_PREV = copy.deepcopy(OUNDER)
 		mem_prev_prev = copy.deepcopy(mem_prev); mem_prev = copy.deepcopy(mem)
 	
-	# full gradients from partials
-	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DABOVE = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
-			DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, \
-			DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE)
+	if training != 1:
+		# full gradients from partials
+		DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DABOVE = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
+				DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, \
+				DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE)
 	
 	# take step
 	if frame < STOP_POINT and frame > SAVE_FREQ:
@@ -131,10 +132,13 @@ while True:
 		BW = pointwise_mult_partials_add__layers(BW, DBW, EPS_BW)
 		WUNDER = pointwise_mult_partials_add__layers(WUNDER, DWUNDER, EPS_WUNDER)
 		BUNDER = pointwise_mult_partials_add__layers(BUNDER, DBUNDER, EPS_BUNDER)
-	
+
 	# print
 	if frame % SAVE_FREQ == 0 and frame != 0:
-		print 'err: ', err / SAVE_FREQ, 'frame: ', frame, 'time: ', time.time() - t_start, save_name
+		corr_log.append(pearsonr(target_buffer[training_flag_buffer == 0], output_buffer[training_flag_buffer == 0])[0])
+		err_log.append(err / SAVE_FREQ); err = 0
+
+		print 'err: ', err_log[-1], 'frame: ', frame, 'corr: ', corr_log[-1], 'time: ', time.time() - t_start, save_name
 
 		PRINT_KEYS = [L1_UNDER, L2_UNDER, F_UNDER, KEY, BETA, IN_GATE, SHIFT, GAMMA]
 		print_names = ['L1_UNDER', 'L2_UNDER', 'F_UNDER', 'KEY', 'BETA', 'IN_GATE', 'SHIFT', 'GAMMA']
@@ -160,11 +164,7 @@ while True:
 					np.min(BW[PRINT_KEYS[i]]), np.max(BW[PRINT_KEYS[i]]), -EPS_BW*np.median(np.abs(DBW[PRINT_KEYS[i]]/BW[PRINT_KEYS[i]])))
 		print	
 		
-		corr_log.append(pearsonr(target_buffer, output_buffer)[0])
-		err_log.append(err / SAVE_FREQ)
-		err = 0
-		
-		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS_BR': EPS_BR, 'EPS_WW': EPS_WW, 'EPS_WR': EPS_WR, 'EPS_BUNDER': EPS_BUNDER, 'EPS_WUNDER': EPS_WUNDER})
+		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS_BR': EPS_BR, 'EPS_WW': EPS_WW, 'EPS_WR': EPS_WR, 'EPS_BUNDER': EPS_BUNDER, 'EPS_WUNDER': EPS_WUNDER, 'training_flag_buffer': training_flag_buffer})
 		
 		t_start = time.time()
 	

@@ -273,6 +273,7 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_DBUND
 
 ### compute state partials (stores history, in a sense) 
 # 74.7% of main()
+#@profile
 def reverse_pass_partials(WUNDER,BUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, OR_PREV, OW_PREV, \
 				OW_PREV_PREV, mem_prev, mem_prev_prev, x, x_prev, frame, DOW_DWW, DOW_DBW, \
 				DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, \
@@ -318,6 +319,7 @@ def reverse_pass_partials(WUNDER,BUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, O
 
 ### compute full gradients from state partials
 # 24.8 of main()
+#@profile
 def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DOR_DWUNDER,DOR_DBUNDER, OR, DMEM_PREV_DWW, \
 			DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE):
 	# above the read/write heads
