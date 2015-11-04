@@ -10,9 +10,6 @@ from ntm_gradients import *
 from init_vars import *
 from ntm_core import *
 
-save_name = 'ntm_test_only_learning_5eps8_longer_buffer.mat'
-n_saves = 0
-
 WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
 BW = copy.deepcopy(BWi); BR = copy.deepcopy(BRi);
 WUNDER = copy.deepcopy(WUNDERi); BUNDER = copy.deepcopy(BUNDERi);
@@ -31,16 +28,19 @@ DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.
 inputs_prev = np.zeros((2,1))
 inputs = np.zeros((2,1))
 
-EPS_BR = EPS_WW = EPS_BW = EPS_WR = -5e-8
-EPS_BUNDER = -5e-8
-EPS_WUNDER = -5e-8
+a = 1
+b = -3
+EPS_BUNDER = EPS_WUNDER = EPS_WABOVE = EPS_BABOVE = EPS_BR = EPS_WW = EPS_BW = EPS_WR = -a*(10**b)
+save_name = 'ntm_test_' + str(a) + 'e' + str(b) + '_3.mat'
+
 
 SAVE_FREQ = 500
 WRITE_FREQ = 2000
 STOP_POINT = np.inf #200*1000*3*10 #1250*300
 
+n_saves = 0
 training = 0
-time_length = 5
+time_length = 3
 elapsed_time = 1000
 frame = 0
 err = 0
@@ -78,7 +78,7 @@ while True:
 			DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.deepcopy(DMEM_PREV_DBUNDERi)
 			
 			#target_seq = np.random.randint(2,size=time_length) - .5
-			target_seq = np.abs(np.random.normal(size=time_length))
+			target_seq = np.abs(np.random.normal(size=time_length)) + 2
 			inputs[START_SIGNAL] = 1
 			
 	
@@ -118,13 +118,13 @@ while True:
 	
 	if training != 1:
 		# full gradients from partials
-		DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DABOVE = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
+		DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DWABOVE, DBABOVE = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
 				DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, \
-				DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE)
+				DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE, BABOVE)
 	
 	# take step
 	if frame < STOP_POINT and frame > SAVE_FREQ:
-		DWUNDER[L2_UNDER][np.isnan(DWUNDER[L2_UNDER])] = 0
+		#DWUNDER[L2_UNDER][np.isnan(DWUNDER[L2_UNDER])] = 0
 		
 		WR = pointwise_mult_partials_add__layers(WR, DWR, EPS_WR)
 		BR = pointwise_mult_partials_add__layers(BR, DBR, EPS_BR)
@@ -132,6 +132,8 @@ while True:
 		BW = pointwise_mult_partials_add__layers(BW, DBW, EPS_BW)
 		WUNDER = pointwise_mult_partials_add__layers(WUNDER, DWUNDER, EPS_WUNDER)
 		BUNDER = pointwise_mult_partials_add__layers(BUNDER, DBUNDER, EPS_BUNDER)
+		WABOVE = pointwise_mult_partials_add__layers(WABOVE, DWABOVE, EPS_WABOVE)
+		BABOVE = pointwise_mult_partials_add__layers(BABOVE, DBABOVE, EPS_BABOVE)
 
 	# print
 	if frame % SAVE_FREQ == 0 and frame != 0:
@@ -140,9 +142,9 @@ while True:
 
 		print 'err: ', err_log[-1], 'frame: ', frame, 'corr: ', corr_log[-1], 'time: ', time.time() - t_start, save_name
 
-		PRINT_KEYS = [L1_UNDER, L2_UNDER, F_UNDER, KEY, BETA, IN_GATE, SHIFT, GAMMA]
-		print_names = ['L1_UNDER', 'L2_UNDER', 'F_UNDER', 'KEY', 'BETA', 'IN_GATE', 'SHIFT', 'GAMMA']
-		print_under = np.zeros(len(print_names)); print_under[:3] = 1
+		PRINT_KEYS = [L1_UNDER, L2_UNDER, F_UNDER, KEY, BETA, IN_GATE, SHIFT, GAMMA, L1_ABOVE, F_ABOVE]
+		print_names = ['L1_UNDER', 'L2_UNDER', 'F_UNDER', 'KEY', 'BETA', 'IN_GATE', 'SHIFT', 'GAMMA', 'L1_ABOVE', 'F_ABOVE']
+		print_under = np.zeros(len(print_names)); print_under[:3] = 1; print_under[len(print_under)-2:] = 2
 		
 		max_print_len = 0
 		for i in range(len(print_names)):
@@ -152,9 +154,17 @@ while True:
 		for i in range(len(print_names)):
 			if print_under[i] == 1:
 				print '  ', print_names[i], ' '*(max_print_len - len(print_names[i])), \
-					' W: %.1e %.1e (%.1e)  B: %.1e %.1e (%.1e)' % (\
+					' W: %.1e %.1e (%.1e)  B: %.1e %.1e (%.1e) -- %.1e %.1e' % (\
 				np.min(WUNDER[PRINT_KEYS[i]]), np.max(WUNDER[PRINT_KEYS[i]]), -EPS_WUNDER*np.median(np.abs(DWUNDER[PRINT_KEYS[i]]/WUNDER[PRINT_KEYS[i]])), \
-				np.min(BUNDER[PRINT_KEYS[i]]), np.max(BUNDER[PRINT_KEYS[i]]), -EPS_BUNDER*np.median(np.abs(DBUNDER[PRINT_KEYS[i]]/BUNDER[PRINT_KEYS[i]])))
+				np.min(BUNDER[PRINT_KEYS[i]]), np.max(BUNDER[PRINT_KEYS[i]]), -EPS_BUNDER*np.median(np.abs(DBUNDER[PRINT_KEYS[i]]/BUNDER[PRINT_KEYS[i]])), \
+				np.min(OUNDER[PRINT_KEYS[i]]), np.max(OUNDER[PRINT_KEYS[i]]))
+			elif print_under[i] == 2:
+				print '  ', print_names[i], ' '*(max_print_len - len(print_names[i])), \
+					' W: %.1e %.1e (%.1e)  B: %.1e %.1e (%.1e) -- %.1e %.1e' % (\
+				np.min(WABOVE[PRINT_KEYS[i]]), np.max(WABOVE[PRINT_KEYS[i]]), -EPS_WABOVE*np.median(np.abs(DWABOVE[PRINT_KEYS[i]]/WABOVE[PRINT_KEYS[i]])), \
+				np.min(BABOVE[PRINT_KEYS[i]]), np.max(BABOVE[PRINT_KEYS[i]]), -EPS_BABOVE*np.median(np.abs(DBABOVE[PRINT_KEYS[i]]/BABOVE[PRINT_KEYS[i]])), \
+				np.min(OABOVE[PRINT_KEYS[i]]), np.max(OABOVE[PRINT_KEYS[i]]))
+
 			else:
 				print '  ', print_names[i], ' '*(max_print_len - len(print_names[i])), \
 					' WR: %.1e %.1e (%.1e)  BR: %.1e %.1e (%.1e)  WW: %.1e %.1e (%.1e)  BW: %.1e %.1e (%.1e)' % (\
@@ -162,9 +172,11 @@ while True:
 					np.min(BR[PRINT_KEYS[i]]), np.max(BR[PRINT_KEYS[i]]), -EPS_BR*np.median(np.abs(DBR[PRINT_KEYS[i]]/BR[PRINT_KEYS[i]])), \
 					np.min(WW[PRINT_KEYS[i]]), np.max(WW[PRINT_KEYS[i]]), -EPS_WW*np.median(np.abs(DWW[PRINT_KEYS[i]]/WW[PRINT_KEYS[i]])), \
 					np.min(BW[PRINT_KEYS[i]]), np.max(BW[PRINT_KEYS[i]]), -EPS_BW*np.median(np.abs(DBW[PRINT_KEYS[i]]/BW[PRINT_KEYS[i]])))
+				print ' ', ' '*max_print_len, '   OR: %.1e %.1e  OW:  %.1e %.1e' % (np.min(OR[PRINT_KEYS[i]]), np.max(OR[PRINT_KEYS[i]]), \
+					np.min(OW[PRINT_KEYS[i]]), np.max(OW[PRINT_KEYS[i]]))
 		print	
 		
-		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS_BR': EPS_BR, 'EPS_WW': EPS_WW, 'EPS_WR': EPS_WR, 'EPS_BUNDER': EPS_BUNDER, 'EPS_WUNDER': EPS_WUNDER, 'training_flag_buffer': training_flag_buffer})
+		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS_BR': EPS_BR, 'EPS_WW': EPS_WW, 'EPS_WR': EPS_WR, 'EPS_BUNDER': EPS_BUNDER, 'EPS_WUNDER': EPS_WUNDER, 'EPS_WABOVE': EPS_WABOVE, 'EPS_BABOVE': EPS_BABOVE, 'training_flag_buffer': training_flag_buffer})
 		
 		t_start = time.time()
 	
@@ -173,6 +185,7 @@ while True:
 		print 'writing', save_name
 		file = open('/home/darren/ntm_saves/' + save_name + '_' + str(n_saves) + '.pk','w')
 		pk.dump({'WR': WR, 'BR': BR, 'WW': WW, 'BW': BW, 'WUNDER': WUNDER, 'BUNDER': BUNDER, 'frame': frame, \
+			'EPS_BABOVE': EPS_BABOVE, 'EPS_WABOVE': EPS_WABOVE, 'WABOVE': WABOVE, 'BABOVE': BABOVE,\
 			'EPS_BR': EPS_BR, 'EPS_WW': EPS_WW, 'EPS_WR': EPS_WR, 'EPS_BUNDER': EPS_BUNDER, 'EPS_WUNDER': EPS_WUNDER}, file)
 		file.close()
 		

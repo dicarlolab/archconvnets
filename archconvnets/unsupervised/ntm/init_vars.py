@@ -1,6 +1,9 @@
 import numpy as np
 import copy
 
+def random_function(size):
+	return np.random.random(size) - .5
+
 n_shifts = 3
 C = 16 # number of controllers
 M = 6 # mem slots
@@ -43,28 +46,28 @@ F_ABOVE = 1
 N_TOTAL_HEAD_LAYERS = N_WRITE_IN_LAYERS +  N_HEAD_INT_LAYERS
 
 ## inputs/targets
-x = np.random.normal(size=(N_FRAMES+1, n_in,1)) * SCALE
-t = np.random.normal(size=(1,1))
+x = random_function(size=(N_FRAMES+1, n_in,1)) * SCALE
+t = random_function(size=(1,1))
 
 ## under weights:
-w1 = np.random.normal(size=(n1_under, n_in)) * SCALE_UNDER
-w2 = np.random.normal(size=(n2_under, n1_under)) * SCALE_UNDER
-w3 = np.random.normal(size=(n_head_in, n2_under)) * SCALE_UNDER
+w1 = random_function(size=(n1_under, n_in)) * SCALE_UNDER
+w2 = random_function(size=(n2_under, n1_under)) * SCALE_UNDER
+w3 = random_function(size=(n_head_in, n2_under)) * SCALE_UNDER
 
-b1 = np.random.normal(size=(n1_under, 1)) * SCALE_UNDER
-b2 = np.random.normal(size=(n2_under, 1)) * SCALE_UNDER
-b3 = np.random.normal(size=(n_head_in, 1)) * SCALE_UNDER
+b1 = random_function(size=(n1_under, 1)) * SCALE_UNDER
+b2 = random_function(size=(n2_under, 1)) * SCALE_UNDER
+b3 = random_function(size=(n_head_in, 1)) * SCALE_UNDER
 
 WUNDERi = [w1, w2, w3]
 BUNDERi = [b1, b2, b3]
 OUNDER_PREVi = np.zeros((n_head_in, 1))
 
 # above weights
-wa1 = np.random.normal(size=(n1_above, C*mem_length)) * SCALE_ABOVE
-wa2 = np.random.normal(size=(n2_above, n1_above)) * SCALE_ABOVE
+wa1 = random_function(size=(n1_above, C*mem_length)) * SCALE_ABOVE
+wa2 = random_function(size=(n2_above, n1_above)) * SCALE_ABOVE
 
-ba1 = np.random.normal(size=(n1_above, 1)) * SCALE_ABOVE
-ba2 = np.random.normal(size=(n2_above, 1)) * SCALE_ABOVE
+ba1 = random_function(size=(n1_above, 1)) * SCALE_ABOVE + 3
+ba2 = random_function(size=(n2_above, 1)) * SCALE_ABOVE + 10
 
 WABOVEi = [wa1, wa2]
 BABOVEi = [ba1, ba2]
@@ -121,32 +124,32 @@ OW_SHAPES[ADD] = (C, mem_length)
 
 # init weights
 for layer in range(len(WR_SHAPES)):
-	WRi[layer] = np.random.normal(size = WR_SHAPES[layer]) * SCALE
-	WWi[layer] = np.random.normal(size = WW_SHAPES[layer]) * SCALE
+	WRi[layer] = random_function(size = WR_SHAPES[layer]) * SCALE
+	WWi[layer] = random_function(size = WW_SHAPES[layer]) * SCALE
 	
-	BRi[layer] = np.random.normal(size = OR_SHAPES[layer]) * SCALE
-	BWi[layer] = np.random.normal(size = OW_SHAPES[layer]) * SCALE
+	BRi[layer] = random_function(size = OR_SHAPES[layer]) * SCALE
+	BWi[layer] = random_function(size = OW_SHAPES[layer]) * SCALE
 	
 	OR_PREVi[layer] = np.zeros(OR_SHAPES[layer])
 	OW_PREVi[layer] = np.zeros(OW_SHAPES[layer])
 
 BWi[GAMMA] += 1; BRi[GAMMA] += 1
 
-WWi[ADD] = np.random.normal(size = WW_SHAPES[ADD])
-WWi[ERASE] = np.random.normal(size = WW_SHAPES[ERASE])
+WWi[ADD] = random_function(size = WW_SHAPES[ADD])
+WWi[ERASE] = random_function(size = WW_SHAPES[ERASE])
 
-BWi[ADD] = np.random.normal(size = OW_SHAPES[ADD])
-BWi[ERASE] = np.random.normal(size = OW_SHAPES[ERASE])
+BWi[ADD] = random_function(size = OW_SHAPES[ADD])
+BWi[ERASE] = random_function(size = OW_SHAPES[ERASE])
 
 OW_PREVi[ADD] = np.zeros(WW_SHAPES[ADD])
 OW_PREVi[ERASE] = np.zeros(WW_SHAPES[ERASE])
 	
 ###
 
-OR_PREVi[F] = np.abs(np.random.normal(size=(C,M)))
+OR_PREVi[F] = np.abs(random_function(size=(C,M)))
 
 OW_PREVi[IN] = np.zeros_like(OR_PREVi[F])
-OW_PREVi[F] = np.abs(np.random.normal(size=(C,M)))
+OW_PREVi[F] = np.abs(random_function(size=(C,M)))
 
 OW_PREVi[SHIFTED] = np.zeros_like(OW_PREVi[F])
 OW_PREVi[SHARPENED] = np.zeros_like(OW_PREVi[F])
@@ -191,4 +194,4 @@ DOW_DWUNDERi = copy.deepcopy(DOR_DWUNDERi)
 DOW_DBUNDERi = copy.deepcopy(DOR_DBUNDERi)
 
 ## layer outputs/initial states:
-mem_previ = np.random.normal(size=(M, mem_length))
+mem_previ = random_function(size=(M, mem_length))
