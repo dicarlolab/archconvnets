@@ -1,13 +1,13 @@
 static PyObject *set_buffer(PyObject *self, PyObject *args){
     cudaError_t err;
-	PyArrayObject *data_in = NULL;
+	PyArrayObject *numpy_buffer_temp;
 	float *data;
-	int gpu_ind, buffer_ind, dims[5];
+	int gpu_ind, buffer_ind;
 	
-	if (!PyArg_ParseTuple(args, "O!ii", &PyArray_Type, &data_in, &buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "O!ii", &PyArray_Type, &numpy_buffer_temp, &buffer_ind, &gpu_ind)) 
 		return NULL;
         
-	if (NULL == data_in)  return NULL;
+	if (NULL == numpy_buffer_temp)  return NULL;
     
 	if(buffer_ind >= N_BUFFERS || buffer_ind < 0){
 		printf("buffer index incorrect, set_buffers().\n");
@@ -19,42 +19,48 @@ static PyObject *set_buffer(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	printf("7\n");
     cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
-	cudnnSetStream(handle, streams[gpu_ind]);
 	
-	dims[0] = PyArray_DIM(data_in, 0);
-	dims[1] = PyArray_DIM(data_in, 1);
-	
-	data = (float *) data_in -> data;
-	
-	if(data_2d_buffers[gpu_ind][buffer_ind] == NULL){
+	printf("5\n");
+	data = (float *) PyArray_DATA(numpy_buffer_temp);
+	printf(".\n");
+	if(NUMPY_BUFFER == NULL){
+		printf("3\n");
 		//--------------------------------------
 		// allocate filter, image, alpha, and beta tensors
 		//----------------------------------------
-		err = cudaMalloc((void**) &data_2d_buffers[gpu_ind][buffer_ind], dims[0]*dims[1] * DATA_TYPE_SZ); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &GPU_BUFFER, PyArray_NBYTES(numpy_buffer_temp)); MALLOC_ERR_CHECK
 		
-		//----------------------------------------
-		// save input dimensions for error checking on subsequent calls to conv()
-		//---------------------------------------
-		data_2d_dims[0][gpu_ind][buffer_ind] = dims[0];
-		data_2d_dims[1][gpu_ind][buffer_ind] = dims[1];
 	}else{
 		//-------------------------------------------
 		// check to make sure inputs match the previously initialized buffer sizes
 		//---------------------------------------------
-		if(dims[0] != data_2d_dims[0][gpu_ind][buffer_ind] || dims[1] != data_2d_dims[1][gpu_ind][buffer_ind]){
+		printf("%li\n", PyArray_NBYTES(numpy_buffer_temp));
+		printf("%li\n", PyArray_NBYTES(NUMPY_BUFFER));
+		if(PyArray_NBYTES(NUMPY_BUFFER) != PyArray_NBYTES(numpy_buffer_temp)){
 				printf("---------------------------\ninput dimensions do not match the initial input dimensions on the first call to this function\n------------------\n");
+				printf("4\n");
 				return NULL;
 		}
 	}
-	
+	printf("8\n");
+	//----------------------------------------
+	// save input dimensions for error checking on subsequent calls
+	//---------------------------------------
+	NUMPY_BUFFER = numpy_buffer_temp;
+	printf("2\n");
 	//--------------------------------------
 	// set image values
 	//--------------------------------------
-	err = cudaMemcpy(data_2d_buffers[gpu_ind][buffer_ind], data, dims[0]*dims[1] * DATA_TYPE_SZ, cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
+	err = cudaMemcpy(GPU_BUFFER, data, PyArray_NBYTES(NUMPY_BUFFER), cudaMemcpyHostToDevice);  MALLOC_ERR_CHECK
 	
-	cudnnSetStream(handle, NULL);
+	printf("1\n");
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
+	
+	printf("%f %f\n", data[0],data[1]);
+	//printf("%f %f\n", (float *)(PyArray_DATA(NUMPY_BUFFER[0]))[0], (float *)(PyArray_DATA(NUMPY_BUFFER[1]))[1]);
 	
 	Py_INCREF(Py_None);
 	return Py_None;

@@ -12,5 +12,5 @@ def set_buffer(data, buffer_ind, gpu=0, warn=True):
 		print 'warning: input to set_2d_buffer not C-contiguous (data)'
 		data = np.ascontiguousarray(data)
 
-	return _ntm_module.set_2d_buffer(data, buffer_ind, gpu)
+	return _ntm_module.set_buffer(data, buffer_ind, gpu)
 

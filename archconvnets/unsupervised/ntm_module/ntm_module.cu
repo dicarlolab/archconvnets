@@ -1,3 +1,4 @@
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include "includes.h"
 
 #define CHECK_CUDA_ERR {err = cudaGetLastError();if(err != cudaSuccess){\
@@ -9,7 +10,6 @@
 #include "set_buffer.c"
 
 static PyMethodDef _ntm_module[] = {
-	
 	{"set_buffer", set_buffer, METH_VARARGS},
 	{NULL, NULL}
 };
@@ -24,9 +24,10 @@ extern "C" void init_ntm_module(){
 	}
 	
 	/////////////////////////////////////////////////////////
-    	for(int gpu = 0; gpu < N_GPUS; gpu++){
-		for(int buffer = 0; buffer < N_BUFFERS; buffer++){
-			data_buffers[gpu][buffer] = 0;
+    	for(int gpu_ind = 0; gpu_ind < N_GPUS; gpu_ind++){
+		for(int buffer_ind = 0; buffer_ind < N_BUFFERS; buffer_ind++){
+			GPU_BUFFER = NULL;
+			NUMPY_BUFFER = NULL;
 		}
 	}
     

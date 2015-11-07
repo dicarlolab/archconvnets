@@ -12,6 +12,9 @@
 #define N_BUFFERS 100
 #define N_GPUS 4
 
-int data_sz[N_GPUS][N_BUFFERS];
-float *data_buffers[N_GPUS][N_BUFFERS];
+#define NUMPY_BUFFER numpy_buffers[gpu_ind][buffer_ind]
+#define GPU_BUFFER gpu_buffers[gpu_ind][buffer_ind]
+
+PyArrayObject *numpy_buffers[N_GPUS][N_BUFFERS];
+float *gpu_buffers[N_GPUS][N_BUFFERS];
 
