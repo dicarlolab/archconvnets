@@ -3,6 +3,7 @@
 #define GPU_BUFFER_OUT gpu_buffers[gpu_ind][out_buffer_ind]
 #define BUFFER_SZ1 buffer_sz[gpu_ind][buffer_ind1]
 #define BUFFER_SZ2 buffer_sz[gpu_ind][buffer_ind2]
+#define OUT_BUFFER_SZ buffer_sz[gpu_ind][out_buffer_ind]
 
 #define DATA_OUT(A, B) data_out[(A)*buffer2_dim2 + (B)]
 #define DATA1(A, B) data1[(A)*buffer1_dim2 + (B)]
@@ -21,7 +22,6 @@ __global__ void dot_kernel(float * data1, float * data2, float * data_out, int b
 
 static PyObject *dot_gpu(PyObject *self, PyObject *args){
     cudaError_t err;
-	float *data_out;
 	int gpu_ind, buffer_ind1, buffer_ind2, out_buffer_ind;
 	PyTupleObject *buffer_shape1, *buffer_shape2;
 	
@@ -58,7 +58,7 @@ static PyObject *dot_gpu(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(DATA_OUT_SZ != OUT_BUFFER_SZ){
+	if(DATA_OUT_SZ != OUT_BUFFER_SZ){ // does the output size match the buffer size?
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
@@ -69,7 +69,7 @@ static PyObject *dot_gpu(PyObject *self, PyObject *args){
 	
 	begin = clock();
 	
-	dot_kernel <<< 1, buffer1_dim1*buffer2_dim2 >>> (GPU_BUFFER1, GPU_BUFFER2, data_out, buffer1_dim1, buffer1_dim2, buffer2_dim1, buffer2_dim2);
+	dot_kernel <<< 1, buffer1_dim1*buffer2_dim2 >>> (GPU_BUFFER1, GPU_BUFFER2, GPU_BUFFER_OUT, buffer1_dim1, buffer1_dim2, buffer2_dim1, buffer2_dim2);
 	// copy result
 	//err = cudaMemcpy(data_out, GPU_BUFFER1, BUFFER_SZ1, cudaMemcpyDeviceToHost);  MALLOC_ERR_CHECK
 	

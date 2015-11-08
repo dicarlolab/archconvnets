@@ -27,7 +27,7 @@ def dot_gpu(buffer_ind1, buffer_shape1, buffer_ind2, buffer_shape2, out_buffer_i
 	assert isinstance(gpu_ind,int)
 	assert isinstance(buffer_ind1,int)
 	assert isinstance(buffer_ind2,int)
-	assert isinstance(out_ind,int)
+	assert isinstance(out_buffer_ind,int)
 	assert isinstance(buffer_shape1, tuple)
 	assert isinstance(buffer_shape2, tuple)
 	assert len(buffer_shape1) == len(buffer_shape2) == 2
