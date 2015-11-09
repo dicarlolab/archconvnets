@@ -16,6 +16,8 @@
 #define DATA_TYPE float
 #define MALLOC(A, B) {A = (DATA_TYPE *)malloc(B); if(A == NULL){printf("malloc err line: %i\n",__LINE__);}}
 
+#define MAX_THREADS_PER_BLOCK 1024
+
 #define N_BUFFERS 100
 #define N_GPUS 4
 

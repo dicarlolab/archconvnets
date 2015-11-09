@@ -9,11 +9,13 @@
 #define DATA1(A, B) data1[(A)*buffer1_dim2 + (B)]
 #define DATA2(A, B) data2[(A)*buffer2_dim2 + (B)]
 
-#define DATA_OUT_SZ (buffer1_dim1*buffer2_dim2*sizeof(DATA_TYPE))
+#define DATA_OUT_NUMEL (buffer1_dim1*buffer2_dim2)
 
 __global__ void dot_kernel(float * data1, float * data2, float * data_out, int buffer1_dim1, int buffer1_dim2, int buffer2_dim1, int buffer2_dim2){
-	int i = threadIdx.x;
-	int j = threadIdx.y;
+	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
+	if(ind >= DATA_OUT_NUMEL) return;
+	int i = ind / buffer2_dim2;
+	int j = ind % buffer2_dim2;
 	
 	for(int k = 0; k < buffer1_dim2; k++){
 		DATA_OUT(i,j) += DATA1(i,k) * DATA2(k,j);
@@ -23,6 +25,7 @@ __global__ void dot_kernel(float * data1, float * data2, float * data_out, int b
 static PyObject *dot_gpu(PyObject *self, PyObject *args){
     cudaError_t err;
 	int gpu_ind, buffer_ind1, buffer_ind2, out_buffer_ind;
+	float * data_out;
 	PyTupleObject *buffer_shape1, *buffer_shape2;
 	
 	if (!PyArg_ParseTuple(args, "iO!iO!ii", &buffer_ind1, &PyTuple_Type, &buffer_shape1, &buffer_ind2, 
@@ -63,20 +66,34 @@ static PyObject *dot_gpu(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	MALLOC(data_out, DATA_OUT_SZ);
+	
     cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	clock_t begin, end;
 	
-	begin = clock();
+	dim3 thread_sz;
+	thread_sz.x = buffer1_dim1;
+	thread_sz.y = buffer2_dim2;
 	
-	dot_kernel <<< 1, buffer1_dim1*buffer2_dim2 >>> (GPU_BUFFER1, GPU_BUFFER2, GPU_BUFFER_OUT, buffer1_dim1, buffer1_dim2, buffer2_dim1, buffer2_dim2);
+	int n_blocks = (int)ceil((double)DATA_OUT_NUMEL/MAX_THREADS_PER_BLOCK);
+	
+	begin = clock();
+	dot_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (GPU_BUFFER1, GPU_BUFFER2, GPU_BUFFER_OUT, buffer1_dim1, buffer1_dim2, buffer2_dim1, buffer2_dim2);
+	cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	end = clock();
+	
 	// copy result
-	//err = cudaMemcpy(data_out, GPU_BUFFER1, BUFFER_SZ1, cudaMemcpyDeviceToHost);  MALLOC_ERR_CHECK
+	err = cudaMemcpy(data_out, GPU_BUFFER_OUT, DATA_OUT_SZ, cudaMemcpyDeviceToHost);  MALLOC_ERR_CHECK
+	
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
-	end = clock();
 	printf("%G seconds\n", (double)(end - begin) / CLOCKS_PER_SEC);
+	
+	printf("%f %f %f\n", DATA_OUT(0,1), DATA_OUT(1,0), DATA_OUT(1,1));
+	
+	free(data_out);
 	
 	Py_INCREF(Py_None);
 	return Py_None;

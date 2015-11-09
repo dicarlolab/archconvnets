@@ -74,6 +74,8 @@ static PyObject *dot_cpu(PyObject *self, PyObject *args){
 	end = clock();
 	printf("%G seconds\n", (double)(end - begin) / CLOCKS_PER_SEC);
 	
+	printf("%f %f %f\n", DATA_OUT(0,1), DATA_OUT(1,0), DATA_OUT(1,1));
+	
 	free(data1);
 	free(data2);
 	free(data_out);

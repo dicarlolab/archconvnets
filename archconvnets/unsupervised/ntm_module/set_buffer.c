@@ -46,8 +46,6 @@ static PyObject *set_buffer(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
-	printf("%f %f %f\n", data[0], data[1], data[2]);
-	
 	Py_INCREF(Py_None);
 	return Py_None;
 }
