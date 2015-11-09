@@ -17,12 +17,15 @@
 #define MALLOC(A, B) {A = (DATA_TYPE *)malloc(B); if(A == NULL){printf("malloc err line: %i\n",__LINE__);}}
 
 #define MAX_THREADS_PER_BLOCK 1024
+#define MAX_BLOCKS 65535
+#define THREAD_CAPACITY (MAX_BLOCKS*MAX_THREADS_PER_BLOCK)
 
 #define N_BUFFERS 100
 #define N_GPUS 4
 
 #define GPU_BUFFER gpu_buffers[gpu_ind][buffer_ind]
 #define BUFFER_SZ buffer_sz[gpu_ind][buffer_ind]
+// BUFFER_SZ: size of buffer in bytes
 
 float *gpu_buffers[N_GPUS][N_BUFFERS];
 unsigned long buffer_sz[N_GPUS][N_BUFFERS];

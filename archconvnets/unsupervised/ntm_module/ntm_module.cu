@@ -1,13 +1,13 @@
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include "includes.h"
 #include "set_buffer.c"
-#include "dot_cpu.cu"
-#include "dot_gpu.cu"
+#include "dot.cu"
+#include "return_buffer.c"
 
 static PyMethodDef _ntm_module[] = {
 	{"set_buffer", set_buffer, METH_VARARGS},
-	{"dot_cpu", dot_cpu, METH_VARARGS},
-	{"dot_gpu", dot_gpu, METH_VARARGS},
+	{"dot", dot, METH_VARARGS},
+	{"return_buffer", return_buffer, METH_VARARGS},
 	{NULL, NULL}
 };
 

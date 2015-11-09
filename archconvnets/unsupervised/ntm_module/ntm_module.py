@@ -12,18 +12,13 @@ def set_buffer(data, buffer_ind, gpu_ind=0, warn=True):
 
 	return _ntm_module.set_buffer(data, buffer_ind, gpu_ind)
 	
-def dot_cpu(buffer_ind1, buffer_shape1, buffer_ind2, buffer_shape2, gpu_ind=0, warn=True):
+def return_buffer(buffer_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
-	assert isinstance(buffer_ind1,int)
-	assert isinstance(buffer_ind2,int)
-	assert isinstance(buffer_shape1, tuple)
-	assert isinstance(buffer_shape2, tuple)
-	assert len(buffer_shape1) == len(buffer_shape2) == 2
-	assert buffer_shape1[1] == buffer_shape2[0]
-	
-	return _ntm_module.dot_cpu(buffer_ind1, buffer_shape1, buffer_ind2, buffer_shape2, gpu_ind)
+	assert isinstance(buffer_ind,int)
 
-def dot_gpu(buffer_ind1, buffer_shape1, buffer_ind2, buffer_shape2, out_buffer_ind, gpu_ind=0, warn=True):
+	return _ntm_module.return_buffer(buffer_ind, gpu_ind)
+	
+def dot(buffer_ind1, buffer_shape1, buffer_ind2, buffer_shape2, out_buffer_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(buffer_ind1,int)
 	assert isinstance(buffer_ind2,int)
@@ -35,7 +30,4 @@ def dot_gpu(buffer_ind1, buffer_shape1, buffer_ind2, buffer_shape2, out_buffer_i
 	assert out_buffer_ind != buffer_ind1
 	assert out_buffer_ind != buffer_ind2
 	
-	# setup output buffer
-	set_buffer(np.zeros((buffer_shape1[0], buffer_shape2[1]), dtype='float32'), out_buffer_ind, gpu_ind=gpu_ind)
-	
-	return _ntm_module.dot_gpu(buffer_ind1, buffer_shape1, buffer_ind2, buffer_shape2, out_buffer_ind, gpu_ind)
+	return _ntm_module.dot(buffer_ind1, buffer_shape1, buffer_ind2, buffer_shape2, out_buffer_ind, gpu_ind)
