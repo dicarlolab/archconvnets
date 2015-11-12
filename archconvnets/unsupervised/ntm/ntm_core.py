@@ -158,6 +158,7 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	dgkey_dwkey = linear_2d_F_dF_nsum(W[KEY], OUNDER[F_UNDER])
 	dgkey_dg3under = linear_2d_F_dx_nsum(W[KEY])
 	DO_DW_NEW[KEY] += mult_partials(do_dgkey, dgkey_dwkey, O[KEY]) # 28.6%
+	print do_dgkey.shape, dgkey_dwkey.shape, O[KEY].shape ###############################
 	do_dg3under += mult_partials(do_dgkey, dgkey_dg3under, O[KEY])
 	
 	## interp. gradients (wrt beta)

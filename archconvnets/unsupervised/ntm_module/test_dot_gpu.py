@@ -2,9 +2,9 @@ import archconvnets.unsupervised.ntm_module.ntm_module as nm
 import numpy as np
 import time
 
-dim1 = 5*5*2*2*60
-dim2 = 2*2*40
-dim3 = 5*5*2*2*80*2
+dim1 = 5*5*2*2*60*2
+dim2 = 2*2*40*2
+dim3 = 5*5*2*2*80*2*2
 z = np.asarray(np.random.random((dim1,dim2)),dtype='single')
 z2 = np.asarray(np.random.random((dim2,dim3)),dtype='single')
 

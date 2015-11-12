@@ -1,6 +1,7 @@
 import numpy as np
 import copy
 from init_vars import *
+import archconvnets.unsupervised.ntm_module.ntm_module as nm
 
 ####
 
@@ -22,6 +23,26 @@ def mult_partials(da_db, db_dc, b):
         da_dc = np.dot(da_db_r, db_dc_r).reshape(np.concatenate((da_db.shape[:a_ndim], db_dc.shape[b.ndim:])))
 
         return da_dc
+
+def mult_partials_gpu(da_db, db_dc, b):
+	nm.free_buffer(1); nm.free_buffer(2); nm.free_buffer(3)
+
+	a_ndim = da_db.ndim - b.ndim
+	c_ndim = db_dc.ndim - b.ndim
+
+	da_db_r = da_db.reshape((np.prod(da_db.shape[:a_ndim]), np.prod(da_db.shape[a_ndim:])))
+	db_dc_r = db_dc.reshape((np.prod(db_dc.shape[:b.ndim]), np.prod(db_dc.shape[b.ndim:])))
+
+	print da_db_r.shape, db_dc_r.shape
+
+	nm.set_buffer(da_db_r, 1)
+	nm.set_buffer(db_dc_r, 2)
+
+	nm.dot(1,da_db_r.shape, 2, db_dc_r.shape, 3)
+
+	da_dc = nm.return_buffer(3).reshape(np.concatenate((da_db.shape[:a_ndim], db_dc.shape[b.ndim:])))
+
+	return da_dc
 
 # pointwise multiply partials (same for all partials, i.e., broadcasted for dimensions taken wrt)
 def pointwise_mult_partials__layers(mat, DB_DC):

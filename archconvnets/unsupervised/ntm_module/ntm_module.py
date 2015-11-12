@@ -1,6 +1,10 @@
 import _ntm_module
 import numpy as np
 
+def sync(gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	return _ntm_module.sync(gpu_ind)
+
 def set_buffer(data, buffer_ind, gpu_ind=0, warn=True):
 	assert data.dtype == np.dtype('float32')
 	assert isinstance(gpu_ind,int)
@@ -11,7 +15,12 @@ def set_buffer(data, buffer_ind, gpu_ind=0, warn=True):
 		data = np.ascontiguousarray(data)
 
 	return _ntm_module.set_buffer(data, buffer_ind, gpu_ind)
-	
+
+def free_buffer(buffer_ind, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	assert isinstance(buffer_ind,int)
+	return _ntm_module.free_buffer(buffer_ind, gpu_ind)
+
 def return_buffer(buffer_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(buffer_ind,int)

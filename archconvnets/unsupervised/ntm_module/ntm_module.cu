@@ -1,11 +1,15 @@
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include "includes.h"
 #include "set_buffer.c"
+#include "free_buffer.c"
 #include "dot.cu"
 #include "return_buffer.c"
+#include "sync.c"
 
 static PyMethodDef _ntm_module[] = {
+	{"sync", sync, METH_VARARGS},
 	{"set_buffer", set_buffer, METH_VARARGS},
+	{"free_buffer", free_buffer, METH_VARARGS},
 	{"dot", dot, METH_VARARGS},
 	{"return_buffer", return_buffer, METH_VARARGS},
 	{NULL, NULL}
