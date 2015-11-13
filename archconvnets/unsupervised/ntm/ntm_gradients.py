@@ -43,6 +43,27 @@ def mult_partials_gpu(da_db, db_dc, b):
 	da_dc = nm.return_buffer(3).reshape(np.concatenate((da_db.shape[:a_ndim], db_dc.shape[b.ndim:])))
 
 	return da_dc
+	
+
+def mult_partials_gpu(da_db, db_dc, b):
+	nm.free_buffer(1); nm.free_buffer(2); nm.free_buffer(3)
+
+	a_ndim = da_db.ndim - b.ndim
+	c_ndim = db_dc.ndim - b.ndim
+
+	da_db_r = da_db.reshape((np.prod(da_db.shape[:a_ndim]), np.prod(da_db.shape[a_ndim:])))
+	db_dc_r = db_dc.reshape((np.prod(db_dc.shape[:b.ndim]), np.prod(db_dc.shape[b.ndim:])))
+
+	print da_db_r.shape, db_dc_r.shape
+
+	nm.set_buffer(da_db_r, 1)
+	nm.set_buffer(db_dc_r, 2)
+
+	nm.dot(1,da_db_r.shape, 2, db_dc_r.shape, 3)
+
+	da_dc = nm.return_buffer(3).reshape(np.concatenate((da_db.shape[:a_ndim], db_dc.shape[b.ndim:])))
+
+	return da_dc
 
 # pointwise multiply partials (same for all partials, i.e., broadcasted for dimensions taken wrt)
 def pointwise_mult_partials__layers(mat, DB_DC):
@@ -142,43 +163,47 @@ def focus_key_dkeys_nsum(keys, beta_out):
 # cosine similarity between each controller's key and memory vector
 
 def cosine_sim_expand_dmem(keys, mem):
-        n_controllers = keys.shape[0]
-        comb = np.zeros((n_controllers, mem.shape[0], mem.shape[0], mem.shape[1]))
+	n_controllers = keys.shape[0]
+	comb = np.zeros((n_controllers, mem.shape[0], mem.shape[0], mem.shape[1]))
 
-        keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
-        mem_sq_sum = np.sqrt(np.sum(mem**2, 1))
+	keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
+	mem_sq_sum = np.sqrt(np.sum(mem**2, 1))
 
-        denom = np.einsum(keys_sq_sum, [0], mem_sq_sum, [1], [0,1])
-        numer = np.dot(keys, mem.T)
+	denom = np.einsum(keys_sq_sum, [0], mem_sq_sum, [1], [0,1])
+	numer = np.dot(keys, mem.T)
 
-        numer = numer / denom**2
-        denom = 1 / denom # = denom/denom**2
+	numer = numer / denom**2
+	denom = 1 / denom # = denom/denom**2
 
-        mem = mem / mem_sq_sum[:,np.newaxis]
+	mem = mem / mem_sq_sum[:,np.newaxis]
 
-        temp = np.einsum(mem, [0,2], numer*keys_sq_sum[:,np.newaxis], [1,0], [1,0,2])
-        
-        keys_denom = keys[:,np.newaxis] * denom[:,:,np.newaxis]
-        comb2 = keys_denom - temp
-        
-        comb[:,range(mem.shape[0]),range(mem.shape[0])] = comb2
-        
-        return comb
+	temp = np.einsum(mem, [0,2], numer*keys_sq_sum[:,np.newaxis], [1,0], [1,0,2])
+	
+	keys_denom = keys[:,np.newaxis] * denom[:,:,np.newaxis]
+	
+	comb[:,range(mem.shape[0]),range(mem.shape[0])] = keys_denom - temp
+	return comb
 
 def cosine_sim_expand_dkeys(keys, mem):
 	n_controllers = keys.shape[0]
-	dnumer = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]))
-	ddenom = np.zeros_like(dnumer); comb = np.zeros_like(dnumer)
+	comb = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]))
 	
-	dnumer[range(n_controllers),:,range(n_controllers)] = mem
+	keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
+	mem_sq_sum = np.sqrt(np.sum(mem**2, 1))
 	
-	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	denom = np.einsum(keys_sq_sum, [0], mem_sq_sum, [1], [0,1])
 	numer = np.dot(keys, mem.T)
 	
-	for i in range(keys.shape[0]):
-		for j in range(mem.shape[0]):
-			ddenom[i,j,i] = keys[i] * np.sqrt(np.sum(mem[j]**2)) / np.sqrt(np.sum(keys[i]**2))
-			comb[i,j,i] = (dnumer[i,j,i] * denom[i,j] - numer[i,j] * ddenom[i,j,i])/(denom[i,j]**2)
+	numer = numer / denom**2
+	denom = 1 / denom # = denom/denom**2
+	
+	keys = keys / keys_sq_sum[:,np.newaxis]
+	
+	temp = np.einsum(keys, [1,2], numer*mem_sq_sum[np.newaxis], [1,0], [1,0,2])
+	
+	mem_denom = mem[np.newaxis] * denom[:,:,np.newaxis]
+	
+	comb[range(n_controllers),:,range(n_controllers)] = mem_denom - temp
 	return comb
 
 def cosine_sim(keys, mem):
