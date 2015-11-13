@@ -24,47 +24,6 @@ def mult_partials(da_db, db_dc, b):
 
         return da_dc
 
-def mult_partials_gpu(da_db, db_dc, b):
-	nm.free_buffer(1); nm.free_buffer(2); nm.free_buffer(3)
-
-	a_ndim = da_db.ndim - b.ndim
-	c_ndim = db_dc.ndim - b.ndim
-
-	da_db_r = da_db.reshape((np.prod(da_db.shape[:a_ndim]), np.prod(da_db.shape[a_ndim:])))
-	db_dc_r = db_dc.reshape((np.prod(db_dc.shape[:b.ndim]), np.prod(db_dc.shape[b.ndim:])))
-
-	print da_db_r.shape, db_dc_r.shape
-
-	nm.set_buffer(da_db_r, 1)
-	nm.set_buffer(db_dc_r, 2)
-
-	nm.dot(1,da_db_r.shape, 2, db_dc_r.shape, 3)
-
-	da_dc = nm.return_buffer(3).reshape(np.concatenate((da_db.shape[:a_ndim], db_dc.shape[b.ndim:])))
-
-	return da_dc
-	
-
-def mult_partials_gpu(da_db, db_dc, b):
-	nm.free_buffer(1); nm.free_buffer(2); nm.free_buffer(3)
-
-	a_ndim = da_db.ndim - b.ndim
-	c_ndim = db_dc.ndim - b.ndim
-
-	da_db_r = da_db.reshape((np.prod(da_db.shape[:a_ndim]), np.prod(da_db.shape[a_ndim:])))
-	db_dc_r = db_dc.reshape((np.prod(db_dc.shape[:b.ndim]), np.prod(db_dc.shape[b.ndim:])))
-
-	print da_db_r.shape, db_dc_r.shape
-
-	nm.set_buffer(da_db_r, 1)
-	nm.set_buffer(db_dc_r, 2)
-
-	nm.dot(1,da_db_r.shape, 2, db_dc_r.shape, 3)
-
-	da_dc = nm.return_buffer(3).reshape(np.concatenate((da_db.shape[:a_ndim], db_dc.shape[b.ndim:])))
-
-	return da_dc
-
 # pointwise multiply partials (same for all partials, i.e., broadcasted for dimensions taken wrt)
 def pointwise_mult_partials__layers(mat, DB_DC):
 	DB_DC_NEW = [None] * len(DB_DC)
@@ -131,16 +90,6 @@ def focus_keys(keys, beta_out):
 	# keys: [n_controllers, m_length], beta_out: [n_controllers, 1]
 	
 	return keys * beta_out # [n_controllers, m_length]
-
-def focus_key_dkeys(beta_out, above_w): 
-	# above_w: [n_controllers, m_length], beta_out: [n_controllers, 1]
-	
-	return above_w * beta_out # [n_controllers, m_length]
-
-def focus_key_dbeta_out(keys, above_w): 
-	# above_w: [n_controllers, m_length], beta_out: [n_controllers, 1]
-	
-	return (above_w * keys).sum(1) # [n_controllers, 1]
 
 def focus_key_dbeta_out_nsum(keys, beta_out): 
 	# beta_out: [n_controllers, 1]
@@ -212,34 +161,6 @@ def cosine_sim(keys, mem):
 	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
 	
 	return numer / denom # [n_controllers, n_mem_slots]
-
-def cosine_sim_dkeys(keys, mem, above_w=1):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	numer = np.dot(keys, mem.T)
-	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	above_w_denom2 = above_w/(denom**2)
-	
-	denom_keys = np.sqrt(np.sum(keys**2,1))
-	denom_mem = np.sqrt(np.sum(mem**2,1))
-	
-	dnumer_keys = np.dot(denom*above_w_denom2, mem)
-	ddenom_keys = keys * (np.dot(numer*above_w_denom2, denom_mem)/denom_keys)[:,np.newaxis]
-
-	return dnumer_keys - ddenom_keys # [n_controllers, m_length]
-	
-def cosine_sim_dmem(keys, mem, above_w=1):
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	numer = np.dot(keys, mem.T)
-	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	above_w_denom2 = above_w/(denom**2)
-	
-	denom_keys = np.sqrt(np.sum(keys**2,1))
-	denom_mem = np.sqrt(np.sum(mem**2,1))
-	
-	dnumer_mem = np.dot((denom*above_w_denom2).T, keys)
-	ddenom_mem = mem * (np.dot((numer*above_w_denom2).T, denom_keys)/denom_mem)[:,np.newaxis]
-
-	return dnumer_mem - ddenom_mem # [n_controllers, m_length]
 
 ############# sharpen across mem_slots separately for each controller
 def sharpen(w, gamma):
@@ -356,20 +277,6 @@ def shift_w(shift_out, w_interp):
 				shift_out[:,2]*w_interp[:,(loc+1)%n_mem_slots]
 	return w_tilde # [n_controllers, mem_length]
 
-def shift_w_dshift_out(w_interp, above_w=1):
-	# w_interp: [n_controllers, mem_length], above_w: [n_controllers, mem_length]
-	
-	n_controllers = w_interp.shape[0]
-	n_mem_slots = above_w.shape[1]
-	n_shifts = 3 #...
-	
-	dshift_w_dshift_out = np.zeros((n_controllers, n_mem_slots, n_shifts))
-	for m in range(n_mem_slots):
-		for H in [-1,0,1]:
-			dshift_w_dshift_out[:,m,H+1] = w_interp[:, (m+H)%n_mem_slots] * above_w[:,m]
-	
-	return dshift_w_dshift_out.sum(1) # [n_controllers, n_shifts]
-
 def shift_w_dshift_out_nsum(w_interp):
 	n_shifts = 3 #...
 	
@@ -379,19 +286,6 @@ def shift_w_dshift_out_nsum(w_interp):
 			temp[range(C),m,range(C),H+1] = w_interp[:, (m+H)%M]
 	
 	return temp
-
-def shift_w_dw_interp(shift_out, above_w=1):
-	# shift_out: [n_controllers, n_shifts], above_w: [n_controllers, mem_length]
-	
-	temp = np.zeros_like(above_w)
-	n_mem_slots = above_w.shape[1]
-	
-	for loc in range(n_mem_slots):
-		temp[:,loc-1] += above_w[:,loc] * shift_out[:,0]
-		temp[:,loc] += above_w[:,loc] * shift_out[:,1]
-		temp[:,(loc+1)%n_mem_slots] += above_w[:,loc] * shift_out[:,2]
-			
-	return temp # [n_controllers, mem_length]
 
 def shift_w_dw_interp_nsum(shift_out):
 	# shift_out: [n_controllers, n_shifts]
@@ -409,14 +303,6 @@ def linear_F(F, layer_in):
 	# F: [n1, n_in], layer_in: [n_in, 1]
 	
 	return np.dot(F,layer_in) # [n1, 1]
-
-def linear_dF(layer_in, above_w): 
-	# layer_in: [n_in, 1], above_w: [n1,1]
-	
-	return layer_in.T*above_w # [n1, n_in]
-
-def linear_dlayer_in(F, above_w=1):
-	return (F*above_w).sum(0)[:,np.newaxis] # [n_in, 1]
 
 def linear_F_dx_nsum(o):
 	n = mem_previ.shape[1]
@@ -458,16 +344,6 @@ def sq_dF_nsum(F, layer_in, layer_out):
 	for i in range(temp.shape[0]):
 		temp2[i,i] = temp[i]
 	return temp2
-
-def sq_dF(F, layer_in, layer_out, above_w=1): 
-	# F: [n1, n_in], layer_in: [n_in, 1], layer_out,above_w: [n1,1]
-	
-	s = np.sign(np.dot(F,layer_in))
-	return 2*s*np.sqrt(layer_out)*(layer_in.T)*above_w # [n1, n_in]
-
-def sq_dlayer_in(F, layer_in, layer_out, above_w=1):
-	s = np.sign(np.dot(F,layer_in))
-	return 2*(s*np.sqrt(layer_out)*F*above_w).sum(0)[:,np.newaxis] # [n_in, 1]
 
 def sq_dlayer_in_nsum(F, layer_in): # not summed across n1 as sq_dlayer_in() does
 	return 2 * F * linear_F(F,layer_in) # [n1, n_in]

@@ -5,13 +5,15 @@
 #include "dot.cu"
 #include "return_buffer.c"
 #include "sync.c"
+#include "cosine_sim_expand_dkeys_cpu.c"
 
 static PyMethodDef _ntm_module[] = {
 	{"sync", sync, METH_VARARGS},
 	{"set_buffer", set_buffer, METH_VARARGS},
 	{"free_buffer", free_buffer, METH_VARARGS},
 	{"dot", dot, METH_VARARGS},
-	{"return_buffer", return_buffer, METH_VARARGS},
+	{"return_buffer", return_buffer, METH_VARARGS},	
+	{"cosine_sim_expand_dkeys_cpu", cosine_sim_expand_dkeys_cpu, METH_VARARGS},
 	{NULL, NULL}
 };
 

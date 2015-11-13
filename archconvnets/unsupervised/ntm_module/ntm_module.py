@@ -1,6 +1,22 @@
 import _ntm_module
 import numpy as np
 
+def cosine_sim_expand_dkeys_cpu(keys, mem, warn=True):
+	assert keys.dtype == np.dtype('float32')
+	assert mem.dtype == np.dtype('float32')
+	assert keys.ndim == mem.ndim == 2
+	assert keys.shape[1] == mem.shape[1]
+	
+	if not keys.flags.contiguous and warn:
+		print 'warning: input to cosine_sim_expand_dkeys_cpu not C-contiguous (keys)'
+		keys = np.ascontiguousarray(keys)
+		
+	if not mem.flags.contiguous and warn:
+		print 'warning: input to cosine_sim_expand_dkeys_cpu not C-contiguous (mem)'
+		mem = np.ascontiguousarray(mem)
+
+	return _ntm_module.cosine_sim_expand_dkeys_cpu(keys, mem)
+
 def sync(gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	return _ntm_module.sync(gpu_ind)
@@ -11,7 +27,7 @@ def set_buffer(data, buffer_ind, gpu_ind=0, warn=True):
 	assert isinstance(buffer_ind,int)
 	
 	if not data.flags.contiguous and warn:
-		print 'warning: input to set_2d_buffer not C-contiguous (data)'
+		print 'warning: input to set_buffer not C-contiguous (data)'
 		data = np.ascontiguousarray(data)
 
 	return _ntm_module.set_buffer(data, buffer_ind, gpu_ind)

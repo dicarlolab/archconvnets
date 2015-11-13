@@ -14,12 +14,11 @@ t_start = time.time()
 z3 = cosine_sim_expand_dkeys(O[KEY], mem_prev)
 t_cpu = time.time() - t_start
 
+
 t_start = time.time()
-z32 = cosine_sim_expand_dkeys_working(O[KEY], mem_prev)
+z34 = nm.cosine_sim_expand_dkeys_cpu(O[KEY], mem_prev)
 t_cpu2 = time.time() - t_start
 
-print np.single(np.isclose(z32, z3).sum())/np.prod(z3.shape)
-print t_cpu, t_cpu2, t_cpu2/t_cpu
 ##############
 #t_start = time.time()
 #z3g = mult_partials_gpu(do_dgkey, dgkey_dwkey, O[KEY])
