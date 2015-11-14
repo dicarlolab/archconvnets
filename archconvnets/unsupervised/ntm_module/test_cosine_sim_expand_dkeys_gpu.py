@@ -24,4 +24,4 @@ t_cpu2 = time.time() - t_start
 #z3g = mult_partials_gpu(do_dgkey, dgkey_dwkey, O[KEY])
 #t_gpu = time.time() - t_start
 
-#print t_cpu, t_gpu, t_cpu/t_gpu, np.isclose(z3, z3g.reshape(z3.shape)).sum()/np.single(np.prod(z3.shape))
+print t_cpu, t_cpu2, t_cpu/t_cpu2, np.isclose(z3, z34.reshape(z3.shape)).sum()/np.single(np.prod(z3.shape))
