@@ -8,6 +8,7 @@
 #include "cosine_sim_expand_dkeys_cpu.c"
 #include "cosine_sim_expand_dmem_cpu.c"
 #include "cosine_sim_expand_dkeys.c"
+#include "cosine_sim_expand_dmem.c"
 
 static PyMethodDef _ntm_module[] = {
 	{"sync", sync, METH_VARARGS},
@@ -18,6 +19,7 @@ static PyMethodDef _ntm_module[] = {
 	{"cosine_sim_expand_dkeys_cpu", cosine_sim_expand_dkeys_cpu, METH_VARARGS},
 	{"cosine_sim_expand_dmem_cpu", cosine_sim_expand_dmem_cpu, METH_VARARGS},
 	{"cosine_sim_expand_dkeys", cosine_sim_expand_dkeys, METH_VARARGS},
+	{"cosine_sim_expand_dmem", cosine_sim_expand_dmem, METH_VARARGS},
 	{NULL, NULL}
 };
 
