@@ -1,6 +1,19 @@
 import _ntm_module
 import numpy as np
 
+def cosine_sim_expand_dkeys(keys_ind, keys_shape, mem_ind, mem_shape, out_ind, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	assert isinstance(keys_ind,int)
+	assert isinstance(mem_ind,int)
+	assert isinstance(out_ind,int)
+	assert isinstance(keys_shape, tuple)
+	assert isinstance(mem_shape, tuple)
+	assert len(keys_shape) == len(mem_shape) == 2
+	assert keys_ind != mem_ind
+	assert keys_shape[1] == mem_shape[1]
+
+	return _ntm_module.cosine_sim_expand_dkeys(keys_ind, keys_shape, mem_ind, mem_shape, out_ind, gpu_ind)
+
 def cosine_sim_expand_dkeys_cpu(keys, mem, warn=True):
 	assert keys.dtype == np.dtype('float32')
 	assert mem.dtype == np.dtype('float32')
