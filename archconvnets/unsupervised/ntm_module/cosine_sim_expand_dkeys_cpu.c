@@ -40,7 +40,7 @@ static PyObject *cosine_sim_expand_dkeys_cpu(PyObject *self, PyObject *args){
 	
 	/////////////////////////
 	// mem*denom - temp (keys*numer*mem_sq_sum)
-	float numer, denom, denom2;
+	float numer, denom;
 	for(int i = 0; i < n_controllers; i++){ // [1]
 		keys_sq_sum = 0;
 		for(int k = 0; k < mem_length; k++){
@@ -50,12 +50,12 @@ static PyObject *cosine_sim_expand_dkeys_cpu(PyObject *self, PyObject *args){
 		
 		for(int j = 0; j < M; j++){
 			denom = keys_sq_sum * mem_sq_sum[j];
-			denom2 = keys_sq_sum * denom * denom / mem_sq_sum[j];
 			numer = 0;
 			for(int k = 0; k < mem_length; k++){
-				numer += KEYS(i,k) * MEM(j,k) / denom2;
+				numer += KEYS(i,k) * MEM(j,k);
 				COMB(i,j,i,k) = MEM(j,k) / denom;
 			}
+			numer /= keys_sq_sum * denom * denom / mem_sq_sum[j];
 			
 			for(int k = 0; k < mem_length; k++){ // [2]
 				COMB(i,j,i,k) -= KEYS(i,k) * numer;

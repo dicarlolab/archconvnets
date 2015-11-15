@@ -18,7 +18,7 @@ __global__ void cosine_sim_expand_dkeys_kernel(float * keys, float * mem,
 	int j = threadIdx.x / mem_length;
 	int k = threadIdx.x % mem_length;
 	
-	float numer = 0, denom, denom2, keys_sq_sum = 0, mem_sq_sum = 0;
+	float numer = 0, denom, keys_sq_sum = 0, mem_sq_sum = 0;
 	
 	
 	for(int k_local = 0; k_local < mem_length; k_local++){
@@ -34,12 +34,12 @@ __global__ void cosine_sim_expand_dkeys_kernel(float * keys, float * mem,
 	keys_sq_sum = sqrt(keys_sq_sum);
 	
 	denom = keys_sq_sum * mem_sq_sum;
-	denom2 = keys_sq_sum * denom * denom / mem_sq_sum;
 	for(int k_local = 0; k_local < mem_length; k_local++){
-		numer += KEYS(i,k_local) * MEM(j,k_local) / denom2;
+		numer += KEYS(i,k_local) * MEM(j,k_local);
 	}
 	
-	COSED(i,j,i,k) = (MEM(j,k) / denom) - (KEYS(i,k) * numer);
+	COSED(i,j,i,k) = (MEM(j,k) / denom) - (KEYS(i,k) * numer / (
+			keys_sq_sum * denom * denom / mem_sq_sum));
 	
 	for(int i_local = 0; i_local < n_controllers; i_local++){
 		if(i_local != i)
