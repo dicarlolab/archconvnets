@@ -43,8 +43,8 @@ static PyObject *cosine_sim_expand_dkeys_cpu(PyObject *self, PyObject *args){
 	float numer, denom, denom2;
 	for(int i = 0; i < n_controllers; i++){ // [1]
 		keys_sq_sum = 0;
-		for(int j = 0; j < mem_length; j++){
-			keys_sq_sum += KEYS(i,j) * KEYS(i,j);
+		for(int k = 0; k < mem_length; k++){
+			keys_sq_sum += KEYS(i,k) * KEYS(i,k);
 		}
 		keys_sq_sum = sqrt(keys_sq_sum);
 		

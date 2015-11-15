@@ -14,6 +14,22 @@ def cosine_sim_expand_dkeys(keys_ind, keys_shape, mem_ind, mem_shape, out_ind, g
 
 	return _ntm_module.cosine_sim_expand_dkeys(keys_ind, keys_shape, mem_ind, mem_shape, out_ind, gpu_ind)
 
+def cosine_sim_expand_dmem_cpu(keys, mem, warn=True):
+	assert keys.dtype == np.dtype('float32')
+	assert mem.dtype == np.dtype('float32')
+	assert keys.ndim == mem.ndim == 2
+	assert keys.shape[1] == mem.shape[1]
+	
+	if not keys.flags.contiguous and warn:
+		print 'warning: input to cosine_sim_expand_dkeys_cpu not C-contiguous (keys)'
+		keys = np.ascontiguousarray(keys)
+		
+	if not mem.flags.contiguous and warn:
+		print 'warning: input to cosine_sim_expand_dkeys_cpu not C-contiguous (mem)'
+		mem = np.ascontiguousarray(mem)
+
+	return _ntm_module.cosine_sim_expand_dmem_cpu(keys, mem)
+	
 def cosine_sim_expand_dkeys_cpu(keys, mem, warn=True):
 	assert keys.dtype == np.dtype('float32')
 	assert mem.dtype == np.dtype('float32')

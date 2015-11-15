@@ -6,6 +6,7 @@
 #include "return_buffer.c"
 #include "sync.c"
 #include "cosine_sim_expand_dkeys_cpu.c"
+#include "cosine_sim_expand_dmem_cpu.c"
 #include "cosine_sim_expand_dkeys.c"
 
 static PyMethodDef _ntm_module[] = {
@@ -15,6 +16,7 @@ static PyMethodDef _ntm_module[] = {
 	{"dot", dot, METH_VARARGS},
 	{"return_buffer", return_buffer, METH_VARARGS},	
 	{"cosine_sim_expand_dkeys_cpu", cosine_sim_expand_dkeys_cpu, METH_VARARGS},
+	{"cosine_sim_expand_dmem_cpu", cosine_sim_expand_dmem_cpu, METH_VARARGS},
 	{"cosine_sim_expand_dkeys", cosine_sim_expand_dkeys, METH_VARARGS},
 	{NULL, NULL}
 };
