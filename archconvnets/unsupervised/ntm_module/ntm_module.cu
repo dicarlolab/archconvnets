@@ -9,6 +9,7 @@
 #include "cosine_sim_expand_dmem_cpu.c"
 #include "cosine_sim_expand_dkeys.c"
 #include "cosine_sim_expand_dmem.c"
+#include "softmax_dlayer_in_nsum_cpu.c"
 
 static PyMethodDef _ntm_module[] = {
 	{"sync", sync, METH_VARARGS},
@@ -20,6 +21,7 @@ static PyMethodDef _ntm_module[] = {
 	{"cosine_sim_expand_dmem_cpu", cosine_sim_expand_dmem_cpu, METH_VARARGS},
 	{"cosine_sim_expand_dkeys", cosine_sim_expand_dkeys, METH_VARARGS},
 	{"cosine_sim_expand_dmem", cosine_sim_expand_dmem, METH_VARARGS},
+	{"softmax_dlayer_in_nsum_cpu", softmax_dlayer_in_nsum_cpu, METH_VARARGS},
 	{NULL, NULL}
 };
 
