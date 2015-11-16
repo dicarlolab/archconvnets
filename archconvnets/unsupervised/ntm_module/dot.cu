@@ -53,7 +53,7 @@ __global__ void dot_kernel(float * data1, float * data2, float * data_out, int b
 }
 
 static PyObject *dot(PyObject *self, PyObject *args){
-    cudaError_t err;
+	cudaError_t err;
 	int gpu_ind, buffer_ind1, buffer_ind2, out_buffer_ind;
 	PyTupleObject *buffer_shape1, *buffer_shape2;
 	

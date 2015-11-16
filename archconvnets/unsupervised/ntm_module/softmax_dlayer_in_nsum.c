@@ -1,11 +1,30 @@
 #define LAYER_OUT(A, B) layer_out[(A)*dim1 + B]
+#define LAYER_OUT_SZ buffer_sz[gpu_ind][layer_out_ind]
 #define SMDLAYER(A, B, C, D) smdlayer[(A)*dim1*dim0*dim1 + \
 	(B)*dim0*dim1 + (C)*dim1 + D]
+#define SMDLAYER_SZ (dim0*dim1*dim0*dim1*sizeof(DATA_TYPE))
+
+__global__ void softmax_dlayer_in_nsum_kernel(float * layer_out, float * smdlayer, long dim0, long dim1){
+	int i = blockIdx.x;
+	int j = threadIdx.x / dim1;
+	int k = threadIdx.x % dim1;
+
+	//for(int i_local = 0; i_local < dim0; i_local++){
+	//	SMDLAYER(i,j,i_local,k) = 0;
+	//}
+
+	if(j == k)
+		SMDLAYER(i,j,i,j) = LAYER_OUT(i,j) * (1 - LAYER_OUT(i,j));
+	else
+		SMDLAYER(i,j,i,k) = -LAYER_OUT(i,j)*LAYER_OUT(i,k);
+	return;
+}
 
 static PyObject *softmax_dlayer_in_nsum(PyObject *self, PyObject *args){
-    PyArrayObject *layer_out_in, *numpy_buffer_temp;
-	float *layer_out, *smdlayer;
-	
+	cudaError_t err;
+	PyTupleObject *layer_out_shape;
+	int layer_out_ind, gpu_ind, out_buffer_ind;
+
 	if (!PyArg_ParseTuple(args, "iO!ii", &layer_out_ind, &PyTuple_Type, &layer_out_shape,
 			&out_buffer_ind, &gpu_ind)) 
 		return NULL;
@@ -15,29 +34,40 @@ static PyObject *softmax_dlayer_in_nsum(PyObject *self, PyObject *args){
 		printf("buffer index incorrect, set_buffers().\n");
 		return NULL;
 	}
+
+	if(gpu_ind >= N_GPUS || gpu_ind < 0){
+		printf("gpu index incorrect, set_buffers().\n");
+		return NULL;
+	}
 	
-	int dim0 = PyArray_DIM(layer_out_in, 0);
-	int dim1 = PyArray_DIM(layer_out_in, 1);
+	if(LAYER_OUT_SZ == 0){
+		printf("buffer not initialized. use set_buffers()\n");
+		return NULL;
+	}
+
+	long dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)layer_out_shape,0));
+	long dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)layer_out_shape,1));
+
+	if(dim0*dim1*sizeof(DATA_TYPE) != LAYER_OUT_SZ){
+		printf("specified input sizes do not equal stored gpu buffer. softmax_dlayer_in_nsum()\n");
+		return NULL;
+	}
 	
-	layer_out = (float *) PyArray_DATA(layer_out_in);
+	if(OUT_BUFFER_SZ == 0){ // init output buffer
+		err = cudaMalloc((void**) &GPU_BUFFER_OUT, SMDLAYER_SZ); MALLOC_ERR_CHECK
+
+		OUT_BUFFER_SZ = SMDLAYER_SZ;
+	}else if(SMDLAYER_SZ != OUT_BUFFER_SZ){ // does the output size match the buffer size?
+		printf("output buffer size not allocated to correct size\n");
+		return NULL;
+	}
+
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+
+	softmax_dlayer_in_nsum_kernel <<< dim0, dim1*dim1 >>> (gpu_buffers[gpu_ind][layer_out_ind], GPU_BUFFER_OUT, dim0, dim1);
 	
-	/////////////////////////  output buffer
-	int dims[5];
-	dims[0] = dim0;
-	dims[1] = dim1;
-	dims[2] = dim0;
-	dims[3] = dim1;
-	numpy_buffer_temp = (PyArrayObject *) PyArray_FromDims(4, dims, NPY_FLOAT);
-	smdlayer = (float *) PyArray_DATA(numpy_buffer_temp);
+	cudaSetDevice(0); CHECK_CUDA_ERR
 	
-	for(int i = 0; i < dim0; i++){
-		for(int j = 0; j < dim1; j++){
-			SMDLAYER(i,j,i,j) = LAYER_OUT(i,j) * (1 - LAYER_OUT(i,j));
-			for(int k = 0; k < dim1; k++){
-				if(j != k)
-					SMDLAYER(i,j,i,k) -= LAYER_OUT(i,j)*LAYER_OUT(i,k);
-			}
-		}
-	}	
-	return PyArray_Return(numpy_buffer_temp);
+	Py_INCREF(Py_None);
+	return Py_None;
 }

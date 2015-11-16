@@ -1,6 +1,25 @@
 import _ntm_module
 import numpy as np
 
+def softmax_dlayer_in_nsum(layer_out, layer_out_shape, out_ind, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	assert isinstance(out_ind,int)
+	assert isinstance(layer_out,int)
+	assert isinstance(layer_out_shape,tuple)
+	assert len(layer_out_shape) == 2
+	
+	return _ntm_module.softmax_dlayer_in_nsum(layer_out, layer_out_shape, out_ind, gpu_ind)
+
+def softmax_dlayer_in_nsum_cpu(layer_out, warn=True):
+	assert layer_out.dtype == np.dtype('float32')
+	assert layer_out.ndim == 2
+	
+	if not layer_out.flags.contiguous and warn:
+		print 'warning: input to softmax_dlayer_in_nsum_cpu not C-contiguous'
+		layer_out = np.ascontiguousarray(layer_out)
+		
+	return _ntm_module.softmax_dlayer_in_nsum_cpu(layer_out)
+
 def cosine_sim_expand_dmem(keys_ind, keys_shape, mem_ind, mem_shape, out_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(keys_ind,int)
