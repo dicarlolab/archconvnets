@@ -22,23 +22,16 @@ __global__ void cosine_sim_expand_dmem_kernel(float * keys, float * mem,
 	
 	for(int k_local = 0; k_local < mem_length; k_local++){
 		mem_sq_sum += MEM(j,k_local) * MEM(j,k_local);
+		keys_sq_sum += KEYS(i,k_local) * KEYS(i,k_local);
+		
+		numer += KEYS(i,k_local) * MEM(j,k_local);
 	}
 	mem_sq_sum = sqrt(mem_sq_sum);
-	
-	/////////////////////////
-	// mem*denom - temp (keys*numer*mem_sq_sum)
-	for(int k_local = 0; k_local < mem_length; k_local++){
-		keys_sq_sum += KEYS(i,k_local) * KEYS(i,k_local);
-	}
 	keys_sq_sum = sqrt(keys_sq_sum);
 	
 	denom = keys_sq_sum * mem_sq_sum;
-	for(int k_local = 0; k_local < mem_length; k_local++){
-		numer += KEYS(i,k_local) * MEM(j,k_local);
-	}
 	
-	COSEDM(i,j,j,k) = (KEYS(i,k) / denom) - (MEM(j,k) * numer / (
-			mem_sq_sum * denom * denom / keys_sq_sum));
+	COSEDM(i,j,j,k) = (KEYS(i,k) - (keys_sq_sum * MEM(j,k) * numer / (mem_sq_sum * denom))) / denom;
 	
 	for(int j_local = 0; j_local < M; j_local++){
 		if(j_local != j)
