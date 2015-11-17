@@ -12,6 +12,7 @@
 #include "softmax_dlayer_in_nsum_cpu.c"
 #include "softmax_dlayer_in_nsum.c"
 #include "dsharpen_dw_cpu.c"
+#include "dsharpen_dw.c"
 
 static PyMethodDef _ntm_module[] = {
 	{"sync", sync, METH_VARARGS},
@@ -26,6 +27,7 @@ static PyMethodDef _ntm_module[] = {
 	{"softmax_dlayer_in_nsum_cpu", softmax_dlayer_in_nsum_cpu, METH_VARARGS},
 	{"softmax_dlayer_in_nsum", softmax_dlayer_in_nsum, METH_VARARGS},
 	{"dsharpen_dw_cpu", dsharpen_dw_cpu, METH_VARARGS},
+	{"dsharpen_dw", dsharpen_dw, METH_VARARGS},
 	{NULL, NULL}
 };
 

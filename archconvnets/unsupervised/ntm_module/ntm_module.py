@@ -1,6 +1,18 @@
 import _ntm_module
 import numpy as np
 
+def dsharpen_dw(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	assert isinstance(w_ind,int)
+	assert isinstance(gamma_ind,int)
+	assert isinstance(out_ind,int)
+	assert isinstance(w_shape,tuple)
+	assert isinstance(gamma_shape,tuple)
+	assert len(gamma_shape) == len(w_shape) == 2
+	assert gamma_shape[0] == w_shape[0]
+	
+	return _ntm_module.dsharpen_dw(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind)
+
 def dsharpen_dw_cpu(w, gamma, warn=True):
 	assert w.dtype == np.dtype('float32')
 	assert gamma.dtype == np.dtype('float32')
