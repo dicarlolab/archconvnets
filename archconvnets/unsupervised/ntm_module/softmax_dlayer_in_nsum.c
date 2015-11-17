@@ -9,10 +9,6 @@ __global__ void softmax_dlayer_in_nsum_kernel(float * layer_out, float * smdlaye
 	int j = threadIdx.x / dim1;
 	int k = threadIdx.x % dim1;
 
-	//for(int i_local = 0; i_local < dim0; i_local++){
-	//	SMDLAYER(i,j,i_local,k) = 0;
-	//}
-
 	if(j == k)
 		SMDLAYER(i,j,i,j) = LAYER_OUT(i,j) * (1 - LAYER_OUT(i,j));
 	else

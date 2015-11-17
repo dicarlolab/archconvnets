@@ -1,6 +1,23 @@
 import _ntm_module
 import numpy as np
 
+def dsharpen_dw_cpu(w, gamma, warn=True):
+	assert w.dtype == np.dtype('float32')
+	assert gamma.dtype == np.dtype('float32')
+	assert w.ndim == gamma.ndim == 2
+	assert gamma.shape[0] == w.shape[0]
+	assert gamma.shape[1] == 1
+
+	if not w.flags.contiguous and warn:
+		print 'warning: input to dsharpen_dw_cpu not C-contiguous (w)'
+		w = np.ascontiguousarray(w)
+	
+	if not gamma.flags.contiguous and warn:
+		print 'warning: input to dsharpen_dw_cpu not C-contiguous (gamma)'
+		gamma = np.ascontiguousarray(gamma)
+
+	return _ntm_module.dsharpen_dw_cpu(w, gamma)
+
 def softmax_dlayer_in_nsum(layer_out, layer_out_shape, out_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(out_ind,int)

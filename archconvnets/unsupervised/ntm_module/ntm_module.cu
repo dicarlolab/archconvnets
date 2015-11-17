@@ -11,6 +11,7 @@
 #include "cosine_sim_expand_dmem.c"
 #include "softmax_dlayer_in_nsum_cpu.c"
 #include "softmax_dlayer_in_nsum.c"
+#include "dsharpen_dw_cpu.c"
 
 static PyMethodDef _ntm_module[] = {
 	{"sync", sync, METH_VARARGS},
@@ -24,6 +25,7 @@ static PyMethodDef _ntm_module[] = {
 	{"cosine_sim_expand_dmem", cosine_sim_expand_dmem, METH_VARARGS},
 	{"softmax_dlayer_in_nsum_cpu", softmax_dlayer_in_nsum_cpu, METH_VARARGS},
 	{"softmax_dlayer_in_nsum", softmax_dlayer_in_nsum, METH_VARARGS},
+	{"dsharpen_dw_cpu", dsharpen_dw_cpu, METH_VARARGS},
 	{NULL, NULL}
 };
 
@@ -31,11 +33,8 @@ extern "C" void init_ntm_module(){
 	(void) Py_InitModule("_ntm_module", _ntm_module);
 	import_array();
 	
-	cudaError_t err;
-	
 	/////////////////////////////////////////////////////////
-    for(int gpu_ind = 0; gpu_ind < N_GPUS; gpu_ind++){
-		cudaSetDevice(gpu_ind); CHECK_CUDA_ERR_R
+	for(int gpu_ind = 0; gpu_ind < N_GPUS; gpu_ind++){
 		for(int buffer_ind = 0; buffer_ind < N_BUFFERS; buffer_ind++){
 			GPU_BUFFER = NULL;
 			BUFFER_SZ = 0;
