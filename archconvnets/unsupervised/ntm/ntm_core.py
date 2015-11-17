@@ -128,6 +128,7 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	do_dg3under = np.squeeze(mult_partials(do_dgamma, dgamma_dg3under, O[GAMMA]))
 	
 	## shift weights
+	print O[SHIFTED].shape, O[GAMMA].shape
 	do_dgshiftedsm = dsharpen_dw(O[SHIFTED], O[GAMMA])
 	dgshiftedsm_dgshiftsm = shift_w_dshift_out_nsum(O[IN])
 	do_dgshiftsm = mult_partials(do_dgshiftedsm, dgshiftedsm_dgshiftsm, O[SHARPENED])
@@ -153,7 +154,6 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	## interp. gradients (wrt o_content; key)
 	do_do_content = do_do_content__(O, do_do_in) # 14%
 	do_content_dgkey = cosine_sim_expand_dkeys(O[KEY], mem_prev) # 12.3%
-	print do_content_dgkey.shape, O[KEY].shape, mem_prev.shape ###############################
 	do_dgkey = mult_partials(do_do_content, do_content_dgkey, O[CONTENT])
 	DO_DB_NEW[KEY] += do_dgkey
 	dgkey_dwkey = linear_2d_F_dF_nsum(W[KEY], OUNDER[F_UNDER])

@@ -37,12 +37,12 @@ static PyObject *dsharpen_dw_cpu(PyObject *self, PyObject *args){
 		wg_sum2 = wg_sum * wg_sum;
 
 		for(int j = 0; j < dim1; j++){
-			g_wgm1 = gamma[i] * wg[j] / W(i,j);
+			g_wgm1 = gamma[i] * wg[j] / (W(i,j) * wg_sum2);
 			for(int k = 0; k < dim1; k++){
 				if(k != j)
-					DSDW(i,k,i,j) = -g_wgm1 * wg[k] / wg_sum2;
+					DSDW(i,k,i,j) = -g_wgm1 * wg[k];
 				else
-					DSDW(i,k,i,j) = (g_wgm1 / wg_sum2) * (wg_sum - wg[j]);
+					DSDW(i,k,i,j) = g_wgm1 * (wg_sum - wg[j]);
 			}
 		}
 	}
