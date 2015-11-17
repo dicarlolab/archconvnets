@@ -21,7 +21,7 @@ __global__ void dsharpen_dw_kernel(float * w, float * gamma, float * dsdw, int d
 	__syncthreads();
 	if(k == 0){
 		wg[j] = pow(W(i,j), gamma[i]);
-		atomicAdd(&WG_SUM, wg[j]);   //wg_sum += wg[j_local];
+		atomicAdd(&WG_SUM, wg[j]);
 	}
 	__syncthreads();
 	wg_sum2 = WG_SUM * WG_SUM;

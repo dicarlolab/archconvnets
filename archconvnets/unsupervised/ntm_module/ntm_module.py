@@ -13,6 +13,23 @@ def dsharpen_dw(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind=0):
 	
 	return _ntm_module.dsharpen_dw(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind)
 
+def dsharpen_dgamma_cpu(w, gamma, warn=True):
+	assert w.dtype == np.dtype('float32')
+	assert gamma.dtype == np.dtype('float32')
+	assert w.ndim == gamma.ndim == 2
+	assert gamma.shape[0] == w.shape[0]
+	assert gamma.shape[1] == 1
+
+	if not w.flags.contiguous and warn:
+		print 'warning: input to dsharpen_dw_cpu not C-contiguous (w)'
+		w = np.ascontiguousarray(w)
+	
+	if not gamma.flags.contiguous and warn:
+		print 'warning: input to dsharpen_dw_cpu not C-contiguous (gamma)'
+		gamma = np.ascontiguousarray(gamma)
+	
+	return _ntm_module.dsharpen_dgamma_cpu(w, gamma)
+
 def dsharpen_dw_cpu(w, gamma, warn=True):
 	assert w.dtype == np.dtype('float32')
 	assert gamma.dtype == np.dtype('float32')
