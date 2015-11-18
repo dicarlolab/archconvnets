@@ -2,18 +2,19 @@
 #include "includes.h"
 #include "set_buffer.c"
 #include "free_buffer.c"
-#include "dot.cu"
 #include "return_buffer.c"
 #include "sync.c"
-#include "cosine_sim_expand_dkeys_cpu.c"
-#include "cosine_sim_expand_dmem_cpu.c"
-#include "cosine_sim_expand_dkeys.c"
-#include "cosine_sim_expand_dmem.c"
-#include "softmax_dlayer_in_nsum_cpu.c"
-#include "softmax_dlayer_in_nsum.c"
-#include "dsharpen_dw_cpu.c"
-#include "dsharpen_dw.c"
-#include "dsharpen_dgamma_cpu.c"
+#include "gradient_functions/dot.cu"
+#include "gradient_functions/cosine_sim_expand_dkeys_cpu.c"
+#include "gradient_functions/cosine_sim_expand_dmem_cpu.c"
+#include "gradient_functions/cosine_sim_expand_dkeys.c"
+#include "gradient_functions/cosine_sim_expand_dmem.c"
+#include "gradient_functions/softmax_dlayer_in_nsum_cpu.c"
+#include "gradient_functions/softmax_dlayer_in_nsum.c"
+#include "gradient_functions/dsharpen_dw_cpu.c"
+#include "gradient_functions/dsharpen_dw.c"
+#include "gradient_functions/dsharpen_dgamma_cpu.c"
+#include "gradient_functions/dsharpen_dgamma.c"
 
 static PyMethodDef _ntm_module[] = {
 	{"sync", sync, METH_VARARGS},
@@ -30,6 +31,7 @@ static PyMethodDef _ntm_module[] = {
 	{"dsharpen_dw_cpu", dsharpen_dw_cpu, METH_VARARGS},
 	{"dsharpen_dw", dsharpen_dw, METH_VARARGS},
 	{"dsharpen_dgamma_cpu", dsharpen_dgamma_cpu, METH_VARARGS},
+	{"dsharpen_dgamma", dsharpen_dgamma, METH_VARARGS},
 	{NULL, NULL}
 };
 

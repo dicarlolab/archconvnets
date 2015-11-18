@@ -42,7 +42,7 @@ static PyObject *dsharpen_dgamma_cpu(PyObject *self, PyObject *args){
 		wg_sum = 1 / wg_sum;
 
 		for(int j = 0; j < dim1; j++){
-			DSDG(i,j,i) = (ln_w_wg[j] * wg_sum - wg[j] * ln_w_wg_sum);
+			DSDG(i,j,i) = ln_w_wg[j] * wg_sum - wg[j] * ln_w_wg_sum;
 		}
 	}
 

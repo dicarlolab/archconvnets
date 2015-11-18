@@ -32,6 +32,11 @@ __global__ void dsharpen_dw_kernel(float * w, float * gamma, float * dsdw, int d
 	else
 		DSDW(i,k,i,j) = g_wgm1 * (WG_SUM - wg[j]);
 	
+	for(int i_local = 0; i_local < dim0; i_local++){
+		if(i_local != i)
+			DSDW(i,k,i_local,j) = 0;
+	}
+	
 	return;
 }
 
