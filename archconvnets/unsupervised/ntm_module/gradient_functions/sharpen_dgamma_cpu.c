@@ -1,7 +1,7 @@
 #define W(A, B) w[(A)*dim1 + B]
 #define DSDG(A, B, C) dsdg[(A)*dim1*dim0 + (B)*dim0 + C]
 
-static PyObject *dsharpen_dgamma_cpu(PyObject *self, PyObject *args){
+static PyObject *sharpen_dgamma_cpu(PyObject *self, PyObject *args){
 	PyArrayObject *w_in, *gamma_in, *numpy_buffer_temp;
 	float *w, *gamma, *dsdg;
 	

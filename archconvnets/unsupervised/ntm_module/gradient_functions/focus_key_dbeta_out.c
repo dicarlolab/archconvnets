@@ -6,7 +6,7 @@
 #define GAMMA_SZ buffer_sz[gpu_ind][gamma_ind]
 #define WG_SUM wg[dim1]
 
-__global__ void dsharpen_dw_kernel(float * w, float * gamma, float * dsdw, int dim0, int dim1){ 
+__global__ void focus_key_dbeta_out_nsum_kernel(float * w, float * gamma, float * dsdw, int dim0, int dim1){ 
 	int i = blockIdx.x;
 	int j = threadIdx.x / dim1;
 	int k = threadIdx.x % dim1;

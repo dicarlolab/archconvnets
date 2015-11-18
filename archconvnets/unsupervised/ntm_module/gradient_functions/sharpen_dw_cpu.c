@@ -2,7 +2,7 @@
 #define DSDW(A, B, C, D) dsdw[(A)*dim1*dim0*dim1 + \
 	(B)*dim0*dim1 + (C)*dim1 + D]
 
-static PyObject *dsharpen_dw_cpu(PyObject *self, PyObject *args){
+static PyObject *sharpen_dw_cpu(PyObject *self, PyObject *args){
 	PyArrayObject *w_in, *gamma_in, *numpy_buffer_temp;
 	float *w, *gamma, *dsdw;
 	

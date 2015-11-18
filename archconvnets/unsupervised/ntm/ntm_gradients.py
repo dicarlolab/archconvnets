@@ -80,7 +80,7 @@ def focus_keys(keys, beta_out):
 	
 	return keys * beta_out # [n_controllers, m_length]
 
-def focus_key_dbeta_out_nsum(keys, beta_out): 
+def focus_key_dbeta_out(keys, beta_out): 
 	# beta_out: [n_controllers, 1]
 	n_controllers, m_length = keys.shape
 	
@@ -88,7 +88,7 @@ def focus_key_dbeta_out_nsum(keys, beta_out):
 	g[range(n_controllers),:,range(n_controllers),0] = keys
 	return g
 
-def focus_key_dkeys_nsum(keys, beta_out): 
+def focus_key_dkeys(keys, beta_out): 
 	# beta_out: [n_controllers, 1]
 	n_controllers, m_length = keys.shape
 	
@@ -229,7 +229,7 @@ def softmax(layer_in):
 	exp_layer_in = np.exp(layer_in)
 	return exp_layer_in/np.sum(exp_layer_in,1)[:,np.newaxis]
 
-def softmax_dlayer_in_nsum(layer_out):
+def softmax_dlayer_in(layer_out):
 	g = np.zeros((layer_out.shape[0], layer_out.shape[1], layer_out.shape[0], layer_out.shape[1]),dtype='single')
 	
 	# dsoftmax[:,i]/dlayer_in[:,j] when i = j:
@@ -258,7 +258,7 @@ def shift_w(shift_out, w_interp):
 				shift_out[:,2]*w_interp[:,(loc+1)%n_mem_slots]
 	return w_tilde # [n_controllers, mem_length]
 
-def shift_w_dshift_out_nsum(w_interp):
+def shift_w_dshift_out(w_interp):
 	n_shifts = 3 #...
 	
 	temp = np.zeros((C, M, C, n_shifts),dtype='single')
@@ -268,7 +268,7 @@ def shift_w_dshift_out_nsum(w_interp):
 	
 	return temp
 
-def shift_w_dw_interp_nsum(shift_out):
+def shift_w_dw_interp(shift_out):
 	# shift_out: [n_controllers, n_shifts]
 	temp = np.zeros((C, M, C, M),dtype='single')
 	
@@ -285,25 +285,25 @@ def linear_F(F, layer_in):
 	
 	return np.dot(F,layer_in) # [n1, 1]
 
-def linear_F_dx_nsum(o):
+def linear_F_dx(o):
 	n = mem_previ.shape[1]
 	temp = np.zeros((OR_PREVi[F].shape[0], n, mem_previ.shape[0], n),dtype='single')
 	temp[:,range(n),:,range(n)] = o
 	return temp
 
-def linear_F_dx_nsum_g(o, mem):
+def linear_F_dx_g(o, mem):
 	n = mem.shape[1]
 	temp = np.zeros((o.shape[0], n, mem.shape[0], n),dtype='single')
 	temp[:,range(n),:,range(n)] = o
 	return temp
 
-def linear_F_dF_nsum(mem):
+def linear_F_dF(mem):
 	n = OR_PREVi[F].shape[0]
 	temp = np.zeros((n, mem.shape[1], n, OR_PREVi[F].shape[1]),dtype='single')
 	temp[range(n),:,range(n)] = mem.T
 	return temp
 
-def linear_F_dF_nsum_g(F, mem):
+def linear_F_dF_g(F, mem):
 	n = F.shape[0]
 	temp = np.zeros((n, mem.shape[1], n, F.shape[1]),dtype='single')
 	temp[range(n),:,range(n)] = mem.T
@@ -314,28 +314,28 @@ def linear_F_dF_nsum_g(F, mem):
 def linear_2d_F_softmax(ww,x):
 	return softmax(linear_2d_F(ww,x))
 
-def linear_2d_F_softmax_dF_nsum(out, ww,x):
-	dout_dlin = softmax_dlayer_in_nsum(out)
-	dlin_dF = linear_2d_F_dF_nsum(ww,x)
+def linear_2d_F_softmax_dF(out, ww,x):
+	dout_dlin = softmax_dlayer_in(out)
+	dlin_dF = linear_2d_F_dF(ww,x)
 	return mult_partials(dout_dlin, dlin_dF, out)
 
-def linear_2d_F_softmax_dx_nsum(out, ww):
-	dout_dlin = softmax_dlayer_in_nsum(out)
-	dlin_dF = linear_2d_F_dx_nsum(ww)
+def linear_2d_F_softmax_dx(out, ww):
+	dout_dlin = softmax_dlayer_in(out)
+	dlin_dF = linear_2d_F_dx(ww)
 	return mult_partials(dout_dlin, dlin_dF, out)
 	
 #######
 def linear_2d_F(ww,x):
 	return np.squeeze(np.dot(ww,x))
 
-def linear_2d_F_dF_nsum(ww,x):
+def linear_2d_F_dF(ww,x):
 	n = ww.shape[1]
 	temp = np.zeros((ww.shape[0], n, ww.shape[0], n, ww.shape[2]),dtype='single')
 	for i in range(ww.shape[0]):
 		temp[i,range(n),i,range(n)] += np.squeeze(x)
 	return temp
 
-def linear_2d_F_dx_nsum(ww):
+def linear_2d_F_dx(ww):
 	return ww
 
 ##################
@@ -369,18 +369,18 @@ def interpolate_softmax(interp_gate_out, o_content, o_prev):
 	return softmax(interpolate(interp_gate_out, o_content, o_prev))
 
 def interpolate_softmax_dinterp_gate_out(out, interp_gate_out, o_content, o_prev):
-	dout_dlin = nm.softmax_dlayer_in_nsum_cpu(out)
+	dout_dlin = nm.softmax_dlayer_in_cpu(out)
 	dlin_dinterp_gate_out = interpolate_dinterp_gate_out(interp_gate_out, o_content, o_prev)
 	return mult_partials(dout_dlin, dlin_dinterp_gate_out, out)
 	
 
 def interpolate_softmax_do_content(out, interp_gate_out, o_content):
-	dout_dlin = nm.softmax_dlayer_in_nsum_cpu(out)
+	dout_dlin = nm.softmax_dlayer_in_cpu(out)
 	dlin_do_content = interpolate_do_content(interp_gate_out, o_content)
 	return mult_partials(dout_dlin, dlin_do_content, out)
 
 def interpolate_softmax_do_prev(out, o_gatei, o_previ):
-	dout_dlin = nm.softmax_dlayer_in_nsum_cpu(out)
+	dout_dlin = nm.softmax_dlayer_in_cpu(out)
 	dlin_do_prev = interpolate_do_prev(o_gatei, o_previ)
 	return mult_partials(dout_dlin, dlin_do_prev, out)
 

@@ -4,7 +4,7 @@
 	(B)*dim0*dim1 + (C)*dim1 + D]
 #define SMDLAYER_SZ (dim0*dim1*dim0*dim1*sizeof(DATA_TYPE))
 
-__global__ void softmax_dlayer_in_nsum_kernel(float * layer_out, float * smdlayer, long dim0, long dim1){
+__global__ void softmax_dlayer_in_kernel(float * layer_out, float * smdlayer, long dim0, long dim1){
 	int i = blockIdx.x;
 	int j = threadIdx.x / dim1;
 	int k = threadIdx.x % dim1;
@@ -22,7 +22,7 @@ __global__ void softmax_dlayer_in_nsum_kernel(float * layer_out, float * smdlaye
 	return;
 }
 
-static PyObject *softmax_dlayer_in_nsum(PyObject *self, PyObject *args){
+static PyObject *softmax_dlayer_in(PyObject *self, PyObject *args){
 	cudaError_t err;
 	PyTupleObject *layer_out_shape;
 	int layer_out_ind, gpu_ind, out_buffer_ind;
@@ -51,7 +51,7 @@ static PyObject *softmax_dlayer_in_nsum(PyObject *self, PyObject *args){
 	long dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)layer_out_shape,1));
 
 	if(dim0*dim1*sizeof(DATA_TYPE) != LAYER_OUT_SZ){
-		printf("specified input sizes do not equal stored gpu buffer. softmax_dlayer_in_nsum()\n");
+		printf("specified input sizes do not equal stored gpu buffer. softmax_dlayer_in()\n");
 		return NULL;
 	}
 	
@@ -66,7 +66,7 @@ static PyObject *softmax_dlayer_in_nsum(PyObject *self, PyObject *args){
 
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 
-	softmax_dlayer_in_nsum_kernel <<< dim0, dim1*dim1 >>> (gpu_buffers[gpu_ind][layer_out_ind], GPU_BUFFER_OUT, dim0, dim1);
+	softmax_dlayer_in_kernel <<< dim0, dim1*dim1 >>> (gpu_buffers[gpu_ind][layer_out_ind], GPU_BUFFER_OUT, dim0, dim1);
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	

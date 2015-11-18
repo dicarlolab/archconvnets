@@ -2,7 +2,7 @@
 #define SMDLAYER(A, B, C, D) smdlayer[(A)*dim1*dim0*dim1 + \
 	(B)*dim0*dim1 + (C)*dim1 + D]
 
-static PyObject *softmax_dlayer_in_nsum_cpu(PyObject *self, PyObject *args){
+static PyObject *softmax_dlayer_in_cpu(PyObject *self, PyObject *args){
     PyArrayObject *layer_out_in, *numpy_buffer_temp;
 	float *layer_out, *smdlayer;
 	

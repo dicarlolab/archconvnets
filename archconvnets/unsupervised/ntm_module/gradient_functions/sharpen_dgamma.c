@@ -5,7 +5,7 @@
 #define WG_SUM_GAMMA shared[0]
 #define LN_W_WG_SUM shared[1]
 
-__global__ void dsharpen_dgamma_kernel(float * w, float * gamma, float * dsdg, int dim0, int dim1){ 
+__global__ void sharpen_dgamma_kernel(float * w, float * gamma, float * dsdg, int dim0, int dim1){ 
 	int i = blockIdx.x;
 	int j = threadIdx.x;
 
@@ -34,7 +34,7 @@ __global__ void dsharpen_dgamma_kernel(float * w, float * gamma, float * dsdg, i
 	return;
 }
 
-static PyObject *dsharpen_dgamma(PyObject *self, PyObject *args){
+static PyObject *sharpen_dgamma(PyObject *self, PyObject *args){
 	cudaError_t err;
 	PyTupleObject *w_shape, *gamma_shape;
 	int w_ind, gamma_ind, out_buffer_ind, gpu_ind;
@@ -81,7 +81,7 @@ static PyObject *dsharpen_dgamma(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	dsharpen_dgamma_kernel <<< dim0, dim1, sizeof(float)*2 >>> (gpu_buffers[gpu_ind][w_ind], gpu_buffers[gpu_ind][gamma_ind], 
+	sharpen_dgamma_kernel <<< dim0, dim1, sizeof(float)*2 >>> (gpu_buffers[gpu_ind][w_ind], gpu_buffers[gpu_ind][gamma_ind], 
 		gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR

@@ -1,7 +1,7 @@
 import _ntm_module
 import numpy as np
 
-def dsharpen_dgamma(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind=0):
+def sharpen_dgamma(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(w_ind,int)
 	assert isinstance(gamma_ind,int)
@@ -11,9 +11,9 @@ def dsharpen_dgamma(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind=0):
 	assert len(gamma_shape) == len(w_shape) == 2
 	assert gamma_shape[0] == w_shape[0]
 
-	return _ntm_module.dsharpen_dgamma(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind)
+	return _ntm_module.sharpen_dgamma(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind)
 
-def dsharpen_dw(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind=0):
+def sharpen_dw(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(w_ind,int)
 	assert isinstance(gamma_ind,int)
@@ -23,9 +23,9 @@ def dsharpen_dw(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind=0):
 	assert len(gamma_shape) == len(w_shape) == 2
 	assert gamma_shape[0] == w_shape[0]
 	
-	return _ntm_module.dsharpen_dw(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind)
+	return _ntm_module.sharpen_dw(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind)
 
-def dsharpen_dgamma_cpu(w, gamma, warn=True):
+def sharpen_dgamma_cpu(w, gamma, warn=True):
 	assert w.dtype == np.dtype('float32')
 	assert gamma.dtype == np.dtype('float32')
 	assert w.ndim == gamma.ndim == 2
@@ -33,16 +33,16 @@ def dsharpen_dgamma_cpu(w, gamma, warn=True):
 	assert gamma.shape[1] == 1
 
 	if not w.flags.contiguous and warn:
-		print 'warning: input to dsharpen_dw_cpu not C-contiguous (w)'
+		print 'warning: input to sharpen_dw_cpu not C-contiguous (w)'
 		w = np.ascontiguousarray(w)
 	
 	if not gamma.flags.contiguous and warn:
-		print 'warning: input to dsharpen_dw_cpu not C-contiguous (gamma)'
+		print 'warning: input to sharpen_dw_cpu not C-contiguous (gamma)'
 		gamma = np.ascontiguousarray(gamma)
 	
-	return _ntm_module.dsharpen_dgamma_cpu(w, gamma)
+	return _ntm_module.sharpen_dgamma_cpu(w, gamma)
 
-def dsharpen_dw_cpu(w, gamma, warn=True):
+def sharpen_dw_cpu(w, gamma, warn=True):
 	assert w.dtype == np.dtype('float32')
 	assert gamma.dtype == np.dtype('float32')
 	assert w.ndim == gamma.ndim == 2
@@ -50,33 +50,33 @@ def dsharpen_dw_cpu(w, gamma, warn=True):
 	assert gamma.shape[1] == 1
 
 	if not w.flags.contiguous and warn:
-		print 'warning: input to dsharpen_dw_cpu not C-contiguous (w)'
+		print 'warning: input to sharpen_dw_cpu not C-contiguous (w)'
 		w = np.ascontiguousarray(w)
 	
 	if not gamma.flags.contiguous and warn:
-		print 'warning: input to dsharpen_dw_cpu not C-contiguous (gamma)'
+		print 'warning: input to sharpen_dw_cpu not C-contiguous (gamma)'
 		gamma = np.ascontiguousarray(gamma)
 
-	return _ntm_module.dsharpen_dw_cpu(w, gamma)
+	return _ntm_module.sharpen_dw_cpu(w, gamma)
 
-def softmax_dlayer_in_nsum(layer_out, layer_out_shape, out_ind, gpu_ind=0):
+def softmax_dlayer_in(layer_out, layer_out_shape, out_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(out_ind,int)
 	assert isinstance(layer_out,int)
 	assert isinstance(layer_out_shape,tuple)
 	assert len(layer_out_shape) == 2
 	
-	return _ntm_module.softmax_dlayer_in_nsum(layer_out, layer_out_shape, out_ind, gpu_ind)
+	return _ntm_module.softmax_dlayer_in(layer_out, layer_out_shape, out_ind, gpu_ind)
 
-def softmax_dlayer_in_nsum_cpu(layer_out, warn=True):
+def softmax_dlayer_in_cpu(layer_out, warn=True):
 	assert layer_out.dtype == np.dtype('float32')
 	assert layer_out.ndim == 2
 	
 	if not layer_out.flags.contiguous and warn:
-		print 'warning: input to softmax_dlayer_in_nsum_cpu not C-contiguous'
+		print 'warning: input to softmax_dlayer_in_cpu not C-contiguous'
 		layer_out = np.ascontiguousarray(layer_out)
 		
-	return _ntm_module.softmax_dlayer_in_nsum_cpu(layer_out)
+	return _ntm_module.softmax_dlayer_in_cpu(layer_out)
 
 def cosine_sim_expand_dmem(keys_ind, keys_shape, mem_ind, mem_shape, out_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
