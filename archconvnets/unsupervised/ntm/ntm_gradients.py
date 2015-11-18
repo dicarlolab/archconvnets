@@ -84,7 +84,7 @@ def focus_key_dbeta_out_nsum(keys, beta_out):
 	# beta_out: [n_controllers, 1]
 	n_controllers, m_length = keys.shape
 	
-	g = np.zeros((n_controllers, m_length, n_controllers, 1))
+	g = np.zeros((n_controllers, m_length, n_controllers, 1),dtype='single')
 	g[range(n_controllers),:,range(n_controllers),0] = keys
 	return g
 
@@ -92,7 +92,7 @@ def focus_key_dkeys_nsum(keys, beta_out):
 	# beta_out: [n_controllers, 1]
 	n_controllers, m_length = keys.shape
 	
-	g = np.zeros((n_controllers, m_length, n_controllers, m_length))
+	g = np.zeros((n_controllers, m_length, n_controllers, m_length),dtype='single')
 	for j in range(m_length):
 		g[range(n_controllers),j,range(n_controllers),j] = np.squeeze(beta_out)
 	return g
@@ -102,7 +102,7 @@ def focus_key_dkeys_nsum(keys, beta_out):
 
 def cosine_sim_expand_dmem(keys, mem):
 	n_controllers = keys.shape[0]
-	comb = np.zeros((n_controllers, mem.shape[0], mem.shape[0], mem.shape[1]))
+	comb = np.zeros((n_controllers, mem.shape[0], mem.shape[0], mem.shape[1]),dtype='single')
 
 	keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
 	mem_sq_sum = np.sqrt(np.sum(mem**2, 1))
@@ -124,7 +124,7 @@ def cosine_sim_expand_dmem(keys, mem):
 
 def cosine_sim_expand_dkeys(keys, mem):
 	n_controllers = keys.shape[0]
-	comb = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]))
+	comb = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]),dtype='single')
 	
 	keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
 	mem_sq_sum = np.sqrt(np.sum(mem**2, 1))
@@ -158,7 +158,7 @@ def sharpen(w, gamma):
 
 def dsharpen_dgamma(w, gamma):
 	n = w.shape[0]
-	g = np.zeros(np.concatenate((w.shape, gamma.shape)))
+	g = np.zeros(np.concatenate((w.shape, gamma.shape)),dtype='single')
 	
 	wg = w ** gamma
 	ln_w_wg = np.log(w)*wg
@@ -173,7 +173,7 @@ def dsharpen_dgamma(w, gamma):
 	
 def dsharpen_dw(w, gamma):
 	n = w.shape[0]
-	g = np.zeros(np.concatenate((w.shape, w.shape)))
+	g = np.zeros(np.concatenate((w.shape, w.shape)),dtype='single')
 	
 	wg = w ** gamma
 	wg_sum = wg.sum(1)[:,np.newaxis]
@@ -199,7 +199,7 @@ def sigmoid(layer_in):
 
 def sigmoid_dlayer_in(layer_out):
 	d = layer_out * (1-layer_out)
-	t = np.zeros(np.concatenate((layer_out.shape, layer_out.shape)))
+	t = np.zeros(np.concatenate((layer_out.shape, layer_out.shape)),dtype='single')
 	for i in range(layer_out.shape[0]):
 		for j in range(layer_out.shape[1]):
 			t[i,j,i,j] = d[i,j]
@@ -217,7 +217,7 @@ def relu_dlayer_in(layer_in, thresh=0):
 	temp = np.ones_like(layer_in)
 	temp[layer_in <= thresh] = 0
 	
-	temp2 = np.zeros(np.concatenate((layer_in.shape, layer_in.shape)))
+	temp2 = np.zeros(np.concatenate((layer_in.shape, layer_in.shape)),dtype='single')
 	temp2[range(layer_in.shape[0]),:,range(layer_in.shape[0])] = temp[:,np.newaxis]
 	
 	return temp2
@@ -230,7 +230,7 @@ def softmax(layer_in):
 	return exp_layer_in/np.sum(exp_layer_in,1)[:,np.newaxis]
 
 def softmax_dlayer_in_nsum(layer_out):
-	g = np.zeros((layer_out.shape[0], layer_out.shape[1], layer_out.shape[0], layer_out.shape[1]))
+	g = np.zeros((layer_out.shape[0], layer_out.shape[1], layer_out.shape[0], layer_out.shape[1]),dtype='single')
 	
 	# dsoftmax[:,i]/dlayer_in[:,j] when i = j:
 	temp = (layer_out * (1 - layer_out))
@@ -261,7 +261,7 @@ def shift_w(shift_out, w_interp):
 def shift_w_dshift_out_nsum(w_interp):
 	n_shifts = 3 #...
 	
-	temp = np.zeros((C, M, C, n_shifts))
+	temp = np.zeros((C, M, C, n_shifts),dtype='single')
 	for m in range(M):
 		for H in [-1,0,1]:
 			temp[range(C),m,range(C),H+1] = w_interp[:, (m+H)%M]
@@ -270,7 +270,7 @@ def shift_w_dshift_out_nsum(w_interp):
 
 def shift_w_dw_interp_nsum(shift_out):
 	# shift_out: [n_controllers, n_shifts]
-	temp = np.zeros((C, M, C, M))
+	temp = np.zeros((C, M, C, M),dtype='single')
 	
 	for loc in range(M):
 		temp[range(C),loc,range(C),loc-1] = shift_out[:,0]
@@ -287,25 +287,25 @@ def linear_F(F, layer_in):
 
 def linear_F_dx_nsum(o):
 	n = mem_previ.shape[1]
-	temp = np.zeros((OR_PREVi[F].shape[0], n, mem_previ.shape[0], n))
+	temp = np.zeros((OR_PREVi[F].shape[0], n, mem_previ.shape[0], n),dtype='single')
 	temp[:,range(n),:,range(n)] = o
 	return temp
 
 def linear_F_dx_nsum_g(o, mem):
 	n = mem.shape[1]
-	temp = np.zeros((o.shape[0], n, mem.shape[0], n))
+	temp = np.zeros((o.shape[0], n, mem.shape[0], n),dtype='single')
 	temp[:,range(n),:,range(n)] = o
 	return temp
 
 def linear_F_dF_nsum(mem):
 	n = OR_PREVi[F].shape[0]
-	temp = np.zeros((n, mem.shape[1], n, OR_PREVi[F].shape[1]))
+	temp = np.zeros((n, mem.shape[1], n, OR_PREVi[F].shape[1]),dtype='single')
 	temp[range(n),:,range(n)] = mem.T
 	return temp
 
 def linear_F_dF_nsum_g(F, mem):
 	n = F.shape[0]
-	temp = np.zeros((n, mem.shape[1], n, F.shape[1]))
+	temp = np.zeros((n, mem.shape[1], n, F.shape[1]),dtype='single')
 	temp[range(n),:,range(n)] = mem.T
 	return temp
 	
@@ -330,7 +330,7 @@ def linear_2d_F(ww,x):
 
 def linear_2d_F_dF_nsum(ww,x):
 	n = ww.shape[1]
-	temp = np.zeros((ww.shape[0], n, ww.shape[0], n, ww.shape[2]))
+	temp = np.zeros((ww.shape[0], n, ww.shape[0], n, ww.shape[2]),dtype='single')
 	for i in range(ww.shape[0]):
 		temp[i,range(n),i,range(n)] += np.squeeze(x)
 	return temp
@@ -344,7 +344,7 @@ def sq_points(input):
 
 def sq_points_dinput(input):
 	n = input.shape[1]
-	dinput = np.zeros((input.shape[0], n, input.shape[0], n))
+	dinput = np.zeros((input.shape[0], n, input.shape[0], n),dtype='single')
 	for i in range(input.shape[0]):
 		dinput[i,range(n),i,range(n)] = 2*input[i]
 	return dinput
@@ -354,12 +354,12 @@ def add_mem(gw, add_out):
 	return np.dot(gw.T, add_out)
 
 def add_mem_dadd_out(gw):
-	temp = np.zeros((M, mem_length, C, mem_length))
+	temp = np.zeros((M, mem_length, C, mem_length),dtype='single')
 	temp[:,range(mem_length),:,range(mem_length)] = gw.T
 	return temp
 
 def add_mem_dgw(add_out):
-	temp = np.zeros((M, mem_length, C, M))
+	temp = np.zeros((M, mem_length, C, M),dtype='single')
 	temp[range(M),:,:,range(M)] = add_out.T
 	return temp
 
@@ -369,18 +369,18 @@ def interpolate_softmax(interp_gate_out, o_content, o_prev):
 	return softmax(interpolate(interp_gate_out, o_content, o_prev))
 
 def interpolate_softmax_dinterp_gate_out(out, interp_gate_out, o_content, o_prev):
-	dout_dlin = softmax_dlayer_in_nsum(out)
+	dout_dlin = nm.softmax_dlayer_in_nsum_cpu(out)
 	dlin_dinterp_gate_out = interpolate_dinterp_gate_out(interp_gate_out, o_content, o_prev)
 	return mult_partials(dout_dlin, dlin_dinterp_gate_out, out)
 	
 
 def interpolate_softmax_do_content(out, interp_gate_out, o_content):
-	dout_dlin = softmax_dlayer_in_nsum(out)
+	dout_dlin = nm.softmax_dlayer_in_nsum_cpu(out)
 	dlin_do_content = interpolate_do_content(interp_gate_out, o_content)
 	return mult_partials(dout_dlin, dlin_do_content, out)
 
 def interpolate_softmax_do_prev(out, o_gatei, o_previ):
-	dout_dlin = softmax_dlayer_in_nsum(out)
+	dout_dlin = nm.softmax_dlayer_in_nsum_cpu(out)
 	dlin_do_prev = interpolate_do_prev(o_gatei, o_previ)
 	return mult_partials(dout_dlin, dlin_do_prev, out)
 
@@ -391,7 +391,7 @@ def interpolate(interp_gate_out, o_content, o_prev):
 
 def interpolate_dinterp_gate_out(interp_gate_out, o_content, o_prev):
 	temp = o_content - o_prev
-	temp2 = np.zeros((temp.shape[0], temp.shape[1], interp_gate_out.shape[0], 1))
+	temp2 = np.zeros((temp.shape[0], temp.shape[1], interp_gate_out.shape[0], 1),dtype='single')
 	
 	for i in range(temp2.shape[0]):
 		for j in range(temp2.shape[1]):
@@ -401,7 +401,7 @@ def interpolate_dinterp_gate_out(interp_gate_out, o_content, o_prev):
 def interpolate_do_content(interp_gate_out, o_content):
 	temp = interp_gate_out
 	n = o_content.shape[1]
-	temp2 = np.zeros((o_content.shape[0], n, o_content.shape[0], n))
+	temp2 = np.zeros((o_content.shape[0], n, o_content.shape[0], n),dtype='single')
 	
 	for i in range(temp2.shape[0]):
 		temp2[i,range(n),i,range(n)] = temp[i]
@@ -410,7 +410,7 @@ def interpolate_do_content(interp_gate_out, o_content):
 def interpolate_do_prev(o_gatei, o_previ):
 	temp = 1 - o_gatei
 	n = o_previ.shape[1]
-	temp2 = np.zeros((o_previ.shape[0], n, o_previ.shape[0], n))
+	temp2 = np.zeros((o_previ.shape[0], n, o_previ.shape[0], n),dtype='single')
 	
 	for i in range(temp2.shape[0]):
 		temp2[i,range(n),i,range(n)] = temp[i]

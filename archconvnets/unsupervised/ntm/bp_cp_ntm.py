@@ -25,8 +25,8 @@ mem_prev = copy.deepcopy(mem_previ); mem_prev_prev = copy.deepcopy(mem_previ)
 DMEM_PREV_DWW = copy.deepcopy(DMEM_PREV_DWWi); DMEM_PREV_DBW = copy.deepcopy(DMEM_PREV_DBWi)
 DMEM_PREV_DWUNDER = copy.deepcopy(DMEM_PREV_DWUNDERi); DMEM_PREV_DBUNDER = copy.deepcopy(DMEM_PREV_DBUNDERi)
 
-inputs_prev = np.zeros((2,1))
-inputs = np.zeros((2,1))
+inputs_prev = np.zeros((2,1),dtype='single')
+inputs = np.zeros((2,1),dtype='single')
 
 a = 1
 b = -3
@@ -47,15 +47,15 @@ err = 0
 
 START_SIGNAL = 0; TRAIN_SIGNAL = 1
 
-target_seq = np.abs(np.random.normal(size=time_length))
+target_seq = np.abs(np.asarray(np.random.normal(size=time_length),dtype='single'))
 output_seq = np.zeros_like(target_seq)
 
 inputs[START_SIGNAL] = 1 # start signal
 
-training_flag_buffer = np.zeros(SAVE_FREQ)
-train_buffer = np.zeros(SAVE_FREQ)
-target_buffer = np.zeros(SAVE_FREQ)
-output_buffer = np.zeros(SAVE_FREQ)
+training_flag_buffer = np.zeros(SAVE_FREQ,dtype='single')
+train_buffer = np.zeros(SAVE_FREQ,dtype='single')
+target_buffer = np.zeros(SAVE_FREQ,dtype='single')
+output_buffer = np.zeros(SAVE_FREQ,dtype='single')
 err_log = []; corr_log = []
 
 t_start = time.time()

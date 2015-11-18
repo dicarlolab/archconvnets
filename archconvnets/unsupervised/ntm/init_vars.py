@@ -2,7 +2,7 @@ import numpy as np
 import copy
 
 def random_function(size):
-	return np.random.random(size) - .5
+	return np.asarray(np.random.random(size) - .5, dtype='single')
 
 n_shifts = 3
 C = 16 # number of controllers
@@ -60,7 +60,7 @@ b3 = random_function(size=(n_head_in, 1)) * SCALE_UNDER
 
 WUNDERi = [w1, w2, w3]
 BUNDERi = [b1, b2, b3]
-OUNDER_PREVi = np.zeros((n_head_in, 1))
+OUNDER_PREVi = np.zeros((n_head_in, 1), dtype='single')
 
 # above weights
 wa1 = random_function(size=(n1_above, C*mem_length)) * SCALE_ABOVE
@@ -130,8 +130,8 @@ for layer in range(len(WR_SHAPES)):
 	BRi[layer] = random_function(size = OR_SHAPES[layer]) * SCALE
 	BWi[layer] = random_function(size = OW_SHAPES[layer]) * SCALE
 	
-	OR_PREVi[layer] = np.zeros(OR_SHAPES[layer])
-	OW_PREVi[layer] = np.zeros(OW_SHAPES[layer])
+	OR_PREVi[layer] = np.zeros(OR_SHAPES[layer], dtype='single')
+	OW_PREVi[layer] = np.zeros(OW_SHAPES[layer], dtype='single')
 
 BWi[GAMMA] += 1; BRi[GAMMA] += 1
 
@@ -173,20 +173,20 @@ DMEM_PREV_DWUNDERi = [None] * len(WUNDERi)
 DMEM_PREV_DBUNDERi = [None] * len(BUNDERi)
 
 for layer in range(len(WRi)):
-	DOR_DWRi[layer] = np.zeros(np.concatenate(((C, M), WR_SHAPES[layer])))
-	DOR_DBRi[layer] = np.zeros(np.concatenate(((C, M), OR_SHAPES[layer])))
+	DOR_DWRi[layer] = np.zeros(np.concatenate(((C, M), WR_SHAPES[layer])),dtype='single')
+	DOR_DBRi[layer] = np.zeros(np.concatenate(((C, M), OR_SHAPES[layer])),dtype='single')
 
 for layer in range(len(WUNDERi)):
-	DOR_DWUNDERi[layer] = np.zeros(np.concatenate(((C, M), WUNDERi[layer].shape)))
-	DOR_DBUNDERi[layer] = np.zeros(np.concatenate(((C, M), BUNDERi[layer].shape)))
-	DMEM_PREV_DWUNDERi[layer] = np.zeros(np.concatenate(((M, mem_length), WUNDERi[layer].shape)))
-	DMEM_PREV_DBUNDERi[layer] = np.zeros(np.concatenate(((M, mem_length), BUNDERi[layer].shape)))
+	DOR_DWUNDERi[layer] = np.zeros(np.concatenate(((C, M), WUNDERi[layer].shape)),dtype='single')
+	DOR_DBUNDERi[layer] = np.zeros(np.concatenate(((C, M), BUNDERi[layer].shape)),dtype='single')
+	DMEM_PREV_DWUNDERi[layer] = np.zeros(np.concatenate(((M, mem_length), WUNDERi[layer].shape)),dtype='single')
+	DMEM_PREV_DBUNDERi[layer] = np.zeros(np.concatenate(((M, mem_length), BUNDERi[layer].shape)),dtype='single')
 
 for layer in range(len(WWi)):
-	DOR_DWWi[layer] = np.zeros(np.concatenate(((C, M), WW_SHAPES[layer])))
-	DOR_DBWi[layer] = np.zeros(np.concatenate(((C, M), OW_SHAPES[layer])))
-	DMEM_PREV_DWWi[layer] = np.zeros(np.concatenate(((M, mem_length), WW_SHAPES[layer])))
-	DMEM_PREV_DBWi[layer] = np.zeros(np.concatenate(((M, mem_length), OW_SHAPES[layer])))
+	DOR_DWWi[layer] = np.zeros(np.concatenate(((C, M), WW_SHAPES[layer])),dtype='single')
+	DOR_DBWi[layer] = np.zeros(np.concatenate(((C, M), OW_SHAPES[layer])),dtype='single')
+	DMEM_PREV_DWWi[layer] = np.zeros(np.concatenate(((M, mem_length), WW_SHAPES[layer])),dtype='single')
+	DMEM_PREV_DBWi[layer] = np.zeros(np.concatenate(((M, mem_length), OW_SHAPES[layer])),dtype='single')
 
 DOW_DWWi = copy.deepcopy(DOR_DWWi)
 DOW_DBWi = copy.deepcopy(DOR_DBWi)

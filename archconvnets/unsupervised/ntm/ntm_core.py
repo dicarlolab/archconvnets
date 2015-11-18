@@ -7,6 +7,7 @@ import random
 import scipy
 from ntm_gradients import *
 from init_vars import *
+import archconvnets.unsupervised.ntm_module.ntm_module as nm
 
 def weight_address(W, B, O_PREV, inputs, mem_prev):
 	O = [None]*len(O_PREV)
@@ -96,7 +97,7 @@ def dunder(WUNDER, BUNDER, OUNDER, x):
 #### intermediate gradients used in several places in do_dw__inputs() and do_dw__mem_prev()
 def do_do_content_focused__(O, do_do_in):
 	do_in_do_content_sm = interpolate_softmax_do_content(O[IN], O[IN_GATE], O[CONTENT_SM])
-	do_content_sm_do_content_focused = softmax_dlayer_in_nsum(O[CONTENT_SM])
+	do_content_sm_do_content_focused = nm.softmax_dlayer_in_nsum_cpu(O[CONTENT_SM])
 	do_do_content_focused = mult_partials_chain((do_do_in, do_in_do_content_sm, do_content_sm_do_content_focused), (O[IN], O[CONTENT_SM]))
 	
 	return do_do_content_focused
@@ -118,7 +119,7 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	DO_DWUNDER_NEW = copy.deepcopy(DO_DWUNDER); DO_DBUNDER_NEW = copy.deepcopy(DO_DBUNDER)
 	
 	## sharpen weights
-	do_dgammarelu = dsharpen_dgamma(O[SHIFTED], O[GAMMA])
+	do_dgammarelu = nm.dsharpen_dgamma_cpu(O[SHIFTED], O[GAMMA])
 	dgammarelu_dgamma = relu_dlayer_in(O[GAMMA], thresh=1)
 	do_dgamma = mult_partials(do_dgammarelu, dgammarelu_dgamma, O[GAMMA])
 	DO_DB_NEW[GAMMA] += do_dgamma
@@ -128,11 +129,10 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	do_dg3under = np.squeeze(mult_partials(do_dgamma, dgamma_dg3under, O[GAMMA]))
 	
 	## shift weights
-	print O[SHIFTED].shape, O[GAMMA].shape
-	do_dgshiftedsm = dsharpen_dw(O[SHIFTED], O[GAMMA])
+	do_dgshiftedsm = nm.dsharpen_dw_cpu(O[SHIFTED], O[GAMMA])
 	dgshiftedsm_dgshiftsm = shift_w_dshift_out_nsum(O[IN])
 	do_dgshiftsm = mult_partials(do_dgshiftedsm, dgshiftedsm_dgshiftsm, O[SHARPENED])
-	dgshiftsm_gshift = softmax_dlayer_in_nsum(O[SHIFT])
+	dgshiftsm_gshift = nm.softmax_dlayer_in_nsum_cpu(O[SHIFT])
 	do_dgshift = mult_partials(do_dgshiftsm, dgshiftsm_gshift, O[SHIFT])
 	DO_DB_NEW[SHIFT] += do_dgshift
 	dgshift_dwshift = linear_2d_F_dF_nsum(W[SHIFT], OUNDER[F_UNDER])
@@ -153,7 +153,7 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	
 	## interp. gradients (wrt o_content; key)
 	do_do_content = do_do_content__(O, do_do_in) # 14%
-	do_content_dgkey = cosine_sim_expand_dkeys(O[KEY], mem_prev) # 12.3%
+	do_content_dgkey = nm.cosine_sim_expand_dkeys_cpu(O[KEY], mem_prev) # 12.3%
 	do_dgkey = mult_partials(do_do_content, do_content_dgkey, O[CONTENT])
 	DO_DB_NEW[KEY] += do_dgkey
 	dgkey_dwkey = linear_2d_F_dF_nsum(W[KEY], OUNDER[F_UNDER])
@@ -196,7 +196,7 @@ def do_dw__o_prev(W, o_prev, DO_DW, DO_DB, DO_DWUNDER,DO_DBUNDER, O, do_do_in):
 def do_dw__mem_prev(W, DO_DW, DO_DB, DO_DWUNDER,DO_DBUNDER, O, mem_prev, DMEM_PREV_DWW, DMEM_PREV_DBW, \
 			DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, do_do_in):
 	do_do_content = do_do_content__(O, do_do_in) # 17.9%
-	do_content_dmem_prev = cosine_sim_expand_dmem(O[KEY], mem_prev) # 15.5%
+	do_content_dmem_prev = nm.cosine_sim_expand_dmem_cpu(O[KEY], mem_prev) # 15.5%
 	do_dmem_prev = mult_partials(do_do_content, do_content_dmem_prev, O[CONTENT])
 	
 	DO_DW_NEW = mult_partials__layers(do_dmem_prev, DMEM_PREV_DWW, mem_prev, DO_DW) # 49.6%
@@ -280,8 +280,8 @@ def reverse_pass_partials(WUNDER,BUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, O
 				OW_PREV_PREV, mem_prev, mem_prev_prev, x, x_prev, frame, DOW_DWW, DOW_DBW, \
 				DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, \
 				DMEM_PREV_DBUNDER, DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW):
-	dor_dgsharpen = dsharpen_dw(OR[SHIFTED], OR[GAMMA])
-	dow_prev_dgsharpen = dsharpen_dw(OW_PREV[SHIFTED], OW_PREV[GAMMA])
+	dor_dgsharpen = nm.dsharpen_dw_cpu(OR[SHIFTED], OR[GAMMA])
+	dow_prev_dgsharpen = nm.dsharpen_dw_cpu(OW_PREV[SHIFTED], OW_PREV[GAMMA])
 	
 	dgsharpen_dor_in = shift_w_dw_interp_nsum(OR[SHIFT])
 	dgsharpen_dow_prev_in = shift_w_dw_interp_nsum(OW_PREV[SHIFT])
