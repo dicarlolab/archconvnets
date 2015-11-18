@@ -240,14 +240,6 @@ def softmax(layer_in):
 	exp_layer_in = np.exp(layer_in)
 	return exp_layer_in/np.sum(exp_layer_in,1)[:,np.newaxis]
 
-def softmax_dlayer_in(layer_out, above_w=1):
-	# dsoftmax[:,i]/dlayer_in[:,j] when i = j:
-	temp = above_w * (layer_out * (1 - layer_out))
-	
-	# dsoftmax[:,i]/dlayer_in[:,j] when i != j:
-	temp += -np.einsum(np.squeeze(above_w*layer_out), [0,1], np.squeeze(layer_out), [0,2], [0,2]) + above_w*layer_out**2
-	return temp
-
 def softmax_dlayer_in_nsum(layer_out):
 	g = np.zeros((layer_out.shape[0], layer_out.shape[1], layer_out.shape[0], layer_out.shape[1]))
 	
