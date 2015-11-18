@@ -73,17 +73,6 @@ def mult_partials__layers(da_db, DB_DC, b, DB_DC_INIT=None):
 	
 	return DC
 
-##### read memory vector (generalization of linear_F())
-def read_from_mem(w, mem):
-	# w: [n_controllers, n_mem_slots], mem: [n_mem_slots, m_length]
-	return np.dot(w, mem) # [n_controllers, m_length]
-
-def read_from_mem_dw(mem, above_w):
-	return np.dot(above_w, mem.T)
-
-def read_from_mem_dmem(w, above_w):
-	return np.dot(w.T, above_w)
-
 ##########
 # focus keys, scalar beta_out (one for each controller) multiplied with each of its keys
 def focus_keys(keys, beta_out):
