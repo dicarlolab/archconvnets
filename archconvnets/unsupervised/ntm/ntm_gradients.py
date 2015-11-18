@@ -309,25 +309,6 @@ def linear_F_dF_nsum_g(F, mem):
 	temp[range(n),:,range(n)] = mem.T
 	return temp
 	
-################## squared layer
-def sq_F(F, layer_in):
-	# F: [n1, n_in], layer_in: [n_in, 1]
-	
-	return np.dot(F,layer_in)**2 # [n1, 1]
-
-def sq_dF_nsum(F, layer_in, layer_out): 
-	# F: [n1, n_in], layer_in: [n_in, 1], layer_out,above_w: [n1,1]
-	
-	s = np.sign(np.dot(F,layer_in))
-	temp = 2*s*np.sqrt(layer_out)*(layer_in.T) # [n1, n_in]
-	
-	temp2 = np.zeros((temp.shape[0], temp.shape[0], temp.shape[1]))
-	for i in range(temp.shape[0]):
-		temp2[i,i] = temp[i]
-	return temp2
-
-def sq_dlayer_in_nsum(F, layer_in): # not summed across n1 as sq_dlayer_in() does
-	return 2 * F * linear_F(F,layer_in) # [n1, n_in]
 
 ############# softmax <- linear 2d
 def linear_2d_F_softmax(ww,x):
