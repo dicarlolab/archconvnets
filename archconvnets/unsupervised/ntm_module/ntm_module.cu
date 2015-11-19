@@ -15,6 +15,11 @@
 #include "gradient_functions/sharpen_dw.c"
 #include "gradient_functions/sharpen_dgamma_cpu.c"
 #include "gradient_functions/sharpen_dgamma.c"
+#include "gradient_functions/focus_key_dbeta_out.c"
+#include "gradient_functions/focus_key_dkeys.c"
+#include "gradient_functions/sigmoid_dlayer_in.c"
+#include "gradient_functions/relu_dlayer_in.c"
+#include "gradient_functions/linear_F_dF.c"
 
 static PyMethodDef _ntm_module[] = {
 	{"sync", sync, METH_VARARGS},
@@ -32,6 +37,11 @@ static PyMethodDef _ntm_module[] = {
 	{"sharpen_dw", sharpen_dw, METH_VARARGS},
 	{"sharpen_dgamma_cpu", sharpen_dgamma_cpu, METH_VARARGS},
 	{"sharpen_dgamma", sharpen_dgamma, METH_VARARGS},
+	{"focus_key_dbeta_out", focus_key_dbeta_out, METH_VARARGS},
+	{"focus_key_dkeys", focus_key_dkeys, METH_VARARGS},
+	{"sigmoid_dlayer_in", sigmoid_dlayer_in, METH_VARARGS},
+	{"relu_dlayer_in", relu_dlayer_in, METH_VARARGS},
+	{"linear_F_dF", linear_F_dF, METH_VARARGS},
 	{NULL, NULL}
 };
 

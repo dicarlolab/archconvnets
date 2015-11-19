@@ -2,7 +2,7 @@
 #define DFKB_SZ (n_controllers*mem_length*n_controllers*sizeof(DATA_TYPE))
 #define KEYS_SZ buffer_sz[gpu_ind][keys_ind]
 
-__global__ void focus_key_dbeta_out_kernel(float * keys, float * dfkb, int n_controllers, int mem_length){ 
+__global__ void interpolate_do_prev_kernel(float * keys, float * dfkb, int n_controllers, int mem_length){ 
 	int i = threadIdx.x / n_controllers;
 	int j = threadIdx.x % n_controllers;
 

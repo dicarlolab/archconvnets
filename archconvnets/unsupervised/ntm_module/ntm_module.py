@@ -1,6 +1,54 @@
 import _ntm_module
 import numpy as np
 
+def linear_F_dF(x_ind, x_shape, F_shape, out_buffer_ind, gpu_ind=0):
+	assert isinstance(x_ind,int)
+	assert isinstance(gpu_ind,int)
+	assert isinstance(out_buffer_ind,int)
+	assert isinstance(x_shape,tuple)
+	assert isinstance(F_shape,tuple)
+	assert len(F_shape) == len(x_shape) == 2
+	assert F_shape[1] == x_shape[0]
+	
+	return _ntm_module.linear_F_dF(x_ind, x_shape, F_shape, out_buffer_ind, gpu_ind)
+
+def relu_dlayer_in(layer_in_ind, layer_in_shape, out_buffer_ind, thresh=0, gpu_ind=0):
+	assert isinstance(layer_in_ind,int)
+	assert isinstance(gpu_ind,int)
+	assert isinstance(thresh,int)
+	assert isinstance(out_buffer_ind,int)
+	assert isinstance(layer_in_shape,tuple)
+	assert len(layer_in_shape) == 2
+	
+	return _ntm_module.relu_dlayer_in(layer_in_ind, layer_in_shape, out_buffer_ind, thresh, gpu_ind)
+
+def sigmoid_dlayer_in(layer_out_ind, layer_out_shape, out_buffer_ind, gpu_ind=0):
+	assert isinstance(layer_out_ind,int)
+	assert isinstance(gpu_ind,int)
+	assert isinstance(out_buffer_ind,int)
+	assert isinstance(layer_out_shape,tuple)
+	assert len(layer_out_shape) == 2
+	
+	return _ntm_module.sigmoid_dlayer_in(layer_out_ind, layer_out_shape, out_buffer_ind, gpu_ind)
+
+def focus_key_dkeys(beta_out_ind, keys_shape, out_buffer_ind, gpu_ind=0):
+	assert isinstance(beta_out_ind,int)
+	assert isinstance(gpu_ind,int)
+	assert isinstance(out_buffer_ind,int)
+	assert isinstance(keys_shape,tuple)
+	assert len(keys_shape) == 2
+	
+	return _ntm_module.focus_key_dkeys(beta_out_ind, keys_shape, out_buffer_ind, gpu_ind)
+
+def focus_key_dbeta_out(keys_ind, keys_shape, out_buffer_ind, gpu_ind=0):
+	assert isinstance(keys_ind,int)
+	assert isinstance(gpu_ind,int)
+	assert isinstance(out_buffer_ind,int)
+	assert isinstance(keys_shape,tuple)
+	assert len(keys_shape) == 2
+
+	return _ntm_module.focus_key_dbeta_out(keys_ind, keys_shape, out_buffer_ind, gpu_ind)
+
 def sharpen_dgamma(w_ind, w_shape, gamma_ind, gamma_shape, out_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(w_ind,int)
