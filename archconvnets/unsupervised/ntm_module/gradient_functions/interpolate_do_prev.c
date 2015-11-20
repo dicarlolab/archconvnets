@@ -1,30 +1,30 @@
-#define DFKB(A, B, C) dfkb[(A)*mem_length*n_controllers + (B)*n_controllers + (C)]
-#define DFKB_SZ (n_controllers*mem_length*n_controllers*sizeof(DATA_TYPE))
-#define KEYS_SZ buffer_sz[gpu_ind][keys_ind]
+#define DIDO(A, B, C) dido[(A)*p_dim1*p_dim0*p_dim1 + (B)*p_dim0*p_dim1 + (C)*p_dim1 + D]
+#define DIDO_SZ (p_dim0*p_dim1*p_dim0*p_dim1*sizeof(DATA_TYPE))
+#define O_GATE_SZ buffer_sz[gpu_ind][o_gate_ind]
 
-__global__ void interpolate_do_prev_kernel(float * keys, float * dfkb, int n_controllers, int mem_length){ 
+__global__ void interpolate_do_prev_kernel(float * keys, float * dido, int n_controllers, int mem_length){ 
 	int i = threadIdx.x / n_controllers;
 	int j = threadIdx.x % n_controllers;
 
-	DFKB(i,j,i) = KEYS(i,j);
+	DIDO(i,j,i) = KEYS(i,j);
 	
 	for(int i_local = 0; i_local < n_controllers; i_local++){
 		if(i_local != i)
-			DFKB(i,j,i_local) = 0;
+			DIDO(i,j,i_local) = 0;
 	}
 
 	return;
 }
 
-static PyObject * focus_key_dbeta_out(PyObject *self, PyObject *args){
+static PyObject * interpolate_do_prev(PyObject *self, PyObject *args){
 	cudaError_t err;
-	PyTupleObject *keys_shape;
-	int keys_ind, out_buffer_ind, gpu_ind;
+	PyTupleObject *o_gate_shape, *o_prev_shape;
+	int o_gate_ind, out_buffer_ind, gpu_ind;
 	
-	if (!PyArg_ParseTuple(args, "iO!ii", &keys_ind, &PyTuple_Type, &keys_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!O!ii", &o_gate_ind, &PyTuple_Type, &o_gate_shape, &PyTuple_Type, &o_prev_shape, &out_buffer_ind, &gpu_ind)) 
 		return NULL;
     
-	if(keys_ind >= N_BUFFERS || keys_ind < 0 || out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0){ 
+	if(o_gate_ind >= N_BUFFERS || o_gate_ind < 0 ||  out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0){ 
 		printf("buffer index incorrect, set_buffers().\n");
 		return NULL;
 	}
@@ -34,33 +34,35 @@ static PyObject * focus_key_dbeta_out(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(KEYS_SZ == 0){
+	if(O_GATE_SZ == 0){
 		printf("buffer not initialized. use set_buffers()\n");
 		return NULL;
 	}
 	
 	// get sizes
-	long n_controllers = PyLong_AsLong(PyTuple_GetItem((PyObject *)keys_shape,0));
-	long mem_length = PyLong_AsLong(PyTuple_GetItem((PyObject *)keys_shape,1));
+	long g_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_gate_shape,0));
+	long g_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_gate_shape,1));
+	long p_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_prev_shape,0));
+	long p_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_prev_shape,1));
 	
-	if(n_controllers*mem_length*sizeof(DATA_TYPE) != KEYS_SZ){
+	if(g_dim0*g_dim1*sizeof(DATA_TYPE) != O_GATE_SZ){
 		printf("specified input sizes do not equal to stored gpu buffer\n");
 		return NULL;
 	}
 	
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
-		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DFKB_SZ); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DIDO_SZ); MALLOC_ERR_CHECK
 		
-		OUT_BUFFER_SZ = DFKB_SZ;
-	}else if(DFKB_SZ != OUT_BUFFER_SZ){ // does the output size match the buffer size?
+		OUT_BUFFER_SZ = DIDO_SZ;
+	}else if(DIDO_SZ != OUT_BUFFER_SZ){ // does the output size match the buffer size?
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	focus_key_dbeta_out_kernel <<< 1, mem_length * n_controllers >>> (gpu_buffers[gpu_ind][keys_ind], 
+	interpolate_do_prev_kernel <<< 1, p_dim0*p_dim1 >>> (gpu_buffers[gpu_ind][o_gate_ind], 
 		gpu_buffers[gpu_ind][out_buffer_ind], n_controllers, mem_length);
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
