@@ -14,7 +14,7 @@ __global__ void linear_F_dF_kernel(float * x, float * dldf, int F_dim0, int x_di
 			if(i_local == i)
 				DLDF(i,j,i,k) = temp;
 			else
-				DLDF(i,j,i,k) = 0;
+				DLDF(i,j,i_local,k) = 0;
 		}
 	}
 
