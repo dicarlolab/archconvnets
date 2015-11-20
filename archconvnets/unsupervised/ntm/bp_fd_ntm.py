@@ -14,7 +14,7 @@ from ntm_core import *
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 
-#DERIV_L = L1_ABOVE
+DERIV_L = L1_ABOVE
 #DERIV_L = F_ABOVE
 
 #DERIV_L = SHIFT
@@ -23,12 +23,12 @@ from ntm_core import *
 #DERIV_L = BETA
 #DERIV_L = ADD
 #DERIV_L = ERASE
-DERIV_L = GAMMA
+#DERIV_L = GAMMA
 
-gradient_category = 'write'
+#gradient_category = 'write'
 #gradient_category = 'read'
 #gradient_category = 'under'
-#gradient_category = 'above'
+gradient_category = 'above'
 
 #gradient_weights = False # false means bias terms
 gradient_weights = True
@@ -167,13 +167,13 @@ def g(y):
 			mem_prev_prev = copy.deepcopy(mem_prev); mem_prev = copy.deepcopy(mem)
 	
 	# full gradients from partials
-	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DABOVE = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
-			DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, \
-			DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE)
+	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DWABOVE, DBABOVE = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
+				DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, \
+				DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE, BABOVE)
 	
 	####
 	if gradient_category == 'above':
-		return DABOVE[DERIV_L][i_ind,j_ind]
+		return DWABOVE[DERIV_L][i_ind,j_ind]
 	elif ref.ndim == 2 and gradient_category == 'under':
 		if gradient_weights:
 			return DWUNDER[DERIV_L][i_ind,j_ind]
@@ -201,7 +201,7 @@ def g(y):
 			return DBW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e1
+eps = np.sqrt(np.finfo(np.float).eps)*1e8
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

@@ -218,8 +218,9 @@ def relu_dlayer_in(layer_in, thresh=0):
 	temp[layer_in <= thresh] = 0
 	
 	temp2 = np.zeros(np.concatenate((layer_in.shape, layer_in.shape)),dtype='single')
-	temp2[range(layer_in.shape[0]),:,range(layer_in.shape[0])] = temp[:,np.newaxis]
-	
+	for i in range(layer_in.shape[0]):
+		for j in range(layer_in.shape[1]):
+			temp2[i,j,i,j] = temp[i,j]
 	return temp2
 	
 
