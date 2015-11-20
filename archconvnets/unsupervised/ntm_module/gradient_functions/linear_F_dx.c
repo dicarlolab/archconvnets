@@ -4,8 +4,8 @@
 #define F_SZ buffer_sz[gpu_ind][F_ind]
 
 __global__ void linear_F_dx_kernel(float * F, float * dldx, int F_dim0, int x_dim0, int x_dim1){ 
-	int i = threadIdx.x / x_dim1;
-	int j = threadIdx.x % x_dim1;
+	int i = threadIdx.x / x_dim0;
+	int j = threadIdx.x % x_dim0;
 
 	for(int k = 0; k < x_dim1; k++){
 		for(int k_local = 0; k_local < x_dim1; k_local++){
