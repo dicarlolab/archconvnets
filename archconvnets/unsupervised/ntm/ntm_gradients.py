@@ -285,28 +285,16 @@ def linear_F(F, layer_in):
 	
 	return np.dot(F,layer_in) # [n1, 1]
 
-def linear_F_dx(o):
-	n = mem_previ.shape[1]
-	temp = np.zeros((OR_PREVi[F].shape[0], n, mem_previ.shape[0], n),dtype='single')
-	temp[:,range(n),:,range(n)] = o
+def linear_F_dx(F, x):
+	n = x.shape[1]
+	temp = np.zeros((F.shape[0], n, x.shape[0], n),dtype='single')
+	temp[:,range(n),:,range(n)] = F
 	return temp
 
-def linear_F_dx_g(o, mem):
-	n = mem.shape[1]
-	temp = np.zeros((o.shape[0], n, mem.shape[0], n),dtype='single')
-	temp[:,range(n),:,range(n)] = o
-	return temp
-
-def linear_F_dF(mem):
-	n = OR_PREVi[F].shape[0]
-	temp = np.zeros((n, mem.shape[1], n, OR_PREVi[F].shape[1]),dtype='single')
-	temp[range(n),:,range(n)] = mem.T
-	return temp
-
-def linear_F_dF_g(F, mem):
+def linear_F_dF(F, x):
 	n = F.shape[0]
-	temp = np.zeros((n, mem.shape[1], n, F.shape[1]),dtype='single')
-	temp[range(n),:,range(n)] = mem.T
+	temp = np.zeros((n, x.shape[1], n, F.shape[1]),dtype='single')
+	temp[range(n),:,range(n)] = x.T
 	return temp
 	
 

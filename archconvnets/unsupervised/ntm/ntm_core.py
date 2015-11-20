@@ -71,22 +71,22 @@ def dunder(WUNDER, BUNDER, OUNDER, x):
 	DG3UNDER_DW = [None] * len(OUNDER); DG3UNDER_DB = [None] * len(OUNDER)
 
 	dg3under_relu_dg3under = relu_dlayer_in(OUNDER[F_UNDER]).squeeze()
-	dg3under_dw3under = linear_F_dF_g(WUNDER[F_UNDER], OUNDER[L2_UNDER]).squeeze()
+	dg3under_dw3under = linear_F_dF(WUNDER[F_UNDER], OUNDER[L2_UNDER]).squeeze()
 	DG3UNDER_DB[F_UNDER] = dg3under_relu_dg3under[:,:,np.newaxis]
 	DG3UNDER_DW[F_UNDER] = mult_partials(dg3under_relu_dg3under, dg3under_dw3under, OUNDER[F_UNDER].squeeze())
 	
-	dg3under_dg2under_relu = linear_F_dx_g(WUNDER[F_UNDER], OUNDER[L2_UNDER])
+	dg3under_dg2under_relu = linear_F_dx(WUNDER[F_UNDER], OUNDER[L2_UNDER])
 	dg2under_relu_dg2under = relu_dlayer_in(OUNDER[L2_UNDER])
 	dg3under_dg2under = mult_partials(dg3under_dg2under_relu[:,:,np.newaxis], dg2under_relu_dg2under, OUNDER[L2_UNDER]).squeeze()
-	dg2under_dw2under = linear_F_dF_g(WUNDER[L2_UNDER], OUNDER[L1_UNDER]).squeeze()
+	dg2under_dw2under = linear_F_dF(WUNDER[L2_UNDER], OUNDER[L1_UNDER]).squeeze()
 	dg3under_relu_dg2under = mult_partials(dg3under_relu_dg3under, dg3under_dg2under, OUNDER[F_UNDER].squeeze())
 	DG3UNDER_DB[L2_UNDER] = dg3under_relu_dg2under[:,:,np.newaxis]
 	DG3UNDER_DW[L2_UNDER] = mult_partials(dg3under_relu_dg2under, dg2under_dw2under, OUNDER[L2_UNDER].squeeze())
 
-	dg2under_dg1under_relu = linear_F_dx_g(WUNDER[L2_UNDER], OUNDER[L1_UNDER])
+	dg2under_dg1under_relu = linear_F_dx(WUNDER[L2_UNDER], OUNDER[L1_UNDER])
 	dg1under_relu_dg1under = relu_dlayer_in(OUNDER[L1_UNDER])
 	dg2under_dg1under = mult_partials(dg2under_dg1under_relu[:,:,np.newaxis], dg1under_relu_dg1under, OUNDER[L1_UNDER]).squeeze()
-	dg1under_dw1under = linear_F_dF_g(WUNDER[L1_UNDER], x).squeeze()
+	dg1under_dw1under = linear_F_dF(WUNDER[L1_UNDER], x).squeeze()
 	dg2under_dw1under = mult_partials(dg2under_dg1under, dg1under_dw1under,  OUNDER[L1_UNDER].squeeze())
 	DG3UNDER_DB[L1_UNDER] = mult_partials(dg3under_relu_dg2under, dg2under_dg1under, OUNDER[L2_UNDER].squeeze())[:,:,np.newaxis]
 	DG3UNDER_DW[L1_UNDER] = mult_partials(dg3under_relu_dg2under, dg2under_dw1under, OUNDER[L2_UNDER].squeeze())
@@ -123,8 +123,8 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	dgammarelu_dgamma = relu_dlayer_in(O[GAMMA], thresh=1)
 	do_dgamma = mult_partials(do_dgammarelu, dgammarelu_dgamma, O[GAMMA])
 	DO_DB_NEW[GAMMA] += do_dgamma
-	dgamma_dwgamma = linear_F_dF_g(W[GAMMA], OUNDER[F_UNDER])
-	dgamma_dg3under = linear_F_dx_g(W[GAMMA], OUNDER[F_UNDER])
+	dgamma_dwgamma = linear_F_dF(W[GAMMA], OUNDER[F_UNDER])
+	dgamma_dg3under = linear_F_dx(W[GAMMA], OUNDER[F_UNDER])
 	DO_DW_NEW[GAMMA] += mult_partials(do_dgamma, dgamma_dwgamma, O[GAMMA])
 	do_dg3under = np.squeeze(mult_partials(do_dgamma, dgamma_dg3under, O[GAMMA]))
 	
@@ -146,8 +146,8 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	dgin_gate_sig_dgin_gate = sigmoid_dlayer_in(O[IN_GATE])
 	do_dgin_gate = mult_partials(do_dgin_gate_sig, dgin_gate_sig_dgin_gate, O[IN_GATE])
 	DO_DB_NEW[IN_GATE] += do_dgin_gate
-	dgin_gate_dwin = linear_F_dF_g(W[IN_GATE], OUNDER[F_UNDER])
-	dgin_gate_dg3under = linear_F_dx_g(W[IN_GATE], OUNDER[F_UNDER])
+	dgin_gate_dwin = linear_F_dF(W[IN_GATE], OUNDER[F_UNDER])
+	dgin_gate_dg3under = linear_F_dx(W[IN_GATE], OUNDER[F_UNDER])
 	DO_DW_NEW[IN_GATE] += mult_partials(do_dgin_gate, dgin_gate_dwin, O[IN_GATE])
 	do_dg3under += np.squeeze(mult_partials(do_dgin_gate, dgin_gate_dg3under, O[IN_GATE]))
 	
@@ -166,8 +166,8 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	do_content_focused_dgbeta = focus_key_dbeta_out(O[CONTENT], O[BETA])
 	do_dgbeta = mult_partials(do_do_content_focused, do_content_focused_dgbeta, O[CONTENT_FOCUSED])
 	DO_DB_NEW[BETA] += do_dgbeta
-	dgbeta_dwbeta = linear_F_dF_g(W[BETA], OUNDER[F_UNDER])
-	dgbeta_dg3under = linear_F_dx_g(W[BETA], OUNDER[F_UNDER])
+	dgbeta_dwbeta = linear_F_dF(W[BETA], OUNDER[F_UNDER])
+	dgbeta_dg3under = linear_F_dx(W[BETA], OUNDER[F_UNDER])
 	DO_DW_NEW[BETA] += mult_partials(do_dgbeta, dgbeta_dwbeta, O[BETA])
 	do_dg3under += np.squeeze(mult_partials(do_dgbeta, dgbeta_dg3under, O[BETA]))
 	
@@ -332,22 +332,22 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	
 	derr_dg2above = np.squeeze(derr_dg2above_relu)
 
-	dg2above_dg1above_relu = linear_F_dx_g(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
+	dg2above_dg1above_relu = linear_F_dx(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
 	dg1above_relu_dg1above = relu_dlayer_in(OABOVE[L1_ABOVE])
-	dg1above_dread_mem = linear_F_dx_g(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
+	dg1above_dread_mem = linear_F_dx(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
 	derr_dg1above = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))
 	
 	# above weight gradients
 	DWABOVE = [None]*len(WABOVE); DBABOVE = [None]*len(BABOVE)
-	dg2above_dw2above = linear_F_dF_g(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
-	dg1above_dw1above = linear_F_dF_g(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
+	dg2above_dw2above = linear_F_dF(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
+	dg1above_dw1above = linear_F_dF(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
 	DWABOVE[F_ABOVE] = mult_partials(derr_dg2above, dg2above_dw2above, OABOVE[F_ABOVE])
 	DWABOVE[L1_ABOVE] = mult_partials(derr_dg1above, dg1above_dw1above, OABOVE[L1_ABOVE])
 	DBABOVE[F_ABOVE] = derr_dg2above[np.newaxis]; DBABOVE[L1_ABOVE] = derr_dg1above#[:,:,np.newaxis]
 
 	# read weights
 	derr_dread_mem = mult_partials(derr_dg1above, dg1above_dread_mem, OABOVE[L1_ABOVE])
-	dread_mem_dor = linear_F_dF(mem_prev)
+	dread_mem_dor = linear_F_dF(OR[F], mem_prev)
 	derr_dor = mult_partials(derr_dread_mem, dread_mem_dor, read_mem)
 	
 	DWR = mult_partials_collapse__layers(derr_dor, DOR_DWR, OR[F]) # 18.3%
@@ -358,7 +358,7 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	DBUNDER = mult_partials_collapse__layers(derr_dor, DOR_DBUNDER, OR[F])
 	
 	# write weights
-	dread_mem_dmem_prev = linear_F_dx(OR[F])
+	dread_mem_dmem_prev = linear_F_dx(OR[F], mem_prev)
 	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
 	
 	DWW = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWW, mem_prev, DWW) # 20%
