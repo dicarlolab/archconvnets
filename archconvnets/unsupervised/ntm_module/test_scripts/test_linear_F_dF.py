@@ -8,7 +8,7 @@ x = np.asarray(np.random.random((10,12)),dtype='single')
 
 ###########
 t_start = time.time()
-z3 = linear_F_dF_g(F, x)
+z3 = linear_F_dF(F, x)
 t_cpu = time.time() - t_start
 
 ###

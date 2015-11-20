@@ -7,12 +7,10 @@ __global__ void linear_F_dF_kernel(float * x, float * dldf, int F_dim0, int x_di
 	int j = threadIdx.x / x_dim0;
 	int k = threadIdx.x % x_dim0;
 
-	float temp = X(k,j);
-	
 	for(int i = 0; i < F_dim0; i++){
 		for(int i_local = 0; i_local < F_dim0; i_local++){
 			if(i_local == i)
-				DLDF(i,j,i,k) = temp;
+				DLDF(i,j,i,k) = X(k,j);
 			else
 				DLDF(i,j,i_local,k) = 0;
 		}

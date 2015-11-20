@@ -1,6 +1,17 @@
 import _ntm_module
 import numpy as np
 
+def linear_F_dx(F_ind, x_shape, F_shape, out_buffer_ind, gpu_ind=0):
+	assert isinstance(F_ind,int)
+	assert isinstance(gpu_ind,int)
+	assert isinstance(out_buffer_ind,int)
+	assert isinstance(x_shape,tuple)
+	assert isinstance(F_shape,tuple)
+	assert len(F_shape) == len(x_shape) == 2
+	assert F_shape[1] == x_shape[0]
+	
+	return _ntm_module.linear_F_dx(F_ind, x_shape, F_shape, out_buffer_ind, gpu_ind)
+
 def linear_F_dF(x_ind, x_shape, F_shape, out_buffer_ind, gpu_ind=0):
 	assert isinstance(x_ind,int)
 	assert isinstance(gpu_ind,int)
