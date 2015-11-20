@@ -3,8 +3,8 @@
 #define KEYS_SZ buffer_sz[gpu_ind][keys_ind]
 
 __global__ void focus_key_dbeta_out_kernel(float * keys, float * dfkb, int n_controllers, int mem_length){ 
-	int i = threadIdx.x / n_controllers;
-	int j = threadIdx.x % n_controllers;
+	int i = threadIdx.x / mem_length;
+	int j = threadIdx.x % mem_length;
 
 	DFKB(i,j,i) = KEYS(i,j);
 	
@@ -60,7 +60,7 @@ static PyObject * focus_key_dbeta_out(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	focus_key_dbeta_out_kernel <<< 1, mem_length * n_controllers >>> (gpu_buffers[gpu_ind][keys_ind], 
+	focus_key_dbeta_out_kernel <<< 1, n_controllers * mem_length >>> (gpu_buffers[gpu_ind][keys_ind], 
 		gpu_buffers[gpu_ind][out_buffer_ind], n_controllers, mem_length);
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
