@@ -1,6 +1,6 @@
 #define DSDL(A, B, C, D) dsdl[(A)*dim1*dim0*dim1 + (B)*dim0*dim1 + (C)*dim1 + D]
 #define LAYER_OUT_SM(A, B) layer_out[(A)*dim1 + (B)]
-#define DSDL_SZ (dim0*dim1*dim0*sizeof(DATA_TYPE))
+#define DSDL_SZ (dim0*dim1*dim0*dim1*sizeof(DATA_TYPE))
 #define LAYER_OUT_SZ buffer_sz[gpu_ind][layer_out_ind]
 
 __global__ void sigmoid_dlayer_in_kernel(float * layer_out, float * dsdl, int dim0, int dim1){ 
