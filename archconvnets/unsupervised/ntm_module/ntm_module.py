@@ -1,6 +1,47 @@
 import _ntm_module
 import numpy as np
 
+def shift_w_dw_interp(shift_out_ind, w_interp_shape, out_buffer_ind, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	assert isinstance(out_buffer_ind,int)
+	assert isinstance(shift_out_ind,int)
+	assert isinstance(w_interp_shape,tuple)
+	assert len(w_interp_shape) == 2
+	
+	return _ntm_module.shift_w_dw_interp(shift_out_ind, w_interp_shape, out_buffer_ind, gpu_ind)
+
+def shift_w_dshift_out(w_interp_ind, w_interp_shape, out_buffer_ind, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	assert isinstance(out_buffer_ind,int)
+	assert isinstance(w_interp_ind,int)
+	assert isinstance(w_interp_shape,tuple)
+	assert len(w_interp_shape) == 2
+	
+	return _ntm_module.shift_w_dshift_out(w_interp_ind, w_interp_shape, out_buffer_ind, gpu_ind)
+
+
+def interpolate_dinterp_gate_out(o_content_ind, o_content_shape, o_prev_ind, out_buffer_ind, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	assert isinstance(out_buffer_ind,int)
+	assert isinstance(out_content_ind,int)
+	assert isinstance(o_prev_ind,int)
+	assert isinstance(o_content_shape,tuple)
+	assert len(o_content_shape) == 2
+	
+	return _ntm_module.interpolate_dinterp_gate_out(o_content_ind, o_content_shape, o_prev_ind, out_buffer_ind, gpu_ind)
+
+def interpolate_do_prev(interp_gate_out_ind, interp_gate_out_shape, o_prev_shape, out_buffer_ind, gpu_ind=0):
+	assert isinstance(interp_gate_out_ind,int)
+	assert isinstance(gpu_ind,int)
+	assert isinstance(out_buffer_ind,int)
+	assert isinstance(o_prev_shape,tuple)
+	assert isinstance(interp_gate_out_shape,tuple)
+	assert interp_gate_out_shape[0] == o_prev_shape[0]
+	assert interp_gate_out_shape[1] == 1
+	assert len(o_prev_shape) == len(interp_gate_out_shape) == 2
+	
+	return _ntm_module.interpolate_do_prev(interp_gate_out_ind, o_prev_shape, out_buffer_ind, gpu_ind)
+
 def linear_F_dx(F_ind, x_shape, F_shape, out_buffer_ind, gpu_ind=0):
 	assert isinstance(F_ind,int)
 	assert isinstance(gpu_ind,int)

@@ -1,10 +1,9 @@
-#define DIDO(A, B, C) dido[(A)*p_dim1*p_dim0*p_dim1 + (B)*p_dim0*p_dim1 + (C)*p_dim1 + D]
-#define DIDO_SZ (p_dim0*p_dim1*p_dim0*p_dim1*sizeof(DATA_TYPE))
-#define O_GATE_SZ buffer_sz[gpu_ind][o_gate_ind]
+#define DIDO(A, B, C, D) dido[(A)*dim1*dim0*dim1 + (B)*dim0*dim1 + (C)*dim1 + D]
+#define DIDO_SZ (dim0*dim1*dim0*dim1*sizeof(DATA_TYPE))
 
-__global__ void interpolate_do_prev_kernel(float * keys, float * dido, int n_controllers, int mem_length){ 
-	int i = threadIdx.x / n_controllers;
-	int j = threadIdx.x % n_controllers;
+__global__ void interpolate_do_prev_kernel(float * keys, float * dido, int dim0, int dim1){ 
+	int i = threadIdx.x / dim1;
+	int j = threadIdx.x % dim1;
 
 	DIDO(i,j,i) = KEYS(i,j);
 	
@@ -18,13 +17,13 @@ __global__ void interpolate_do_prev_kernel(float * keys, float * dido, int n_con
 
 static PyObject * interpolate_do_prev(PyObject *self, PyObject *args){
 	cudaError_t err;
-	PyTupleObject *o_gate_shape, *o_prev_shape;
-	int o_gate_ind, out_buffer_ind, gpu_ind;
+	PyTupleObject *o_prev_shape;
+	int interp_gate_out_ind, out_buffer_ind, gpu_ind;
 	
-	if (!PyArg_ParseTuple(args, "iO!O!ii", &o_gate_ind, &PyTuple_Type, &o_gate_shape, &PyTuple_Type, &o_prev_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!O!ii", &interp_gate_out_ind, &PyTuple_Type, &o_prev_shape, &out_buffer_ind, &gpu_ind)) 
 		return NULL;
     
-	if(o_gate_ind >= N_BUFFERS || o_gate_ind < 0 ||  out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0){ 
+	if(interp_gate_out_ind >= N_BUFFERS || interp_gate_out_ind < 0 ||  out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0){ 
 		printf("buffer index incorrect, set_buffers().\n");
 		return NULL;
 	}
@@ -34,22 +33,14 @@ static PyObject * interpolate_do_prev(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(O_GATE_SZ == 0){
-		printf("buffer not initialized. use set_buffers()\n");
-		return NULL;
-	}
-	
 	// get sizes
-	long g_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_gate_shape,0));
-	long g_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_gate_shape,1));
-	long p_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_prev_shape,0));
-	long p_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_prev_shape,1));
+	long dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_prev_shape,0));
+	long dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_prev_shape,1));
 	
-	if(g_dim0*g_dim1*sizeof(DATA_TYPE) != O_GATE_SZ){
+	if(dim0*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][interp_gate_out_ind]){
 		printf("specified input sizes do not equal to stored gpu buffer\n");
 		return NULL;
 	}
-	
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DIDO_SZ); MALLOC_ERR_CHECK
@@ -62,8 +53,8 @@ static PyObject * interpolate_do_prev(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	interpolate_do_prev_kernel <<< 1, p_dim0*p_dim1 >>> (gpu_buffers[gpu_ind][o_gate_ind], 
-		gpu_buffers[gpu_ind][out_buffer_ind], n_controllers, mem_length);
+	interpolate_do_prev_kernel <<< 1, dim0*dim1 >>> (gpu_buffers[gpu_ind][o_gate_ind], 
+		gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	

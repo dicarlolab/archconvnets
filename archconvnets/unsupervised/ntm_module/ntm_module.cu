@@ -21,6 +21,10 @@
 #include "gradient_functions/relu_dlayer_in.c"
 #include "gradient_functions/linear_F_dF.c"
 #include "gradient_functions/linear_F_dx.c"
+#include "gradient_functions/interpolate_do_prev.c"
+#include "gradient_functions/interpolate_dinterp_gate_out.c"
+#include "gradient_functions/shift_w_dshift_out.c"
+#include "gradient_functions/shift_w_dw_interp.c"
 
 static PyMethodDef _ntm_module[] = {
 	{"sync", sync, METH_VARARGS},
@@ -41,9 +45,13 @@ static PyMethodDef _ntm_module[] = {
 	{"focus_key_dbeta_out", focus_key_dbeta_out, METH_VARARGS},
 	{"focus_key_dkeys", focus_key_dkeys, METH_VARARGS},
 	{"sigmoid_dlayer_in", sigmoid_dlayer_in, METH_VARARGS},
-	{"relu_dlayer_in", relu_dlayer_in, METH_VARARGS}, ////////////////////////
+	{"relu_dlayer_in", relu_dlayer_in, METH_VARARGS},
 	{"linear_F_dF", linear_F_dF, METH_VARARGS},
 	{"linear_F_dx", linear_F_dx, METH_VARARGS},
+	{"interpolate_do_prev", interpolate_do_prev, METH_VARARGS},
+	{"interpolate_dinterp_gate_out", interpolate_dinterp_gate_out, METH_VARARGS},
+	{"shift_w_dshift_out", shift_w_dshift_out, METH_VARARGS},
+	{"shift_w_dw_interp", shift_w_dw_interp, METH_VARARGS},
 	{NULL, NULL}
 };
 
