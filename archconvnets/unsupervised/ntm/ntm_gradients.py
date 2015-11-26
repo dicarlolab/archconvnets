@@ -396,8 +396,8 @@ def interpolate_do_content(interp_gate_out, o_content):
 		temp2[i,range(n),i,range(n)] = temp[i]
 	return temp2
 
-def interpolate_do_prev(o_gatei, o_previ):
-	temp = 1 - o_gatei
+def interpolate_do_prev(interp_gate_out, o_previ):
+	temp = 1 - interp_gate_out
 	n = o_previ.shape[1]
 	temp2 = np.zeros((o_previ.shape[0], n, o_previ.shape[0], n),dtype='single')
 	

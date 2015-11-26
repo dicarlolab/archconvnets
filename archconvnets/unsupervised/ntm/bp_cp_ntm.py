@@ -31,7 +31,7 @@ inputs = np.zeros((2,1),dtype='single')
 a = 1
 b = -3
 EPS_BUNDER = EPS_WUNDER = EPS_WABOVE = EPS_BABOVE = EPS_BR = EPS_WW = EPS_BW = EPS_WR = -a*(10**b)
-save_name = 'ntm_test_' + str(a) + 'e' + str(b) + '_3.mat'
+save_name = 'ntm_test_' + str(a) + 'e' + str(b) + '_4.mat'
 
 
 SAVE_FREQ = 500

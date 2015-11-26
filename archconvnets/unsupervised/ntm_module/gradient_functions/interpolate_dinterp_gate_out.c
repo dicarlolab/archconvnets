@@ -3,7 +3,7 @@
 #define O_CONTENT(A, B) o_content[(A)*dim1 + B]
 #define O_PREV(A, B) o_prev[(A)*dim1 + B]
 
-__global__ void interpolate_dinterp_gate_out(float * o_content, float * o_prev, 
+__global__ void interpolate_dinterp_gate_out_kernel(float * o_content, float * o_prev, 
 		float * didg, int dim0, int dim1){ 
 	int i = threadIdx.x / dim1;
 	int j = threadIdx.x % dim1;

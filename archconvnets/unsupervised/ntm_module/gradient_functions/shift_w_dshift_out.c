@@ -1,5 +1,5 @@
 #define N_SHIFTS 3
-#define DSDS(A, B, Ci, D) dsds[(A)*M*C*N_SHIFTS + (B)*C*N_SHIFTS + (Ci)*N_SHIFTS + Ds]
+#define DSDS(A, B, Ci, D) dsds[(A)*M*C*N_SHIFTS + (B)*C*N_SHIFTS + (Ci)*N_SHIFTS + D]
 #define DSDS_SZ (C*M*C*N_SHIFTS*sizeof(DATA_TYPE))
 #define W_INTERP(A, B) w_interp[(A)*M + B]
 

@@ -1,16 +1,17 @@
 #define DIDO(A, B, C, D) dido[(A)*dim1*dim0*dim1 + (B)*dim0*dim1 + (C)*dim1 + D]
 #define DIDO_SZ (dim0*dim1*dim0*dim1*sizeof(DATA_TYPE))
+#define INTERP_GATE_OUT(A, B) interp_gate_out[(A)*dim1 + (B)]
 
-__global__ void interpolate_do_prev_kernel(float * keys, float * dido, int dim0, int dim1){ 
+__global__ void interpolate_do_prev_kernel(float * interp_gate_out, float * dido, int dim0, int dim1){ 
 	int i = threadIdx.x / dim1;
 	int j = threadIdx.x % dim1;
 
-	DIDO(i,j,i) = KEYS(i,j);
-	
-	for(int i_local = 0; i_local < n_controllers; i_local++){
-		if(i_local != i)
-			DIDO(i,j,i_local) = 0;
-	}
+	for(int i_local = 0; i_local < dim0; i_local++){
+		for(int j_local = 0; j_local < dim1; j_local++){
+			DIDO(i,j,i_local,j_local) = 0;
+	}}
+
+	DIDO(i,j,i,j) = 1 - INTERP_GATE_OUT(i,j);
 
 	return;
 }
@@ -53,7 +54,7 @@ static PyObject * interpolate_do_prev(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	interpolate_do_prev_kernel <<< 1, dim0*dim1 >>> (gpu_buffers[gpu_ind][o_gate_ind], 
+	interpolate_do_prev_kernel <<< 1, dim0*dim1 >>> (gpu_buffers[gpu_ind][interp_gate_out_ind], 
 		gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
