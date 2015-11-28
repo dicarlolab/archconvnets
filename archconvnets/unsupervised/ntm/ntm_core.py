@@ -141,6 +141,7 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	do_dg3under += mult_partials(do_dgshift, dgshift_dg3under, O[SHIFT])
 	
 	## interp. gradients (wrt gin_gate)
+	print O[IN].shape, O[IN_GATE].shape, O[CONTENT_SM].shape, o_prev.shape
 	do_in_dgin_gate_sig = interpolate_softmax_dinterp_gate_out(O[IN], O[IN_GATE], O[CONTENT_SM], o_prev) # 4.2%
 	do_dgin_gate_sig = mult_partials(do_do_in, do_in_dgin_gate_sig, O[IN])
 	dgin_gate_sig_dgin_gate = sigmoid_dlayer_in(O[IN_GATE])

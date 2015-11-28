@@ -23,7 +23,6 @@ def shift_w_dshift_out(w_interp_ind, w_interp_shape, out_buffer_ind, gpu_ind=0):
 def interpolate_dinterp_gate_out(o_content_ind, o_content_shape, o_prev_ind, out_buffer_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(out_buffer_ind,int)
-	assert isinstance(out_content_ind,int)
 	assert isinstance(o_prev_ind,int)
 	assert isinstance(o_content_shape,tuple)
 	assert len(o_content_shape) == 2
