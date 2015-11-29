@@ -1,6 +1,5 @@
 #define DIDO(A, B, C, D) dido[(A)*dim1*dim0*dim1 + (B)*dim0*dim1 + (C)*dim1 + D]
 #define DIDO_SZ (dim0*dim1*dim0*dim1*sizeof(DATA_TYPE))
-#define INTERP_GATE_OUT(A, B) interp_gate_out[(A)*dim1 + (B)]
 
 __global__ void interpolate_do_prev_kernel(float * interp_gate_out, float * dido, int dim0, int dim1){ 
 	int i = threadIdx.x / dim1;
@@ -11,7 +10,7 @@ __global__ void interpolate_do_prev_kernel(float * interp_gate_out, float * dido
 			DIDO(i,j,i_local,j_local) = 0;
 	}}
 
-	DIDO(i,j,i,j) = 1 - INTERP_GATE_OUT(i,j);
+	DIDO(i,j,i,j) = 1 - interp_gate_out[i];//INTERP_GATE_OUT(i,j);
 
 	return;
 }
@@ -21,7 +20,7 @@ static PyObject * interpolate_do_prev(PyObject *self, PyObject *args){
 	PyTupleObject *o_prev_shape;
 	int interp_gate_out_ind, out_buffer_ind, gpu_ind;
 	
-	if (!PyArg_ParseTuple(args, "iO!O!ii", &interp_gate_out_ind, &PyTuple_Type, &o_prev_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!ii", &interp_gate_out_ind, &PyTuple_Type, &o_prev_shape, &out_buffer_ind, &gpu_ind)) 
 		return NULL;
     
 	if(interp_gate_out_ind >= N_BUFFERS || interp_gate_out_ind < 0 ||  out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0){ 

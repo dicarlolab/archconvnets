@@ -29,15 +29,12 @@ def interpolate_dinterp_gate_out(o_content_ind, o_content_shape, o_prev_ind, out
 	
 	return _ntm_module.interpolate_dinterp_gate_out(o_content_ind, o_content_shape, o_prev_ind, out_buffer_ind, gpu_ind)
 
-def interpolate_do_prev(interp_gate_out_ind, interp_gate_out_shape, o_prev_shape, out_buffer_ind, gpu_ind=0):
+def interpolate_do_prev(interp_gate_out_ind, o_prev_shape, out_buffer_ind, gpu_ind=0):
 	assert isinstance(interp_gate_out_ind,int)
 	assert isinstance(gpu_ind,int)
 	assert isinstance(out_buffer_ind,int)
 	assert isinstance(o_prev_shape,tuple)
-	assert isinstance(interp_gate_out_shape,tuple)
-	assert interp_gate_out_shape[0] == o_prev_shape[0]
-	assert interp_gate_out_shape[1] == 1
-	assert len(o_prev_shape) == len(interp_gate_out_shape) == 2
+	assert len(o_prev_shape) == 2
 	
 	return _ntm_module.interpolate_do_prev(interp_gate_out_ind, o_prev_shape, out_buffer_ind, gpu_ind)
 
