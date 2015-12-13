@@ -141,13 +141,13 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	do_dg3under += mult_partials(do_dgshift, dgshift_dg3under, O[SHIFT])
 	
 	## interp. gradients (wrt gin_gate)
-	print O[IN].shape, O[IN_GATE].shape, O[CONTENT_SM].shape, o_prev.shape
 	do_in_dgin_gate_sig = interpolate_softmax_dinterp_gate_out(O[IN], O[IN_GATE], O[CONTENT_SM], o_prev) # 4.2%
 	do_dgin_gate_sig = mult_partials(do_do_in, do_in_dgin_gate_sig, O[IN])
 	dgin_gate_sig_dgin_gate = sigmoid_dlayer_in(O[IN_GATE])
 	do_dgin_gate = mult_partials(do_dgin_gate_sig, dgin_gate_sig_dgin_gate, O[IN_GATE])
 	DO_DB_NEW[IN_GATE] += do_dgin_gate
 	dgin_gate_dwin = linear_F_dF(W[IN_GATE], OUNDER[F_UNDER])
+	print dgin_gate_dwin.shape, W[IN_GATE].shape, OUNDER[F_UNDER].shape
 	dgin_gate_dg3under = linear_F_dx(W[IN_GATE], OUNDER[F_UNDER])
 	DO_DW_NEW[IN_GATE] += mult_partials(do_dgin_gate, dgin_gate_dwin, O[IN_GATE])
 	do_dg3under += np.squeeze(mult_partials(do_dgin_gate, dgin_gate_dg3under, O[IN_GATE]))
