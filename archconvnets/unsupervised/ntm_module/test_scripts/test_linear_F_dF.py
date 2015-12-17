@@ -3,8 +3,8 @@ import archconvnets.unsupervised.ntm_module.ntm_module as nm
 import numpy as np
 import time
 
-F = np.asarray(np.random.random((16,10)),dtype='single')
-x = np.asarray(np.random.random((10,12)),dtype='single')
+F = np.asarray(np.random.random((3,13)),dtype='single')
+x = np.asarray(np.random.random((13,12)),dtype='single')
 
 ###########
 t_start = time.time()

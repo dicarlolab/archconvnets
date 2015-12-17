@@ -332,7 +332,21 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	
 	derr_dg2above = np.squeeze(derr_dg2above_relu)
 
+	########
+	F_ind = 0
+	out_buffer_ind = 1
+	
+	nm.set_buffer(WABOVE[F_ABOVE], F_ind)
+
 	dg2above_dg1above_relu = linear_F_dx(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
+	nm.linear_F_dx(F_ind, OABOVE[L1_ABOVE].shape, WABOVE[F_ABOVE].shape, out_buffer_ind)
+	z = nm.return_buffer(out_buffer_ind).reshape(dg2above_dg1above_relu.shape)
+	print WABOVE[F_ABOVE].shape, OABOVE[L1_ABOVE].shape # (1, 13) (13, 1)
+	print z.ravel()
+	print dg2above_dg1above_relu.ravel()
+	print dg2above_dg1above_relu.shape, np.isclose(z, dg2above_dg1above_relu).sum()
+	#########
+
 	dg1above_relu_dg1above = relu_dlayer_in(OABOVE[L1_ABOVE])
 	dg1above_dread_mem = linear_F_dx(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
 	derr_dg1above = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))

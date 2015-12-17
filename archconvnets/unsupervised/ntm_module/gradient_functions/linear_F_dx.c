@@ -3,19 +3,19 @@
 #define DLDX_SZ (F_dim0*x_dim1*x_dim0*x_dim1*sizeof(DATA_TYPE))
 #define F_SZ buffer_sz[gpu_ind][F_ind]
 
-__global__ void linear_F_dx_kernel(float * F, float * dldx, int F_dim0, int x_dim0, int x_dim1){ 
+__global__ void linear_F_dx_kernel(float * F, float * dldx, int x_dim0, int x_dim1){ 
 	int i = threadIdx.x / x_dim0;
 	int j = threadIdx.x % x_dim0;
 
 	for(int k = 0; k < x_dim1; k++){
 		for(int k_local = 0; k_local < x_dim1; k_local++){
 			if(k_local == k)
-				DLDX(i,k,j,k) = FM(i,j);
+				DLDX(i,k,j,k_local) = FM(i,j);
 			else
 				DLDX(i,k,j,k_local) = 0;
 		}
 	}
-
+	
 	return;
 }
 
@@ -64,8 +64,8 @@ static PyObject * linear_F_dx(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	linear_F_dx_kernel <<< 1, F_dim0 * x_dim1 >>> (gpu_buffers[gpu_ind][F_ind], 
-		gpu_buffers[gpu_ind][out_buffer_ind], F_dim0, x_dim0, x_dim1);
+	linear_F_dx_kernel <<< 1, F_dim0 * x_dim0 >>> (gpu_buffers[gpu_ind][F_ind], 
+		gpu_buffers[gpu_ind][out_buffer_ind], x_dim0, x_dim1);
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
