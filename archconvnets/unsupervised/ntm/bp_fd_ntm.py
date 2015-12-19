@@ -14,8 +14,8 @@ from ntm_core import *
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 
-DERIV_L = L1_ABOVE
-#DERIV_L = F_ABOVE
+#DERIV_L = L1_ABOVE
+DERIV_L = F_ABOVE
 
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
@@ -201,7 +201,7 @@ def g(y):
 			return DBW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e8
+eps = np.sqrt(np.finfo(np.float).eps)*1e4#8
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

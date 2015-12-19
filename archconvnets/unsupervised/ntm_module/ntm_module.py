@@ -1,6 +1,33 @@
 import _ntm_module
 import numpy as np
 
+def mult_partials(da_db_ind, db_dc_ind, da_db_shape, db_dc_shape, b_ndim, out_buffer_ind, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	assert isinstance(da_db_ind,int)
+	assert isinstance(db_dc_ind,int)
+	assert isinstance(out_buffer_ind,int)
+	assert isinstance(da_db_shape,tuple)
+	assert isinstance(db_dc_shape, tuple)
+	assert isinstance(b_ndim,int)
+	assert b_ndim > 0
+	
+	da_db_shape = list(da_db_shape)
+	while len(da_db_shape) <= b_ndim:
+		da_db_shape.insert(0, 1)
+	
+	da_db_shape = np.asarray(da_db_shape)
+	db_dc_shape = np.asarray(db_dc_shape)
+	
+	a_ndim = len(da_db_shape) - b_ndim
+	c_ndim = len(db_dc_shape) - b_ndim
+	
+	assert c_ndim > 0
+	
+	da_db_shape = (np.prod(da_db_shape[:a_ndim]), np.prod(da_db_shape[a_ndim:]))
+	db_dc_shape = (np.prod(db_dc_shape[:b_ndim]), np.prod(db_dc_shape[b_ndim:]))
+	
+	return _ntm_module.dot(da_db_ind, da_db_shape, db_dc_ind, db_dc_shape, out_buffer_ind, gpu_ind)
+
 def shift_w_dw_interp(shift_out_ind, w_interp_shape, out_buffer_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(out_buffer_ind,int)

@@ -15,14 +15,20 @@ def pointwise_mult_partials_add__layers(A, B, s):
 	return C
 
 def mult_partials(da_db, db_dc, b):
-        a_ndim = da_db.ndim - b.ndim
-        c_ndim = db_dc.ndim - b.ndim
-        da_db_r = da_db.reshape((np.prod(da_db.shape[:a_ndim]), np.prod(da_db.shape[a_ndim:])))
-        db_dc_r = db_dc.reshape((np.prod(db_dc.shape[:b.ndim]), np.prod(db_dc.shape[b.ndim:])))
+	while da_db.ndim <= b.ndim:
+		da_db = da_db[np.newaxis]
+	
+	a_ndim = da_db.ndim - b.ndim
+	c_ndim = db_dc.ndim - b.ndim
+	
+	assert c_ndim > 0
+	
+	da_db_r = da_db.reshape((np.prod(da_db.shape[:a_ndim]), np.prod(da_db.shape[a_ndim:])))
+	db_dc_r = db_dc.reshape((np.prod(db_dc.shape[:b.ndim]), np.prod(db_dc.shape[b.ndim:])))
 
-        da_dc = np.dot(da_db_r, db_dc_r).reshape(np.concatenate((da_db.shape[:a_ndim], db_dc.shape[b.ndim:])))
+	da_dc = np.dot(da_db_r, db_dc_r).reshape(np.concatenate((da_db.shape[:a_ndim], db_dc.shape[b.ndim:])))
 
-        return da_dc
+	return da_dc
 
 # pointwise multiply partials (same for all partials, i.e., broadcasted for dimensions taken wrt)
 def pointwise_mult_partials__layers(mat, DB_DC):

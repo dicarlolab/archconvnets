@@ -170,7 +170,7 @@ def g(y):
 	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DWABOVE, DBABOVE = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
 				DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, \
 				DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE, BABOVE)
-	
+
 	####
 	if gradient_category == 'above':
 		return DWABOVE[DERIV_L][i_ind,j_ind]
@@ -201,7 +201,7 @@ def g(y):
 			return DBW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e8
+eps = np.sqrt(np.finfo(np.float).eps)*1e7
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

@@ -59,8 +59,8 @@ def forward_pass(WUNDER,BUNDER, WR,WW,BR,BW, WABOVE, BABOVE, OR_PREV, OW_PREV, m
 
 	# above
 	OABOVE[L1_ABOVE] = relu(linear_F(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1)) + BABOVE[L1_ABOVE])
-	#OABOVE[F_ABOVE] = relu(linear_F(WABOVE[F_ABOVE], OABOVE[L1_ABOVE]) + BABOVE[F_ABOVE])
-	OABOVE[F_ABOVE] = linear_F(WABOVE[F_ABOVE], OABOVE[L1_ABOVE]) + BABOVE[F_ABOVE]
+	OABOVE[F_ABOVE] = relu(linear_F(WABOVE[F_ABOVE], OABOVE[L1_ABOVE]) + BABOVE[F_ABOVE])
+	#OABOVE[F_ABOVE] = linear_F(WABOVE[F_ABOVE], OABOVE[L1_ABOVE]) + BABOVE[F_ABOVE]
 	
 		
 	return OR,OW,mem,read_mem,OUNDER,OABOVE
@@ -327,10 +327,10 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	# above the read/write heads
 	derr_dg2above_relu = sq_points_dinput(OABOVE[F_ABOVE] - t)
 	
-	#dg2above_relu_dg2above = relu_dlayer_in(OABOVE[F_ABOVE])
-	#derr_dg2above = np.squeeze(mult_partials(derr_dg2above_relu[:,:,np.newaxis], dg2above_relu_dg2above, OABOVE[F_ABOVE]))
+	dg2above_relu_dg2above = relu_dlayer_in(OABOVE[F_ABOVE])
+	derr_dg2above = np.squeeze(mult_partials(derr_dg2above_relu[:,:,np.newaxis], dg2above_relu_dg2above, OABOVE[F_ABOVE]))
 	
-	derr_dg2above = np.squeeze(derr_dg2above_relu)
+	#derr_dg2above = np.squeeze(derr_dg2above_relu)
 
 	dg2above_dg1above_relu = linear_F_dx(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
 	dg1above_relu_dg1above = relu_dlayer_in(OABOVE[L1_ABOVE])

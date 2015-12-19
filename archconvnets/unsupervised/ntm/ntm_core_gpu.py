@@ -341,24 +341,25 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	dg2above_dg1above_relu = linear_F_dx(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
 	nm.linear_F_dx(F_ind, OABOVE[L1_ABOVE].shape, WABOVE[F_ABOVE].shape, out_buffer_ind)
 	z = nm.return_buffer(out_buffer_ind).reshape(dg2above_dg1above_relu.shape)
-	print WABOVE[F_ABOVE].shape, OABOVE[L1_ABOVE].shape # (1, 13) (13, 1)
-	print z.ravel()
-	print dg2above_dg1above_relu.ravel()
-	print dg2above_dg1above_relu.shape, np.isclose(z, dg2above_dg1above_relu).sum()
+	#print WABOVE[F_ABOVE].shape, OABOVE[L1_ABOVE].shape # (1, 13) (13, 1)
+	#print z.ravel()
+	#print dg2above_dg1above_relu.ravel()
+	#print dg2above_dg1above_relu.shape, np.isclose(z, dg2above_dg1above_relu).sum()
+	
 	#########
 
 	dg1above_relu_dg1above = relu_dlayer_in(OABOVE[L1_ABOVE])
 	dg1above_dread_mem = linear_F_dx(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
-	derr_dg1above = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))
+	derr_dg1above = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))[0]
 	
 	# above weight gradients
 	DWABOVE = [None]*len(WABOVE); DBABOVE = [None]*len(BABOVE)
 	dg2above_dw2above = linear_F_dF(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
 	dg1above_dw1above = linear_F_dF(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
-	DWABOVE[F_ABOVE] = mult_partials(derr_dg2above, dg2above_dw2above, OABOVE[F_ABOVE])
-	DWABOVE[L1_ABOVE] = mult_partials(derr_dg1above, dg1above_dw1above, OABOVE[L1_ABOVE])
+	DWABOVE[F_ABOVE] = mult_partials(derr_dg2above, dg2above_dw2above, OABOVE[F_ABOVE])[0]
+	DWABOVE[L1_ABOVE] = mult_partials(derr_dg1above, dg1above_dw1above, OABOVE[L1_ABOVE]).squeeze()
 	DBABOVE[F_ABOVE] = derr_dg2above[np.newaxis]; DBABOVE[L1_ABOVE] = derr_dg1above#[:,:,np.newaxis]
-
+	
 	# read weights
 	derr_dread_mem = mult_partials(derr_dg1above, dg1above_dread_mem, OABOVE[L1_ABOVE])
 	dread_mem_dor = linear_F_dF(OR[F], mem_prev)
