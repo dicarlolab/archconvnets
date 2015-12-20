@@ -372,6 +372,8 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	DWUNDER = mult_partials_collapse__layers(derr_dor, DOR_DWUNDER, OR[F])
 	DBUNDER = mult_partials_collapse__layers(derr_dor, DOR_DBUNDER, OR[F])
 	
+	print DWW[ADD].shape, derr_dor.shape, DOR_DWW[ADD].shape, OR[F].shape
+
 	# write weights
 	dread_mem_dmem_prev = linear_F_dx(OR[F], mem_prev)
 	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)

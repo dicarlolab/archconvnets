@@ -21,12 +21,27 @@ def mult_partials(da_db_ind, db_dc_ind, da_db_shape, db_dc_shape, b_ndim, out_bu
 	a_ndim = len(da_db_shape) - b_ndim
 	c_ndim = len(db_dc_shape) - b_ndim
 	
+	assert a_ndim > 0
 	assert c_ndim > 0
 	
 	da_db_shape = (np.prod(da_db_shape[:a_ndim]), np.prod(da_db_shape[a_ndim:]))
 	db_dc_shape = (np.prod(db_dc_shape[:b_ndim]), np.prod(db_dc_shape[b_ndim:]))
 	
 	return _ntm_module.dot(da_db_ind, da_db_shape, db_dc_ind, db_dc_shape, out_buffer_ind, gpu_ind)
+
+# collapse (sum) over output dims [da_dc -> dc]
+def mult_partials_collapse(da_db_ind, db_dc_ind, da_db_shape, db_dc_shape, b_ndim, out_buffer_ind, out_buffer_ind2, gpu_ind=0):
+	# out_buffer_ind = da_dc_ind .....
+	assert isisntance(out_buffer_ind2,int)
+	
+	a_ndim = len(da_db_shape) - b_ndim
+	
+	assert a_ndim > 0
+	
+	mult_partials(da_db_ind, db_dc_ind, da_db_shape, db_dc_shape, b_ndim, out_buffer_ind, gpu_ind)
+	da_dc_shape = np.concatenate((da_db_shape[:a_ndim], db_dc_shape[b.ndim:]))
+
+	return _ntm_module.mult_partials_collapse(out_buffer_ind, a_ndim, da_dc_shape, out_buffer_ind2, gpu_ind)
 
 def shift_w_dw_interp(shift_out_ind, w_interp_shape, out_buffer_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
