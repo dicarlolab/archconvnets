@@ -18,7 +18,7 @@ nm.set_buffer(dg3under_relu_dg3under,1)
 nm.set_buffer(dg3under_dw3under,2)
 
 t_start = time.time()
-nm.mult_partials(1,2, dg3under_relu_dg3under.shape, dg3under_dw3under.shape, OUNDER[F_UNDER].ndim, 3)
+nm.mult_partials(1, dg3under_relu_dg3under.shape, 2, dg3under_dw3under.shape, OUNDER[F_UNDER].ndim, 3)
 z3g = nm.return_buffer(3)
 t_gpu = time.time() - t_start
 

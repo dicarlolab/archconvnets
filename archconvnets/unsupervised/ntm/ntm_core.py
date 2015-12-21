@@ -350,21 +350,21 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	dread_mem_dor = linear_F_dF(OR[F], mem_prev)
 	derr_dor = mult_partials(derr_dread_mem, dread_mem_dor, read_mem)
 	
-	DWR = mult_partials_collapse__layers(derr_dor, DOR_DWR, OR[F]) # 18.3%
-	DBR = mult_partials_collapse__layers(derr_dor, DOR_DBR, OR[F])
-	DWW = mult_partials_collapse__layers(derr_dor, DOR_DWW, OR[F]) # 38.5%
-	DBW = mult_partials_collapse__layers(derr_dor, DOR_DBW, OR[F])
-	DWUNDER = mult_partials_collapse__layers(derr_dor, DOR_DWUNDER, OR[F])
-	DBUNDER = mult_partials_collapse__layers(derr_dor, DOR_DBUNDER, OR[F])
+	DWR = mult_partials__layers(derr_dor, DOR_DWR, OR[F]) # 18.3%
+	DBR = mult_partials__layers(derr_dor, DOR_DBR, OR[F])
+	DWW = mult_partials__layers(derr_dor, DOR_DWW, OR[F]) # 38.5%
+	DBW = mult_partials__layers(derr_dor, DOR_DBW, OR[F])
+	DWUNDER = mult_partials__layers(derr_dor, DOR_DWUNDER, OR[F])
+	DBUNDER = mult_partials__layers(derr_dor, DOR_DBUNDER, OR[F])
 	
 	# write weights
 	dread_mem_dmem_prev = linear_F_dx(OR[F], mem_prev)
 	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
 	
-	DWW = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWW, mem_prev, DWW) # 20%
-	DBW = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DBW, mem_prev, DBW)
-	DWUNDER = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DWUNDER)
-	DBUNDER = mult_partials_collapse__layers(derr_dmem_prev, DMEM_PREV_DBUNDER, mem_prev, DBUNDER)
+	DWW = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DWW, mem_prev, DWW) # 20%
+	DBW = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DBW, mem_prev, DBW)
+	DWUNDER = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DWUNDER)
+	DBUNDER = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DBUNDER, mem_prev, DBUNDER)
 	
 	return DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DWABOVE, DBABOVE
 

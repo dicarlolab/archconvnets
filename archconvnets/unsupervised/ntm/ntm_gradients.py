@@ -15,8 +15,8 @@ def pointwise_mult_partials_add__layers(A, B, s):
 	return C
 
 def mult_partials(da_db, db_dc, b):
-	while da_db.ndim <= b.ndim:
-		da_db = da_db[np.newaxis]
+	#while da_db.ndim <= b.ndim:
+	#	da_db = da_db[np.newaxis]
 	
 	a_ndim = da_db.ndim - b.ndim
 	c_ndim = db_dc.ndim - b.ndim
@@ -51,23 +51,6 @@ def mult_partials_chain(DA_DB, B_SZs):
 	for x in range(1, len(DA_DB)):
 		DA_DX = mult_partials(DA_DX, DA_DB[x], B_SZs[x-1])
 	return DA_DX
-
-# collapse (sum) over output dims
-def mult_partials_collapse(da_db, db_dc, b):
-	a_ndim = da_db.ndim - b.ndim
-	da_dc = mult_partials(da_db, db_dc, b)
-	dc = np.einsum(da_dc, range(da_dc.ndim), range(a_ndim, da_dc.ndim))
-	return dc
-
-# mult_partials_collapse for all layers in DB_DC (a list of matrices)
-def mult_partials_collapse__layers(da_db, DB_DC, b, DB_DC_INIT=None):
-	DC = [None] * len(DB_DC)
-	for layer in range(len(DB_DC)):
-		DC[layer] = mult_partials_collapse(da_db, DB_DC[layer], b)
-		if DB_DC_INIT != None:
-			DC[layer] += DB_DC_INIT[layer]
-	
-	return DC
 
 # mult_partials for all layers in DB_DC (a list of matrices)
 def mult_partials__layers(da_db, DB_DC, b, DB_DC_INIT=None):

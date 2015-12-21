@@ -18,7 +18,6 @@
 __global__ void dot_kernel(float * data1, float * data2, float * data_out, int buffer1_dim1, int buffer1_dim2, int buffer2_dim1, 
 			int buffer2_dim2, int data_out_numel){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
-	int i,j;
 	
 	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
 	int n_additional_duplicates = data_out_numel % THREAD_CAPACITY;
@@ -26,8 +25,7 @@ __global__ void dot_kernel(float * data1, float * data2, float * data_out, int b
 	int n_duplicates = min_duplicates_per_thread;
 	if(ind < n_additional_duplicates) n_duplicates++;
 	
-	int ind_g;
-	unsigned data_out_ind, data1_ind, data2_ind;
+	unsigned ind_g, data1_ind, data2_ind;
 	for(int dup = 0; dup < n_duplicates; dup++){
 		ind_g = dup*THREAD_CAPACITY + ind;
 		
@@ -35,16 +33,12 @@ __global__ void dot_kernel(float * data1, float * data2, float * data_out, int b
 		if(ind_g >= data_out_numel) assert(0); // out of bounds
 		#endif
 		
-		i = ind_g / buffer2_dim2;
-		j = ind_g % buffer2_dim2;
+		data1_ind = buffer1_dim2 * (ind_g / buffer2_dim2); // i = ind_g / buffer2_dim2;   data1_ind = DATA1_IND(i,0);
+		data2_ind = ind_g % buffer2_dim2; //   j = ind_g % buffer2_dim2;   DATA2_IND(0,j);
 		
-		data_out_ind = DATA_OUT_IND(i,j);
-		data1_ind = DATA1_IND(i,0);
-		data2_ind = DATA2_IND(0,j);
-		
-		data_out[data_out_ind] = 0;
+		data_out[ind_g] = 0;
 		for(int k = 0; k < buffer1_dim2; k++){
-			data_out[data_out_ind] += data1[data1_ind] * data2[data2_ind];
+			data_out[ind_g] += data1[data1_ind] * data2[data2_ind];
 			
 			data1_ind ++;
 			data2_ind += buffer2_dim2;
