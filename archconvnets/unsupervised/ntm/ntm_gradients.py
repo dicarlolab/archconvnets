@@ -25,7 +25,7 @@ def mult_partials(da_db, db_dc, b):
 	
 	da_db_r = da_db.reshape((np.prod(da_db.shape[:a_ndim]), np.prod(da_db.shape[a_ndim:])))
 	db_dc_r = db_dc.reshape((np.prod(db_dc.shape[:b.ndim]), np.prod(db_dc.shape[b.ndim:])))
-
+	
 	da_dc = np.dot(da_db_r, db_dc_r).reshape(np.concatenate((da_db.shape[:a_ndim], db_dc.shape[b.ndim:])))
 
 	return da_dc

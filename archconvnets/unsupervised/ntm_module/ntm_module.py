@@ -25,7 +25,7 @@ def mult_partials(da_db_ind, da_db_shape, db_dc_ind, db_dc_shape, b_ndim, out_bu
 	a_ndim = len(da_db_shape) - b_ndim
 	c_ndim = len(db_dc_shape) - b_ndim
 	
-	assert a_ndim > 0
+	assert a_ndim >= 0
 	assert c_ndim > 0
 	
 	da_db_shape = (np.prod(da_db_shape[:a_ndim]), np.prod(da_db_shape[a_ndim:]))
@@ -34,11 +34,11 @@ def mult_partials(da_db_ind, da_db_shape, db_dc_ind, db_dc_shape, b_ndim, out_bu
 	return _ntm_module.dot(da_db_ind, da_db_shape, db_dc_ind, db_dc_shape, out_buffer_ind, gpu_ind)
 
 # multiply list of partials
-def mult_partials_chain(DA_DB_IND, B_NDIM):
-	DA_DX = DA_DB[0]
-	for x in range(1, len(DA_DB)):
-		DA_DX = mult_partials(DA_DX, DA_DB[x], B_NDIM[x-1])
-	return DA_DX
+'''def mult_partials_chain(DA_DB_IND, B_NDIM):
+	DA_DX_IND = DA_DB_IND[0]
+	for x in range(1, len(DA_DB_IND)):
+		DA_DX_IND = mult_partials(DA_DX_IND, DA_DB_IND[x], B_NDIM[x-1])
+	return DA_DX_IND'''
 
 # mult_partials for all layers in DB_DC (a list of indices)
 def mult_partials__layers(da_db_ind, da_db_ind_shape, DB_DC_IND, DB_DC_SHAPE, b_ndim, \
@@ -48,12 +48,12 @@ def mult_partials__layers(da_db_ind, da_db_ind_shape, DB_DC_IND, DB_DC_SHAPE, b_
 	if DB_DC_INIT_IND != None:
 		assert len(DB_DC_IND) == len(DB_DC_INIT_IND)
 	
-	for layer in range(len(DB_DC_IND)):
+	for l in range(len(DB_DC_IND)):
 		mult_partials(da_db_ind, da_db_ind_shape, DB_DC_IND[l], DB_DC_SHAPE[l], b_ndim, \
 						OUT_BUFFER_IND[l], gpu_ind)
 		
 		if DB_DC_INIT_IND != None:
-			point_wise_add(OUT_BUFFER_IND[l], DB_DC_INIT[l], gpu_ind=gpu_ind):
+			point_wise_add(OUT_BUFFER_IND[l], DB_DC_INIT[l], gpu_ind=gpu_ind)
 
 def shift_w_dw_interp(shift_out_ind, w_interp_shape, out_buffer_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
