@@ -25,7 +25,6 @@ def mult_partials(da_db_ind, da_db_shape, db_dc_ind, db_dc_shape, b_ndim, out_bu
 	a_ndim = len(da_db_shape) - b_ndim
 	c_ndim = len(db_dc_shape) - b_ndim
 	
-	assert a_ndim >= 0
 	assert c_ndim > 0
 	
 	da_db_shape = (np.prod(da_db_shape[:a_ndim]), np.prod(da_db_shape[a_ndim:]))
@@ -34,11 +33,23 @@ def mult_partials(da_db_ind, da_db_shape, db_dc_ind, db_dc_shape, b_ndim, out_bu
 	return _ntm_module.dot(da_db_ind, da_db_shape, db_dc_ind, db_dc_shape, out_buffer_ind, gpu_ind)
 
 # multiply list of partials
-'''def mult_partials_chain(DA_DB_IND, B_NDIM):
+def mult_partials_chain(DA_DB_IND, DA_DB_SHAPE, B_NDIM, OUT_BUFFER_IND):
 	DA_DX_IND = DA_DB_IND[0]
+	DA_DX_SHAPE = DA_DB_SHAPE[0]
 	for x in range(1, len(DA_DB_IND)):
-		DA_DX_IND = mult_partials(DA_DX_IND, DA_DB_IND[x], B_NDIM[x-1])
-	return DA_DX_IND'''
+		print DA_DX_SHAPE, DA_DB_SHAPE[x]
+		mult_partials(DA_DX_IND, DA_DX_SHAPE, DA_DB_IND[x], DA_DB_SHAPE[x], B_NDIM[x-1], OUT_BUFFER_IND[x])
+		DA_DX_IND = OUT_BUFFER_IND[x]
+		
+		####
+		da_dx_shape = np.asarray(DA_DX_SHAPE)
+		da_db_shape = np.asarray(DA_DB_SHAPE[x])
+		
+		a_ndim = len(da_dx_shape) - B_NDIM[x-1]
+		c_ndim = len(da_db_shape) - B_NDIM[x-1]
+		
+		DA_DX_SHAPE = (np.prod(da_dx_shape[:a_ndim]), np.prod(da_db_shape[B_NDIM[x-1]:]))
+	return DA_DX_IND
 
 # mult_partials for all layers in DB_DC (a list of indices)
 def mult_partials__layers(da_db_ind, da_db_ind_shape, DB_DC_IND, DB_DC_SHAPE, b_ndim, \

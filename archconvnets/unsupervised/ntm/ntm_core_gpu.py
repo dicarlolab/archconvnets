@@ -333,6 +333,9 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	dg1above_dread_mem = linear_F_dx(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
 	derr_dg1above = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))
 	
+	print derr_dg2above.shape, dg2above_dg1above_relu.shape, dg1above_relu_dg1above.shape
+	print OABOVE[F_ABOVE].shape, OABOVE[L1_ABOVE].shape
+	
 	# above weight gradients
 	DWABOVE = [None]*len(WABOVE); DBABOVE = [None]*len(BABOVE)
 	dg2above_dw2above = linear_F_dF(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
