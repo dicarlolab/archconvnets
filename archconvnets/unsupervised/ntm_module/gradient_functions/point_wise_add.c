@@ -43,7 +43,7 @@ static PyObject * point_wise_add(PyObject *self, PyObject *args){
 	}
 	
 	if(buffer_sz[gpu_ind][a_ind] != buffer_sz[gpu_ind][b_ind]){
-		printf("buffer sizes are not equal, %i %i\n", buffer_sz[gpu_ind][a_ind], buffer_sz[gpu_ind][b_ind]);
+		printf("buffer sizes are not equal\n");
 		return NULL;
 	}
 	

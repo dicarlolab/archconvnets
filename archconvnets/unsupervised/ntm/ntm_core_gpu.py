@@ -323,6 +323,7 @@ def reverse_pass_partials(WUNDER,BUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, O
 def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DOR_DWUNDER,DOR_DBUNDER, OR, DMEM_PREV_DWW, \
 			DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE, BABOVE):
 	# above the read/write heads
+	print OABOVE[F_ABOVE].shape, t.shape
 	derr_dg2above_relu = sq_points_dinput(OABOVE[F_ABOVE] - t)
 	
 	dg2above_relu_dg2above = relu_dlayer_in(OABOVE[F_ABOVE])
@@ -332,9 +333,6 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	dg1above_relu_dg1above = relu_dlayer_in(OABOVE[L1_ABOVE])
 	dg1above_dread_mem = linear_F_dx(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
 	derr_dg1above = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))
-	
-	print derr_dg2above.shape, dg2above_dg1above_relu.shape, dg1above_relu_dg1above.shape
-	print OABOVE[F_ABOVE].shape, OABOVE[L1_ABOVE].shape
 	
 	# above weight gradients
 	DWABOVE = [None]*len(WABOVE); DBABOVE = [None]*len(BABOVE)

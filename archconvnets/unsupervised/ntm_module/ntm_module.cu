@@ -27,6 +27,7 @@
 #include "gradient_functions/shift_w_dshift_out.c"
 #include "gradient_functions/shift_w_dw_interp.c"
 #include "gradient_functions/point_wise_add.c"
+#include "gradient_functions/sq_points_dinput.c"
 
 static PyMethodDef _ntm_module[] = {
 	{"sync", sync, METH_VARARGS},
@@ -56,6 +57,7 @@ static PyMethodDef _ntm_module[] = {
 	{"shift_w_dshift_out", shift_w_dshift_out, METH_VARARGS},
 	{"shift_w_dw_interp", shift_w_dw_interp, METH_VARARGS},
 	{"point_wise_add", point_wise_add, METH_VARARGS},
+	{"sq_points_dinput", sq_points_dinput, METH_VARARGS},
 	{NULL, NULL}
 };
 

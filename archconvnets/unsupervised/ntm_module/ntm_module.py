@@ -1,6 +1,15 @@
 import _ntm_module
 import numpy as np
 
+def sq_points_dinput(input_ind, input_shape, out_buffer_ind, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	assert isinstance(input_ind,int)
+	assert isinstance(out_buffer_ind,int)
+	assert isinstance(input_shape,tuple)
+	assert len(input_shape) == 2
+	
+	return _ntm_module.sq_points_dinput(input_ind, input_shape, out_buffer_ind, gpu_ind)
+
 # a += b * scalar
 def point_wise_add(a_ind, b_ind, scalar=1, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
@@ -37,7 +46,6 @@ def mult_partials_chain(DA_DB_IND, DA_DB_SHAPE, B_NDIM, OUT_BUFFER_IND):
 	DA_DX_IND = DA_DB_IND[0]
 	DA_DX_SHAPE = DA_DB_SHAPE[0]
 	for x in range(1, len(DA_DB_IND)):
-		print DA_DX_SHAPE, DA_DB_SHAPE[x]
 		mult_partials(DA_DX_IND, DA_DX_SHAPE, DA_DB_IND[x], DA_DB_SHAPE[x], B_NDIM[x-1], OUT_BUFFER_IND[x])
 		DA_DX_IND = OUT_BUFFER_IND[x]
 		
@@ -49,7 +57,6 @@ def mult_partials_chain(DA_DB_IND, DA_DB_SHAPE, B_NDIM, OUT_BUFFER_IND):
 		c_ndim = len(da_db_shape) - B_NDIM[x-1]
 		
 		DA_DX_SHAPE = (np.prod(da_dx_shape[:a_ndim]), np.prod(da_db_shape[B_NDIM[x-1]:]))
-	return DA_DX_IND
 
 # mult_partials for all layers in DB_DC (a list of indices)
 def mult_partials__layers(da_db_ind, da_db_ind_shape, DB_DC_IND, DB_DC_SHAPE, b_ndim, \
