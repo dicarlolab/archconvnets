@@ -365,33 +365,51 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	return DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DWABOVE, DBABOVE
 
 
-def full_gradients_gpu(read_mem_ind, t_ind, mem_prev_ind, DOR_DWR_IND, DOR_DBR_IND, \
-				DOR_DWW_IND, DOR_DBW_IND, DOR_DWUNDER_IND, DOR_DBUNDER_IND, OR_IND, \
-				DMEM_PREV_DWW_IND, DMEM_PREV_DBW_IND, \
-				DMEM_PREV_DWUNDER_IND, DMEM_PREV_DBUNDER_IND, OABOVE_IND, WABOVE_IND, BABOVE_IND,\
-				DWR_IND, DBR_IND, DWW_IND, DBW_IND, DWUNDER_IND, \
-				DBUNDER_IND, DWABOVE_IND, DBABOVE_IND, \
-				read_mem_shape, t_shape, mem_prev_shape, DOR_DWR_SHAPE, DOR_DBR_SHAPE, \
-				DOR_DWW_SHAPE, DOR_DBW_SHAPE, DOR_DWUNDER_SHAPE, DOR_DBUNDER_SHAPE, OR_SHAPE, \
-				DMEM_PREV_DWW_SHAPE, DMEM_PREV_DBW_SHAPE, \
-				DMEM_PREV_DWUNDER_SHAPE, DMEM_PREV_DBUNDER_SHAPE, \
-				OABOVE_SHAPE, WABOVE_SHAPE, BABOVE_SHAPE,\
-				DWR_SHAPE, DBR_SHAPE, DWW_SHAPE, DBW_SHAPE, DWUNDER_SHAPE, DBUNDER_SHAPE, DWABOVE_SHAPE, DBABOVE_SHAPE, ind_counter):
+def full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \
+				L_DOR_DWW, L_DOR_DBW, L_DOR_DWUNDER, L_DOR_DBUNDER, L_OR, \
+				L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, \
+				L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_OABOVE, L_WABOVE, L_BABOVE,\
+				L_DWR, L_DBR, L_DWW, L_DBW, L_DWUNDER, \
+				L_DBUNDER, L_DWABOVE, L_DBABOVE, ind_counter):
 	
-	derr_dg2above_relu_ind = ind_counter; ind_counter += 1
-	dg2above_relu_dg2above = ind_counter; ind_counter += 1
+	DERR_DG2ABOVE_RELU = [ind_counter, None]; ind_counter += 1
+	DG2ABOVE_RELU_DG2ABOVE = [ind_counter, None]; ind_counter += 1
+	DERR_DG2ABOVE = [ind_counter, None]; ind_counter += 1
+	DG2ABOVE_DG1ABOVE_RELU = [ind_counter, None]; ind_counter += 1
+	DG1ABOVE_RELU_DG1ABOVE = [ind_counter, None]; ind_counter += 1
+	DG1ABOVE_DREAD_MEM = [ind_counter, None]; ind_counter += 1
+	DERR_DG1ABOVE = [ind_counter, None]; ind_counter += 1
+	
+	DERR_DG1ABOVE = [None]*3
+	DERR_DG1ABOVE[0] = [ind_counter, None]; ind_counter += 1
+	DERR_DG1ABOVE[1] = [ind_counter, None]; ind_counter += 1
+	DERR_DG1ABOVE[2] = [ind_counter, None]; ind_counter += 1
+	
+	READ_MEM_reshape = copy.deepcopy(READ_MEM)
+	READ_MEM_reshape[1] = (C*mem_length,1)
 	
 	# above the read/write heads
-	nm.point_wise_add(OABOVE_IND[F_ABOVE], t_ind, -1)
-	nm.sq_points_dinput(OABOVE_IND[F_ABOVE], OABOVE_SHAPE[F_ABOVE], derr_dg2above_relu_ind)
+	nm.point_wise_add(L_OABOVE[F_ABOVE], T, -1) ###############
+	nm.sq_points_dinput(L_OABOVE[F_ABOVE], DERR_DG2ABOVE_RELU) ########
 	
-	dg2above_relu_dg2above = relu_dlayer_in(OABOVE[F_ABOVE])
-	derr_dg2above = np.squeeze(mult_partials(derr_dg2above_relu[:,:,np.newaxis], dg2above_relu_dg2above, OABOVE[F_ABOVE]))
+	DERR_DG2ABOVE_RELU[1] = tuple(np.concatenate((DERR_DG2ABOVE_RELU[1], (1,)))) # derr_dg2above_relu[:,:,np.newaxis]
 	
-	dg2above_dg1above_relu = linear_F_dx(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
-	dg1above_relu_dg1above = relu_dlayer_in(OABOVE[L1_ABOVE])
-	dg1above_dread_mem = linear_F_dx(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
-	derr_dg1above = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))
+	nm.relu_dlayer_in(L_OABOVE[F_ABOVE], DG2ABOVE_RELU_DG2ABOVE)
+	nm.mult_partials(DERR_DG2ABOVE_RELU, DG2ABOVE_RELU_DG2ABOVE, len(L_OABOVE[F_ABOVE][1]), DERR_DG2ABOVE)
+	DERR_DG2ABOVE[1] = (1)
+	
+	nm.linear_F_dx(L_WABOVE[F_ABOVE], L_OABOVE[L1_ABOVE], DG2ABOVE_DG1ABOVE_RELU)
+	nm.relu_dlayer_in(L_OABOVE[L1_ABOVE], DG1ABOVE_RELU_DG1ABOVE)
+	print L_WABOVE[L1_ABOVE][1], READ_MEM_reshape[1]
+	nm.linear_F_dx(L_WABOVE[L1_ABOVE], READ_MEM_reshape, DG1ABOVE_DREAD_MEM)
+	nm.mult_partials_chain((DERR_DG2ABOVE, DG2ABOVE_DG1ABOVE_RELU, DG1ABOVE_RELU_DG1ABOVE), \
+			(len(L_OABOVE[F_ABOVE][1]), len(L_OABOVE[L1_ABOVE])), DERR_DG1ABOVE)
+	DERR_DG1ABOVE = DERR_DG1ABOVE[-1]
+	
+	#dg2above_dg1above_relu = linear_F_dx(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
+	#dg1above_relu_dg1above = relu_dlayer_in(OABOVE[L1_ABOVE])
+	#dg1above_dread_mem = linear_F_dx(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
+	#derr_dg1above = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))
 	
 	# above weight gradients
 	DWABOVE = [None]*len(WABOVE); DBABOVE = [None]*len(BABOVE)

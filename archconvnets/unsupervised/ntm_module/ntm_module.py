@@ -324,3 +324,80 @@ def dot(BUFFER1, BUFFER2, OUT_BUFFER, gpu_ind=0):
 	
 	_ntm_module.dot(BUFFER1[0], BUFFER1[1], BUFFER2[0], BUFFER2[1], OUT_BUFFER[0], gpu_ind)
 	OUT_BUFFER[1] = (BUFFER1[1][0], BUFFER2[1][1])
+
+def sharpen_dgamma_cpu(w, gamma, warn=True):
+	assert w.dtype == np.dtype('float32')
+	assert gamma.dtype == np.dtype('float32')
+	assert w.ndim == gamma.ndim == 2
+	assert gamma.shape[0] == w.shape[0]
+	assert gamma.shape[1] == 1
+
+	if not w.flags.contiguous and warn:
+		print 'warning: input to sharpen_dw_cpu not C-contiguous (w)'
+		w = np.ascontiguousarray(w)
+	
+	if not gamma.flags.contiguous and warn:
+		print 'warning: input to sharpen_dw_cpu not C-contiguous (gamma)'
+		gamma = np.ascontiguousarray(gamma)
+	
+	return _ntm_module.sharpen_dgamma_cpu(w, gamma)
+
+def sharpen_dw_cpu(w, gamma, warn=True):
+	assert w.dtype == np.dtype('float32')
+	assert gamma.dtype == np.dtype('float32')
+	assert w.ndim == gamma.ndim == 2
+	assert gamma.shape[0] == w.shape[0]
+	assert gamma.shape[1] == 1
+
+	if not w.flags.contiguous and warn:
+		print 'warning: input to sharpen_dw_cpu not C-contiguous (w)'
+		w = np.ascontiguousarray(w)
+	
+	if not gamma.flags.contiguous and warn:
+		print 'warning: input to sharpen_dw_cpu not C-contiguous (gamma)'
+		gamma = np.ascontiguousarray(gamma)
+
+	return _ntm_module.sharpen_dw_cpu(w, gamma)
+	
+def softmax_dlayer_in_cpu(layer_out, warn=True):
+	assert layer_out.dtype == np.dtype('float32')
+	assert layer_out.ndim == 2
+	
+	if not layer_out.flags.contiguous and warn:
+		print 'warning: input to softmax_dlayer_in_cpu not C-contiguous'
+		layer_out = np.ascontiguousarray(layer_out)
+		
+	return _ntm_module.softmax_dlayer_in_cpu(layer_out)
+	
+def cosine_sim_expand_dmem_cpu(keys, mem, warn=True):
+	assert keys.dtype == np.dtype('float32')
+	assert mem.dtype == np.dtype('float32')
+	assert keys.ndim == mem.ndim == 2
+	assert keys.shape[1] == mem.shape[1]
+	
+	if not keys.flags.contiguous and warn:
+		print 'warning: input to cosine_sim_expand_dkeys_cpu not C-contiguous (keys)'
+		keys = np.ascontiguousarray(keys)
+		
+	if not mem.flags.contiguous and warn:
+		print 'warning: input to cosine_sim_expand_dkeys_cpu not C-contiguous (mem)'
+		mem = np.ascontiguousarray(mem)
+
+	return _ntm_module.cosine_sim_expand_dmem_cpu(keys, mem)
+	
+def cosine_sim_expand_dkeys_cpu(keys, mem, warn=True):
+	assert keys.dtype == np.dtype('float32')
+	assert mem.dtype == np.dtype('float32')
+	assert keys.ndim == mem.ndim == 2
+	assert keys.shape[1] == mem.shape[1]
+	
+	if not keys.flags.contiguous and warn:
+		print 'warning: input to cosine_sim_expand_dkeys_cpu not C-contiguous (keys)'
+		keys = np.ascontiguousarray(keys)
+		
+	if not mem.flags.contiguous and warn:
+		print 'warning: input to cosine_sim_expand_dkeys_cpu not C-contiguous (mem)'
+		mem = np.ascontiguousarray(mem)
+
+	return _ntm_module.cosine_sim_expand_dkeys_cpu(keys, mem)
+	

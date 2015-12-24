@@ -35,15 +35,14 @@ gradient_category = 'above'
 gradient_weights = True
 
 def set_list_buffer(ind_counter, DATA):
-	IND_LIST = [None]*len(DATA)
-	SHAPE_LIST = [None]*len(DATA)
+	LIST = [None]*len(DATA)
 	
 	for i in range(len(DATA)):
 		if DATA[i] is not None:
-			IND_LIST[i] = ind_counter; ind_counter += 1
-			SHAPE_LIST[i] = DATA[i].shape
-			nm.set_buffer(DATA[i], IND_LIST[i])
-	return ind_counter, IND_LIST, SHAPE_LIST
+			LIST[i] = [ind_counter, DATA[i].shape]
+			nm.set_buffer(DATA[i], LIST[i][0])
+			ind_counter += 1
+	return ind_counter, LIST
 
 ####
 if gradient_category == 'above':
@@ -185,49 +184,45 @@ def g(y):
 
 	####
 	ind_counter = 0
-	read_mem_ind = ind_counter; ind_counter += 1
-	t_ind = ind_counter; ind_counter += 1
-	mem_prev_ind = ind_counter; ind_counter += 1
-	nm.set_buffer(read_mem, read_mem_ind); read_mem_shape = read_mem.shape
-	nm.set_buffer(t, t_ind); t_shape = t.shape
-	nm.set_buffer(mem_prev, mem_prev_ind); mem_prev_shape = mem_prev.shape
-	ind_counter, DOR_DWR_IND, DOR_DWR_SHAPE = set_list_buffer(ind_counter, DOR_DWR)
-	ind_counter, DOR_DBR_IND, DOR_DBR_SHAPE = set_list_buffer(ind_counter, DOR_DBR)
-	ind_counter, DOR_DWW_IND, DOR_DWW_SHAPE = set_list_buffer(ind_counter, DOR_DWW)
-	ind_counter, DOR_DBW_IND, DOR_DBW_SHAPE = set_list_buffer(ind_counter, DOR_DBW)
-	ind_counter, DOR_DWUNDER_IND, DOR_DWUNDER_SHAPE = set_list_buffer(ind_counter, DOR_DWUNDER)
-	ind_counter, DOR_DBUNDER_IND, DOR_DBUNDER_SHAPE = set_list_buffer(ind_counter, DOR_DBUNDER)
-	ind_counter, OR_IND, OR_SHAPE = set_list_buffer(ind_counter, OR)
-	ind_counter, DMEM_PREV_DWW_IND, DMEM_PREV_DWW_SHAPE = set_list_buffer(ind_counter, DMEM_PREV_DWW)
-	ind_counter, DMEM_PREV_DBW_IND, DMEM_PREV_DBW_SHAPE = set_list_buffer(ind_counter, DMEM_PREV_DBW)
-	ind_counter, DMEM_PREV_DWUNDER_IND, DMEM_PREV_DWUNDER_SHAPE = set_list_buffer(ind_counter, DMEM_PREV_DWUNDER)
-	ind_counter, DMEM_PREV_DBUNDER_IND, DMEM_PREV_DBUNDER_SHAPE = set_list_buffer(ind_counter, DMEM_PREV_DBUNDER)
-	ind_counter, OABOVE_IND, OABOVE_SHAPE = set_list_buffer(ind_counter, OABOVE)
-	ind_counter, WABOVE_IND, WABOVE_SHAPE = set_list_buffer(ind_counter, WABOVE)
-	ind_counter, BABOVE_IND, BABOVE_SHAPE = set_list_buffer(ind_counter, BABOVE)
+	READ_MEM = [ind_counter, read_mem.shape]; ind_counter += 1
+	T = [ind_counter, t.shape]; ind_counter += 1
+	MEM_PREV = [ind_counter, mem_prev.shape]; ind_counter += 1
 	
-	ind_counter, DWR_IND, DWR_SHAPE = set_list_buffer(ind_counter, WR)
-	ind_counter, DBR_IND, DBR_SHAPE = set_list_buffer(ind_counter, BR)
-	ind_counter, DWW_IND, DWW_SHAPE = set_list_buffer(ind_counter, WW)
-	ind_counter, DBW_IND, DBW_SHAPE = set_list_buffer(ind_counter, BW)
-	ind_counter, DWUNDER_IND, DWUNDER_SHAPE = set_list_buffer(ind_counter, WUNDER)
-	ind_counter, DBUNDER_IND, DBUNDER_SHAPE = set_list_buffer(ind_counter, BUNDER)
-	ind_counter, DWABOVE_IND, DWABOVE_SHAPE = set_list_buffer(ind_counter, WABOVE)
-	ind_counter, DBABOVE_IND, DBABOVE_SHAPE = set_list_buffer(ind_counter, BABOVE)
+	nm.set_buffer(read_mem, READ_MEM[0])
+	nm.set_buffer(t, T[0])
+	nm.set_buffer(mem_prev, MEM_PREV[0])
+	
+	ind_counter, L_DOR_DWR = set_list_buffer(ind_counter, DOR_DWR)
+	ind_counter, L_DOR_DBR = set_list_buffer(ind_counter, DOR_DBR)
+	ind_counter, L_DOR_DWW = set_list_buffer(ind_counter, DOR_DWW)
+	ind_counter, L_DOR_DBW = set_list_buffer(ind_counter, DOR_DBW)
+	ind_counter, L_DOR_DWUNDER = set_list_buffer(ind_counter, DOR_DWUNDER)
+	ind_counter, L_DOR_DBUNDER = set_list_buffer(ind_counter, DOR_DBUNDER)
+	ind_counter, L_OR = set_list_buffer(ind_counter, OR)
+	ind_counter, L_DMEM_PREV_DWW = set_list_buffer(ind_counter, DMEM_PREV_DWW)
+	ind_counter, L_DMEM_PREV_DBW = set_list_buffer(ind_counter, DMEM_PREV_DBW)
+	ind_counter, L_DMEM_PREV_DWUNDER = set_list_buffer(ind_counter, DMEM_PREV_DWUNDER)
+	ind_counter, L_DMEM_PREV_DBUNDER = set_list_buffer(ind_counter, DMEM_PREV_DBUNDER)
+	ind_counter, L_OABOVE = set_list_buffer(ind_counter, OABOVE)
+	ind_counter, L_WABOVE = set_list_buffer(ind_counter, WABOVE)
+	ind_counter, L_BABOVE = set_list_buffer(ind_counter, BABOVE)
+	
+	ind_counter, L_DWR = set_list_buffer(ind_counter, WR)
+	ind_counter, L_DBR = set_list_buffer(ind_counter, BR)
+	ind_counter, L_DWW = set_list_buffer(ind_counter, WW)
+	ind_counter, L_DBW = set_list_buffer(ind_counter, BW)
+	ind_counter, L_DWUNDER = set_list_buffer(ind_counter, WUNDER)
+	ind_counter, L_DBUNDER = set_list_buffer(ind_counter, BUNDER)
+	ind_counter, L_DWABOVE = set_list_buffer(ind_counter, WABOVE)
+	ind_counter, L_DBABOVE = set_list_buffer(ind_counter, BABOVE)
 	####
 	
-	full_gradients_gpu(read_mem_ind, t_ind, mem_prev_ind, DOR_DWR_IND, DOR_DBR_IND, \
-				DOR_DWW_IND, DOR_DBW_IND, DOR_DWUNDER_IND, DOR_DBUNDER_IND, OR_IND, \
-				DMEM_PREV_DWW_IND, DMEM_PREV_DBW_IND, \
-				DMEM_PREV_DWUNDER_IND, DMEM_PREV_DBUNDER_IND, OABOVE_IND, WABOVE_IND, BABOVE_IND,\
-				DWR_IND, DBR_IND, DWW_IND, DBW_IND, DWUNDER_IND, \
-				DBUNDER_IND, DWABOVE_IND, DBABOVE_IND, \
-				read_mem_shape, t_shape, mem_prev_shape, DOR_DWR_SHAPE, DOR_DBR_SHAPE, \
-				DOR_DWW_SHAPE, DOR_DBW_SHAPE, DOR_DWUNDER_SHAPE, DOR_DBUNDER_SHAPE, OR_SHAPE, \
-				DMEM_PREV_DWW_SHAPE, DMEM_PREV_DBW_SHAPE, \
-				DMEM_PREV_DWUNDER_SHAPE, DMEM_PREV_DBUNDER_SHAPE, \
-				OABOVE_SHAPE, WABOVE_SHAPE, BABOVE_SHAPE,\
-				DWR_SHAPE, DBR_SHAPE, DWW_SHAPE, DBW_SHAPE, DWUNDER_SHAPE, DBUNDER_SHAPE, DWABOVE_SHAPE, DBABOVE_SHAPE, ind_counter)
+	full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \
+				L_DOR_DWW, L_DOR_DBW, L_DOR_DWUNDER, L_DOR_DBUNDER, L_OR, \
+				L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, \
+				L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_OABOVE, L_WABOVE, L_BABOVE,\
+				L_DWR, L_DBR, L_DWW, L_DBW, L_DWUNDER, \
+				L_DBUNDER, L_DWABOVE, L_DBABOVE, ind_counter)
 	
 	####
 	if gradient_category == 'above':
