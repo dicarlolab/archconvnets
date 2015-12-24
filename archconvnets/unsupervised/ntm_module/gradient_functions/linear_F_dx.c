@@ -4,8 +4,8 @@
 #define F_SZ buffer_sz[gpu_ind][F_ind]
 
 __global__ void linear_F_dx_kernel(float * F, float * dldx, int x_dim0, int x_dim1){ 
-	int i = threadIdx.x / x_dim0;
-	int j = threadIdx.x % x_dim0;
+	int i = blockIdx.x;
+	int j = threadIdx.x;
 
 	for(int k = 0; k < x_dim1; k++){
 		for(int k_local = 0; k_local < x_dim1; k_local++){
@@ -64,7 +64,7 @@ static PyObject * linear_F_dx(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	linear_F_dx_kernel <<< 1, F_dim0 * x_dim0 >>> (gpu_buffers[gpu_ind][F_ind], 
+	linear_F_dx_kernel <<< F_dim0, x_dim0 >>> (gpu_buffers[gpu_ind][F_ind], 
 		gpu_buffers[gpu_ind][out_buffer_ind], x_dim0, x_dim1);
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR

@@ -1,5 +1,6 @@
 import _ntm_module
 import numpy as np
+import copy
 
 def check_buffer(BUFFER):
 	assert len(BUFFER) == 2
@@ -69,12 +70,18 @@ def sq_points_dinput(INPUT, OUT_BUFFER, gpu_ind=0):
 	OUT_BUFFER[1] = (dim0, dim1, dim0, dim1)
 
 # a += b * scalar
-def point_wise_add(A, B, scalar=1, gpu_ind=0):
+def point_wise_add(A, B, scalar=1, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	check_buffer(A)
 	check_buffer(B)
 	
-	_ntm_module.point_wise_add(A[0], B[0], np.single(scalar), gpu_ind)
+	if OUT_BUFFER != None:
+		check_buffer(OUT_BUFFER)
+		OUT_BUFFER[1] = copy.deepcopy(A[1])
+	else:
+		OUT_BUFFER = copy.deepcopy(A)
+	
+	_ntm_module.point_wise_add(A[0], B[0], np.single(scalar), OUT_BUFFER[0], gpu_ind)
 	
 
 def shift_w_dw_interp(SHIFT_OUT, W_INTERP, OUT_BUFFER, gpu_ind=0):

@@ -34,16 +34,6 @@ gradient_category = 'above'
 #gradient_weights = False # false means bias terms
 gradient_weights = True
 
-def set_list_buffer(ind_counter, DATA):
-	LIST = [None]*len(DATA)
-	
-	for i in range(len(DATA)):
-		if DATA[i] is not None:
-			LIST[i] = [ind_counter, DATA[i].shape]
-			nm.set_buffer(DATA[i], LIST[i][0])
-			ind_counter += 1
-	return ind_counter, LIST
-
 ####
 if gradient_category == 'above':
 	ref = WABOVEi[DERIV_L]
@@ -184,37 +174,33 @@ def g(y):
 
 	####
 	ind_counter = 0
-	READ_MEM = [ind_counter, read_mem.shape]; ind_counter += 1
-	T = [ind_counter, t.shape]; ind_counter += 1
-	MEM_PREV = [ind_counter, mem_prev.shape]; ind_counter += 1
+	READ_MEM, ind_counter = init_buffer(ind_counter, read_mem)
+	T, ind_counter = init_buffer(ind_counter, t)
+	MEM_PREV, ind_counter = init_buffer(ind_counter, mem_prev)
 	
-	nm.set_buffer(read_mem, READ_MEM[0])
-	nm.set_buffer(t, T[0])
-	nm.set_buffer(mem_prev, MEM_PREV[0])
+	L_DOR_DWR, ind_counter = set_list_buffer(ind_counter, DOR_DWR)
+	L_DOR_DBR, ind_counter = set_list_buffer(ind_counter, DOR_DBR)
+	L_DOR_DWW, ind_counter = set_list_buffer(ind_counter, DOR_DWW)
+	L_DOR_DBW, ind_counter = set_list_buffer(ind_counter, DOR_DBW)
+	L_DOR_DWUNDER, ind_counter = set_list_buffer(ind_counter, DOR_DWUNDER)
+	L_DOR_DBUNDER, ind_counter = set_list_buffer(ind_counter, DOR_DBUNDER)
+	L_OR, ind_counter = set_list_buffer(ind_counter, OR)
+	L_DMEM_PREV_DWW, ind_counter = set_list_buffer(ind_counter, DMEM_PREV_DWW)
+	L_DMEM_PREV_DBW, ind_counter = set_list_buffer(ind_counter, DMEM_PREV_DBW)
+	L_DMEM_PREV_DWUNDER, ind_counter = set_list_buffer(ind_counter, DMEM_PREV_DWUNDER)
+	L_DMEM_PREV_DBUNDER, ind_counter = set_list_buffer(ind_counter, DMEM_PREV_DBUNDER)
+	L_OABOVE, ind_counter = set_list_buffer(ind_counter, OABOVE)
+	L_WABOVE, ind_counter = set_list_buffer(ind_counter, WABOVE)
+	L_BABOVE, ind_counter = set_list_buffer(ind_counter, BABOVE)
 	
-	ind_counter, L_DOR_DWR = set_list_buffer(ind_counter, DOR_DWR)
-	ind_counter, L_DOR_DBR = set_list_buffer(ind_counter, DOR_DBR)
-	ind_counter, L_DOR_DWW = set_list_buffer(ind_counter, DOR_DWW)
-	ind_counter, L_DOR_DBW = set_list_buffer(ind_counter, DOR_DBW)
-	ind_counter, L_DOR_DWUNDER = set_list_buffer(ind_counter, DOR_DWUNDER)
-	ind_counter, L_DOR_DBUNDER = set_list_buffer(ind_counter, DOR_DBUNDER)
-	ind_counter, L_OR = set_list_buffer(ind_counter, OR)
-	ind_counter, L_DMEM_PREV_DWW = set_list_buffer(ind_counter, DMEM_PREV_DWW)
-	ind_counter, L_DMEM_PREV_DBW = set_list_buffer(ind_counter, DMEM_PREV_DBW)
-	ind_counter, L_DMEM_PREV_DWUNDER = set_list_buffer(ind_counter, DMEM_PREV_DWUNDER)
-	ind_counter, L_DMEM_PREV_DBUNDER = set_list_buffer(ind_counter, DMEM_PREV_DBUNDER)
-	ind_counter, L_OABOVE = set_list_buffer(ind_counter, OABOVE)
-	ind_counter, L_WABOVE = set_list_buffer(ind_counter, WABOVE)
-	ind_counter, L_BABOVE = set_list_buffer(ind_counter, BABOVE)
-	
-	ind_counter, L_DWR = set_list_buffer(ind_counter, WR)
-	ind_counter, L_DBR = set_list_buffer(ind_counter, BR)
-	ind_counter, L_DWW = set_list_buffer(ind_counter, WW)
-	ind_counter, L_DBW = set_list_buffer(ind_counter, BW)
-	ind_counter, L_DWUNDER = set_list_buffer(ind_counter, WUNDER)
-	ind_counter, L_DBUNDER = set_list_buffer(ind_counter, BUNDER)
-	ind_counter, L_DWABOVE = set_list_buffer(ind_counter, WABOVE)
-	ind_counter, L_DBABOVE = set_list_buffer(ind_counter, BABOVE)
+	L_DWR, ind_counter = set_list_buffer(ind_counter, WR)
+	L_DBR, ind_counter = set_list_buffer(ind_counter, BR)
+	L_DWW, ind_counter = set_list_buffer(ind_counter, WW)
+	L_DBW, ind_counter = set_list_buffer(ind_counter, BW)
+	L_DWUNDER, ind_counter = set_list_buffer(ind_counter, WUNDER)
+	L_DBUNDER, ind_counter = set_list_buffer(ind_counter, BUNDER)
+	L_DWABOVE, ind_counter = set_list_buffer(ind_counter, WABOVE)
+	L_DBABOVE, ind_counter = set_list_buffer(ind_counter, BABOVE)
 	####
 	
 	full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \

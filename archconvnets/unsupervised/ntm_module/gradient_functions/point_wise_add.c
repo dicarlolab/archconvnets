@@ -1,4 +1,4 @@
-__global__ void point_wise_add_kernel(float * a, float * b, float scalar, int data_out_numel){
+__global__ void point_wise_add_kernel(float * out, float * a, float * b, float scalar, int data_out_numel){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
 	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
@@ -15,19 +15,20 @@ __global__ void point_wise_add_kernel(float * a, float * b, float scalar, int da
 		if(ind_g >= data_out_numel) assert(0); // out of bounds
 		#endif
 		
-		a[ind_g] += b[ind_g] * scalar;
+		out[ind_g] = a[ind_g] + b[ind_g] * scalar;
 	}
 }
 
 static PyObject * point_wise_add(PyObject *self, PyObject *args){
 	cudaError_t err;
 	float scalar;
-	int a_ind, b_ind, gpu_ind;
+	int a_ind, b_ind, gpu_ind, out_buffer_ind;
 	
-	if (!PyArg_ParseTuple(args, "iifi", &a_ind, &b_ind, &scalar, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iifii", &a_ind, &b_ind, &scalar, &out_buffer_ind, &gpu_ind)) 
 		return NULL;
     
-	if(a_ind >= N_BUFFERS || a_ind < 0 || b_ind >= N_BUFFERS || b_ind < 0){ 
+	if(a_ind >= N_BUFFERS || a_ind < 0 || out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0
+			|| b_ind >= N_BUFFERS || b_ind < 0){ 
 		printf("buffer index incorrect.\n");
 		return NULL;
 	}
@@ -37,13 +38,17 @@ static PyObject * point_wise_add(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(buffer_sz[gpu_ind][a_ind] == 0){
-		printf("buffer not initialized\n");
+	if(buffer_sz[gpu_ind][a_ind] != buffer_sz[gpu_ind][b_ind]){
+		printf("buffer sizes are not equal\n");
 		return NULL;
 	}
 	
-	if(buffer_sz[gpu_ind][a_ind] != buffer_sz[gpu_ind][b_ind]){
-		printf("buffer sizes are not equal\n");
+	if(OUT_BUFFER_SZ == 0){ // init output buffer
+		err = cudaMalloc((void**) &GPU_BUFFER_OUT, buffer_sz[gpu_ind][a_ind]); MALLOC_ERR_CHECK
+		
+		OUT_BUFFER_SZ = buffer_sz[gpu_ind][a_ind];
+	}else if(buffer_sz[gpu_ind][a_ind] != OUT_BUFFER_SZ){ // does the output size match the buffer size?
+		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
 	
@@ -54,7 +59,7 @@ static PyObject * point_wise_add(PyObject *self, PyObject *args){
 	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
 	
 	// run kernel
-	point_wise_add_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][a_ind], gpu_buffers[gpu_ind][b_ind], scalar, 
+	point_wise_add_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][a_ind], gpu_buffers[gpu_ind][b_ind], scalar, 
 		buffer_sz[gpu_ind][a_ind]/(sizeof(DATA_TYPE)));
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR

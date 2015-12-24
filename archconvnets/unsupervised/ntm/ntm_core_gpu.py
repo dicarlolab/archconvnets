@@ -364,6 +364,22 @@ def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DO
 	
 	return DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DWABOVE, DBABOVE
 
+def init_buffer(ind_counter, DATA=None):
+	if DATA is not None:
+		DATA_G = [ind_counter, DATA.shape]
+		nm.set_buffer(DATA, DATA_G[0])
+	else:
+		DATA_G = [ind_counter, None]
+	ind_counter += 1
+	return DATA_G, ind_counter
+
+def set_list_buffer(ind_counter, DATA):
+	LIST = [None]*len(DATA)
+	
+	for i in range(len(DATA)):
+		if DATA[i] is not None:
+			LIST[i], ind_counter = init_buffer(ind_counter, DATA[i])
+	return LIST, ind_counter
 
 def full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \
 				L_DOR_DWW, L_DOR_DBW, L_DOR_DWUNDER, L_DOR_DBUNDER, L_OR, \
@@ -372,13 +388,16 @@ def full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \
 				L_DWR, L_DBR, L_DWW, L_DBW, L_DWUNDER, \
 				L_DBUNDER, L_DWABOVE, L_DBABOVE, ind_counter):
 	
-	DERR_DG2ABOVE_RELU = [ind_counter, None]; ind_counter += 1
-	DG2ABOVE_RELU_DG2ABOVE = [ind_counter, None]; ind_counter += 1
-	DERR_DG2ABOVE = [ind_counter, None]; ind_counter += 1
-	DG2ABOVE_DG1ABOVE_RELU = [ind_counter, None]; ind_counter += 1
-	DG1ABOVE_RELU_DG1ABOVE = [ind_counter, None]; ind_counter += 1
-	DG1ABOVE_DREAD_MEM = [ind_counter, None]; ind_counter += 1
-	DERR_DG1ABOVE = [ind_counter, None]; ind_counter += 1
+	DIFF_OUT, ind_counter = init_buffer(ind_counter)
+	DERR_DG2ABOVE_RELU, ind_counter = init_buffer(ind_counter)
+	DG2ABOVE_RELU_DG2ABOVE, ind_counter = init_buffer(ind_counter)
+	DERR_DG2ABOVE, ind_counter = init_buffer(ind_counter)
+	DG2ABOVE_DG1ABOVE_RELU, ind_counter = init_buffer(ind_counter)
+	DG1ABOVE_RELU_DG1ABOVE, ind_counter = init_buffer(ind_counter)
+	DG1ABOVE_DREAD_MEM, ind_counter = init_buffer(ind_counter)
+	DERR_DG1ABOVE, ind_counter = init_buffer(ind_counter)
+	DG2ABOVE_DW2ABOVE, ind_counter = init_buffer(ind_counter)
+	DG1ABOVE_DW1ABOVE, ind_counter = init_buffer(ind_counter)
 	
 	DERR_DG1ABOVE = [None]*3
 	DERR_DG1ABOVE[0] = [ind_counter, None]; ind_counter += 1
@@ -389,32 +408,30 @@ def full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \
 	READ_MEM_reshape[1] = (C*mem_length,1)
 	
 	# above the read/write heads
-	nm.point_wise_add(L_OABOVE[F_ABOVE], T, -1) ###############
-	nm.sq_points_dinput(L_OABOVE[F_ABOVE], DERR_DG2ABOVE_RELU) ########
+	nm.point_wise_add(L_OABOVE[F_ABOVE], T, -1, DIFF_OUT)
+	nm.sq_points_dinput(DIFF_OUT, DERR_DG2ABOVE_RELU)
 	
 	DERR_DG2ABOVE_RELU[1] = tuple(np.concatenate((DERR_DG2ABOVE_RELU[1], (1,)))) # derr_dg2above_relu[:,:,np.newaxis]
 	
 	nm.relu_dlayer_in(L_OABOVE[F_ABOVE], DG2ABOVE_RELU_DG2ABOVE)
 	nm.mult_partials(DERR_DG2ABOVE_RELU, DG2ABOVE_RELU_DG2ABOVE, len(L_OABOVE[F_ABOVE][1]), DERR_DG2ABOVE)
-	DERR_DG2ABOVE[1] = (1)
+	DERR_DG2ABOVE[1] = (1,)
 	
 	nm.linear_F_dx(L_WABOVE[F_ABOVE], L_OABOVE[L1_ABOVE], DG2ABOVE_DG1ABOVE_RELU)
 	nm.relu_dlayer_in(L_OABOVE[L1_ABOVE], DG1ABOVE_RELU_DG1ABOVE)
-	print L_WABOVE[L1_ABOVE][1], READ_MEM_reshape[1]
 	nm.linear_F_dx(L_WABOVE[L1_ABOVE], READ_MEM_reshape, DG1ABOVE_DREAD_MEM)
 	nm.mult_partials_chain((DERR_DG2ABOVE, DG2ABOVE_DG1ABOVE_RELU, DG1ABOVE_RELU_DG1ABOVE), \
 			(len(L_OABOVE[F_ABOVE][1]), len(L_OABOVE[L1_ABOVE])), DERR_DG1ABOVE)
 	DERR_DG1ABOVE = DERR_DG1ABOVE[-1]
 	
-	#dg2above_dg1above_relu = linear_F_dx(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
-	#dg1above_relu_dg1above = relu_dlayer_in(OABOVE[L1_ABOVE])
-	#dg1above_dread_mem = linear_F_dx(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
-	#derr_dg1above = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))
+	# above weight gradients
+	nm.linear_F_dF(L_WABOVE[F_ABOVE], L_OABOVE[L1_ABOVE], DG2ABOVE_DW2ABOVE)
+	nm.linear_F_dF(L_WABOVE[L1_ABOVE], READ_MEM_reshape, DG1ABOVE_DW1ABOVE)
 	
 	# above weight gradients
 	DWABOVE = [None]*len(WABOVE); DBABOVE = [None]*len(BABOVE)
-	dg2above_dw2above = linear_F_dF(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
-	dg1above_dw1above = linear_F_dF(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
+	
+	
 	DWABOVE[F_ABOVE] = mult_partials(derr_dg2above, dg2above_dw2above, OABOVE[F_ABOVE])
 	DWABOVE[L1_ABOVE] = mult_partials(derr_dg1above, dg1above_dw1above, OABOVE[L1_ABOVE]).squeeze()
 	DBABOVE[F_ABOVE] = derr_dg2above[np.newaxis]; DBABOVE[L1_ABOVE] = derr_dg1above#[:,:,np.newaxis]
