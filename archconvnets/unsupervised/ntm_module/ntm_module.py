@@ -81,8 +81,7 @@ def shift_w_dw_interp(SHIFT_OUT, W_INTERP, OUT_BUFFER, gpu_ind=0):
 	assert isinstance(W_INTERP[1],tuple)
 	assert isinstance(SHIFT_OUT[1],tuple)
 	assert len(W_INTERP[1]) == 2
-	C = W_INTERP[1][0]
-	M = W_INTERP[1][1]
+	C, M = W_INTERP[1]
 	
 	_ntm_module.shift_w_dw_interp(SHIFT_OUT[0], W_INTERP[1], OUT_BUFFER[0], gpu_ind)
 	OUT_BUFFER[1] = (C,M,C,M)
@@ -96,8 +95,7 @@ def shift_w_dshift_out(W_INTERP, OUT_BUFFER, gpu_ind=0):
 	assert isinstance(W_INTERP[1],tuple)
 	assert len(W_INTERP) == len(OUT_BUFFER) == 2
 	assert len(W_INTERP[1]) == 2
-	C = W_INTERP[1][0]
-	M = W_INTERP[1][1]
+	C, M = W_INTERP[1]
 	
 	_ntm_module.shift_w_dshift_out(W_INTERP[0], W_INTERP[1], OUT_BUFFER[0], gpu_ind)
 	OUT_BUFFER[1] = (C,M,C,N_SHIFTS)
