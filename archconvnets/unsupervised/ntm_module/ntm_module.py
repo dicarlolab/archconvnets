@@ -73,42 +73,63 @@ def mult_partials__layers(da_db_ind, da_db_ind_shape, DB_DC_IND, DB_DC_SHAPE, b_
 		if DB_DC_INIT_IND != None:
 			point_wise_add(OUT_BUFFER_IND[l], DB_DC_INIT[l], gpu_ind=gpu_ind)
 
-def shift_w_dw_interp(shift_out_ind, w_interp_shape, out_buffer_ind, gpu_ind=0):
+def shift_w_dw_interp(SHIFT_OUT, W_INTERP, OUT_BUFFER, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
-	assert isinstance(out_buffer_ind,int)
-	assert isinstance(shift_out_ind,int)
-	assert isinstance(w_interp_shape,tuple)
-	assert len(w_interp_shape) == 2
+	assert len(SHIFT_OUT) == len(W_INTERP) == len(OUT_BUFFER) == 2
+	assert isinstance(OUT_BUFFER[0],int)
+	assert isinstance(SHIFT_OUT[0],int)
+	assert isinstance(W_INTERP[1],tuple)
+	assert isinstance(SHIFT_OUT[1],tuple)
+	assert len(W_INTERP[1]) == 2
+	C = W_INTERP[1][0]
+	M = W_INTERP[1][1]
 	
-	return _ntm_module.shift_w_dw_interp(shift_out_ind, w_interp_shape, out_buffer_ind, gpu_ind)
+	_ntm_module.shift_w_dw_interp(SHIFT_OUT[0], W_INTERP[1], OUT_BUFFER[0], gpu_ind)
+	OUT_BUFFER[1] = (C,M,C,M)
+	
 
-def shift_w_dshift_out(w_interp_ind, w_interp_shape, out_buffer_ind, gpu_ind=0):
+def shift_w_dshift_out(W_INTERP, OUT_BUFFER, gpu_ind=0):
+	N_SHIFTS = 3
 	assert isinstance(gpu_ind,int)
-	assert isinstance(out_buffer_ind,int)
-	assert isinstance(w_interp_ind,int)
-	assert isinstance(w_interp_shape,tuple)
-	assert len(w_interp_shape) == 2
+	assert isinstance(OUT_BUFFER[0],int)
+	assert isinstance(W_INTERP[0],int)
+	assert isinstance(W_INTERP[1],tuple)
+	assert len(W_INTERP) == len(OUT_BUFFER) == 2
+	assert len(W_INTERP[1]) == 2
+	C = W_INTERP[1][0]
+	M = W_INTERP[1][1]
 	
-	return _ntm_module.shift_w_dshift_out(w_interp_ind, w_interp_shape, out_buffer_ind, gpu_ind)
+	_ntm_module.shift_w_dshift_out(W_INTERP[0], W_INTERP[1], OUT_BUFFER[0], gpu_ind)
+	OUT_BUFFER[1] = (C,M,C,N_SHIFTS)
 
 
-def interpolate_dinterp_gate_out(o_content_ind, o_content_shape, o_prev_ind, out_buffer_ind, gpu_ind=0):
+def interpolate_dinterp_gate_out(O_CONTENT, O_PREV, OUT_BUFFER, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
-	assert isinstance(out_buffer_ind,int)
-	assert isinstance(o_prev_ind,int)
-	assert isinstance(o_content_shape,tuple)
-	assert len(o_content_shape) == 2
+	assert len(O_CONTENT) == len(O_PREV) == len(OUT_BUFFER) == 2
+	assert isinstance(OUT_BUFFER[0],int)
+	assert isinstance(O_PREV[0],int)
+	assert isinstance(O_CONTENT[0],int)
+	assert isinstance(O_CONTENT[1],tuple)
+	assert len(O_CONTENT[1]) == 2
 	
-	return _ntm_module.interpolate_dinterp_gate_out(o_content_ind, o_content_shape, o_prev_ind, out_buffer_ind, gpu_ind)
+	dim0, dim1 = O_CONTENT[1]
+	
+	_ntm_module.interpolate_dinterp_gate_out(O_CONTENT[0], O_CONTENT[1], O_PREV[0], OUT_BUFFER[0], gpu_ind)
+	OUT_BUFFER[1] = (dim0,dim1,dim0,1)
 
-def interpolate_do_content(interp_gate_out_ind, o_prev_shape, out_buffer_ind, gpu_ind=0):
-	assert isinstance(interp_gate_out_ind,int)
+def interpolate_do_content(INTERP_GATE_OUT, O_PREV, OUT_BUFFER, gpu_ind=0):
+	assert len(INTERP_GATE_OUT) == len(O_PREV) == len(OUT_BUFFER) == 2
+	assert isinstance(INTERP_GATE_OUT[0],int)
 	assert isinstance(gpu_ind,int)
-	assert isinstance(out_buffer_ind,int)
-	assert isinstance(o_prev_shape,tuple)
-	assert len(o_prev_shape) == 2
+	assert isinstance(OUT_BUFFER[0],int)
+	assert isinstance(O_PREV[1],tuple)
+	assert isinstance(INTERP_GATE_OUT[1],tuple)
+	assert len(O_PREV[1]) == 2
 	
-	return _ntm_module.interpolate_do_content(interp_gate_out_ind, o_prev_shape, out_buffer_ind, gpu_ind)
+	dim0, dim1 = O_PREV[1]
+	
+	_ntm_module.interpolate_do_content(INTERP_GATE_OUT[0], O_PREV[1], OUT_BUFFER[0], gpu_ind)
+	OUT_BUFFER[1] = (dim0,dim1,dim0,dim1)
 
 
 def interpolate_do_prev(interp_gate_out_ind, o_prev_shape, out_buffer_ind, gpu_ind=0):
@@ -334,11 +355,12 @@ def free_buffer(buffer_ind, gpu_ind=0):
 	assert isinstance(buffer_ind,int)
 	return _ntm_module.free_buffer(buffer_ind, gpu_ind)
 
-def return_buffer(buffer_ind, gpu_ind=0):
+def return_buffer(BUFFER, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
-	assert isinstance(buffer_ind,int)
+	assert isinstance(BUFFER[0],int)
+	assert isinstance(BUFFER[1],tuple)
 
-	return _ntm_module.return_buffer(buffer_ind, gpu_ind)
+	return _ntm_module.return_buffer(BUFFER[0], gpu_ind).reshape(BUFFER[1])
 	
 def dot(buffer_ind1, buffer_shape1, buffer_ind2, buffer_shape2, out_buffer_ind, gpu_ind=0):
 	assert isinstance(gpu_ind,int)

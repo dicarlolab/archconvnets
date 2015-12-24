@@ -18,13 +18,17 @@ z3 = interpolate_dinterp_gate_out(interp_gate_out, o_content, o_prev)
 t_cpu = time.time() - t_start
 
 ###
-nm.set_buffer(o_content,1)
-nm.set_buffer(o_prev,2)
+O_CONTENT = [1, o_content.shape]
+O_PREV = [2, o_prev.shape]
+OUT_BUFFER = [3, None]
+
+nm.set_buffer(o_content, O_CONTENT[0])
+nm.set_buffer(o_prev, O_PREV[0])
 
 #############
 t_start = time.time()
-nm.interpolate_dinterp_gate_out(1, o_content.shape,2,3)
-z3g = nm.return_buffer(3).reshape(z3.shape)
+nm.interpolate_dinterp_gate_out(O_CONTENT, O_PREV, OUT_BUFFER)
+z3g = nm.return_buffer(OUT_BUFFER)
 t_gpu = time.time() - t_start
 
 print t_cpu, t_gpu, t_cpu/t_gpu, np.isclose(z3,z3g).sum()/np.single(np.prod(z3.shape))

@@ -12,12 +12,19 @@ z3 = shift_w_dw_interp(shift_out)
 t_cpu = time.time() - t_start
 
 ###
-nm.set_buffer(shift_out,1)
+SHIFT_OUT = [0, shift_out.shape]
+W_INTERP = [1, w_interp.shape]
+OUT_BUFFER = [2, None]
+
+nm.set_buffer(w_interp,W_INTERP[0])
+nm.set_buffer(shift_out,SHIFT_OUT[0])
+
+
 
 #############
 t_start = time.time()
-nm.shift_w_dw_interp(1, w_interp.shape,2)
-z3g = nm.return_buffer(2).reshape(z3.shape)
+nm.shift_w_dw_interp(SHIFT_OUT, W_INTERP, OUT_BUFFER)
+z3g = nm.return_buffer(OUT_BUFFER)
 t_gpu = time.time() - t_start
 
 print t_cpu, t_gpu, t_cpu/t_gpu, np.isclose(z3,z3g).sum()/np.single(np.prod(z3.shape))

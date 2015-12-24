@@ -20,7 +20,7 @@
 #define MAX_BLOCKS 65535
 #define THREAD_CAPACITY (MAX_BLOCKS*MAX_THREADS_PER_BLOCK)
 
-#define N_BUFFERS 100
+#define N_BUFFERS 1024
 #define N_GPUS 4
 
 #define GPU_BUFFER gpu_buffers[gpu_ind][buffer_ind]

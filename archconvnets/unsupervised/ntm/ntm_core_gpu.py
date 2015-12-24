@@ -323,8 +323,67 @@ def reverse_pass_partials(WUNDER,BUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, O
 def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DOR_DWUNDER,DOR_DBUNDER, OR, DMEM_PREV_DWW, \
 			DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE, BABOVE):
 	# above the read/write heads
-	print OABOVE[F_ABOVE].shape, t.shape
 	derr_dg2above_relu = sq_points_dinput(OABOVE[F_ABOVE] - t)
+	
+	dg2above_relu_dg2above = relu_dlayer_in(OABOVE[F_ABOVE])
+	derr_dg2above = np.squeeze(mult_partials(derr_dg2above_relu[:,:,np.newaxis], dg2above_relu_dg2above, OABOVE[F_ABOVE]))
+	
+	dg2above_dg1above_relu = linear_F_dx(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
+	dg1above_relu_dg1above = relu_dlayer_in(OABOVE[L1_ABOVE])
+	dg1above_dread_mem = linear_F_dx(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
+	derr_dg1above = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))
+	
+	# above weight gradients
+	DWABOVE = [None]*len(WABOVE); DBABOVE = [None]*len(BABOVE)
+	dg2above_dw2above = linear_F_dF(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
+	dg1above_dw1above = linear_F_dF(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
+	DWABOVE[F_ABOVE] = mult_partials(derr_dg2above, dg2above_dw2above, OABOVE[F_ABOVE])
+	DWABOVE[L1_ABOVE] = mult_partials(derr_dg1above, dg1above_dw1above, OABOVE[L1_ABOVE]).squeeze()
+	DBABOVE[F_ABOVE] = derr_dg2above[np.newaxis]; DBABOVE[L1_ABOVE] = derr_dg1above#[:,:,np.newaxis]
+	
+	# read weights
+	derr_dread_mem = mult_partials(derr_dg1above, dg1above_dread_mem, OABOVE[L1_ABOVE])
+	dread_mem_dor = linear_F_dF(OR[F], mem_prev)
+	derr_dor = mult_partials(derr_dread_mem, dread_mem_dor, read_mem)
+	
+	DWR = mult_partials__layers(derr_dor, DOR_DWR, OR[F]) # 18.3%
+	DBR = mult_partials__layers(derr_dor, DOR_DBR, OR[F])
+	DWW = mult_partials__layers(derr_dor, DOR_DWW, OR[F]) # 38.5%
+	DBW = mult_partials__layers(derr_dor, DOR_DBW, OR[F])
+	DWUNDER = mult_partials__layers(derr_dor, DOR_DWUNDER, OR[F])
+	DBUNDER = mult_partials__layers(derr_dor, DOR_DBUNDER, OR[F])
+	
+	# write weights
+	dread_mem_dmem_prev = linear_F_dx(OR[F], mem_prev)
+	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
+	
+	DWW = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DWW, mem_prev, DWW) # 20%
+	DBW = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DBW, mem_prev, DBW)
+	DWUNDER = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DWUNDER)
+	DBUNDER = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DBUNDER, mem_prev, DBUNDER)
+	
+	return DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DWABOVE, DBABOVE
+
+
+def full_gradients_gpu(read_mem_ind, t_ind, mem_prev_ind, DOR_DWR_IND, DOR_DBR_IND, \
+				DOR_DWW_IND, DOR_DBW_IND, DOR_DWUNDER_IND, DOR_DBUNDER_IND, OR_IND, \
+				DMEM_PREV_DWW_IND, DMEM_PREV_DBW_IND, \
+				DMEM_PREV_DWUNDER_IND, DMEM_PREV_DBUNDER_IND, OABOVE_IND, WABOVE_IND, BABOVE_IND,\
+				DWR_IND, DBR_IND, DWW_IND, DBW_IND, DWUNDER_IND, \
+				DBUNDER_IND, DWABOVE_IND, DBABOVE_IND, \
+				read_mem_shape, t_shape, mem_prev_shape, DOR_DWR_SHAPE, DOR_DBR_SHAPE, \
+				DOR_DWW_SHAPE, DOR_DBW_SHAPE, DOR_DWUNDER_SHAPE, DOR_DBUNDER_SHAPE, OR_SHAPE, \
+				DMEM_PREV_DWW_SHAPE, DMEM_PREV_DBW_SHAPE, \
+				DMEM_PREV_DWUNDER_SHAPE, DMEM_PREV_DBUNDER_SHAPE, \
+				OABOVE_SHAPE, WABOVE_SHAPE, BABOVE_SHAPE,\
+				DWR_SHAPE, DBR_SHAPE, DWW_SHAPE, DBW_SHAPE, DWUNDER_SHAPE, DBUNDER_SHAPE, DWABOVE_SHAPE, DBABOVE_SHAPE, ind_counter):
+	
+	derr_dg2above_relu_ind = ind_counter; ind_counter += 1
+	dg2above_relu_dg2above = ind_counter; ind_counter += 1
+	
+	# above the read/write heads
+	nm.point_wise_add(OABOVE_IND[F_ABOVE], t_ind, -1)
+	nm.sq_points_dinput(OABOVE_IND[F_ABOVE], OABOVE_SHAPE[F_ABOVE], derr_dg2above_relu_ind)
 	
 	dg2above_relu_dg2above = relu_dlayer_in(OABOVE[F_ABOVE])
 	derr_dg2above = np.squeeze(mult_partials(derr_dg2above_relu[:,:,np.newaxis], dg2above_relu_dg2above, OABOVE[F_ABOVE]))
