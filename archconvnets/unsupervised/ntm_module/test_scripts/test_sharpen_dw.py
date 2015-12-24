@@ -11,21 +11,19 @@ t_start = time.time()
 z3 = dsharpen_dw(w, gamma)
 t_cpu = time.time() - t_start
 
-#######
-t_start = time.time()
-z34 = nm.dsharpen_dw_cpu(w, gamma)
-t_cpu2 = time.time() - t_start
-
 ###
-nm.set_buffer(w,1)
-nm.set_buffer(gamma,2)
+W = [1, w.shape]
+GAMMA = [2, gamma.shape]
+OUT_BUFFER = [3, None]
+
+nm.set_buffer(w, W[0])
+nm.set_buffer(gamma, GAMMA[0])
 
 #############
 t_start = time.time()
-nm.dsharpen_dw(1,w.shape, 2, gamma.shape, 3)
-z3g = nm.return_buffer(3).reshape(z3.shape)
+nm.sharpen_dw(W, GAMMA, OUT_BUFFER)
+z3g = nm.return_buffer(OUT_BUFFER)
 t_gpu = time.time() - t_start
 
-print t_cpu, t_cpu2, t_cpu/t_cpu2, np.isclose(z3,z34).sum()/np.single(np.prod(z3.shape))
-print t_cpu2, t_gpu, t_cpu2/t_gpu, np.isclose(z3,z3g).sum()/np.single(np.prod(z3.shape))
+print t_cpu, t_gpu, t_cpu/t_gpu, np.isclose(z3,z3g).sum()/np.single(np.prod(z3.shape))
 

@@ -22,22 +22,26 @@ t_start = time.time()
 z3 = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))
 t_cpu = time.time() - t_start
 
-derr_dg2above_ind = 0
-dg2above_dg1above_relu_ind = 1
-dg1above_relu_dg1above_ind = 2
-OUT_BUFFER_IND = (3,4,5)
+########
+DERR_DG2ABOVE = [0, derr_dg2above.shape]
+DG2ABOVE_DG1ABOVE_RELU = [1, dg2above_dg1above_relu.shape]
+DG1ABOVE_RELU_DG1ABOVE = [2, dg1above_relu_dg1above.shape]
 
-nm.set_buffer(derr_dg2above, derr_dg2above_ind)
-nm.set_buffer(dg2above_dg1above_relu, dg2above_dg1above_relu_ind)
-nm.set_buffer(dg1above_relu_dg1above, dg1above_relu_dg1above_ind)
+OUT_BUFFER = [None]*3
+OUT_BUFFER[0] = [3, None]
+OUT_BUFFER[1] = [4, None]
+OUT_BUFFER[2] = [5, None]
 
-DA_DB_IND = (derr_dg2above_ind, dg2above_dg1above_relu_ind, dg1above_relu_dg1above_ind)
-DA_DB_SHAPE = (derr_dg2above.shape, dg2above_dg1above_relu.shape, dg1above_relu_dg1above.shape)
+nm.set_buffer(derr_dg2above, DERR_DG2ABOVE[0])
+nm.set_buffer(dg2above_dg1above_relu, DG2ABOVE_DG1ABOVE_RELU[0])
+nm.set_buffer(dg1above_relu_dg1above, DG1ABOVE_RELU_DG1ABOVE[0])
+
+DA_DB = [DERR_DG2ABOVE, DG2ABOVE_DG1ABOVE_RELU, DG1ABOVE_RELU_DG1ABOVE]
 B_NDIM = (OABOVE[F_ABOVE].ndim, OABOVE[L1_ABOVE].ndim)
 
 t_gpu = time.time() - t_start
-nm.mult_partials_chain(DA_DB_IND, DA_DB_SHAPE, B_NDIM, OUT_BUFFER_IND)
+nm.mult_partials_chain(DA_DB, B_NDIM, OUT_BUFFER)
 
-z3g = nm.return_buffer(OUT_BUFFER_IND[-1])
+z3g = nm.return_buffer(OUT_BUFFER[-1])
 
 print t_cpu, t_gpu, t_cpu/t_gpu, np.isclose(z3, z3g.reshape(z3.shape)).sum()/np.single(np.prod(z3.shape))

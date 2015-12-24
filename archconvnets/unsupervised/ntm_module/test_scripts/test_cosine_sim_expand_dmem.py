@@ -7,6 +7,7 @@ import time
 mem_prev = np.asarray(np.random.random((6,8)),dtype='single')
 
 O = [None]; KEY = 0
+O_G = [None]
 O[KEY] = np.asarray(np.random.random((16,8)),dtype='single')
 
 ############
@@ -15,22 +16,18 @@ z3 = cosine_sim_expand_dmem(O[KEY], mem_prev)
 t_cpu = time.time() - t_start
 
 
-t_start = time.time()
-z34 = nm.cosine_sim_expand_dmem_cpu(O[KEY], mem_prev)
-t_cpu2 = time.time() - t_start
-
-
 ####
-nm.set_buffer(O[KEY],1)
-nm.set_buffer(mem_prev,2)
+O_G[KEY] = [1, O[KEY].shape]
+MEM_PREV = [2, mem_prev.shape]
+OUT_BUFFER = [3, None]
+
+nm.set_buffer(O[KEY], O_G[KEY][0])
+nm.set_buffer(mem_prev, MEM_PREV[0])
 
 ##############
 t_start = time.time()
-nm.cosine_sim_expand_dmem(1, O[KEY].shape, 2, mem_prev.shape, 3)
-z3g = nm.return_buffer(3)
-#nm.sync()
+nm.cosine_sim_expand_dmem(O_G[KEY], MEM_PREV, OUT_BUFFER)
+z3g = nm.return_buffer(OUT_BUFFER)
 t_gpu = time.time() - t_start
-#z3g = nm.return_buffer(3)
 
-print t_cpu, t_cpu2, t_cpu/t_cpu2, np.isclose(z3, z34.reshape(z3.shape)).sum()/np.single(np.prod(z3.shape))
-print t_cpu2, t_gpu, t_cpu2/t_gpu, np.isclose(z3, z3g.reshape(z3.shape)).sum()/np.single(np.prod(z3.shape))
+print t_cpu, t_gpu, t_cpu/t_gpu, np.isclose(z3, z3g.reshape(z3.shape)).sum()/np.single(np.prod(z3.shape))

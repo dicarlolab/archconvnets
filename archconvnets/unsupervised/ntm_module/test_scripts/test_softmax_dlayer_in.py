@@ -3,25 +3,23 @@ import archconvnets.unsupervised.ntm_module.ntm_module as nm
 import numpy as np
 import time
 
-keys = np.asarray(np.random.random((16,6)),dtype='single')
-beta_out = np.asarray(np.random.random((16,1)),dtype='single')
+layer_out = np.asarray(np.random.random((6,8)),dtype='single')
 
 ###########
 t_start = time.time()
-z3 = focus_key_dbeta_out(keys, beta_out)
+z3 = softmax_dlayer_in(layer_out)
 t_cpu = time.time() - t_start
 
 ###
-BETA_OUT = [1, beta_out.shape]
-KEYS = [2, keys.shape]
-OUT_BUFFER = [3, None]
 
-nm.set_buffer(beta_out, BETA_OUT[0])
-nm.set_buffer(keys, KEYS[0])
+LAYER_OUT = [1, layer_out.shape]
+OUT_BUFFER = [2, None]
+
+nm.set_buffer(layer_out, LAYER_OUT[0])
 
 #############
 t_start = time.time()
-nm.focus_key_dbeta_out(KEYS, OUT_BUFFER)
+nm.softmax_dlayer_in(LAYER_OUT, OUT_BUFFER)
 z3g = nm.return_buffer(OUT_BUFFER)
 t_gpu = time.time() - t_start
 

@@ -12,12 +12,16 @@ z3 = focus_key_dkeys(keys, beta_out)
 t_cpu = time.time() - t_start
 
 ###
-nm.set_buffer(beta_out,1)
+BETA_OUT = [1, beta_out.shape]
+KEYS = [2, keys.shape]
+OUT_BUFFER = [3, None]
+
+nm.set_buffer(beta_out, BETA_OUT[0])
 
 #############
 t_start = time.time()
-nm.focus_key_dkeys(1,keys.shape, 2)
-z3g = nm.return_buffer(2).reshape(z3.shape)
+nm.focus_key_dkeys(BETA_OUT, KEYS, OUT_BUFFER)
+z3g = nm.return_buffer(OUT_BUFFER)
 t_gpu = time.time() - t_start
 
 print t_cpu, t_gpu, t_cpu/t_gpu, np.isclose(z3,z3g).sum()/np.single(np.prod(z3.shape))
