@@ -12,12 +12,12 @@ import archconvnets.unsupervised.ntm_module.ntm_module as nm
 from archconvnets.unsupervised.ntm_module.ntm_module import init_buffer, set_list_buffer, return_list_buffer
 
 ##### which gradients to test
-#DERIV_L = L1_UNDER
+#DERIV_L = L1_UNDER #### double-check!
 #DERIV_L = L2_UNDER
-#DERIV_L = F_UNDER
+DERIV_L = F_UNDER
 
 #DERIV_L = L1_ABOVE
-DERIV_L = F_ABOVE
+#DERIV_L = F_ABOVE
 
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
@@ -29,11 +29,11 @@ DERIV_L = F_ABOVE
 
 #gradient_category = 'write'
 #gradient_category = 'read'
-#gradient_category = 'under'
-gradient_category = 'above'
+gradient_category = 'under'
+#gradient_category = 'above'
 
-#gradient_weights = False # false means bias terms
-gradient_weights = True
+gradient_weights = False # false means bias terms
+#gradient_weights = True
 
 ####
 if gradient_category == 'above':
@@ -153,6 +153,7 @@ def g(y):
 		# forward
 		OR,OW,mem,read_mem,OUNDER,OABOVE = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, WABOVE, BABOVE, OR_PREV, OW_PREV, mem_prev, x[frame])
 		
+		nm.reset_n_vars_allocated()
 		# reverse (compute memory partials)
 		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, \
 		DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW = \
@@ -168,39 +169,38 @@ def g(y):
 	# full gradients from partials
 	
 	#### put data on gpu
-	ind_counter = 0
-	READ_MEM, ind_counter = init_buffer(ind_counter, read_mem)
-	T, ind_counter = init_buffer(ind_counter, t)
-	MEM_PREV, ind_counter = init_buffer(ind_counter, mem_prev)
+	READ_MEM = init_buffer(read_mem)
+	T = init_buffer(t)
+	MEM_PREV = init_buffer(mem_prev)
 	
-	L_DOR_DWR, ind_counter = set_list_buffer(ind_counter, DOR_DWR)
-	L_DOR_DBR, ind_counter = set_list_buffer(ind_counter, DOR_DBR)
-	L_DOR_DWW, ind_counter = set_list_buffer(ind_counter, DOR_DWW)
-	L_DOR_DBW, ind_counter = set_list_buffer(ind_counter, DOR_DBW)
-	L_DOR_DWUNDER, ind_counter = set_list_buffer(ind_counter, DOR_DWUNDER)
-	L_DOR_DBUNDER, ind_counter = set_list_buffer(ind_counter, DOR_DBUNDER)
-	L_OR, ind_counter = set_list_buffer(ind_counter, OR)
-	L_DMEM_PREV_DWW, ind_counter = set_list_buffer(ind_counter, DMEM_PREV_DWW)
-	L_DMEM_PREV_DBW, ind_counter = set_list_buffer(ind_counter, DMEM_PREV_DBW)
-	L_DMEM_PREV_DWUNDER, ind_counter = set_list_buffer(ind_counter, DMEM_PREV_DWUNDER)
-	L_DMEM_PREV_DBUNDER, ind_counter = set_list_buffer(ind_counter, DMEM_PREV_DBUNDER)
-	L_OABOVE, ind_counter = set_list_buffer(ind_counter, OABOVE)
-	L_WABOVE, ind_counter = set_list_buffer(ind_counter, WABOVE)
-	L_BABOVE, ind_counter = set_list_buffer(ind_counter, BABOVE)
+	L_DOR_DWR = set_list_buffer(DOR_DWR)
+	L_DOR_DBR = set_list_buffer(DOR_DBR)
+	L_DOR_DWW = set_list_buffer(DOR_DWW)
+	L_DOR_DBW = set_list_buffer(DOR_DBW)
+	L_DOR_DWUNDER = set_list_buffer(DOR_DWUNDER)
+	L_DOR_DBUNDER = set_list_buffer(DOR_DBUNDER)
+	L_OR = set_list_buffer(OR)
+	L_DMEM_PREV_DWW = set_list_buffer(DMEM_PREV_DWW)
+	L_DMEM_PREV_DBW = set_list_buffer(DMEM_PREV_DBW)
+	L_DMEM_PREV_DWUNDER = set_list_buffer(DMEM_PREV_DWUNDER)
+	L_DMEM_PREV_DBUNDER = set_list_buffer(DMEM_PREV_DBUNDER)
+	L_OABOVE = set_list_buffer(OABOVE)
+	L_WABOVE = set_list_buffer(WABOVE)
+	L_BABOVE = set_list_buffer(BABOVE)
 	
-	L_WR, ind_counter = set_list_buffer(ind_counter, WR)
-	L_BR, ind_counter = set_list_buffer(ind_counter, BR)
-	L_WW, ind_counter = set_list_buffer(ind_counter, WW)
-	L_BW, ind_counter = set_list_buffer(ind_counter, BW)
-	L_WUNDER, ind_counter = set_list_buffer(ind_counter, WUNDER)
-	L_BUNDER, ind_counter = set_list_buffer(ind_counter, BUNDER)
-	L_WABOVE, ind_counter = set_list_buffer(ind_counter, WABOVE)
-	L_BABOVE, ind_counter = set_list_buffer(ind_counter, BABOVE)
+	L_WR = set_list_buffer(WR)
+	L_BR = set_list_buffer(BR)
+	L_WW = set_list_buffer(WW)
+	L_BW = set_list_buffer(BW)
+	L_WUNDER = set_list_buffer(WUNDER)
+	L_BUNDER = set_list_buffer(BUNDER)
+	L_WABOVE = set_list_buffer(WABOVE)
+	L_BABOVE = set_list_buffer(BABOVE)
 	####
 	
 	
 	L_DWR, L_DBR, L_DWW, L_DBW, L_DWUNDER, L_DBUNDER, L_DWABOVE, L_DBABOVE = \
-		full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, L_DOR_DWW, L_DOR_DBW, L_DOR_DWUNDER, L_DOR_DBUNDER, L_OR, L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_OABOVE, L_WABOVE, ind_counter)
+		full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, L_DOR_DWW, L_DOR_DBW, L_DOR_DWUNDER, L_DOR_DBUNDER, L_OR, L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_OABOVE, L_WABOVE)
 	
 	
 	DWR = return_list_buffer(L_DWR, L_WR)

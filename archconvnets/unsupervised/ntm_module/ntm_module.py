@@ -2,6 +2,8 @@ import _ntm_module
 import numpy as np
 import copy
 
+n_vars_allocated = np.zeros(4, dtype='int') # variable slots allocated per gpu
+
 def check_buffer(BUFFER):
 	assert len(BUFFER) == 2
 	assert isinstance(BUFFER[0], int)
@@ -407,21 +409,21 @@ def cosine_sim_expand_dkeys_cpu(keys, mem, warn=True):
 	
 
 ############################################################
-def init_buffer(ind_counter, DATA=None):
+def init_buffer(DATA=None, gpu_ind=0):
 	if DATA is not None:
-		DATA_G = [ind_counter, DATA.shape]
+		DATA_G = [n_vars_allocated[gpu_ind], DATA.shape]
 		set_buffer(DATA, DATA_G[0])
 	else:
-		DATA_G = [ind_counter, None]
-	ind_counter += 1
-	return DATA_G, ind_counter
+		DATA_G = [n_vars_allocated[gpu_ind], None]
+	n_vars_allocated[gpu_ind] += 1
+	return DATA_G
 
-def set_list_buffer(ind_counter, DATA):
+def set_list_buffer(DATA):
 	LIST = [None]*len(DATA)
 	
 	for i in range(len(DATA)):
-		LIST[i], ind_counter = init_buffer(ind_counter, DATA[i])
-	return LIST, ind_counter
+		LIST[i] = init_buffer(DATA[i])
+	return LIST
 
 def return_list_buffer(LIST, SHAPE=None):
 	DATA = [None]*len(LIST)
@@ -430,3 +432,9 @@ def return_list_buffer(LIST, SHAPE=None):
 		if SHAPE is not None:
 			DATA[i] = DATA[i].reshape(SHAPE[i][1])
 	return DATA
+	
+def reset_n_vars_allocated(gpu_ind=0):
+	n_vars_allocated[gpu_ind] = 0
+	
+def print_n_vars_allocated():
+	print n_vars_allocated[0]
