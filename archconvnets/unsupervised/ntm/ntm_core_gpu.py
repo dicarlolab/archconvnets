@@ -8,6 +8,7 @@ import scipy
 from ntm_gradients import *
 from init_vars import *
 import archconvnets.unsupervised.ntm_module.ntm_module as nm
+from archconvnets.unsupervised.ntm_module.ntm_module import init_buffer, set_list_buffer, return_list_buffer
 
 def weight_address(W, B, O_PREV, inputs, mem_prev):
 	O = [None]*len(O_PREV)
@@ -318,76 +319,6 @@ def reverse_pass_partials(WUNDER,BUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, O
 
 
 ### compute full gradients from state partials
-# 24.8 of main()
-#@profile
-def full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, DOR_DWW, DOR_DBW, DOR_DWUNDER,DOR_DBUNDER, OR, DMEM_PREV_DWW, \
-			DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE, BABOVE):
-	# above the read/write heads
-	derr_dg2above_relu = sq_points_dinput(OABOVE[F_ABOVE] - t)
-	
-	dg2above_relu_dg2above = relu_dlayer_in(OABOVE[F_ABOVE])
-	derr_dg2above = np.squeeze(mult_partials(derr_dg2above_relu[:,:,np.newaxis], dg2above_relu_dg2above, OABOVE[F_ABOVE]))
-	
-	dg2above_dg1above_relu = linear_F_dx(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
-	dg1above_relu_dg1above = relu_dlayer_in(OABOVE[L1_ABOVE])
-	dg1above_dread_mem = linear_F_dx(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
-	derr_dg1above = mult_partials_chain((derr_dg2above, dg2above_dg1above_relu, dg1above_relu_dg1above), (OABOVE[F_ABOVE], OABOVE[L1_ABOVE]))
-	
-	# above weight gradients
-	DWABOVE = [None]*len(WABOVE); DBABOVE = [None]*len(BABOVE)
-	dg2above_dw2above = linear_F_dF(WABOVE[F_ABOVE], OABOVE[L1_ABOVE])
-	dg1above_dw1above = linear_F_dF(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1))
-	DWABOVE[F_ABOVE] = mult_partials(derr_dg2above, dg2above_dw2above, OABOVE[F_ABOVE])
-	DWABOVE[L1_ABOVE] = mult_partials(derr_dg1above, dg1above_dw1above, OABOVE[L1_ABOVE]).squeeze()
-	DBABOVE[F_ABOVE] = derr_dg2above[np.newaxis]; DBABOVE[L1_ABOVE] = derr_dg1above#[:,:,np.newaxis]
-	
-	# read weights
-	derr_dread_mem = mult_partials(derr_dg1above, dg1above_dread_mem, OABOVE[L1_ABOVE])
-	dread_mem_dor = linear_F_dF(OR[F], mem_prev)
-	derr_dor = mult_partials(derr_dread_mem, dread_mem_dor, read_mem)
-	
-	DWR = mult_partials__layers(derr_dor, DOR_DWR, OR[F]) # 18.3%
-	DBR = mult_partials__layers(derr_dor, DOR_DBR, OR[F])
-	DWW = mult_partials__layers(derr_dor, DOR_DWW, OR[F]) # 38.5%
-	DBW = mult_partials__layers(derr_dor, DOR_DBW, OR[F])
-	DWUNDER = mult_partials__layers(derr_dor, DOR_DWUNDER, OR[F])
-	DBUNDER = mult_partials__layers(derr_dor, DOR_DBUNDER, OR[F])
-	
-	# write weights
-	dread_mem_dmem_prev = linear_F_dx(OR[F], mem_prev)
-	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
-	
-	DWW = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DWW, mem_prev, DWW) # 20%
-	DBW = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DBW, mem_prev, DBW)
-	DWUNDER = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DWUNDER)
-	DBUNDER = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DBUNDER, mem_prev, DBUNDER)
-	
-	return DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DWABOVE, DBABOVE
-
-def init_buffer(ind_counter, DATA=None):
-	if DATA is not None:
-		DATA_G = [ind_counter, DATA.shape]
-		nm.set_buffer(DATA, DATA_G[0])
-	else:
-		DATA_G = [ind_counter, None]
-	ind_counter += 1
-	return DATA_G, ind_counter
-
-def set_list_buffer(ind_counter, DATA):
-	LIST = [None]*len(DATA)
-	
-	for i in range(len(DATA)):
-		LIST[i], ind_counter = init_buffer(ind_counter, DATA[i])
-	return LIST, ind_counter
-
-def return_list_buffer(LIST, SHAPE=None):
-	DATA = [None]*len(LIST)
-	for i in range(len(LIST)):
-		DATA[i] = nm.return_buffer(LIST[i])
-		if SHAPE is not None:
-			DATA[i] = DATA[i].reshape(SHAPE[i][1])
-	return DATA
-
 def full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \
 				L_DOR_DWW, L_DOR_DBW, L_DOR_DWUNDER, L_DOR_DBUNDER, L_OR, \
 				L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, \

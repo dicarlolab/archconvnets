@@ -405,3 +405,28 @@ def cosine_sim_expand_dkeys_cpu(keys, mem, warn=True):
 
 	return _ntm_module.cosine_sim_expand_dkeys_cpu(keys, mem)
 	
+
+############################################################
+def init_buffer(ind_counter, DATA=None):
+	if DATA is not None:
+		DATA_G = [ind_counter, DATA.shape]
+		set_buffer(DATA, DATA_G[0])
+	else:
+		DATA_G = [ind_counter, None]
+	ind_counter += 1
+	return DATA_G, ind_counter
+
+def set_list_buffer(ind_counter, DATA):
+	LIST = [None]*len(DATA)
+	
+	for i in range(len(DATA)):
+		LIST[i], ind_counter = init_buffer(ind_counter, DATA[i])
+	return LIST, ind_counter
+
+def return_list_buffer(LIST, SHAPE=None):
+	DATA = [None]*len(LIST)
+	for i in range(len(LIST)):
+		DATA[i] = return_buffer(LIST[i])
+		if SHAPE is not None:
+			DATA[i] = DATA[i].reshape(SHAPE[i][1])
+	return DATA

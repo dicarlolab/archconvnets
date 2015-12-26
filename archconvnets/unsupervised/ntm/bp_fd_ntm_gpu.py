@@ -9,13 +9,14 @@ from ntm_gradients import *
 from init_vars import *
 from ntm_core_gpu import *
 import archconvnets.unsupervised.ntm_module.ntm_module as nm
+from archconvnets.unsupervised.ntm_module.ntm_module import init_buffer, set_list_buffer, return_list_buffer
 
 ##### which gradients to test
 #DERIV_L = L1_UNDER
-#DERIV_L = L2_UNDER
+DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 
-DERIV_L = L1_ABOVE
+#DERIV_L = L1_ABOVE
 #DERIV_L = F_ABOVE
 
 #DERIV_L = SHIFT
@@ -28,11 +29,11 @@ DERIV_L = L1_ABOVE
 
 #gradient_category = 'write'
 #gradient_category = 'read'
-#gradient_category = 'under'
-gradient_category = 'above'
+gradient_category = 'under'
+#gradient_category = 'above'
 
-#gradient_weights = False # false means bias terms
-gradient_weights = True
+gradient_weights = False # false means bias terms
+#gradient_weights = True
 
 ####
 if gradient_category == 'above':
@@ -168,14 +169,8 @@ def g(y):
 			mem_prev_prev = copy.deepcopy(mem_prev); mem_prev = copy.deepcopy(mem)
 	
 	# full gradients from partials
-	t_cpu = time.time()
-	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DWABOVE, DBABOVE = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
-				DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, \
-				DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE, BABOVE)
-
-	t_cpu = time.time() - t_cpu
 	
-	####
+	#### put data on gpu
 	ind_counter = 0
 	READ_MEM, ind_counter = init_buffer(ind_counter, read_mem)
 	T, ind_counter = init_buffer(ind_counter, t)
@@ -206,17 +201,13 @@ def g(y):
 	L_BABOVE, ind_counter = set_list_buffer(ind_counter, BABOVE)
 	####
 	
-	t_gpu = time.time()
 	
 	L_DWR, L_DBR, L_DWW, L_DBW, L_DWUNDER, L_DBUNDER, L_DWABOVE, L_DBABOVE = \
 		full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \
 				L_DOR_DWW, L_DOR_DBW, L_DOR_DWUNDER, L_DOR_DBUNDER, L_OR, \
 				L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, \
 				L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_OABOVE, L_WABOVE, ind_counter)
-	nm.sync()
-	t_gpu = time.time() - t_gpu
 	
-	print t_gpu, t_cpu, t_cpu/t_gpu
 	
 	DWR = return_list_buffer(L_DWR, L_WR)
 	DBR = return_list_buffer(L_DBR, L_BR)
@@ -257,7 +248,7 @@ def g(y):
 			return DBW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e7
+eps = np.sqrt(np.finfo(np.float).eps)*1e6
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
@@ -278,4 +269,8 @@ for sample in range(N_SAMPLES):
 		ratios[sample] = gtx/gt
 	print gt, gtx, ratios[sample]
 	
+inf_vals = np.abs(ratios) == np.inf
+if inf_vals.sum():
+	print '***', inf_vals.sum(), ' non-zeros when should be zero ***'
+	ratios[inf_vals] = 0
 print ratios.mean(), ratios.std()
