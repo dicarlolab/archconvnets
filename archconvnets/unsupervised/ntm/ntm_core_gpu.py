@@ -91,7 +91,6 @@ def dunder(WUNDER, BUNDER, OUNDER, x):
 	DG3UNDER_DW[L1_UNDER] = mult_partials(dg3under_relu_dg2under, dg2under_dw1under, OUNDER[L2_UNDER].squeeze())
 	
 	return DG3UNDER_DW, DG3UNDER_DB
-
 	
 	
 # gradients for layers underneath the read/write heads
@@ -133,6 +132,13 @@ def dunder_gpu(L_WUNDER, L_BUNDER, L_OUNDER, X):
 	nm.mult_partials(DG2UNDER_DG1UNDER, DG1UNDER_DW1UNDER,  L_OUNDER[L1_UNDER], DG2UNDER_DW1UNDER, squeeze=1)
 	nm.mult_partials(DG3UNDER_RELU_DG2UNDER, DG2UNDER_DG1UNDER, L_OUNDER[L2_UNDER], DG3UNDER_DB[L1_UNDER], squeeze=1)
 	nm.mult_partials(DG3UNDER_RELU_DG2UNDER, DG2UNDER_DW1UNDER, L_OUNDER[L2_UNDER], DG3UNDER_DW[L1_UNDER], squeeze=1)
+	
+
+	g3under_shape = np.asarray(L_OUNDER[F_UNDER][1])
+	g3under_shape = tuple(g3under_shape[g3under_shape != 1])
+	for i in range(len(L_WUNDER)):
+		DG3UNDER_DW[i][1] = tuple(np.concatenate((g3under_shape, L_WUNDER[i][1])))
+		DG3UNDER_DB[i][1] = tuple(np.concatenate((g3under_shape, L_BUNDER[i][1])))
 	
 	return DG3UNDER_DW, DG3UNDER_DB
 	
