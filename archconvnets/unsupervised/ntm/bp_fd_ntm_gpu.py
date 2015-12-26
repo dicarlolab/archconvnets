@@ -242,7 +242,7 @@ def g(y):
 			return DBW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e6
+eps = np.sqrt(np.finfo(np.float).eps)*1e8
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

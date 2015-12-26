@@ -85,6 +85,11 @@ static PyObject *dot(PyObject *self, PyObject *args){
 	long buffer2_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)buffer_shape2,0));
 	long buffer2_dim2 = PyLong_AsLong(PyTuple_GetItem((PyObject *)buffer_shape2,1));
 	
+	if(buffer1_dim2 != buffer2_dim1){
+		printf("inner dot product dimensions do not match, (%li, %li), (%li, %li)\n", buffer1_dim1, buffer1_dim2, buffer2_dim1, buffer2_dim2);
+		return NULL;
+	}
+	
 	if(buffer1_dim1*buffer1_dim2*sizeof(DATA_TYPE) != BUFFER_SZ1 || buffer2_dim1*buffer2_dim2*sizeof(DATA_TYPE) != BUFFER_SZ2){
 		printf("specified input sizes do not equal to stored gpu buffer. dot_cpu()\n");
 		return NULL;

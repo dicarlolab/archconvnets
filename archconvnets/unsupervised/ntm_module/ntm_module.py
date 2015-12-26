@@ -10,22 +10,35 @@ def check_buffer(BUFFER):
 	assert BUFFER[0] >= 0
 	assert isinstance(BUFFER[1], tuple) or BUFFER[1] == None
 
-def mult_partials(DA_DB, DB_DC, B, OUT_BUFFER, increment=0, gpu_ind=0):
+def mult_partials(DA_DB, DB_DC, B, OUT_BUFFER, increment=0, squeeze=0, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(increment,int)
 	check_buffer(DA_DB)
 	check_buffer(DB_DC)
 	check_buffer(OUT_BUFFER)
 	check_buffer(B)
-	b_ndim = len(B[1])
+	B_shape = np.asarray(B[1])
 	
 	da_db_shape = np.asarray(DA_DB[1])
 	db_dc_shape = np.asarray(DB_DC[1])
+	
+	if squeeze == 1:
+		da_db_shape = da_db_shape[da_db_shape != 1]
+		db_dc_shape = db_dc_shape[db_dc_shape != 1]
+		B_shape = B_shape[B_shape != 1]
+	
+	b_ndim = len(B_shape)
 	
 	a_ndim = len(da_db_shape) - b_ndim
 	c_ndim = len(db_dc_shape) - b_ndim
 	
 	assert c_ndim > 0
+	assert (db_dc_shape[:b_ndim] == B_shape).sum() == b_ndim
+	#assert a_ndim >
+	#if a_ndim <= 0:
+	#	print da_db_shape, db_dc_shape, B_shape
+	#	print (np.prod(da_db_shape[:a_ndim]), np.prod(da_db_shape[a_ndim:])), (np.prod(db_dc_shape[:b_ndim]), np.prod(db_dc_shape[b_ndim:]))
+	#	print 
 	
 	da_db_shape = (np.prod(da_db_shape[:a_ndim]), np.prod(da_db_shape[a_ndim:]))
 	db_dc_shape = (np.prod(db_dc_shape[:b_ndim]), np.prod(db_dc_shape[b_ndim:]))
