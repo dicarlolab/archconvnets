@@ -331,7 +331,7 @@ def return_buffer(BUFFER, gpu_ind=0):
 
 	return _ntm_module.return_buffer(BUFFER[0], gpu_ind).reshape(BUFFER[1])
 	
-def dot(BUFFER1, BUFFER2, OUT_BUFFER, gpu_ind=0):
+def dot(BUFFER1, BUFFER2, OUT_BUFFER, increment=0, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	check_buffer(BUFFER1)
 	check_buffer(BUFFER2)
@@ -341,8 +341,22 @@ def dot(BUFFER1, BUFFER2, OUT_BUFFER, gpu_ind=0):
 	assert OUT_BUFFER[0] != BUFFER1[0]
 	assert OUT_BUFFER[0] != BUFFER2[0]
 	
-	_ntm_module.dot(BUFFER1[0], BUFFER1[1], BUFFER2[0], BUFFER2[1], OUT_BUFFER[0], gpu_ind)
+	_ntm_module.dot(BUFFER1[0], BUFFER1[1], BUFFER2[0], BUFFER2[1], OUT_BUFFER[0], increment, gpu_ind)
 	OUT_BUFFER[1] = (BUFFER1[1][0], BUFFER2[1][1])
+
+def add_mem(GW, ADD_OUT, OUT_BUFFER, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	check_buffer(GW)
+	check_buffer(ADD_OUT)
+	check_buffer(OUT_BUFFER)
+	assert len(GW[1]) == len(ADD_OUT[1]) == 2
+	assert GW[1][0] == ADD_OUT[1][0]
+	assert OUT_BUFFER[0] != GW[0]
+	assert OUT_BUFFER[0] != ADD_OUT[0]
+	
+	_ntm_module.add_mem(GW[0], GW[1], ADD_OUT[0], ADD_OUT[1], OUT_BUFFER[0], gpu_ind)
+	OUT_BUFFER[1] = (GW[1][1], ADD_OUT[1][1])
+
 
 def sharpen_dgamma_cpu(w, gamma, warn=True):
 	assert w.dtype == np.dtype('float32')

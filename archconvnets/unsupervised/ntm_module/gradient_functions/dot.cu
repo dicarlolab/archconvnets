@@ -33,6 +33,8 @@ __global__ void dot_kernel(float * data1, float * data2, float * data_out, int b
 		if(ind_g >= data_out_numel) assert(0); // out of bounds
 		#endif
 		
+		// we are computing the output data_out[i,j]... determine start indices of data1 & data2 for summation:
+		
 		data1_ind = buffer1_dim2 * (ind_g / buffer2_dim2); // i = ind_g / buffer2_dim2;   data1_ind = DATA1_IND(i,0);
 		data2_ind = ind_g % buffer2_dim2; //   j = ind_g % buffer2_dim2;   DATA2_IND(0,j);
 		
@@ -50,7 +52,7 @@ __global__ void dot_kernel(float * data1, float * data2, float * data_out, int b
 static PyObject *dot(PyObject *self, PyObject *args){
 	cudaError_t err;
 	int gpu_ind, buffer_ind1, buffer_ind2, out_buffer_ind, increment;
-	PyTupleObject *buffer_shape1, *buffer_shape2;
+	PyObject *buffer_shape1, *buffer_shape2;
 	
 	if (!PyArg_ParseTuple(args, "iO!iO!iii", &buffer_ind1, &PyTuple_Type, &buffer_shape1, &buffer_ind2, 
 			&PyTuple_Type, &buffer_shape2, &out_buffer_ind, &increment, &gpu_ind)) 
@@ -68,22 +70,17 @@ static PyObject *dot(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(BUFFER_SZ1 == 0 || BUFFER_SZ2 == 0){
-		printf("buffer not initialized. use set_buffers()\n");
-		return NULL;
-	}
-	
 	if(increment != 0 && increment != 1){
 		printf("increment value not set to zero or one\n");
 		return NULL;
 	}
 	
 	// get sizes
-	long buffer1_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)buffer_shape1,0));
-	long buffer1_dim2 = PyLong_AsLong(PyTuple_GetItem((PyObject *)buffer_shape1,1));
+	long buffer1_dim1 = PyLong_AsLong(PyTuple_GetItem(buffer_shape1,0));
+	long buffer1_dim2 = PyLong_AsLong(PyTuple_GetItem(buffer_shape1,1));
 	
-	long buffer2_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)buffer_shape2,0));
-	long buffer2_dim2 = PyLong_AsLong(PyTuple_GetItem((PyObject *)buffer_shape2,1));
+	long buffer2_dim1 = PyLong_AsLong(PyTuple_GetItem(buffer_shape2,0));
+	long buffer2_dim2 = PyLong_AsLong(PyTuple_GetItem(buffer_shape2,1));
 	
 	if(buffer1_dim2 != buffer2_dim1){
 		printf("inner dot product dimensions do not match, (%li, %li), (%li, %li)\n", buffer1_dim1, buffer1_dim2, buffer2_dim1, buffer2_dim2);
