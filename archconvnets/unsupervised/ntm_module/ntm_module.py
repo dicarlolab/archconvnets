@@ -8,14 +8,14 @@ def check_buffer(BUFFER):
 	assert BUFFER[0] >= 0
 	assert isinstance(BUFFER[1], tuple) or BUFFER[1] == None
 
-def mult_partials(DA_DB, DB_DC, b_ndim, OUT_BUFFER, increment=0, gpu_ind=0):
+def mult_partials(DA_DB, DB_DC, B, OUT_BUFFER, increment=0, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(increment,int)
 	check_buffer(DA_DB)
 	check_buffer(DB_DC)
 	check_buffer(OUT_BUFFER)
-	assert isinstance(b_ndim,int)
-	assert b_ndim > 0
+	check_buffer(B)
+	b_ndim = len(B[1])
 	
 	da_db_shape = np.asarray(DA_DB[1])
 	db_dc_shape = np.asarray(DB_DC[1])
@@ -32,7 +32,7 @@ def mult_partials(DA_DB, DB_DC, b_ndim, OUT_BUFFER, increment=0, gpu_ind=0):
 	OUT_BUFFER[1] = (da_db_shape[0], db_dc_shape[1])
 
 # multiply list of partials
-def mult_partials_chain(L_DA_DB, B_NDIM, L_OUT_BUFFER, gpu_ind=0):
+def mult_partials_chain(L_DA_DB, B, L_OUT_BUFFER, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert len(L_DA_DB) == len(L_OUT_BUFFER)
 	DA_DX = L_DA_DB[0]
@@ -40,11 +40,11 @@ def mult_partials_chain(L_DA_DB, B_NDIM, L_OUT_BUFFER, gpu_ind=0):
 	for x in range(1, len(L_DA_DB)):
 		check_buffer(L_DA_DB[x])
 		check_buffer(L_OUT_BUFFER[x])
-		mult_partials(DA_DX, L_DA_DB[x], B_NDIM[x-1], L_OUT_BUFFER[x])
+		mult_partials(DA_DX, L_DA_DB[x], B[x-1], L_OUT_BUFFER[x])
 		DA_DX = L_OUT_BUFFER[x]
 
 # mult_partials for all layers in DB_DC (a list of indices)
-def mult_partials__layers(DA_DB, L_DB_DC, b_ndim, OUT_BUFFER, increment=0, gpu_ind=0):
+def mult_partials__layers(DA_DB, L_DB_DC, B, OUT_BUFFER, increment=0, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(increment,int)
 	check_buffer(DA_DB)
@@ -53,7 +53,7 @@ def mult_partials__layers(DA_DB, L_DB_DC, b_ndim, OUT_BUFFER, increment=0, gpu_i
 	
 	for l in range(len(L_DB_DC)):
 		check_buffer(L_DB_DC[l])
-		mult_partials(DA_DB, L_DB_DC[l], b_ndim, OUT_BUFFER[l], increment=increment, gpu_ind=gpu_ind)
+		mult_partials(DA_DB, L_DB_DC[l], B, OUT_BUFFER[l], increment=increment, gpu_ind=gpu_ind)
 
 def sq_points_dinput(INPUT, OUT_BUFFER, gpu_ind=0):
 	assert isinstance(gpu_ind,int)

@@ -16,8 +16,8 @@ from archconvnets.unsupervised.ntm_module.ntm_module import init_buffer, set_lis
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 
-DERIV_L = L1_ABOVE
-#DERIV_L = F_ABOVE
+#DERIV_L = L1_ABOVE
+DERIV_L = F_ABOVE
 
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
