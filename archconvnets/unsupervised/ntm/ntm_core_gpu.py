@@ -107,7 +107,11 @@ def dunder_gpu(L_WUNDER, L_BUNDER, L_OUNDER, X):
 	DG3UNDER_DG2UNDER = init_buffer()
 	DG2UNDER_DW2UNDER = init_buffer()
 	DG3UNDER_RELU_DG2UNDER = init_buffer()
-	
+	DG2UNDER_DG1UNDER_RELU = init_buffer()
+	DG1UNDER_RELU_DG1UNDER = init_buffer()
+	DG2UNDER_DG1UNDER = init_buffer()
+	DG1UNDER_DW1UNDER = init_buffer()
+	DG2UNDER_DW1UNDER = init_buffer()
 	
 	nm.relu_dlayer_in(L_OUNDER[F_UNDER], DG3UNDER_RELU_DG3UNDER)
 	nm.linear_F_dF(L_WUNDER[F_UNDER], L_OUNDER[L2_UNDER], DG3UNDER_DW3UNDER)
@@ -122,21 +126,15 @@ def dunder_gpu(L_WUNDER, L_BUNDER, L_OUNDER, X):
 	DG3UNDER_DB[L2_UNDER] = DG3UNDER_RELU_DG2UNDER
 	nm.mult_partials(DG3UNDER_RELU_DG2UNDER, DG2UNDER_DW2UNDER, L_OUNDER[L2_UNDER], DG3UNDER_DW[L2_UNDER], squeeze=1)
 	
+	nm.linear_F_dx(L_WUNDER[L2_UNDER], L_OUNDER[L1_UNDER], DG2UNDER_DG1UNDER_RELU)
+	nm.relu_dlayer_in(L_OUNDER[L1_UNDER], DG1UNDER_RELU_DG1UNDER)
+	nm.mult_partials(DG2UNDER_DG1UNDER_RELU, DG1UNDER_RELU_DG1UNDER, L_OUNDER[L1_UNDER], DG2UNDER_DG1UNDER)
+	nm.linear_F_dF(L_WUNDER[L1_UNDER], X, DG1UNDER_DW1UNDER)
+	nm.mult_partials(DG2UNDER_DG1UNDER, DG1UNDER_DW1UNDER,  L_OUNDER[L1_UNDER], DG2UNDER_DW1UNDER, squeeze=1)
+	nm.mult_partials(DG3UNDER_RELU_DG2UNDER, DG2UNDER_DG1UNDER, L_OUNDER[L2_UNDER], DG3UNDER_DB[L1_UNDER], squeeze=1)
+	nm.mult_partials(DG3UNDER_RELU_DG2UNDER, DG2UNDER_DW1UNDER, L_OUNDER[L2_UNDER], DG3UNDER_DW[L1_UNDER], squeeze=1)
 	
-	
-	'''
-	DG3UNDER_DW[L2_UNDER] = mult_partials(dg3under_relu_dg2under, dg2under_dw2under, OUNDER[L2_UNDER].squeeze())
-
-	dg2under_dg1under_relu = linear_F_dx(WUNDER[L2_UNDER], OUNDER[L1_UNDER])
-	dg1under_relu_dg1under = relu_dlayer_in(OUNDER[L1_UNDER])
-	dg2under_dg1under = mult_partials(dg2under_dg1under_relu[:,:,np.newaxis], dg1under_relu_dg1under, OUNDER[L1_UNDER]).squeeze()
-	dg1under_dw1under = linear_F_dF(WUNDER[L1_UNDER], x).squeeze()
-	dg2under_dw1under = mult_partials(dg2under_dg1under, dg1under_dw1under,  OUNDER[L1_UNDER].squeeze())
-	DG3UNDER_DB[L1_UNDER] = mult_partials(dg3under_relu_dg2under, dg2under_dg1under, OUNDER[L2_UNDER].squeeze())[:,:,np.newaxis]
-	DG3UNDER_DW[L1_UNDER] = mult_partials(dg3under_relu_dg2under, dg2under_dw1under, OUNDER[L2_UNDER].squeeze())
-	
-	return DG3UNDER_DW, DG3UNDER_DB'''
-	return
+	return DG3UNDER_DW, DG3UNDER_DB
 	
 	
 #### intermediate gradients used in several places in do_dw__inputs() and do_dw__mem_prev()
@@ -326,10 +324,13 @@ def mem_partials_gpu(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_D
 	L_OUNDER_PREV = set_list_buffer(OUNDER_PREV)
 	X_PREV = init_buffer(x_prev)
 	
-	dunder_gpu(L_WUNDER, L_BUNDER, L_OUNDER_PREV, X_PREV)
+	DG3UNDER_DW, DG3UNDER_DB = dunder_gpu(L_WUNDER, L_BUNDER, L_OUNDER_PREV, X_PREV)
+	
+	DG3UNDER_DW = return_list_buffer(DG3UNDER_DW)
+	DG3UNDER_DB = return_list_buffer(DG3UNDER_DB)
 	
 	####################
-	DG3UNDER_DW, DG3UNDER_DB = dunder(WUNDER, BUNDER, OUNDER_PREV, x_prev)
+	###########DG3UNDER_DW, DG3UNDER_DB = dunder(WUNDER, BUNDER, OUNDER_PREV, x_prev)
 	# mem = mem_prev*(1 - e) + a
 	# dmem = dmem_prev*(1 - e) - mem_prev*de + da
 	
