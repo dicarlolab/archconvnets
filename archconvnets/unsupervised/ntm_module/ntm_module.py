@@ -8,8 +8,9 @@ def check_buffer(BUFFER):
 	assert BUFFER[0] >= 0
 	assert isinstance(BUFFER[1], tuple) or BUFFER[1] == None
 
-def mult_partials(DA_DB, DB_DC, b_ndim, OUT_BUFFER, gpu_ind=0):
+def mult_partials(DA_DB, DB_DC, b_ndim, OUT_BUFFER, increment=0, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	assert isinstance(increment,int)
 	check_buffer(DA_DB)
 	check_buffer(DB_DC)
 	check_buffer(OUT_BUFFER)
@@ -27,7 +28,7 @@ def mult_partials(DA_DB, DB_DC, b_ndim, OUT_BUFFER, gpu_ind=0):
 	da_db_shape = (np.prod(da_db_shape[:a_ndim]), np.prod(da_db_shape[a_ndim:]))
 	db_dc_shape = (np.prod(db_dc_shape[:b_ndim]), np.prod(db_dc_shape[b_ndim:]))
 	
-	_ntm_module.dot(DA_DB[0], da_db_shape, DB_DC[0], db_dc_shape, OUT_BUFFER[0], gpu_ind)
+	_ntm_module.dot(DA_DB[0], da_db_shape, DB_DC[0], db_dc_shape, OUT_BUFFER[0], increment, gpu_ind)
 	OUT_BUFFER[1] = (da_db_shape[0], db_dc_shape[1])
 
 # multiply list of partials
@@ -43,20 +44,16 @@ def mult_partials_chain(L_DA_DB, B_NDIM, L_OUT_BUFFER, gpu_ind=0):
 		DA_DX = L_OUT_BUFFER[x]
 
 # mult_partials for all layers in DB_DC (a list of indices)
-def mult_partials__layers(DA_DB, L_DB_DC, b_ndim, OUT_BUFFER, L_DB_DC_INIT=None, gpu_ind=0):
+def mult_partials__layers(DA_DB, L_DB_DC, b_ndim, OUT_BUFFER, increment=0, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	assert isinstance(increment,int)
 	check_buffer(DA_DB)
 	
-	if L_DB_DC_INIT != None:
-		assert len(L_DB_DC) == len(L_DB_DC_INIT)
+	assert len(L_DB_DC) == len(OUT_BUFFER)
 	
 	for l in range(len(L_DB_DC)):
 		check_buffer(L_DB_DC[l])
-		mult_partials(DA_DB, L_DB_DC[l], b_ndim, OUT_BUFFER[l], gpu_ind)
-		
-		if L_DB_DC_INIT != None:
-			check_buffer(L_DB_DC_INIT[l])
-			point_wise_add(OUT_BUFFER[l], L_DB_DC_INIT[l], gpu_ind=gpu_ind)
+		mult_partials(DA_DB, L_DB_DC[l], b_ndim, OUT_BUFFER[l], increment=increment, gpu_ind=gpu_ind)
 
 def sq_points_dinput(INPUT, OUT_BUFFER, gpu_ind=0):
 	assert isinstance(gpu_ind,int)

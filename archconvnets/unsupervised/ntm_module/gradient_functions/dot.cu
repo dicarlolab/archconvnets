@@ -16,7 +16,7 @@
 #define DATA_OUT_NUMEL (buffer1_dim1*buffer2_dim2)
 
 __global__ void dot_kernel(float * data1, float * data2, float * data_out, int buffer1_dim1, int buffer1_dim2, int buffer2_dim1, 
-			int buffer2_dim2, int data_out_numel){
+			int buffer2_dim2, int data_out_numel, int increment){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
 	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
@@ -36,7 +36,8 @@ __global__ void dot_kernel(float * data1, float * data2, float * data_out, int b
 		data1_ind = buffer1_dim2 * (ind_g / buffer2_dim2); // i = ind_g / buffer2_dim2;   data1_ind = DATA1_IND(i,0);
 		data2_ind = ind_g % buffer2_dim2; //   j = ind_g % buffer2_dim2;   DATA2_IND(0,j);
 		
-		data_out[ind_g] = 0;
+		if(increment != 1)
+			data_out[ind_g] = 0;
 		for(int k = 0; k < buffer1_dim2; k++){
 			data_out[ind_g] += data1[data1_ind] * data2[data2_ind];
 			
@@ -48,11 +49,11 @@ __global__ void dot_kernel(float * data1, float * data2, float * data_out, int b
 
 static PyObject *dot(PyObject *self, PyObject *args){
 	cudaError_t err;
-	int gpu_ind, buffer_ind1, buffer_ind2, out_buffer_ind;
+	int gpu_ind, buffer_ind1, buffer_ind2, out_buffer_ind, increment;
 	PyTupleObject *buffer_shape1, *buffer_shape2;
 	
-	if (!PyArg_ParseTuple(args, "iO!iO!ii", &buffer_ind1, &PyTuple_Type, &buffer_shape1, &buffer_ind2, 
-			&PyTuple_Type, &buffer_shape2, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!iO!iii", &buffer_ind1, &PyTuple_Type, &buffer_shape1, &buffer_ind2, 
+			&PyTuple_Type, &buffer_shape2, &out_buffer_ind, &increment, &gpu_ind)) 
 		return NULL;
         
 	if(buffer_ind1 >= N_BUFFERS || buffer_ind1 < 0 || 
@@ -69,6 +70,11 @@ static PyObject *dot(PyObject *self, PyObject *args){
 	
 	if(BUFFER_SZ1 == 0 || BUFFER_SZ2 == 0){
 		printf("buffer not initialized. use set_buffers()\n");
+		return NULL;
+	}
+	
+	if(increment != 0 && increment != 1){
+		printf("increment value not set to zero or one\n");
 		return NULL;
 	}
 	
@@ -101,7 +107,7 @@ static PyObject *dot(PyObject *self, PyObject *args){
 	
 	// run kernel
 	dot_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (GPU_BUFFER1, GPU_BUFFER2, GPU_BUFFER_OUT, buffer1_dim1, buffer1_dim2, 
-			buffer2_dim1, buffer2_dim2, DATA_OUT_NUMEL);
+			buffer2_dim1, buffer2_dim2, DATA_OUT_NUMEL, increment);
 		
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	

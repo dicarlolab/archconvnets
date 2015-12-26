@@ -377,16 +377,21 @@ def set_list_buffer(ind_counter, DATA):
 	LIST = [None]*len(DATA)
 	
 	for i in range(len(DATA)):
-		if DATA[i] is not None:
-			LIST[i], ind_counter = init_buffer(ind_counter, DATA[i])
+		LIST[i], ind_counter = init_buffer(ind_counter, DATA[i])
 	return LIST, ind_counter
+
+def return_list_buffer(LIST, SHAPE=None):
+	DATA = [None]*len(LIST)
+	for i in range(len(LIST)):
+		DATA[i] = nm.return_buffer(LIST[i])
+		if SHAPE is not None:
+			DATA[i] = DATA[i].reshape(SHAPE[i][1])
+	return DATA
 
 def full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \
 				L_DOR_DWW, L_DOR_DBW, L_DOR_DWUNDER, L_DOR_DBUNDER, L_OR, \
 				L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, \
-				L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_OABOVE, L_WABOVE, L_BABOVE,\
-				L_DWR, L_DBR, L_DWW, L_DBW, L_DWUNDER, \
-				L_DBUNDER, L_DWABOVE, L_DBABOVE, ind_counter):
+				L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_OABOVE, L_WABOVE, ind_counter):
 	
 	DIFF_OUT, ind_counter = init_buffer(ind_counter)
 	DERR_DG2ABOVE_RELU, ind_counter = init_buffer(ind_counter)
@@ -395,14 +400,23 @@ def full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \
 	DG2ABOVE_DG1ABOVE_RELU, ind_counter = init_buffer(ind_counter)
 	DG1ABOVE_RELU_DG1ABOVE, ind_counter = init_buffer(ind_counter)
 	DG1ABOVE_DREAD_MEM, ind_counter = init_buffer(ind_counter)
-	DERR_DG1ABOVE, ind_counter = init_buffer(ind_counter)
 	DG2ABOVE_DW2ABOVE, ind_counter = init_buffer(ind_counter)
 	DG1ABOVE_DW1ABOVE, ind_counter = init_buffer(ind_counter)
+	DERR_DREAD_MEM, ind_counter = init_buffer(ind_counter)
+	DREAD_MEM_DOR, ind_counter = init_buffer(ind_counter)
+	DERR_DOR, ind_counter = init_buffer(ind_counter)
+	DREAD_MEM_DMEM_PREV, ind_counter = init_buffer(ind_counter)
+	DERR_DMEM_PREV, ind_counter = init_buffer(ind_counter)
 	
-	DERR_DG1ABOVE = [None]*3
-	DERR_DG1ABOVE[0] = [ind_counter, None]; ind_counter += 1
-	DERR_DG1ABOVE[1] = [ind_counter, None]; ind_counter += 1
-	DERR_DG1ABOVE[2] = [ind_counter, None]; ind_counter += 1
+	L_DERR_DG1ABOVE, ind_counter = set_list_buffer(ind_counter, [None]*3)
+	L_DWR, ind_counter = set_list_buffer(ind_counter, [None]*len(L_DOR_DWR))
+	L_DBR, ind_counter = set_list_buffer(ind_counter, [None]*len(L_DOR_DBR))
+	L_DWW, ind_counter = set_list_buffer(ind_counter, [None]*len(L_DOR_DWW))
+	L_DBW, ind_counter = set_list_buffer(ind_counter, [None]*len(L_DOR_DBW))
+	L_DWABOVE, ind_counter = set_list_buffer(ind_counter, [None]*len(L_OABOVE))
+	L_DBABOVE, ind_counter = set_list_buffer(ind_counter, [None]*len(L_OABOVE))
+	L_DWUNDER, ind_counter = set_list_buffer(ind_counter, [None]*len(L_DOR_DWUNDER))
+	L_DBUNDER, ind_counter = set_list_buffer(ind_counter, [None]*len(L_DOR_DBUNDER))
 	
 	READ_MEM_reshape = copy.deepcopy(READ_MEM)
 	READ_MEM_reshape[1] = (C*mem_length,1)
@@ -421,41 +435,39 @@ def full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \
 	nm.relu_dlayer_in(L_OABOVE[L1_ABOVE], DG1ABOVE_RELU_DG1ABOVE)
 	nm.linear_F_dx(L_WABOVE[L1_ABOVE], READ_MEM_reshape, DG1ABOVE_DREAD_MEM)
 	nm.mult_partials_chain((DERR_DG2ABOVE, DG2ABOVE_DG1ABOVE_RELU, DG1ABOVE_RELU_DG1ABOVE), \
-			(len(L_OABOVE[F_ABOVE][1]), len(L_OABOVE[L1_ABOVE])), DERR_DG1ABOVE)
-	DERR_DG1ABOVE = DERR_DG1ABOVE[-1]
+			(len(L_OABOVE[F_ABOVE][1]), len(L_OABOVE[L1_ABOVE][1])), L_DERR_DG1ABOVE)
+	DERR_DG1ABOVE = L_DERR_DG1ABOVE[-1]
 	
 	# above weight gradients
 	nm.linear_F_dF(L_WABOVE[F_ABOVE], L_OABOVE[L1_ABOVE], DG2ABOVE_DW2ABOVE)
 	nm.linear_F_dF(L_WABOVE[L1_ABOVE], READ_MEM_reshape, DG1ABOVE_DW1ABOVE)
 	
-	# above weight gradients
-	DWABOVE = [None]*len(WABOVE); DBABOVE = [None]*len(BABOVE)
+	nm.mult_partials(DERR_DG2ABOVE, DG2ABOVE_DW2ABOVE, len(L_OABOVE[F_ABOVE][1]), L_DWABOVE[F_ABOVE])
+	nm.mult_partials(DERR_DG1ABOVE, DG1ABOVE_DW1ABOVE, len(L_OABOVE[L1_ABOVE][1]), L_DWABOVE[L1_ABOVE])
 	
-	
-	DWABOVE[F_ABOVE] = mult_partials(derr_dg2above, dg2above_dw2above, OABOVE[F_ABOVE])
-	DWABOVE[L1_ABOVE] = mult_partials(derr_dg1above, dg1above_dw1above, OABOVE[L1_ABOVE]).squeeze()
-	DBABOVE[F_ABOVE] = derr_dg2above[np.newaxis]; DBABOVE[L1_ABOVE] = derr_dg1above#[:,:,np.newaxis]
+	L_DBABOVE[F_ABOVE] = copy.deepcopy(DERR_DG2ABOVE); L_DBABOVE[F_ABOVE][1] = tuple(np.concatenate(((1,), L_DBABOVE[F_ABOVE][1])))
+	L_DBABOVE[L1_ABOVE] = copy.deepcopy(DERR_DG1ABOVE)
 	
 	# read weights
-	derr_dread_mem = mult_partials(derr_dg1above, dg1above_dread_mem, OABOVE[L1_ABOVE])
-	dread_mem_dor = linear_F_dF(OR[F], mem_prev)
-	derr_dor = mult_partials(derr_dread_mem, dread_mem_dor, read_mem)
+	nm.mult_partials(DERR_DG1ABOVE, DG1ABOVE_DREAD_MEM, len(L_OABOVE[L1_ABOVE][1]), DERR_DREAD_MEM)
+	nm.linear_F_dF(L_OR[F], MEM_PREV, DREAD_MEM_DOR)
+	nm.mult_partials(DERR_DREAD_MEM, DREAD_MEM_DOR, len(READ_MEM[1]), DERR_DOR)
 	
-	DWR = mult_partials__layers(derr_dor, DOR_DWR, OR[F]) # 18.3%
-	DBR = mult_partials__layers(derr_dor, DOR_DBR, OR[F])
-	DWW = mult_partials__layers(derr_dor, DOR_DWW, OR[F]) # 38.5%
-	DBW = mult_partials__layers(derr_dor, DOR_DBW, OR[F])
-	DWUNDER = mult_partials__layers(derr_dor, DOR_DWUNDER, OR[F])
-	DBUNDER = mult_partials__layers(derr_dor, DOR_DBUNDER, OR[F])
+	nm.mult_partials__layers(DERR_DOR, L_DOR_DWR, len(L_OR[F][1]), L_DWR)
+	nm.mult_partials__layers(DERR_DOR, L_DOR_DBR, len(L_OR[F][1]), L_DBR)
+	nm.mult_partials__layers(DERR_DOR, L_DOR_DWW, len(L_OR[F][1]), L_DWW)
+	nm.mult_partials__layers(DERR_DOR, L_DOR_DBW, len(L_OR[F][1]), L_DBW)
+	nm.mult_partials__layers(DERR_DOR, L_DOR_DWUNDER, len(L_OR[F][1]), L_DWUNDER)
+	nm.mult_partials__layers(DERR_DOR, L_DOR_DBUNDER, len(L_OR[F][1]), L_DBUNDER)
 	
 	# write weights
-	dread_mem_dmem_prev = linear_F_dx(OR[F], mem_prev)
-	derr_dmem_prev = mult_partials(derr_dread_mem, dread_mem_dmem_prev, read_mem)
+	nm.linear_F_dx(L_OR[F], MEM_PREV, DREAD_MEM_DMEM_PREV)
+	nm.mult_partials(DERR_DREAD_MEM, DREAD_MEM_DMEM_PREV, len(READ_MEM[1]), DERR_DMEM_PREV)
 	
-	DWW = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DWW, mem_prev, DWW) # 20%
-	DBW = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DBW, mem_prev, DBW)
-	DWUNDER = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DWUNDER, mem_prev, DWUNDER)
-	DBUNDER = mult_partials__layers(derr_dmem_prev, DMEM_PREV_DBUNDER, mem_prev, DBUNDER)
+	nm.mult_partials__layers(DERR_DMEM_PREV, L_DMEM_PREV_DWW, len(MEM_PREV[1]), L_DWW, increment=1)
+	nm.mult_partials__layers(DERR_DMEM_PREV, L_DMEM_PREV_DBW, len(MEM_PREV[1]), L_DBW, increment=1)
+	nm.mult_partials__layers(DERR_DMEM_PREV, L_DMEM_PREV_DWUNDER, len(MEM_PREV[1]), L_DWUNDER, increment=1)
+	nm.mult_partials__layers(DERR_DMEM_PREV, L_DMEM_PREV_DBUNDER, len(MEM_PREV[1]), L_DBUNDER, increment=1)
 	
-	return DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DWABOVE, DBABOVE
+	return L_DWR, L_DBR, L_DWW, L_DBW, L_DWUNDER, L_DBUNDER, L_DWABOVE, L_DBABOVE
 

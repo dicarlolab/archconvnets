@@ -168,10 +168,13 @@ def g(y):
 			mem_prev_prev = copy.deepcopy(mem_prev); mem_prev = copy.deepcopy(mem)
 	
 	# full gradients from partials
+	t_cpu = time.time()
 	DWR, DBR, DWW, DBW, DWUNDER, DBUNDER, DWABOVE, DBABOVE = full_gradients(read_mem, t, mem_prev, DOR_DWR, DOR_DBR, \
 				DOR_DWW, DOR_DBW, DOR_DWUNDER, DOR_DBUNDER, OR, DMEM_PREV_DWW, DMEM_PREV_DBW, \
 				DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, OABOVE, WABOVE, BABOVE)
 
+	t_cpu = time.time() - t_cpu
+	
 	####
 	ind_counter = 0
 	READ_MEM, ind_counter = init_buffer(ind_counter, read_mem)
@@ -193,22 +196,36 @@ def g(y):
 	L_WABOVE, ind_counter = set_list_buffer(ind_counter, WABOVE)
 	L_BABOVE, ind_counter = set_list_buffer(ind_counter, BABOVE)
 	
-	L_DWR, ind_counter = set_list_buffer(ind_counter, WR)
-	L_DBR, ind_counter = set_list_buffer(ind_counter, BR)
-	L_DWW, ind_counter = set_list_buffer(ind_counter, WW)
-	L_DBW, ind_counter = set_list_buffer(ind_counter, BW)
-	L_DWUNDER, ind_counter = set_list_buffer(ind_counter, WUNDER)
-	L_DBUNDER, ind_counter = set_list_buffer(ind_counter, BUNDER)
-	L_DWABOVE, ind_counter = set_list_buffer(ind_counter, WABOVE)
-	L_DBABOVE, ind_counter = set_list_buffer(ind_counter, BABOVE)
+	L_WR, ind_counter = set_list_buffer(ind_counter, WR)
+	L_BR, ind_counter = set_list_buffer(ind_counter, BR)
+	L_WW, ind_counter = set_list_buffer(ind_counter, WW)
+	L_BW, ind_counter = set_list_buffer(ind_counter, BW)
+	L_WUNDER, ind_counter = set_list_buffer(ind_counter, WUNDER)
+	L_BUNDER, ind_counter = set_list_buffer(ind_counter, BUNDER)
+	L_WABOVE, ind_counter = set_list_buffer(ind_counter, WABOVE)
+	L_BABOVE, ind_counter = set_list_buffer(ind_counter, BABOVE)
 	####
 	
-	full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \
+	t_gpu = time.time()
+	
+	L_DWR, L_DBR, L_DWW, L_DBW, L_DWUNDER, L_DBUNDER, L_DWABOVE, L_DBABOVE = \
+		full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, \
 				L_DOR_DWW, L_DOR_DBW, L_DOR_DWUNDER, L_DOR_DBUNDER, L_OR, \
 				L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, \
-				L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_OABOVE, L_WABOVE, L_BABOVE,\
-				L_DWR, L_DBR, L_DWW, L_DBW, L_DWUNDER, \
-				L_DBUNDER, L_DWABOVE, L_DBABOVE, ind_counter)
+				L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_OABOVE, L_WABOVE, ind_counter)
+	nm.sync()
+	t_gpu = time.time() - t_gpu
+	
+	print t_gpu, t_cpu, t_cpu/t_gpu
+	
+	DWR = return_list_buffer(L_DWR, L_WR)
+	DBR = return_list_buffer(L_DBR, L_BR)
+	DWW = return_list_buffer(L_DWW, L_WW)
+	DBW = return_list_buffer(L_DBW, L_BW)
+	DWUNDER = return_list_buffer(L_DWUNDER, L_WUNDER)
+	DBUNDER = return_list_buffer(L_DBUNDER, L_BUNDER)
+	DWABOVE = return_list_buffer(L_DWABOVE, L_WABOVE)
+	DBABOVE = return_list_buffer(L_DBABOVE, L_BABOVE)
 	
 	####
 	if gradient_category == 'above':
