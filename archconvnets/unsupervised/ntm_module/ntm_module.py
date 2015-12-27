@@ -372,6 +372,22 @@ def add_mem_dgw(GW, ADD_OUT, OUT_BUFFER, gpu_ind=0):
 	
 	_ntm_module.add_mem_dgw(ADD_OUT[0], GW[1], ADD_OUT[1], OUT_BUFFER[0], gpu_ind)
 	OUT_BUFFER[1] = (M , mem_length, C, M)
+	
+def add_mem_dadd_out(GW, ADD_OUT, OUT_BUFFER, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	check_buffer(GW)
+	check_buffer(ADD_OUT)
+	check_buffer(OUT_BUFFER)
+	assert len(GW[1]) == len(ADD_OUT[1]) == 2
+	assert GW[1][0] == ADD_OUT[1][0]
+	assert OUT_BUFFER[0] != GW[0]
+	assert OUT_BUFFER[0] != ADD_OUT[0]
+	
+	C,M = GW[1]
+	mem_length = ADD_OUT[1][1]
+	
+	_ntm_module.add_mem_dadd_out(GW[0], GW[1], ADD_OUT[1], OUT_BUFFER[0], gpu_ind)
+	OUT_BUFFER[1] = (M , mem_length, C, mem_length)
 
 def sharpen_dgamma_cpu(w, gamma, warn=True):
 	assert w.dtype == np.dtype('float32')
