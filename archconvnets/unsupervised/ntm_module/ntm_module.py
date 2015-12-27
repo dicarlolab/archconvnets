@@ -81,6 +81,27 @@ def sq_points_dinput(INPUT, OUT_BUFFER, gpu_ind=0):
 	_ntm_module.sq_points_dinput(INPUT[0], INPUT[1], OUT_BUFFER[0], gpu_ind)
 	OUT_BUFFER[1] = (dim0, dim1, dim0, dim1)
 
+# a *= b * scalar
+# a: 4 dim
+# b: 2 dim
+def point_wise_mult_bcast2(A, B, scalar=1, OUT_BUFFER=None, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	check_buffer(A)
+	check_buffer(B)
+	
+	assert len(A[1]) == 4
+	assert len(B[1]) == 2
+	assert A[1][0] == B[1][0]
+	assert A[1][1] == B[1][1]
+	
+	if OUT_BUFFER != None:
+		check_buffer(OUT_BUFFER)
+		OUT_BUFFER[1] = copy.deepcopy(A[1])
+	else:
+		OUT_BUFFER = copy.deepcopy(A)
+	
+	_ntm_module.point_wise_mult_bcast2(A[0], A[1], B[0], np.single(scalar), OUT_BUFFER[0], gpu_ind)
+
 # a += b * scalar
 def point_wise_add(A, B, scalar=1, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)

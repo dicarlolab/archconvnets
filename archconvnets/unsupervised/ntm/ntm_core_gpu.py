@@ -345,6 +345,8 @@ def mem_partials_gpu(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_D
 	
 	mem_prev_times_de_dow = -add_mem_dgw(OW_PREV[ERASE]) * mem_prev_prev[:,:,np.newaxis,np.newaxis] # -mem_prev * de
 	
+	print add_mem_dgw(OW_PREV[ERASE]).shape, mem_prev_prev[:,:,np.newaxis,np.newaxis].shape, mem_prev_times_de_dow.shape
+	
 	# dmem_prev * (1 - e)
 	DMEM_PREV_DWW_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DWW)
 	DMEM_PREV_DBW_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DBW)
