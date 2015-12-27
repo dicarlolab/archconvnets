@@ -101,7 +101,7 @@ def point_wise_mult_bcast2(A, B, scalar=1, OUT_BUFFER=None, gpu_ind=0):
 	check_buffer(A)
 	check_buffer(B)
 	
-	assert len(A[1]) == 4
+	assert len(A[1]) > 2
 	assert len(B[1]) == 2
 	assert A[1][0] == B[1][0]
 	assert A[1][1] == B[1][1]

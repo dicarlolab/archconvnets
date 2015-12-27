@@ -1,4 +1,4 @@
-__global__ void point_wise_mult_bcast2_kernel(float * out, float * a, float * b, float scalar, int dim2_dim3_dim4, int dim3_dim4, int dim2, int data_out_numel){
+__global__ void point_wise_mult_bcast2_kernel(float * out, float * a, float * b, float scalar, int dim2_dimr, int dimr, int dim2, int data_out_numel){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
 	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
@@ -15,10 +15,10 @@ __global__ void point_wise_mult_bcast2_kernel(float * out, float * a, float * b,
 		if(ind_g >= data_out_numel) assert(0); // out of bounds
 		#endif
 		
-		i = ind_g / dim2_dim3_dim4;
-		remainder = ind_g % dim2_dim3_dim4;
+		i = ind_g / dim2_dimr;
+		remainder = ind_g % dim2_dimr;
 		
-		j = remainder / dim3_dim4;
+		j = remainder / dimr;
 		
 		out[ind_g] = a[ind_g] * b[i*dim2 + j] * scalar;
 	}
@@ -47,10 +47,14 @@ static PyObject * point_wise_mult_bcast2(PyObject *self, PyObject *args){
 	// get size
 	long dim1 = PyLong_AsLong(PyTuple_GetItem(a_shape,0));
 	long dim2 = PyLong_AsLong(PyTuple_GetItem(a_shape,1));
-	long dim3 = PyLong_AsLong(PyTuple_GetItem(a_shape,2));
-	long dim4 = PyLong_AsLong(PyTuple_GetItem(a_shape,3));
 	
-	if(buffer_sz[gpu_ind][a_ind] != dim1*dim2*dim3*dim4*sizeof(DATA_TYPE) || buffer_sz[gpu_ind][b_ind] != dim1*dim2*sizeof(DATA_TYPE)){
+	long n_dim = PyTuple_Size(a_shape);
+	long dimr = 1;
+	for(int i = 2; i < n_dim; i++){
+		dimr *= PyLong_AsLong(PyTuple_GetItem(a_shape,i));
+	}
+	
+	if(buffer_sz[gpu_ind][a_ind] != dim1*dim2*dimr*sizeof(DATA_TYPE) || buffer_sz[gpu_ind][b_ind] != dim1*dim2*sizeof(DATA_TYPE)){
 		printf("buffer size does not match given size\n");
 		return NULL;
 	}
@@ -72,7 +76,7 @@ static PyObject * point_wise_mult_bcast2(PyObject *self, PyObject *args){
 	
 	// run kernel
 	point_wise_mult_bcast2_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][a_ind], 
-		gpu_buffers[gpu_ind][b_ind], scalar, dim2*dim3*dim4, dim3*dim4, dim2, buffer_sz[gpu_ind][a_ind]/(sizeof(DATA_TYPE)));
+		gpu_buffers[gpu_ind][b_ind], scalar, dim2*dimr, dimr, dim2, buffer_sz[gpu_ind][a_ind]/(sizeof(DATA_TYPE)));
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	

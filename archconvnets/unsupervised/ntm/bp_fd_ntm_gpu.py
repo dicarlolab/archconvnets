@@ -14,10 +14,10 @@ from archconvnets.unsupervised.ntm_module.ntm_module import init_buffer, set_lis
 ##### which gradients to test
 #DERIV_L = L1_UNDER #### double-check!
 #DERIV_L = L2_UNDER
-DERIV_L = F_UNDER
+#DERIV_L = F_UNDER
 
 #DERIV_L = L1_ABOVE
-#DERIV_L = F_ABOVE
+DERIV_L = F_ABOVE
 
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
@@ -29,11 +29,11 @@ DERIV_L = F_UNDER
 
 #gradient_category = 'write'
 #gradient_category = 'read'
-gradient_category = 'under'
-#gradient_category = 'above'
+#gradient_category = 'under'
+gradient_category = 'above'
 
-gradient_weights = False # false means bias terms
-#gradient_weights = True
+#gradient_weights = False # false means bias terms
+gradient_weights = True
 
 ####
 if gradient_category == 'above':
@@ -242,7 +242,7 @@ def g(y):
 			return DBW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e8
+eps = np.sqrt(np.finfo(np.float).eps)*1e7
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
