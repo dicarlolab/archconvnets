@@ -32,6 +32,7 @@
 #include "gradient_functions/add_mem_dgw.cu"
 #include "gradient_functions/add_mem_dadd_out.cu"
 #include "gradient_functions/point_wise_mult_bcast2.c"
+#include "gradient_functions/point_wise_add_scalar.c"
 
 static PyMethodDef _ntm_module[] = {
 	{"sync", sync, METH_VARARGS},
@@ -66,6 +67,7 @@ static PyMethodDef _ntm_module[] = {
 	{"add_mem_dgw", add_mem_dgw, METH_VARARGS},
 	{"add_mem_dadd_out", add_mem_dadd_out, METH_VARARGS},
 	{"point_wise_mult_bcast2", point_wise_mult_bcast2, METH_VARARGS},
+	{"point_wise_add_scalar", point_wise_add_scalar, METH_VARARGS},
 	{NULL, NULL}
 };
 

@@ -328,7 +328,11 @@ def mem_partials_gpu(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_D
 	L_WUNDER = set_list_buffer(WUNDER)
 	L_BUNDER = set_list_buffer(BUNDER)
 	L_OUNDER_PREV = set_list_buffer(OUNDER_PREV)
+	L_OW_PREV = set_list_buffer(OW_PREV)
 	X_PREV = init_buffer(x_prev)
+	MEM_PREV_PREV = init_buffer(mem_prev_prev)
+	E = init_buffer()
+	MEM_PREV_TIMES_DE_DOW = init_buffer()
 	
 	DG3UNDER_DW, DG3UNDER_DB = dunder_gpu(L_WUNDER, L_BUNDER, L_OUNDER_PREV, X_PREV)
 	
@@ -341,13 +345,14 @@ def mem_partials_gpu(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_D
 	# dmem = dmem_prev*(1 - e) - mem_prev*de + da
 	
 	# write gradients (erase)
-	e = add_mem(OW_PREV[F], OW_PREV[ERASE])
+	nm.add_mem(L_OW_PREV[F], L_OW_PREV[ERASE], E)
 	
-	mem_prev_times_de_dow = -add_mem_dgw(OW_PREV[ERASE]) * mem_prev_prev[:,:,np.newaxis,np.newaxis] # -mem_prev * de
+	nm.add_mem_dgw(L_OW_PREV[F], L_OW_PREV[ERASE], MEM_PREV_TIMES_DE_DOW) # de_dow
+	nm.point_wise_mult_bcast2(MEM_PREV_TIMES_DE_DOW, MEM_PREV_PREV, scalar=-1) # -mem_prev * de
 	
-	#print e.shape, DMEM_PREV_DWUNDER[L1_UNDER].shape, DMEM_PREV_DWUNDER[F_UNDER].shape
-	# (6, 8) (6, 8, 20, 2) (6, 8, 9, 22)
+	mem_prev_times_de_dow = nm.return_buffer(MEM_PREV_TIMES_DE_DOW) #-add_mem_dgw(OW_PREV[ERASE]) * mem_prev_prev[:,:,np.newaxis,np.newaxis] # -mem_prev * de
 	
+	e = nm.return_buffer(E)
 	# dmem_prev * (1 - e)
 	DMEM_PREV_DWW_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DWW)
 	DMEM_PREV_DBW_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DBW)

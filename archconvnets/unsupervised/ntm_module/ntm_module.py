@@ -114,6 +114,20 @@ def point_wise_mult_bcast2(A, B, scalar=1, OUT_BUFFER=None, gpu_ind=0):
 	
 	_ntm_module.point_wise_mult_bcast2(A[0], A[1], B[0], np.single(scalar), OUT_BUFFER[0], gpu_ind)
 
+# a = a * scalar1 + scalar2
+def point_wise_add_scalar(A, scalar1=1, scalar2=1, OUT_BUFFER=None, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	check_buffer(A)
+	
+	if OUT_BUFFER != None:
+		check_buffer(OUT_BUFFER)
+		OUT_BUFFER[1] = copy.deepcopy(A[1])
+	else:
+		OUT_BUFFER = copy.deepcopy(A)
+	
+	_ntm_module.point_wise_add_scalar(A[0], np.single(scalar1), np.single(scalar2), OUT_BUFFER[0], gpu_ind)
+
+
 # a += b * scalar
 def point_wise_add(A, B, scalar=1, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
