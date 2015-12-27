@@ -81,6 +81,18 @@ def sq_points_dinput(INPUT, OUT_BUFFER, gpu_ind=0):
 	_ntm_module.sq_points_dinput(INPUT[0], INPUT[1], OUT_BUFFER[0], gpu_ind)
 	OUT_BUFFER[1] = (dim0, dim1, dim0, dim1)
 
+# L_A[i] *= b * scalar
+# L_A[i]: 4 dim
+# b: 2 dim
+def pointwise_mult_partials__layers(L_A, B, scalar=1, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	check_buffer(B)
+	
+	for i in range(len(L_A)):
+		check_buffer(L_A[i])
+		point_wise_mult_bcast2(L_A[i], B, scalar=scalar, gpu_ind=gpu_ind)
+	
+	
 # a *= b * scalar
 # a: 4 dim
 # b: 2 dim
