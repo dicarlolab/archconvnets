@@ -1,10 +1,3 @@
-#define DATA_OUT(A, B) data_out[(A)*buffer2_dim2 + (B)]
-#define DATA_OUT_IND(A, B) ((A)*buffer2_dim2 + (B))
-#define DATA1(A, B) data1[(A)*buffer1_dim2 + (B)]
-#define DATA1_IND(A, B) ((A)*buffer1_dim2 + (B))
-#define DATA2(A, B) data2[(A)*buffer2_dim2 + (B)]
-#define DATA2_IND(A, B) ((A)*buffer2_dim2 + (B))
-
 #define ADD_MEM_OUT_NUMEL (gw_dim2*add_out_dim2)
 #define ADD_MEM_OUT_SZ (ADD_MEM_OUT_NUMEL*sizeof(DATA_TYPE))
 
