@@ -29,6 +29,7 @@
 #include "gradient_functions/point_wise_add.c"
 #include "gradient_functions/sq_points_dinput.c"
 #include "gradient_functions/add_mem.cu"
+#include "gradient_functions/add_mem_dgw.cu"
 
 static PyMethodDef _ntm_module[] = {
 	{"sync", sync, METH_VARARGS},
@@ -60,6 +61,7 @@ static PyMethodDef _ntm_module[] = {
 	{"point_wise_add", point_wise_add, METH_VARARGS},
 	{"sq_points_dinput", sq_points_dinput, METH_VARARGS},
 	{"add_mem", add_mem, METH_VARARGS},
+	{"add_mem_dgw", add_mem_dgw, METH_VARARGS},
 	{NULL, NULL}
 };
 

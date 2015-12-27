@@ -343,7 +343,7 @@ def mem_partials_gpu(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_D
 	# write gradients (erase)
 	e = add_mem(OW_PREV[F], OW_PREV[ERASE])
 	
-	mem_prev_de_dow = -add_mem_dgw(OW_PREV[ERASE]) * mem_prev_prev[:,:,np.newaxis,np.newaxis] # -mem_prev * de
+	mem_prev_times_de_dow = -add_mem_dgw(OW_PREV[ERASE]) * mem_prev_prev[:,:,np.newaxis,np.newaxis] # -mem_prev * de
 	
 	# dmem_prev * (1 - e)
 	DMEM_PREV_DWW_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DWW)
@@ -352,10 +352,10 @@ def mem_partials_gpu(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_D
 	DMEM_PREV_DBUNDER_NEW = pointwise_mult_partials__layers(1 - e, DMEM_PREV_DBUNDER)
 	
 	# dmem_prev * (1 - e) - mem_prev * de
-	DMEM_PREV_DWW_NEW = mult_partials__layers(mem_prev_de_dow, DOW_DWW, OW_PREV[F], DMEM_PREV_DWW_NEW)
-	DMEM_PREV_DBW_NEW = mult_partials__layers(mem_prev_de_dow, DOW_DBW, OW_PREV[F], DMEM_PREV_DBW_NEW)
-	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(mem_prev_de_dow, DOW_DWUNDER, OW_PREV[F], DMEM_PREV_DWUNDER_NEW)
-	DMEM_PREV_DBUNDER_NEW = mult_partials__layers(mem_prev_de_dow, DOW_DBUNDER, OW_PREV[F], DMEM_PREV_DBUNDER_NEW)
+	DMEM_PREV_DWW_NEW = mult_partials__layers(mem_prev_times_de_dow, DOW_DWW, OW_PREV[F], DMEM_PREV_DWW_NEW)
+	DMEM_PREV_DBW_NEW = mult_partials__layers(mem_prev_times_de_dow, DOW_DBW, OW_PREV[F], DMEM_PREV_DBW_NEW)
+	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(mem_prev_times_de_dow, DOW_DWUNDER, OW_PREV[F], DMEM_PREV_DWUNDER_NEW)
+	DMEM_PREV_DBUNDER_NEW = mult_partials__layers(mem_prev_times_de_dow, DOW_DBUNDER, OW_PREV[F], DMEM_PREV_DBUNDER_NEW)
 	
 	###
 	# W[ERASE] gradients (de wrt W[ERASE])

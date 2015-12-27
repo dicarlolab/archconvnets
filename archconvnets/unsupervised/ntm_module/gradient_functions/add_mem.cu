@@ -1,7 +1,7 @@
 #define ADD_MEM_OUT_NUMEL (gw_dim2*add_out_dim2)
 #define ADD_MEM_OUT_SZ (ADD_MEM_OUT_NUMEL*sizeof(DATA_TYPE))
 
-__global__ void add_mem_kernel(float * gw, float * add_out, float * data_out, int gw_dim1, int gw_dim2, int add_out_dim1, 
+__global__ void add_mem_kernel(float * gw, float * add_out, float * data_out, int gw_dim2, int add_out_dim1, 
 			int add_out_dim2, int data_out_numel){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
@@ -93,7 +93,7 @@ static PyObject *add_mem(PyObject *self, PyObject *args){
 	
 	// run kernel
 	add_mem_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][gw_ind], gpu_buffers[gpu_ind][add_out_ind], 
-			GPU_BUFFER_OUT, gw_dim1, gw_dim2, add_out_dim1, add_out_dim2, ADD_MEM_OUT_NUMEL);
+			GPU_BUFFER_OUT, gw_dim2, add_out_dim1, add_out_dim2, ADD_MEM_OUT_NUMEL);
 		
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
