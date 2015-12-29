@@ -13,6 +13,7 @@ def check_buffer(BUFFER):
 def mult_partials(DA_DB, DB_DC, B, OUT_BUFFER, increment=0, squeeze=0, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(increment,int)
+	assert (OUT_BUFFER[1] is not None) or increment == 0
 	check_buffer(DA_DB)
 	check_buffer(DB_DC)
 	check_buffer(OUT_BUFFER)
@@ -59,16 +60,17 @@ def mult_partials_chain(L_DA_DB, B, L_OUT_BUFFER, gpu_ind=0):
 		DA_DX = L_OUT_BUFFER[x]
 
 # mult_partials for all layers in DB_DC (a list of indices)
-def mult_partials__layers(DA_DB, L_DB_DC, B, OUT_BUFFER, increment=0, gpu_ind=0):
+def mult_partials__layers(DA_DB, L_DB_DC, B, OUT_BUFFER, increment=0, squeeze=0, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(increment,int)
+	assert (OUT_BUFFER[1] is not None) or increment == 0
 	check_buffer(DA_DB)
 	
 	assert len(L_DB_DC) == len(OUT_BUFFER)
 	
 	for l in range(len(L_DB_DC)):
 		check_buffer(L_DB_DC[l])
-		mult_partials(DA_DB, L_DB_DC[l], B, OUT_BUFFER[l], increment=increment, gpu_ind=gpu_ind)
+		mult_partials(DA_DB, L_DB_DC[l], B, OUT_BUFFER[l], increment=increment, squeeze=squeeze, gpu_ind=gpu_ind)
 
 def sq_points_dinput(INPUT, OUT_BUFFER, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
@@ -234,6 +236,46 @@ def linear_F_dF(F, X, OUT_BUFFER, gpu_ind=0):
 	_ntm_module.linear_F_dF(X[0], X[1], F[1], OUT_BUFFER[0], gpu_ind)
 	OUT_BUFFER[1] = (F_dim0, X_dim1, F_dim0, X_dim0)
 
+def linear_2d_F_dF(F, X, OUT_BUFFER, gpu_ind=0):
+	# (16, 8, 16, 8, 9) (16, 8, 9) (9, 1)
+	assert isinstance(gpu_ind,int)
+	check_buffer(X)
+	check_buffer(F)
+	check_buffer(OUT_BUFFER)
+	assert len(X[1]) == 2
+	assert len(F[1]) == 3
+	
+	Fr = (F[1][0]*F[1][1], F[1][2])
+	
+	assert Fr[1] == X[1][0]
+	
+	F_dim0 = F[1][0]
+	F_dim1 = F[1][1]
+	X_dim0, X_dim1 = X[1]
+	
+	_ntm_module.linear_F_dF(X[0], X[1], Fr, OUT_BUFFER[0], gpu_ind)
+	OUT_BUFFER[1] = (F_dim0, F_dim1, F_dim0, F_dim1, X_dim0)
+
+def linear_2d_F_dx(F, X, OUT_BUFFER, gpu_ind=0):
+	# (16, 8, 16, 8, 9) (16, 8, 9) (9, 1)
+	assert isinstance(gpu_ind,int)
+	check_buffer(X)
+	check_buffer(F)
+	check_buffer(OUT_BUFFER)
+	assert len(X[1]) == 2
+	assert len(F[1]) == 3
+	
+	Fr = (F[1][0]*F[1][1], F[1][2])
+	
+	assert Fr[1] == X[1][0]
+	
+	F_dim0 = F[1][0]
+	F_dim1 = F[1][1]
+	X_dim0, X_dim1 = X[1]
+	
+	_ntm_module.linear_F_dx(F[0], X[1], Fr, OUT_BUFFER[0], gpu_ind)
+	OUT_BUFFER[1] = (F_dim0, F_dim1, X_dim0, X_dim1)
+	
 def relu_dlayer_in(LAYER_IN, OUT_BUFFER, thresh=0, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	check_buffer(LAYER_IN)
@@ -387,6 +429,7 @@ def dot(BUFFER1, BUFFER2, OUT_BUFFER, increment=0, gpu_ind=0):
 	assert BUFFER1[1][1] == BUFFER2[1][0]
 	assert OUT_BUFFER[0] != BUFFER1[0]
 	assert OUT_BUFFER[0] != BUFFER2[0]
+	assert (OUT_BUFFER[1] is not None) or increment == 0
 	
 	_ntm_module.dot(BUFFER1[0], BUFFER1[1], BUFFER2[0], BUFFER2[1], OUT_BUFFER[0], increment, gpu_ind)
 	OUT_BUFFER[1] = (BUFFER1[1][0], BUFFER2[1][1])

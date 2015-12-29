@@ -334,6 +334,11 @@ def mem_partials_gpu(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_D
 	L_DMEM_PREV_DWUNDER = set_list_buffer(DMEM_PREV_DWUNDER)
 	L_DMEM_PREV_DBUNDER = set_list_buffer(DMEM_PREV_DBUNDER)
 	
+	L_WW = set_list_buffer(WW)
+	L_BW = set_list_buffer(BW)
+	L_WUNDER = set_list_buffer(WUNDER)
+	L_BUNDER = set_list_buffer(BUNDER)
+	
 	LO_DMEM_PREV_DWW = set_list_buffer(DMEM_PREV_DWW)
 	LO_DMEM_PREV_DBW = set_list_buffer(DMEM_PREV_DBW)
 	LO_DMEM_PREV_DWUNDER = set_list_buffer(DMEM_PREV_DWUNDER)
@@ -348,11 +353,19 @@ def mem_partials_gpu(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_D
 	MEM_PREV_PREV = init_buffer(mem_prev_prev)
 	E = init_buffer()
 	MEM_PREV_TIMES_DE_DOW = init_buffer()
+	MEM_PREV_DE_DERASE_OUT_SIG = init_buffer()
+	DERASE_OUT_SIG_DERASE_OUT = init_buffer()
+	MEM_PREV_DE_DERASE_OUT = init_buffer()
+	DERASE_OUT_DWADD = init_buffer()
+	DERASE_OUT_DG3UNDER = init_buffer()
+	MEM_PREV_DE_DG3UNDER = init_buffer()
+	DA_DADD_OUT = init_buffer()
+	DA_DOW = init_buffer()
+	DADD_OUT_DWADD = init_buffer()
+	DADD_OUT_DG3UNDER = init_buffer()
+	DA_DG3UNDER = init_buffer()
 	
 	DG3UNDER_DW, DG3UNDER_DB = dunder_gpu(L_WUNDER, L_BUNDER, L_OUNDER_PREV, X_PREV)
-	
-	DG3UNDER_DW = return_list_buffer(DG3UNDER_DW)
-	DG3UNDER_DB = return_list_buffer(DG3UNDER_DB)
 	
 	####################
 	###########DG3UNDER_DW, DG3UNDER_DB = dunder(WUNDER, BUNDER, OUNDER_PREV, x_prev)
@@ -378,49 +391,54 @@ def mem_partials_gpu(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_D
 	nm.mult_partials__layers(MEM_PREV_TIMES_DE_DOW, L_DOW_DWUNDER, L_OW_PREV[F], L_DMEM_PREV_DWUNDER)
 	nm.mult_partials__layers(MEM_PREV_TIMES_DE_DOW, L_DOW_DBUNDER, L_OW_PREV[F], L_DMEM_PREV_DBUNDER)
 	
+	# W[ERASE] gradients (de wrt W[ERASE])
+	nm.add_mem_dadd_out(L_OW_PREV[F], L_OW_PREV[ERASE], MEM_PREV_DE_DERASE_OUT_SIG)
+	nm.point_wise_mult_bcast2(MEM_PREV_DE_DERASE_OUT_SIG, MEM_PREV_PREV, scalar=-1) # -mem_prev * de
+	nm.sigmoid_dlayer_in(L_OW_PREV[ERASE], DERASE_OUT_SIG_DERASE_OUT)
+	nm.mult_partials(MEM_PREV_DE_DERASE_OUT_SIG, DERASE_OUT_SIG_DERASE_OUT, L_OW_PREV[ERASE], MEM_PREV_DE_DERASE_OUT)
+	nm.point_wise_add(L_DMEM_PREV_DBW[ERASE], MEM_PREV_DE_DERASE_OUT)
+	nm.linear_2d_F_dF(L_WW[ERASE], L_OUNDER_PREV[F_UNDER], DERASE_OUT_DWADD)
+	DERASE_OUT_DWADD[1] = (np.prod(np.asarray(DERASE_OUT_DWADD[1])[:2]),np.prod(np.asarray(DERASE_OUT_DWADD[1])[2:]))
+	L_OW_PREV[ERASE][1] = (np.prod(np.asarray(L_OW_PREV[ERASE][1])),)
+	nm.mult_partials(MEM_PREV_DE_DERASE_OUT, DERASE_OUT_DWADD, L_OW_PREV[ERASE], L_DMEM_PREV_DWW[ERASE], increment=1) # de_dwadd
+	
+	# under: (wrt inputs)
+	nm.linear_2d_F_dx(L_WW[ERASE], L_OUNDER_PREV[F_UNDER], DERASE_OUT_DG3UNDER)
+	DERASE_OUT_DG3UNDER[1] = (np.prod(np.asarray(DERASE_OUT_DG3UNDER[1])[:2]),np.prod(np.asarray(DERASE_OUT_DG3UNDER[1])[2:]))
+	nm.mult_partials(MEM_PREV_DE_DERASE_OUT, DERASE_OUT_DG3UNDER, L_OW_PREV[ERASE], MEM_PREV_DE_DG3UNDER)
+	for layer in range(len(L_DMEM_PREV_DWUNDER)):
+		sz = np.prod(np.asarray(L_DMEM_PREV_DWUNDER[layer][1]))
+		L_DMEM_PREV_DWUNDER[layer][1] = tuple(np.concatenate((sz / L_WUNDER[layer][1], np.asarray(L_WUNDER[layer][1]))))
+	nm.mult_partials__layers(MEM_PREV_DE_DG3UNDER, DG3UNDER_DW, L_OUNDER_PREV[F_UNDER], L_DMEM_PREV_DWUNDER, increment=1, squeeze=1)
+	nm.mult_partials__layers(MEM_PREV_DE_DG3UNDER, DG3UNDER_DB, L_OUNDER_PREV[F_UNDER], L_DMEM_PREV_DBUNDER, increment=1, squeeze=1)
+	
+	################
+	# write gradients (add)
+	nm.add_mem_dgw(L_OW_PREV[F], L_OW_PREV[ADD], DA_DOW) # da
+	nm.mult_partials__layers(DA_DOW, L_DOW_DWW, L_OW_PREV[F], L_DMEM_PREV_DWW, increment=1) # da_dlayer
+	nm.mult_partials__layers(DA_DOW, L_DOW_DBW, L_OW_PREV[F], L_DMEM_PREV_DBW, increment=1) # da_dlayer
+	nm.mult_partials__layers(DA_DOW, L_DOW_DWUNDER, L_OW_PREV[F], L_DMEM_PREV_DWUNDER, increment=1)
+	nm.mult_partials__layers(DA_DOW, L_DOW_DBUNDER, L_OW_PREV[F], L_DMEM_PREV_DBUNDER, increment=1)
+	
+	###
+	# W[ADD] gradients
+	nm.add_mem_dadd_out(L_OW_PREV[F], L_OW_PREV[ADD], DA_DADD_OUT)
+	
+	nm.point_wise_add(L_DMEM_PREV_DBW[ADD], DA_DADD_OUT)
+	nm.linear_2d_F_dF(L_WW[ADD], L_OUNDER_PREV[F_UNDER], DADD_OUT_DWADD)
+	nm.mult_partials(DA_DADD_OUT, DADD_OUT_DWADD, L_OW_PREV[ADD], L_DMEM_PREV_DWW[ADD], increment=1) # da_dwadd
+	
+	# under: (wrt inputs)
+	nm.linear_2d_F_dx(L_WW[ADD], L_OUNDER_PREV[F_UNDER], DADD_OUT_DG3UNDER)
+	nm.mult_partials(DA_DADD_OUT, DADD_OUT_DG3UNDER, L_OW_PREV[ADD], DA_DG3UNDER) # da_dwunder
+	
+	nm.mult_partials__layers(DA_DG3UNDER, DG3UNDER_DW, L_OUNDER_PREV[F_UNDER], L_DMEM_PREV_DWUNDER, increment=1, squeeze=1)
+	nm.mult_partials__layers(DA_DG3UNDER, DG3UNDER_DB, L_OUNDER_PREV[F_UNDER], L_DMEM_PREV_DBUNDER, increment=1, squeeze=1)
+	
 	DMEM_PREV_DWW_NEW = return_list_buffer(L_DMEM_PREV_DWW, LO_DMEM_PREV_DWW)
 	DMEM_PREV_DBW_NEW = return_list_buffer(L_DMEM_PREV_DBW, LO_DMEM_PREV_DBW)
 	DMEM_PREV_DWUNDER_NEW = return_list_buffer(L_DMEM_PREV_DWUNDER, LO_DMEM_PREV_DWUNDER)
 	DMEM_PREV_DBUNDER_NEW = return_list_buffer(L_DMEM_PREV_DBUNDER, LO_DMEM_PREV_DBUNDER)
-	###
-	# W[ERASE] gradients (de wrt W[ERASE])
-	mem_prev_de_derase_out_sig = -add_mem_dadd_out(OW_PREV[F]) * mem_prev_prev[:,:,np.newaxis,np.newaxis]
-	derase_out_sig_derase_out = sigmoid_dlayer_in(OW_PREV[ERASE])
-	mem_prev_de_derase_out = mult_partials(mem_prev_de_derase_out_sig, derase_out_sig_derase_out, OW_PREV[ERASE])
-	DMEM_PREV_DBW_NEW[ERASE] += mem_prev_de_derase_out
-	derase_out_dwadd = linear_2d_F_dF(WW[ERASE], OUNDER_PREV[F_UNDER])
-	DMEM_PREV_DWW_NEW[ERASE] += mult_partials(mem_prev_de_derase_out, derase_out_dwadd, OW_PREV[ERASE]) # de_dwadd
-	
-	# under: (wrt inputs)
-	derase_out_dg3under = linear_2d_F_dx(WW[ERASE])
-	mem_prev_de_dg3under = mult_partials(mem_prev_de_derase_out, derase_out_dg3under, OW_PREV[ERASE])
-	
-	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(mem_prev_de_dg3under, DG3UNDER_DW, np.squeeze(OUNDER_PREV[F_UNDER]), DMEM_PREV_DWUNDER_NEW)
-	DMEM_PREV_DBUNDER_NEW = mult_partials__layers(mem_prev_de_dg3under, DG3UNDER_DB, np.squeeze(OUNDER_PREV[F_UNDER]), DMEM_PREV_DBUNDER_NEW)
-	
-	
-	################
-	# write gradients (add)
-	da_dow = add_mem_dgw(OW_PREV[ADD]) # da
-	
-	DMEM_PREV_DWW_NEW = mult_partials__layers(da_dow, DOW_DWW, OW_PREV[F], DMEM_PREV_DWW_NEW) # da_dlayer
-	DMEM_PREV_DBW_NEW = mult_partials__layers(da_dow, DOW_DBW, OW_PREV[F], DMEM_PREV_DBW_NEW) # da_dlayer
-	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(da_dow, DOW_DWUNDER, OW_PREV[F], DMEM_PREV_DWUNDER_NEW)
-	DMEM_PREV_DBUNDER_NEW = mult_partials__layers(da_dow, DOW_DBUNDER, OW_PREV[F], DMEM_PREV_DBUNDER_NEW)
-	
-	###
-	# W[ADD] gradients
-	da_dadd_out = add_mem_dadd_out(OW_PREV[F])
-	DMEM_PREV_DBW_NEW[ADD] += da_dadd_out
-	dadd_out_dwadd = linear_2d_F_dF(WW[ADD], OUNDER_PREV[F_UNDER])
-	DMEM_PREV_DWW_NEW[ADD] += mult_partials(da_dadd_out, dadd_out_dwadd, OW_PREV[ADD]) # da_dwadd
-	
-	# under: (wrt inputs)
-	dadd_out_dg3under = linear_2d_F_dx(WW[ADD])
-	da_dg3under = mult_partials(da_dadd_out, dadd_out_dg3under, OW_PREV[ADD]) # da_dwunder
-	
-	DMEM_PREV_DWUNDER_NEW = mult_partials__layers(da_dg3under, DG3UNDER_DW, np.squeeze(OUNDER_PREV[F_UNDER]), DMEM_PREV_DWUNDER_NEW)
-	DMEM_PREV_DBUNDER_NEW = mult_partials__layers(da_dg3under, DG3UNDER_DB, np.squeeze(OUNDER_PREV[F_UNDER]), DMEM_PREV_DBUNDER_NEW)
 	
 	return DMEM_PREV_DWW_NEW, DMEM_PREV_DBW_NEW, DMEM_PREV_DWUNDER_NEW, DMEM_PREV_DBUNDER_NEW
 
