@@ -17,7 +17,7 @@ n1_above = 13
 n2_above = 1 # output dimensionality of network
 
 SCALE = 2e0 # scale of weight initializations
-N_FRAMES = 4
+N_FRAMES = 3
 SCALE_UNDER = 4e-1
 SCALE_ABOVE = 1e0
 
@@ -141,8 +141,8 @@ WWi[ERASE] = random_function(size = WW_SHAPES[ERASE])
 BWi[ADD] = random_function(size = OW_SHAPES[ADD])
 BWi[ERASE] = random_function(size = OW_SHAPES[ERASE])
 
-OW_PREVi[ADD] = np.zeros(WW_SHAPES[ADD])
-OW_PREVi[ERASE] = np.zeros(WW_SHAPES[ERASE])
+OW_PREVi[ADD] = np.zeros(WW_SHAPES[ADD], dtype='single')
+OW_PREVi[ERASE] = np.zeros(WW_SHAPES[ERASE], dtype='single')
 	
 ###
 

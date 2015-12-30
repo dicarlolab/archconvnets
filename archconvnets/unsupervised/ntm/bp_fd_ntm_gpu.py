@@ -9,11 +9,12 @@ from ntm_gradients import *
 from init_vars import *
 from ntm_core_gpu import *
 import archconvnets.unsupervised.ntm_module.ntm_module as nm
-from archconvnets.unsupervised.ntm_module.ntm_module import init_buffer, set_list_buffer, return_list_buffer
+from archconvnets.unsupervised.ntm_module.ntm_module import init_buffer, set_list_buffer, return_list_buffer, return_buffer
 
+t_start = time.time()
 ##### which gradients to test
 #DERIV_L = L1_UNDER #### double-check!
-DERIV_L = L2_UNDER
+#DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 
 #DERIV_L = L1_ABOVE
@@ -23,13 +24,13 @@ DERIV_L = L2_UNDER
 #DERIV_L = IN_GATE
 #DERIV_L = KEY
 #DERIV_L = BETA
-#DERIV_L = ADD
+DERIV_L = ADD
 #DERIV_L = ERASE
 #DERIV_L = GAMMA
 
-#gradient_category = 'write'
+gradient_category = 'write'
 #gradient_category = 'read'
-gradient_category = 'under'
+#gradient_category = 'under'
 #gradient_category = 'above'
 
 #gradient_weights = False # false means bias terms
@@ -154,51 +155,66 @@ def g(y):
 		OR,OW,mem,read_mem,OUNDER,OABOVE = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, WABOVE, BABOVE, OR_PREV, OW_PREV, mem_prev, x[frame])
 		
 		nm.free_all_buffers()
+		#### put data on gpu
+		READ_MEM = init_buffer(read_mem)
+		T = init_buffer(t)
+		MEM = init_buffer(mem)
+		MEM_PREV = init_buffer(mem_prev)
+		
+		L_OW = set_list_buffer(OW)
+		
+		L_DOR_DWR = set_list_buffer(DOR_DWR)
+		L_DOR_DBR = set_list_buffer(DOR_DBR)
+		L_DOR_DWW = set_list_buffer(DOR_DWW)
+		L_DOR_DBW = set_list_buffer(DOR_DBW)
+		L_DOR_DWUNDER = set_list_buffer(DOR_DWUNDER)
+		L_DOR_DBUNDER = set_list_buffer(DOR_DBUNDER)
+		L_OR = set_list_buffer(OR)
+		L_DMEM_PREV_DWW = set_list_buffer(DMEM_PREV_DWW)
+		L_DMEM_PREV_DBW = set_list_buffer(DMEM_PREV_DBW)
+		L_DMEM_PREV_DWUNDER = set_list_buffer(DMEM_PREV_DWUNDER)
+		L_DMEM_PREV_DBUNDER = set_list_buffer(DMEM_PREV_DBUNDER)
+		L_OABOVE = set_list_buffer(OABOVE)
+		L_WABOVE = set_list_buffer(WABOVE)
+		L_BABOVE = set_list_buffer(BABOVE)
+		
+		L_WR = set_list_buffer(WR)
+		L_BR = set_list_buffer(BR)
+		L_WW = set_list_buffer(WW)
+		L_BW = set_list_buffer(BW)
+		L_WUNDER = set_list_buffer(WUNDER)
+		L_BUNDER = set_list_buffer(BUNDER)
+		L_WABOVE = set_list_buffer(WABOVE)
+		L_BABOVE = set_list_buffer(BABOVE)
+		
+		L_OUNDER = set_list_buffer(OUNDER)
+		L_OUNDER_PREV = set_list_buffer(OUNDER_PREV)
+		L_OR_PREV = set_list_buffer(OR_PREV)
+		L_OW_PREV = set_list_buffer(OW_PREV)
+		L_OW_PREV_PREV = set_list_buffer(OW_PREV_PREV)
+		MEM_PREV = init_buffer(mem_prev)
+		MEM_PREV_PREV = init_buffer(mem_prev_prev)
+		X = init_buffer(x[frame])
+		X_PREV = init_buffer(x[frame-1])
+		
+		L_DOW_DWW = set_list_buffer(DOW_DWW)
+		L_DOW_DBW = set_list_buffer(DOW_DBW)
+		L_DOW_DWUNDER = set_list_buffer(DOW_DWUNDER)
+		L_DOW_DBUNDER = set_list_buffer(DOW_DBUNDER)
+		####
+		
 		# reverse (compute memory partials)
-		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, \
-		DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW = \
-			reverse_pass_partials(WUNDER, BUNDER, WR,WW,BR,BW, OUNDER, OUNDER_PREV, OR, OR_PREV, OW_PREV, OW_PREV_PREV, mem_prev, mem_prev_prev, x[frame], x[frame-1], frame, DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW)
+		L_DOW_DWW, L_DOW_DBW, L_DOW_DWUNDER, L_DOW_DBUNDER, L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_DOR_DWR, L_DOR_DBR, L_DOR_DWUNDER, L_DOR_DBUNDER, L_DOR_DWW, L_DOR_DBW = \
+			reverse_pass_partials(L_WUNDER, L_BUNDER, L_WR,L_WW,L_BR,L_BW, L_OUNDER, L_OUNDER_PREV, L_OR, L_OR_PREV, L_OW_PREV, L_OW_PREV_PREV, MEM_PREV, MEM_PREV_PREV, X, X_PREV, frame, L_DOW_DWW, L_DOW_DBW, L_DOW_DWUNDER, L_DOW_DBUNDER, L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_DOR_DWR, L_DOR_DBR, L_DOR_DWUNDER, L_DOR_DBUNDER, L_DOR_DWW, L_DOR_DBW)
 
 	
 		# update temporal state vars
 		if frame != N_FRAMES:
-			OW_PREV_PREV = copy.deepcopy(OW_PREV)
-			OR_PREV = copy.deepcopy(OR); OW_PREV = copy.deepcopy(OW); OUNDER_PREV = copy.deepcopy(OUNDER)
-			mem_prev_prev = copy.deepcopy(mem_prev); mem_prev = copy.deepcopy(mem)
-		
+			OW_PREV_PREV = return_list_buffer(L_OW_PREV)
+			OR_PREV = return_list_buffer(L_OR); OW_PREV = return_list_buffer(L_OW); OUNDER_PREV = return_list_buffer(L_OUNDER)
+			mem_prev_prev = return_buffer(MEM_PREV); mem_prev = return_buffer(MEM)
 	
 	# full gradients from partials
-	
-	#### put data on gpu
-	READ_MEM = init_buffer(read_mem)
-	T = init_buffer(t)
-	MEM_PREV = init_buffer(mem_prev)
-	
-	L_DOR_DWR = set_list_buffer(DOR_DWR)
-	L_DOR_DBR = set_list_buffer(DOR_DBR)
-	L_DOR_DWW = set_list_buffer(DOR_DWW)
-	L_DOR_DBW = set_list_buffer(DOR_DBW)
-	L_DOR_DWUNDER = set_list_buffer(DOR_DWUNDER)
-	L_DOR_DBUNDER = set_list_buffer(DOR_DBUNDER)
-	L_OR = set_list_buffer(OR)
-	L_DMEM_PREV_DWW = set_list_buffer(DMEM_PREV_DWW)
-	L_DMEM_PREV_DBW = set_list_buffer(DMEM_PREV_DBW)
-	L_DMEM_PREV_DWUNDER = set_list_buffer(DMEM_PREV_DWUNDER)
-	L_DMEM_PREV_DBUNDER = set_list_buffer(DMEM_PREV_DBUNDER)
-	L_OABOVE = set_list_buffer(OABOVE)
-	L_WABOVE = set_list_buffer(WABOVE)
-	L_BABOVE = set_list_buffer(BABOVE)
-	
-	L_WR = set_list_buffer(WR)
-	L_BR = set_list_buffer(BR)
-	L_WW = set_list_buffer(WW)
-	L_BW = set_list_buffer(BW)
-	L_WUNDER = set_list_buffer(WUNDER)
-	L_BUNDER = set_list_buffer(BUNDER)
-	L_WABOVE = set_list_buffer(WABOVE)
-	L_BABOVE = set_list_buffer(BABOVE)
-	####
-	
 	
 	L_DWR, L_DBR, L_DWW, L_DBW, L_DWUNDER, L_DBUNDER, L_DWABOVE, L_DBABOVE = \
 		full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, L_DOR_DWW, L_DOR_DBW, L_DOR_DWUNDER, L_DOR_DBUNDER, L_OR, L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_OABOVE, L_WABOVE)
@@ -243,7 +259,7 @@ def g(y):
 			return DBW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e4
+eps = np.sqrt(np.finfo(np.float).eps)*1e8
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
@@ -269,3 +285,4 @@ if inf_vals.sum():
 	print '***', inf_vals.sum(), ' non-zeros when should be zero ***'
 	ratios[inf_vals] = 0
 print ratios.mean(), ratios.std()
+print time.time() - t_start

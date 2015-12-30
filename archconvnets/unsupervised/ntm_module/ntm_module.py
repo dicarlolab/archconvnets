@@ -13,11 +13,12 @@ def check_buffer(BUFFER):
 def mult_partials(DA_DB, DB_DC, B, OUT_BUFFER, increment=0, squeeze=0, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(increment,int)
-	assert (OUT_BUFFER[1] is not None) or increment == 0
 	check_buffer(DA_DB)
 	check_buffer(DB_DC)
 	check_buffer(OUT_BUFFER)
 	check_buffer(B)
+	assert (OUT_BUFFER[1] is not None) or increment == 0
+	assert OUT_BUFFER[0] != DA_DB[0] and OUT_BUFFER[0] != DB_DC[0]
 	B_shape = np.asarray(B[1])
 	
 	da_db_shape = np.asarray(DA_DB[1])
@@ -208,6 +209,17 @@ def interpolate_do_prev(INTERP_GATE_OUT, O_PREV, OUT_BUFFER, gpu_ind=0):
 	_ntm_module.interpolate_do_prev(INTERP_GATE_OUT[0], O_PREV[1], OUT_BUFFER[0], gpu_ind)
 	OUT_BUFFER[1] = (dim0,dim1,dim0,dim1)
 
+def interpolate_softmax_do_prev(OUT, INTERP_GATE_OUT, O_PREV, OUT_BUFFER):
+	DOUT_DLIN = init_buffer()
+	DLIN_DO_PREV = init_buffer()
+	
+	softmax_dlayer_in(OUT, DOUT_DLIN)
+	interpolate_do_prev(INTERP_GATE_OUT, O_PREV, DLIN_DO_PREV)
+	mult_partials(DOUT_DLIN, DLIN_DO_PREV, OUT, OUT_BUFFER)
+	
+	free_buffer(DOUT_DLIN[0])
+	free_buffer(DLIN_DO_PREV[0])
+	
 def interpolate_softmax_dinterp_gate_out(OUT, O_CONTENT, O_PREV, OUT_BUFFER):
 	DOUT_DLIN = init_buffer()
 	DLIN_DINTERP_GATE_OUT = init_buffer()
@@ -442,11 +454,11 @@ def free_all_buffers(gpu_ind=0):
 		_ntm_module.free_buffer(buffer_ind, gpu_ind)
 	n_vars_allocated[gpu_ind] = 0
 
-def return_buffer(BUFFER, gpu_ind=0):
+def return_buffer(BUFFER, warn=1, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	check_buffer(BUFFER)
 
-	return _ntm_module.return_buffer(BUFFER[0], gpu_ind).reshape(BUFFER[1])
+	return _ntm_module.return_buffer(BUFFER[0], warn, gpu_ind).reshape(BUFFER[1])
 	
 def dot(BUFFER1, BUFFER2, OUT_BUFFER, increment=0, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
@@ -601,10 +613,13 @@ def set_list_buffer(DATA):
 		LIST[i] = init_buffer(DATA[i])
 	return LIST
 
-def return_list_buffer(LIST, SHAPE=None):
+def return_list_buffer(LIST, SHAPE=None, warn=0):
 	DATA = [None]*len(LIST)
 	for i in range(len(LIST)):
-		DATA[i] = return_buffer(LIST[i])
+		try:
+			DATA[i] = return_buffer(LIST[i], warn=warn)
+		except:
+			j = 1
 		if SHAPE is not None:
 			DATA[i] = DATA[i].reshape(SHAPE[i][1])
 	return DATA

@@ -123,8 +123,10 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	dgammarelu_dgamma = relu_dlayer_in(O[GAMMA], thresh=1)
 	do_dgamma = mult_partials(do_dgammarelu, dgammarelu_dgamma, O[GAMMA])
 	DO_DB_NEW[GAMMA] += do_dgamma
+	#print 'W[GAMMA]', W[GAMMA].shape, 'OUNDER[F_UNDER]', OUNDER[F_UNDER].shape
 	dgamma_dwgamma = linear_F_dF(W[GAMMA], OUNDER[F_UNDER])
 	dgamma_dg3under = linear_F_dx(W[GAMMA], OUNDER[F_UNDER])
+	#print 'do_dgamma',do_dgamma.shape, 'dgamma_dwgamma',dgamma_dwgamma.shape, 'O[GAMMA]',O[GAMMA].shape, 'DO_DW_NEW[GAMMA]',DO_DW_NEW[GAMMA].shape
 	DO_DW_NEW[GAMMA] += mult_partials(do_dgamma, dgamma_dwgamma, O[GAMMA])
 	do_dg3under = np.squeeze(mult_partials(do_dgamma, dgamma_dg3under, O[GAMMA]))
 	
@@ -165,7 +167,8 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	do_do_content_focused = do_do_content_focused__(O, do_do_in) # 12.2%
 	do_content_focused_dgbeta = focus_key_dbeta_out(O[CONTENT], O[BETA])
 	do_dgbeta = mult_partials(do_do_content_focused, do_content_focused_dgbeta, O[CONTENT_FOCUSED])
-	print do_do_content_focused.shape, do_content_focused_dgbeta.shape, O[CONTENT_FOCUSED].shape, do_dgbeta.shape
+	#print do_do_content_focused.shape, do_content_focused_dgbeta.shape, O[CONTENT_FOCUSED].shape, do_dgbeta.shape
+	#(16, 6, 16, 6) (16, 6, 16, 1) (16, 6) (16, 6, 16, 1)
 	DO_DB_NEW[BETA] += do_dgbeta
 	dgbeta_dwbeta = linear_F_dF(W[BETA], OUNDER[F_UNDER])
 	dgbeta_dg3under = linear_F_dx(W[BETA], OUNDER[F_UNDER])
@@ -239,7 +242,7 @@ def mem_partials(DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER,DMEM_PREV_DBUND
 	#print derase_out_dwadd.shape, WW[ERASE].shape, OUNDER_PREV[F_UNDER].shape
 	#(16, 8, 16, 8, 9) (16, 8, 9) (9, 1)
 	DMEM_PREV_DWW_NEW[ERASE] += mult_partials(mem_prev_de_derase_out, derase_out_dwadd, OW_PREV[ERASE]) # de_dwadd
-	print mem_prev_de_derase_out.shape, derase_out_dwadd.shape, OW_PREV[ERASE].shape, DMEM_PREV_DWW_NEW[ERASE].shape
+	
 	
 	# under: (wrt inputs)
 	derase_out_dg3under = linear_2d_F_dx(WW[ERASE])

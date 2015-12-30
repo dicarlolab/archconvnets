@@ -9,26 +9,27 @@ from ntm_gradients import *
 from init_vars import *
 from ntm_core import *
 
+t_start = time.time()
 ##### which gradients to test
 #DERIV_L = L1_UNDER
 #DERIV_L = L2_UNDER
 #DERIV_L = F_UNDER
 
 #DERIV_L = L1_ABOVE
-DERIV_L = F_ABOVE
+#DERIV_L = F_ABOVE
 
 #DERIV_L = SHIFT
 #DERIV_L = IN_GATE
 #DERIV_L = KEY
 #DERIV_L = BETA
-#DERIV_L = ADD
+DERIV_L = ADD
 #DERIV_L = ERASE
 #DERIV_L = GAMMA
 
-#gradient_category = 'write'
+gradient_category = 'write'
 #gradient_category = 'read'
 #gradient_category = 'under'
-gradient_category = 'above'
+#gradient_category = 'above'
 
 #gradient_weights = False # false means bias terms
 gradient_weights = True
@@ -201,7 +202,7 @@ def g(y):
 			return DBW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e4#8
+eps = np.sqrt(np.finfo(np.float).eps)*1e8
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
@@ -223,3 +224,4 @@ for sample in range(N_SAMPLES):
 	print gt, gtx, ratios[sample]
 	
 print ratios.mean(), ratios.std()
+print time.time() - t_start

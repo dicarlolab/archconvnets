@@ -2,9 +2,9 @@ static PyObject *return_buffer(PyObject *self, PyObject *args){
     cudaError_t err;
 	PyArrayObject *numpy_buffer_temp = NULL;
 	float *data;
-	int gpu_ind, buffer_ind;
+	int gpu_ind, buffer_ind, warn;
 	
-	if (!PyArg_ParseTuple(args, "ii", &buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iii", &buffer_ind, &warn, &gpu_ind)) 
 		return NULL;
         
 	if(buffer_ind >= N_BUFFERS || buffer_ind < 0){
@@ -20,7 +20,8 @@ static PyObject *return_buffer(PyObject *self, PyObject *args){
     cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(BUFFER_SZ == 0){
-		printf("buffer not initialized. return_buffer()\n");
+		if(warn == 1)
+			printf("buffer not initialized. return_buffer()\n");
 		return NULL;
 	}
 	
