@@ -153,7 +153,7 @@ def g(y):
 		# forward
 		OR,OW,mem,read_mem,OUNDER,OABOVE = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, WABOVE, BABOVE, OR_PREV, OW_PREV, mem_prev, x[frame])
 		
-		nm.reset_n_vars_allocated()
+		nm.free_all_buffers()
 		# reverse (compute memory partials)
 		DOW_DWW, DOW_DBW, DOW_DWUNDER, DOW_DBUNDER, DMEM_PREV_DWW, DMEM_PREV_DBW, DMEM_PREV_DWUNDER, DMEM_PREV_DBUNDER, \
 		DOR_DWR, DOR_DBR, DOR_DWUNDER, DOR_DBUNDER, DOR_DWW, DOR_DBW = \
@@ -165,6 +165,7 @@ def g(y):
 			OW_PREV_PREV = copy.deepcopy(OW_PREV)
 			OR_PREV = copy.deepcopy(OR); OW_PREV = copy.deepcopy(OW); OUNDER_PREV = copy.deepcopy(OUNDER)
 			mem_prev_prev = copy.deepcopy(mem_prev); mem_prev = copy.deepcopy(mem)
+		
 	
 	# full gradients from partials
 	
@@ -242,7 +243,7 @@ def g(y):
 			return DBW[DERIV_L][i_ind,j_ind,k_ind]
 	
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e7
+eps = np.sqrt(np.finfo(np.float).eps)*1e4
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

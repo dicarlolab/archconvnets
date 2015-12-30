@@ -208,6 +208,28 @@ def interpolate_do_prev(INTERP_GATE_OUT, O_PREV, OUT_BUFFER, gpu_ind=0):
 	_ntm_module.interpolate_do_prev(INTERP_GATE_OUT[0], O_PREV[1], OUT_BUFFER[0], gpu_ind)
 	OUT_BUFFER[1] = (dim0,dim1,dim0,dim1)
 
+def interpolate_softmax_dinterp_gate_out(OUT, O_CONTENT, O_PREV, OUT_BUFFER):
+	DOUT_DLIN = init_buffer()
+	DLIN_DINTERP_GATE_OUT = init_buffer()
+	
+	softmax_dlayer_in(OUT, DOUT_DLIN)
+	interpolate_dinterp_gate_out(O_CONTENT, O_PREV, DLIN_DINTERP_GATE_OUT)
+	mult_partials(DOUT_DLIN, DLIN_DINTERP_GATE_OUT, OUT, OUT_BUFFER)
+	
+	free_buffer(DOUT_DLIN[0])
+	free_buffer(DLIN_DINTERP_GATE_OUT[0])
+	
+def interpolate_softmax_do_content(OUT, INTERP_GATE_OUT, O_PREV, OUT_BUFFER):
+	DOUT_DLIN = init_buffer()
+	DLIN_DO_CONTENT = init_buffer()
+	
+	softmax_dlayer_in(OUT, DOUT_DLIN)
+	interpolate_do_content(INTERP_GATE_OUT, O_PREV, DLIN_DO_CONTENT)
+	mult_partials(DOUT_DLIN, DLIN_DO_CONTENT, OUT, OUT_BUFFER)
+	
+	free_buffer(DOUT_DLIN[0])
+	free_buffer(DLIN_DO_CONTENT[0])
+
 def linear_F_dx(F, X, OUT_BUFFER, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	check_buffer(F)
@@ -414,6 +436,12 @@ def free_buffer(buffer_ind, gpu_ind=0):
 	assert isinstance(buffer_ind,int)
 	return _ntm_module.free_buffer(buffer_ind, gpu_ind)
 
+def free_all_buffers(gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	for buffer_ind in range(n_vars_allocated[gpu_ind]):
+		_ntm_module.free_buffer(buffer_ind, gpu_ind)
+	n_vars_allocated[gpu_ind] = 0
+
 def return_buffer(BUFFER, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	check_buffer(BUFFER)
@@ -580,9 +608,6 @@ def return_list_buffer(LIST, SHAPE=None):
 		if SHAPE is not None:
 			DATA[i] = DATA[i].reshape(SHAPE[i][1])
 	return DATA
-	
-def reset_n_vars_allocated(gpu_ind=0):
-	n_vars_allocated[gpu_ind] = 0
 	
 def print_n_vars_allocated():
 	print n_vars_allocated[0]

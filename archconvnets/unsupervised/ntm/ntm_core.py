@@ -165,6 +165,7 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	do_do_content_focused = do_do_content_focused__(O, do_do_in) # 12.2%
 	do_content_focused_dgbeta = focus_key_dbeta_out(O[CONTENT], O[BETA])
 	do_dgbeta = mult_partials(do_do_content_focused, do_content_focused_dgbeta, O[CONTENT_FOCUSED])
+	print do_do_content_focused.shape, do_content_focused_dgbeta.shape, O[CONTENT_FOCUSED].shape, do_dgbeta.shape
 	DO_DB_NEW[BETA] += do_dgbeta
 	dgbeta_dwbeta = linear_F_dF(W[BETA], OUNDER[F_UNDER])
 	dgbeta_dg3under = linear_F_dx(W[BETA], OUNDER[F_UNDER])

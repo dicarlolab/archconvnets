@@ -34,7 +34,11 @@ static PyObject *set_buffer(PyObject *self, PyObject *args){
 		// check to make sure inputs match the previously initialized buffer sizes
 		//---------------------------------------------
 		if(BUFFER_SZ != PyArray_NBYTES(numpy_buffer_temp)){
-				printf("---------------------------\ninput dimensions do not match the initial input dimensions on the first call to this function\n------------------\n");
+				printf("---------------------------\ninput dimensions do not match the initial input dimensions on the first call to this function, %i: %li, %li\n------------------\n", buffer_ind, PyArray_NBYTES(numpy_buffer_temp), BUFFER_SZ);
+				int buffer_ind2 = buffer_ind;
+				for(buffer_ind = 0; buffer_ind < buffer_ind2+10; buffer_ind++){
+					printf("%i %li\n", buffer_ind, BUFFER_SZ);
+				}
 				return NULL;
 		}
 	}
