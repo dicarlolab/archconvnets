@@ -8,29 +8,6 @@ M_LENGTH = 6
 N_MEM_SLOTS = 8
 mem_shape = (N_MEM_SLOTS, M_LENGTH)
 
-'''-------------
-layer Ul:
-	inputs: x[t], U
-	outputs: U_OUT[t]
-
-layer Wl:
-	inputs: U_OUT[t-1], mem[t-1], W
-	outputs: mem[t]
-
-layer Rl:
-	inputs: U_OUT[t], mem[t], R
-	outputs: O[t]
-
-------------
-dOl[t] -> dOl[t]/dR, dO[t]/dU_OUT[t], dO[t]/dmem[t]
-	                       dU_OUT[t] -> dU_OUT[t]/dU
-	                                   dmem[t] -> dmem[t]/dW, dmem[t]/dU_OUT[t-1], dmem[t]/dmem[t-1]
-									                                               dmem[t-1] -> dmem[t-1]/dW, dmem[t-1]/dU_OUT[t-2], dmem[t-1]/dmem[t-2]
-																				   dmem[t-2] -> dmem[t-2]/dW, dmem[t-2]/dU_OUT[t-3], dmem[t-2]/dmem[t-3]
-																				   dmem[t-3] -> dmem[t-3]/dW, dmem[t-3]/dU_OUT[t-4], 0
-																	               dmem[t-4] -> 0
-'''								                      
-
 def random_function(size):
 	return np.asarray(np.random.random(size) - .5, dtype='single')
 
@@ -275,9 +252,9 @@ def reverse_network(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIG
 		for layer_ind in range(len(LAYERS)):
 			WEIGHT_DERIVS[layer_ind] = [None]*len(LAYERS[layer_ind]['in_shape'])
 
-	return reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, WEIGHT_DERIVS, PARTIALS, keep_dims)
+	return reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims)
 	
-def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, WEIGHT_DERIVS, PARTIALS, keep_dims): # multiply all partials together
+def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims): # multiply all partials together
 	L = LAYERS[layer_ind]
 	P = PARTIALS[layer_ind]
 	N_ARGS = len(L['in_shape'])
@@ -285,9 +262,10 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, WEIGHT_D
 	for arg in range(N_ARGS):
 		deriv_above_new = mult_partials(deriv_above, LOCAL_DERIVS[layer_ind][arg], LAYERS[layer_ind]['out_shape'])
 		src = LAYERS[layer_ind]['in_source'][arg]
-		if isinstance(src, int) and src != -1 and src != layer_ind: # go back farther... avoid infinite loops
-			#print src, deriv_above_new.shape
-			reverse_network_recur(deriv_above_new, src, LAYERS, LOCAL_DERIVS, WEIGHT_DERIVS, PARTIALS, keep_dims)
+		
+		# go back farther... avoid infinite loops
+		if isinstance(src, int) and src != -1 and src != layer_ind:
+			reverse_network_recur(deriv_above_new, src, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims)
 		
 		# add memory partials
 		elif src == layer_ind:
@@ -367,8 +345,23 @@ def reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV):
 	# update partials_prev
 	for i in range(len(LAYERS[MEM_IND]['in_source'])):
 		src_layer = LAYERS[MEM_IND]['in_source'][i]
+		
+		# DMEM_D[layers]_DW
 		if src_layer != MEM_IND:
-			MEM_WEIGHT_DERIVS = reverse_network(LOCAL_DERIVS[MEM_IND][i], src_layer, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS, keep_dims=True)
+			reverse_network(LOCAL_DERIVS[MEM_IND][i], src_layer, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS, keep_dims=True)
+		
+		# DMEM_DMEM_DW
+		else:
+			P = PARTIALS_PREV[MEM_IND]
+			N_ARGS2 = len(P['in_source'])
+			for arg2 in range(N_ARGS2):
+				p_layer_ind = P['in_source'][arg2]
+				p_arg = P['in_arg'][arg2]
+				p_partial = P['partial'][arg2]
+				deriv_temp = mult_partials(LOCAL_DERIVS[MEM_IND][arg2], p_partial, LAYERS[MEM_IND]['out_shape'])
+				MEM_WEIGHT_DERIVS[p_layer_ind][p_arg] = add_initialize(MEM_WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp)
+				
+				
 	return MEM_WEIGHT_DERIVS
 
 #############
@@ -397,7 +390,6 @@ LAYERS.append({ 'forward_F': linear_F, \
 				'deriv_F': [linear_F_dF, linear_F_dx] })
 		
 # mem = mem_prev + Fw
-# "mem"
 MEM_IND = len(LAYERS)
 LAYERS.append({ 'forward_F': add_points, \
 				'out_shape': mem_shape, \
@@ -450,9 +442,7 @@ OUTPUT_PREV = [None] * len(LAYERS)
 OUTPUT_PREV[MEM_IND] = random_function(LAYERS[MEM_IND]['out_shape'])
 check_output_prev(OUTPUT_PREV, LAYERS)
 
-PARTIALS_PREV = init_partials(LAYERS)
-
-N_FRAMES = 2
+N_FRAMES = 5
 
 ####
 gradient_layer = FW_IND
@@ -466,21 +456,10 @@ def f(y):
 	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
 	WEIGHTS_local[gradient_layer][gradient_arg] = Wy.reshape(weights_shape)
 	
-	'''OUTPUT = forward_network(LAYERS, WEIGHTS_local, OUTPUT_PREV)'''
-	
-	PARTIALS_PREV = init_partials(LAYERS)	
 	for frame in range(N_FRAMES):
-		OUTPUT = forward_network(LAYERS, WEIGHTS_local, OUTPUT_PREV_local)
-		LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS_local, OUTPUT, OUTPUT_PREV_local)
-		
-		WEIGHT_DERIVS = reverse_network(deriv_top, len(LAYERS)-1, LAYERS, LOCAL_DERIVS, PARTIALS_PREV)
-		
-		# update partials_prev
-		MEM_WEIGHT_DERIVS = reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV)
-		PARTIALS_PREV = copy_partials(MEM_IND, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
-		OUTPUT_PREV_local = copy.deepcopy(OUTPUT)
+		OUTPUT_PREV_local = forward_network(LAYERS, WEIGHTS_local, OUTPUT_PREV_local)
 	
-	return OUTPUT[-1][0]
+	return OUTPUT_PREV_local[-1][0]
 
 def g(y):
 	WEIGHTS_local = copy.deepcopy(WEIGHTS); OUTPUT_PREV_local = copy.deepcopy(OUTPUT_PREV)
@@ -488,15 +467,11 @@ def g(y):
 	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
 	WEIGHTS_local[gradient_layer][gradient_arg] = Wy.reshape(weights_shape)
 	
-	'''OUTPUT = forward_network(LAYERS, WEIGHTS_local, OUTPUT_PREV)
-	LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS_local, OUTPUT, OUTPUT_PREV)
-	WEIGHT_DERIVS = reverse_network(deriv_top, len(LAYERS)-1, LAYERS, LOCAL_DERIVS, PARTIALS_PREV)'''
-	
 	PARTIALS_PREV = init_partials(LAYERS)	
 	for frame in range(N_FRAMES):
 		OUTPUT = forward_network(LAYERS, WEIGHTS_local, OUTPUT_PREV_local)
-		LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS_local, OUTPUT, OUTPUT_PREV_local)
 		
+		LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS_local, OUTPUT, OUTPUT_PREV_local)
 		WEIGHT_DERIVS = reverse_network(deriv_top, len(LAYERS)-1, LAYERS, LOCAL_DERIVS, PARTIALS_PREV)
 		
 		# update partials_prev
