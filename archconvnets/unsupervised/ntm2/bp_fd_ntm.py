@@ -16,16 +16,23 @@ LAYERS = []
 
 # F under
 FU_IND = len(LAYERS)
+x_shape = (12,M_LENGTH)
+F0_shape = (8, 12)
+L0_shape = (8,M_LENGTH)
+LAYERS.append({ 'forward_F': linear_F, \
+				'out_shape': L0_shape, \
+				'in_shape': [F0_shape, x_shape], \
+				'in_source': [random_function, -1], \
+				'deriv_F': [linear_F_dF, linear_F_dx] })
 
 # FR read
 FR_IND = len(LAYERS)
 F1_shape = (N_CONTROLLERS,8)
-x_shape = (8,M_LENGTH)
 L1_shape = (F1_shape[0], x_shape[1])
 LAYERS.append({ 'forward_F': linear_F, \
 				'out_shape': L1_shape, \
-				'in_shape': [F1_shape, x_shape], \
-				'in_source': [random_function, -1], \
+				'in_shape': [F1_shape, L0_shape], \
+				'in_source': [random_function, FU_IND], \
 				'deriv_F': [linear_F_dF, linear_F_dx] })
 
 # Fw write
@@ -33,8 +40,8 @@ FW_IND = len(LAYERS)
 Fw_shape = (N_MEM_SLOTS,8)
 LAYERS.append({ 'forward_F': linear_F, \
 				'out_shape': mem_shape, \
-				'in_shape': [Fw_shape, x_shape], \
-				'in_source': [random_function, -1], \
+				'in_shape': [Fw_shape, L0_shape], \
+				'in_source': [random_function, FU_IND], \
 				'deriv_F': [linear_F_dF, linear_F_dx] })
 		
 # mem = mem_prev + Fw
@@ -82,9 +89,8 @@ LAYERS.append({ 'forward_F': sum_points, \
 
 ################
 WEIGHTS = init_weights(LAYERS)
-xt = random_function(np.concatenate(((N_FRAMES+1,), LAYERS[FR_IND]['in_shape'][1])))
-WEIGHTS[FR_IND][1] = xt[0]  # inputs
-WEIGHTS[FW_IND][1] = xt[-1]  # inputs_prev
+xt = random_function(np.concatenate(((N_FRAMES,), LAYERS[FU_IND]['in_shape'][1])))
+WEIGHTS[FU_IND][1] = xt[0]  # inputs
 check_weights(WEIGHTS, LAYERS)
 
 OUTPUT_PREV = [None] * len(LAYERS)
@@ -92,7 +98,7 @@ OUTPUT_PREV[MEM_IND] = random_function(LAYERS[MEM_IND]['out_shape'])
 check_output_prev(OUTPUT_PREV, LAYERS)
 
 ################
-gradient_layer = FW_IND
+gradient_layer = FU_IND
 gradient_arg = 0
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = WEIGHTS[gradient_layer][gradient_arg]
@@ -104,8 +110,7 @@ def f(y):
 	WEIGHTS_local[gradient_layer][gradient_arg] = Wy.reshape(weights_shape)
 	
 	for frame in range(N_FRAMES):
-		WEIGHTS_local[FR_IND][1] = xt[frame]  # inputs
-		WEIGHTS_local[FW_IND][1] = xt[frame-1]  # inputs_prev
+		WEIGHTS_local[FU_IND][1] = xt[frame]  # inputs
 		
 		OUTPUT_PREV_local = forward_network(LAYERS, WEIGHTS_local, OUTPUT_PREV_local)
 	
@@ -119,8 +124,7 @@ def g(y):
 	
 	PARTIALS_PREV = init_partials(LAYERS)	
 	for frame in range(N_FRAMES):
-		WEIGHTS_local[FR_IND][1] = xt[frame]  # inputs
-		WEIGHTS_local[FW_IND][1] = xt[frame-1]  # inputs_prev
+		WEIGHTS_local[FU_IND][1] = xt[frame]  # inputs
 		
 		OUTPUT = forward_network(LAYERS, WEIGHTS_local, OUTPUT_PREV_local)
 		

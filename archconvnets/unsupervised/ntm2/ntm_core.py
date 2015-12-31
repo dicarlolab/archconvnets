@@ -51,6 +51,12 @@ def check_network(LAYERS):
 			if L['in_source'][arg] >= 0 and isinstance(L['in_source'][arg], int):
 				assert L['in_source'][arg] <= layer_ind or layer_ind in LAYERS[L['in_source'][arg]]['in_source']
 
+def check_output_prev(OUTPUT_PREV, LAYERS):
+	for layer_ind in range(len(LAYERS)):
+		L = LAYERS[layer_ind]
+		if layer_ind in L['in_source']:
+			assert OUTPUT_PREV[layer_ind].shape == L['out_shape']
+			
 def init_weights(LAYERS):
 	check_network(LAYERS)
 	WEIGHTS = [None]*len(LAYERS)
@@ -168,12 +174,6 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 			WEIGHT_DERIVS[layer_ind][arg] = add_initialize(WEIGHT_DERIVS[layer_ind][arg], deriv_above_new[0])
 	return WEIGHT_DERIVS
 
-def check_output_prev(OUTPUT_PREV, LAYERS):
-	for layer_ind in range(len(LAYERS)):
-		L = LAYERS[layer_ind]
-		if layer_ind in L['in_source']:
-			assert OUTPUT_PREV[layer_ind].shape == L['out_shape']
-
 def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
 	dest = LAYERS[layer_cur]['in_source'][arg]
 	# end:
@@ -241,7 +241,7 @@ def reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV):
 				p_layer_ind = P['in_source'][arg2]
 				p_arg = P['in_arg'][arg2]
 				p_partial = P['partial'][arg2]
-				deriv_temp = mult_partials(LOCAL_DERIVS[MEM_IND][arg2], p_partial, LAYERS[MEM_IND]['out_shape'])
+				deriv_temp = mult_partials(LOCAL_DERIVS[MEM_IND][i], p_partial, LAYERS[MEM_IND]['out_shape'])
 				MEM_WEIGHT_DERIVS[p_layer_ind][p_arg] = add_initialize(MEM_WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp)
 				
 				
