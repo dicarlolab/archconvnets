@@ -281,7 +281,10 @@ def reverse_network(deriv_above, layer_ind, LAYERS, DERIVS, WEIGHT_DERIVS):
 		if isinstance(src, int) and src != -1 and src != layer_ind: # go back farther
 			reverse_network(deriv_above_new, src, LAYERS, DERIVS, WEIGHT_DERIVS)
 		else:
-			WEIGHT_DERIVS[layer_ind][arg] = deriv_above_new[0]
+			if WEIGHT_DERIVS[layer_ind][arg] is None:
+				WEIGHT_DERIVS[layer_ind][arg] = deriv_above_new[0]
+			else:
+				WEIGHT_DERIVS[layer_ind][arg] += deriv_above_new[0]
 
 #############
 deriv_top = np.ones((1,1))
@@ -319,7 +322,7 @@ MEM_IND = len(LAYERS)
 LAYERS.append({ 'forward_F': add_points, \
 				'out_shape': mem_shape, \
 				'in_shape': [mem_shape, mem_shape], \
-				'in_source': [FW_IND, -1], \
+				'in_source': [FW_IND, MEM_PREV_IND], \
 				'deriv_F': [add_points_dinput, add_points_dinput] })
 
 N_ARGS = len(LAYERS[MEM_IND]['in_shape'])
@@ -367,8 +370,6 @@ LAYERS.append({ 'forward_F': sum_points, \
 WEIGHTS = init_weights(LAYERS)
 WEIGHTS[FR_IND][1] = random_function(LAYERS[FR_IND]['in_shape'][1])  # inputs
 WEIGHTS[FW_IND][1] = random_function(LAYERS[FW_IND]['in_shape'][1])  # inputs_prev
-WEIGHTS[MEM_PREV_IND][1] = random_function(LAYERS[MEM_PREV_IND]['in_shape'][1])  # mem
-WEIGHTS[MEM_IND][1] = random_function(LAYERS[MEM_IND]['in_shape'][1])  # mem
 check_weights(WEIGHTS, LAYERS)
 
 ####
