@@ -3,6 +3,11 @@ import copy
 import time
 import scipy.optimize
 
+N_CONTROLLERS = 16
+M_LENGTH = 6
+N_MEM_SLOTS = 8
+mem_shape = (N_MEM_SLOTS, M_LENGTH)
+
 '''-------------
 layer Ul:
 	inputs: x[t], U
@@ -25,8 +30,14 @@ dOl[t] -> dOl[t]/dR, dO[t]/dU_OUT[t], dO[t]/dmem[t]
 																				   dmem[t-3] -> dmem[t-3]/dW, dmem[t-3]/dU_OUT[t-4], 0
 																	               dmem[t-4] -> 0
 '''								                      
-############
-# cosine similarity between each controller's key and memory vector
+
+def mem_prev(args):
+	return np.zeros(mem_shape, dtype='single')
+
+def mem_prev_deriv(ARGS):
+	arg_ind = ARGS[0]
+	args = ARGS[1]
+	return np.zeros(np.concatenate((mem_shape, args[arg_ind].shape)), dtype='single')
 
 def cosine_sim_dmem(args):
 	assert len(args) == 2
@@ -151,7 +162,15 @@ def check_weights(WEIGHTS, LAYERS):
 			if isinstance(L['in_source'][arg], int) == False or L['in_source'][arg] == -1:
 				assert WEIGHTS[layer_ind][arg] is not None, 'layer %i argument %i not initialized' % (layer_ind, arg)
 				assert WEIGHTS[layer_ind][arg].shape == L['in_shape'][arg], 'layer %i argument %i not initialized to right size' % (layer_ind, arg)
+			else:
+				assert WEIGHTS[layer_ind][arg] is None, 'layer %i argument %i should not have weightings because it should be computed from layer %i' % (layer_ind, arg,  L['in_source'][arg])
 		
+def call_deriv(L, arg, args):
+	if 'deriv_F_args' in L:
+		return L['deriv_F'][arg]([L['deriv_F_args'][arg], args])
+	else:
+		return L['deriv_F'][arg](args)
+
 def check_network(LAYERS):
 	for layer_ind in range(len(LAYERS)):
 		L = LAYERS[layer_ind]
@@ -169,7 +188,7 @@ def check_network(LAYERS):
 		# check if deriv functions correctly produce correct shapes
 		for arg in range(N_ARGS):
 			expected_shape = tuple(np.concatenate((L['out_shape'], L['in_shape'][arg])))
-			assert L['deriv_F'][arg](args).shape == expected_shape
+			assert call_deriv(L, arg, args).shape == expected_shape
 		
 		# check if other layers claim to produce expected inputs
 		for arg in range(N_ARGS):
@@ -179,7 +198,7 @@ def check_network(LAYERS):
 		# check if layers are ordered (no inputs to this layer come after this one in the list)
 		for arg in range(N_ARGS):
 			if L['in_source'][arg] >= 0 and isinstance(L['in_source'][arg], int):
-				assert L['in_source'][arg] < layer_ind
+				assert L['in_source'][arg] <= layer_ind
 
 def init_weights(LAYERS):
 	check_network(LAYERS)
@@ -248,7 +267,7 @@ def local_derivs(LAYERS, WEIGHTS, OUTPUT):
 		args = build_forward_args(L, layer_ind, OUTPUT, WEIGHTS)
 		
 		for arg in range(N_ARGS):
-			DERIVS[layer_ind][arg] = L['deriv_F'][arg](args)
+			DERIVS[layer_ind][arg] = call_deriv(L, arg, args)
 	return DERIVS, WEIGHT_DERIVS
 
 def reverse_network(deriv_above, layer_ind, LAYERS, DERIVS, WEIGHT_DERIVS):
@@ -259,18 +278,13 @@ def reverse_network(deriv_above, layer_ind, LAYERS, DERIVS, WEIGHT_DERIVS):
 	for arg in range(N_ARGS):
 		deriv_above_new = mult_partials(deriv_above, layer_ind, arg, LAYERS, DERIVS)
 		src = LAYERS[layer_ind]['in_source'][arg]
-		if isinstance(src, int) and src != -1: # go back farther
+		if isinstance(src, int) and src != -1 and src != layer_ind: # go back farther
 			reverse_network(deriv_above_new, src, LAYERS, DERIVS, WEIGHT_DERIVS)
 		else:
 			WEIGHT_DERIVS[layer_ind][arg] = deriv_above_new[0]
 
 #############
-N_CONTROLLERS = 16
-M_LENGTH = 6
-N_MEM_SLOTS = 8
-
 deriv_top = np.ones((1,1))
-
 LAYERS = []
 
 # FR read
@@ -288,12 +302,16 @@ LAYERS.append({ 'forward_F': linear_F, \
 FW_IND = len(LAYERS)
 Fw_shape = (N_MEM_SLOTS,8)
 m_shape = (8,M_LENGTH)
-mem_shape = (N_MEM_SLOTS, M_LENGTH)
 LAYERS.append({ 'forward_F': linear_F, \
 				'out_shape': mem_shape, \
 				'in_shape': [Fw_shape, m_shape], \
 				'in_source': [random_function, -1], \
 				'deriv_F': [linear_F_dF, linear_F_dx] })
+
+# mem_prev
+MEM_PREV_IND = len(LAYERS)
+LAYERS.append({ 'forward_F': mem_prev, \
+				'out_shape': mem_shape})
 				
 # mem = mem_prev + Fw
 # "mem"
@@ -303,6 +321,12 @@ LAYERS.append({ 'forward_F': add_points, \
 				'in_shape': [mem_shape, mem_shape], \
 				'in_source': [FW_IND, -1], \
 				'deriv_F': [add_points_dinput, add_points_dinput] })
+
+N_ARGS = len(LAYERS[MEM_IND]['in_shape'])
+LAYERS[MEM_PREV_IND]['in_shape'] = LAYERS[MEM_IND]['in_shape']
+LAYERS[MEM_PREV_IND]['in_source'] = LAYERS[MEM_IND]['in_source']
+LAYERS[MEM_PREV_IND]['deriv_F'] = [mem_prev_deriv] * N_ARGS
+LAYERS[MEM_PREV_IND]['deriv_F_args'] = range(N_ARGS)
 
 # cosine
 COS_IND = len(LAYERS)
@@ -341,9 +365,10 @@ LAYERS.append({ 'forward_F': sum_points, \
 
 
 WEIGHTS = init_weights(LAYERS)
-WEIGHTS[0][1] = random_function(LAYERS[0]['in_shape'][1])  # inputs
-WEIGHTS[1][1] = random_function(LAYERS[1]['in_shape'][1])  # inputs_prev
-WEIGHTS[2][1] = random_function(LAYERS[2]['in_shape'][1])  # mem
+WEIGHTS[FR_IND][1] = random_function(LAYERS[FR_IND]['in_shape'][1])  # inputs
+WEIGHTS[FW_IND][1] = random_function(LAYERS[FW_IND]['in_shape'][1])  # inputs_prev
+WEIGHTS[MEM_PREV_IND][1] = random_function(LAYERS[MEM_PREV_IND]['in_shape'][1])  # mem
+WEIGHTS[MEM_IND][1] = random_function(LAYERS[MEM_IND]['in_shape'][1])  # mem
 check_weights(WEIGHTS, LAYERS)
 
 ####
