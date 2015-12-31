@@ -11,6 +11,7 @@ from ntm_core_gpu import *
 import archconvnets.unsupervised.ntm_module.ntm_module as nm
 from archconvnets.unsupervised.ntm_module.ntm_module import init_buffer, set_list_buffer, return_list_buffer, return_buffer
 
+t_copy = 0
 t_start = time.time()
 ##### which gradients to test
 #DERIV_L = L1_UNDER #### double-check!
@@ -104,6 +105,7 @@ def f(y):
 
 
 def g(y):
+	global t_copy
 	WW = copy.deepcopy(WWi); WR = copy.deepcopy(WRi);
 	BW = copy.deepcopy(BWi); BR = copy.deepcopy(BRi);
 	WUNDER = copy.deepcopy(WUNDERi); BUNDER = copy.deepcopy(BUNDERi);
@@ -155,6 +157,8 @@ def g(y):
 		OR,OW,mem,read_mem,OUNDER,OABOVE = forward_pass(WUNDER, BUNDER, WR,WW,BR,BW, WABOVE, BABOVE, OR_PREV, OW_PREV, mem_prev, x[frame])
 		
 		nm.free_all_buffers()
+		
+		t_copy_start = time.time()
 		#### put data on gpu
 		READ_MEM = init_buffer(read_mem)
 		T = init_buffer(t)
@@ -201,25 +205,29 @@ def g(y):
 		L_DOW_DBW = set_list_buffer(DOW_DBW)
 		L_DOW_DWUNDER = set_list_buffer(DOW_DWUNDER)
 		L_DOW_DBUNDER = set_list_buffer(DOW_DBUNDER)
+		
+		t_copy += time.time() - t_copy_start
 		####
 		
 		# reverse (compute memory partials)
 		L_DOW_DWW, L_DOW_DBW, L_DOW_DWUNDER, L_DOW_DBUNDER, L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_DOR_DWR, L_DOR_DBR, L_DOR_DWUNDER, L_DOR_DBUNDER, L_DOR_DWW, L_DOR_DBW = \
 			reverse_pass_partials(L_WUNDER, L_BUNDER, L_WR,L_WW,L_BR,L_BW, L_OUNDER, L_OUNDER_PREV, L_OR, L_OR_PREV, L_OW_PREV, L_OW_PREV_PREV, MEM_PREV, MEM_PREV_PREV, X, X_PREV, frame, L_DOW_DWW, L_DOW_DBW, L_DOW_DWUNDER, L_DOW_DBUNDER, L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_DOR_DWR, L_DOR_DBR, L_DOR_DWUNDER, L_DOR_DBUNDER, L_DOR_DWW, L_DOR_DBW)
 
-	
+		nm.sync()
 		# update temporal state vars
 		if frame != N_FRAMES:
+			t_copy_start = time.time()
 			OW_PREV_PREV = return_list_buffer(L_OW_PREV)
 			OR_PREV = return_list_buffer(L_OR); OW_PREV = return_list_buffer(L_OW); OUNDER_PREV = return_list_buffer(L_OUNDER)
 			mem_prev_prev = return_buffer(MEM_PREV); mem_prev = return_buffer(MEM)
+			t_copy += time.time() - t_copy_start
 	
 	# full gradients from partials
 	
 	L_DWR, L_DBR, L_DWW, L_DBW, L_DWUNDER, L_DBUNDER, L_DWABOVE, L_DBABOVE = \
 		full_gradients_gpu(READ_MEM, T, MEM_PREV, L_DOR_DWR, L_DOR_DBR, L_DOR_DWW, L_DOR_DBW, L_DOR_DWUNDER, L_DOR_DBUNDER, L_OR, L_DMEM_PREV_DWW, L_DMEM_PREV_DBW, L_DMEM_PREV_DWUNDER, L_DMEM_PREV_DBUNDER, L_OABOVE, L_WABOVE)
-	
-	
+	nm.sync()
+	t_copy_start = time.time()
 	DWR = return_list_buffer(L_DWR, L_WR)
 	DBR = return_list_buffer(L_DBR, L_BR)
 	DWW = return_list_buffer(L_DWW, L_WW)
@@ -228,6 +236,7 @@ def g(y):
 	DBUNDER = return_list_buffer(L_DBUNDER, L_BUNDER)
 	DWABOVE = return_list_buffer(L_DWABOVE, L_WABOVE)
 	DBABOVE = return_list_buffer(L_DBABOVE, L_BABOVE)
+	t_copy += time.time() - t_copy_start
 	
 	####
 	if gradient_category == 'above':
@@ -285,4 +294,4 @@ if inf_vals.sum():
 	print '***', inf_vals.sum(), ' non-zeros when should be zero ***'
 	ratios[inf_vals] = 0
 print ratios.mean(), ratios.std()
-print time.time() - t_start
+print time.time() - t_start, t_copy, time.time() - t_start - t_copy
