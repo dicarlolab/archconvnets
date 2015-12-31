@@ -1,4 +1,7 @@
 import numpy as np
+import copy
+import time
+import scipy.optimize
 
 '''-------------
 layer Ul:
@@ -223,7 +226,47 @@ LAYERS.append({ 'forward_F': sum_points, \
 WEIGHTS = init_weights(LAYERS)
 WEIGHTS[0][1] = random_function(LAYERS[0]['in_shape'][1])  # inputs
 
-OUTPUT = forward_network(LAYERS, WEIGHTS)
-DERIVS, WEIGHT_DERIVS = local_derivs(LAYERS, WEIGHTS, OUTPUT)
-reverse_network(deriv_top, len(LAYERS)-1, LAYERS, DERIVS, WEIGHT_DERIVS)
+gradient_layer = 2
+gradient_arg = 0
+ref = WEIGHTS[gradient_layer][gradient_arg]
+
+def f(y):
+	WEIGHTS_local = copy.deepcopy(WEIGHTS)
+	Wy = WEIGHTS_local[gradient_layer][gradient_arg]
+	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
+	WEIGHTS_local[gradient_layer][gradient_arg] = Wy.reshape(weights_shape)
+	
+	OUTPUT = forward_network(LAYERS, WEIGHTS_local)
+	
+	return OUTPUT[-1][0]
+
+def g(y):
+	WEIGHTS_local = copy.deepcopy(WEIGHTS)
+	Wy = WEIGHTS_local[gradient_layer][gradient_arg]
+	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
+	WEIGHTS_local[gradient_layer][gradient_arg] = Wy.reshape(weights_shape)
+	
+	OUTPUT = forward_network(LAYERS, WEIGHTS_local)
+	DERIVS, WEIGHT_DERIVS = local_derivs(LAYERS, WEIGHTS_local, OUTPUT)
+	reverse_network(deriv_top, len(LAYERS)-1, LAYERS, DERIVS, WEIGHT_DERIVS)
+	
+	return WEIGHT_DERIVS[gradient_layer][gradient_arg].ravel()[i_ind]
+
+np.random.seed(np.int64(time.time()))
+eps = np.sqrt(np.finfo(np.float).eps)*1e10
+
+N_SAMPLES = 25
+ratios = np.zeros(N_SAMPLES)
+for sample in range(N_SAMPLES):
+	i_ind = np.random.randint(np.prod(ref.shape))
+	y = ref.ravel()[i_ind]
+	gt = g(y); gtx = scipy.optimize.approx_fprime(np.ones(1)*y, f, eps)
+	
+	if gtx == 0:
+		ratios[sample] = 1
+	else:
+		ratios[sample] = gtx/gt
+	print gt, gtx, ratios[sample]
+	
+print ratios.mean(), ratios.std()
 
