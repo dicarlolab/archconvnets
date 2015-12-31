@@ -31,8 +31,8 @@ dOl[t] -> dOl[t]/dR, dO[t]/dU_OUT[t], dO[t]/dmem[t]
 																	               dmem[t-4] -> 0
 '''								                      
 
-def mem_prev(args):
-	return np.zeros(mem_shape, dtype='single')
+def random_function(size):
+	return np.asarray(np.random.random(size) - .5, dtype='single')
 
 def mem_prev_deriv(ARGS):
 	arg_ind = ARGS[0]
@@ -148,9 +148,6 @@ def linear_F_dF(args):
 	temp = np.zeros((n, x.shape[1], n, F.shape[1]),dtype='single')
 	temp[range(n),:,range(n)] = x.T
 	return temp
-
-def random_function(size):
-	return np.asarray(np.random.random(size) - .5, dtype='single')
 	
 def check_weights(WEIGHTS, LAYERS):
 	check_network(LAYERS)
@@ -165,12 +162,6 @@ def check_weights(WEIGHTS, LAYERS):
 			else:
 				assert WEIGHTS[layer_ind][arg] is None, 'layer %i argument %i should not have weightings because it should be computed from layer %i' % (layer_ind, arg,  L['in_source'][arg])
 		
-def call_deriv(L, arg, args):
-	if 'deriv_F_args' in L:
-		return L['deriv_F'][arg]([L['deriv_F_args'][arg], args])
-	else:
-		return L['deriv_F'][arg](args)
-
 def check_network(LAYERS):
 	for layer_ind in range(len(LAYERS)):
 		L = LAYERS[layer_ind]
@@ -188,17 +179,17 @@ def check_network(LAYERS):
 		# check if deriv functions correctly produce correct shapes
 		for arg in range(N_ARGS):
 			expected_shape = tuple(np.concatenate((L['out_shape'], L['in_shape'][arg])))
-			assert call_deriv(L, arg, args).shape == expected_shape
+			assert L['deriv_F'][arg](args).shape == expected_shape
 		
 		# check if other layers claim to produce expected inputs
 		for arg in range(N_ARGS):
 			if L['in_source'][arg] >= 0 and isinstance(L['in_source'][arg], int):
 				assert L['in_shape'][arg] == LAYERS[L['in_source'][arg]]['out_shape'], '%i %i' % (layer_ind, arg)
 				
-		# check if layers are ordered (no inputs to this layer come after this one in the list)
+		# check if layers are ordered (no inputs to this layer come after this one in the list... unless recursive mem layer)
 		for arg in range(N_ARGS):
 			if L['in_source'][arg] >= 0 and isinstance(L['in_source'][arg], int):
-				assert L['in_source'][arg] <= layer_ind
+				assert L['in_source'][arg] <= layer_ind or layer_ind in LAYERS[L['in_source'][arg]]['in_source']
 
 def init_weights(LAYERS):
 	check_network(LAYERS)
@@ -213,9 +204,7 @@ def init_weights(LAYERS):
 				
 	return WEIGHTS
 
-def mult_partials(A, layer_ind, arg, LAYERS, DERIVS):
-	B = DERIVS[layer_ind][arg]
-	B_out_shape = LAYERS[layer_ind]['out_shape']
+def mult_partials(A, B, B_out_shape):
 	A_ndim = A.ndim - len(B_out_shape)
 	B_ndim = B.ndim - len(B_out_shape)
 	assert A_ndim > 0
@@ -233,29 +222,34 @@ def mult_partials(A, layer_ind, arg, LAYERS, DERIVS):
 	
 	return np.dot(A.reshape(A_shape), B.reshape(B_shape)).reshape(out_shape)
 
-def build_forward_args(L, layer_ind, OUTPUT, WEIGHTS):
+def build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS):
 	N_ARGS = len(L['in_shape'])
 	args = [None] * N_ARGS
 	
 	for arg in range(N_ARGS):
+		src = L['in_source'][arg]
+		
 		# input is from another layer
-		if isinstance(L['in_source'][arg], int) and L['in_source'][arg] != -1:
-			args[arg] = OUTPUT[L['in_source'][arg]]
+		if isinstance(src, int) and src != -1 and src != layer_ind:
+			args[arg] = OUTPUT[src]
+		# input is current layer, return previous value
+		elif src == layer_ind:
+			args[arg] = OUTPUT_PREV[src]
 		else: # input is a weighting
 			args[arg] = WEIGHTS[layer_ind][arg]
 	return args
 
-def forward_network(LAYERS, WEIGHTS):
+def forward_network(LAYERS, WEIGHTS, OUTPUT_PREV):
 	OUTPUT = [None] * len(LAYERS)
 	for layer_ind in range(len(LAYERS)):
 		L = LAYERS[layer_ind]
 		N_ARGS = len(L['in_shape'])
-		args = build_forward_args(L, layer_ind, OUTPUT, WEIGHTS)
+		args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
 		
 		OUTPUT[layer_ind] = L['forward_F'](args)
 	return OUTPUT
 
-def local_derivs(LAYERS, WEIGHTS, OUTPUT):
+def local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV):
 	DERIVS = [None] * len(LAYERS)
 	WEIGHT_DERIVS = [None] * len(LAYERS)
 	for layer_ind in range(len(LAYERS)):
@@ -264,27 +258,70 @@ def local_derivs(LAYERS, WEIGHTS, OUTPUT):
 		DERIVS[layer_ind] = [None]*N_ARGS
 		WEIGHT_DERIVS[layer_ind] = [None]*N_ARGS
 		
-		args = build_forward_args(L, layer_ind, OUTPUT, WEIGHTS)
+		args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
 		
 		for arg in range(N_ARGS):
-			DERIVS[layer_ind][arg] = call_deriv(L, arg, args)
+			DERIVS[layer_ind][arg] = L['deriv_F'][arg](args)
 	return DERIVS, WEIGHT_DERIVS
 
-def reverse_network(deriv_above, layer_ind, LAYERS, DERIVS, WEIGHT_DERIVS):
-	assert layer_ind >= 0
+def add_initialize(W, add):
+	if W is None:
+		return add
+	else:
+		return W + add
+
+def reverse_network(deriv_above, layer_ind, layer_prev, LAYERS, DERIVS, WEIGHT_DERIVS): # multiply all partials together
 	L = LAYERS[layer_ind]
+	P = PARTIALS[layer_ind]
 	N_ARGS = len(L['in_shape'])
 	
 	for arg in range(N_ARGS):
-		deriv_above_new = mult_partials(deriv_above, layer_ind, arg, LAYERS, DERIVS)
+		deriv_above_new = mult_partials(deriv_above, DERIVS[layer_ind][arg], LAYERS[layer_ind]['out_shape'])
 		src = LAYERS[layer_ind]['in_source'][arg]
-		if isinstance(src, int) and src != -1 and src != layer_ind: # go back farther
-			reverse_network(deriv_above_new, src, LAYERS, DERIVS, WEIGHT_DERIVS)
-		else:
-			if WEIGHT_DERIVS[layer_ind][arg] is None:
-				WEIGHT_DERIVS[layer_ind][arg] = deriv_above_new[0]
-			else:
-				WEIGHT_DERIVS[layer_ind][arg] += deriv_above_new[0]
+		if isinstance(src, int) and src != -1 and src != layer_ind: # go back farther... avoid infinite loops
+			reverse_network(deriv_above_new, src, layer_ind, LAYERS, DERIVS, WEIGHT_DERIVS)
+		elif src == layer_ind: # add memory partials
+			N_ARGS2 = len(P['in_source'])
+			for arg2 in range(N_ARGS2):
+				p_layer_ind = P['in_source'][arg2]
+				p_arg = P['in_arg'][arg2]
+				p_partial = P['partial'][arg2]
+				deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[layer_ind]['out_shape'])
+				WEIGHT_DERIVS[p_layer_ind][p_arg] = add_initialize(WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp)
+		else: # regular derivatives
+			WEIGHT_DERIVS[layer_ind][arg] = add_initialize(WEIGHT_DERIVS[layer_ind][arg], deriv_above_new[0])
+
+def traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
+	dest = LAYERS[layer_cur]['in_source'][arg]
+	# end:
+	if (isinstance(dest, int) == False) or dest == -1:
+		PARTIALS[layer_orig]['in_source'].append(layer_cur)
+		PARTIALS[layer_orig]['in_arg'].append(arg)
+		PARTIALS[layer_orig]['partial'].append(np.zeros(np.concatenate((LAYERS[layer_orig]['out_shape'], LAYERS[layer_cur]['in_shape'][arg])), dtype='single'))
+	else:
+		N_ARGS2 = len(LAYERS[dest]['in_source'])
+		for arg2 in range(N_ARGS2):
+			traverse_to_end(layer_orig, dest, arg2, LAYERS, PARTIALS)
+
+def check_output_prev(OUTPUT_PREV, LAYERS):
+	for layer_ind in range(len(LAYERS)):
+		L = LAYERS[layer_ind]
+		if layer_ind in L['in_source']:
+			assert OUTPUT_PREV[layer_ind].shape == L['out_shape']
+	
+def init_partials(LAYERS):
+	PARTIALS = [None]*len(LAYERS)
+	for layer_ind in range(len(LAYERS)):
+		L = LAYERS[layer_ind]
+		N_ARGS = len(L['in_source'])
+		PARTIALS[layer_ind] = {'in_source': [], 'in_arg': [], 'partial': []}
+		
+		if layer_ind in L['in_source']: # memory layer
+			for arg in range(N_ARGS):
+				if L['in_source'][arg] != layer_ind:
+					traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS)
+		
+	return PARTIALS
 
 #############
 deriv_top = np.ones((1,1))
@@ -310,26 +347,15 @@ LAYERS.append({ 'forward_F': linear_F, \
 				'in_shape': [Fw_shape, m_shape], \
 				'in_source': [random_function, -1], \
 				'deriv_F': [linear_F_dF, linear_F_dx] })
-
-# mem_prev
-MEM_PREV_IND = len(LAYERS)
-LAYERS.append({ 'forward_F': mem_prev, \
-				'out_shape': mem_shape})
-				
+		
 # mem = mem_prev + Fw
 # "mem"
 MEM_IND = len(LAYERS)
 LAYERS.append({ 'forward_F': add_points, \
 				'out_shape': mem_shape, \
 				'in_shape': [mem_shape, mem_shape], \
-				'in_source': [FW_IND, MEM_PREV_IND], \
+				'in_source': [FW_IND, MEM_IND], \
 				'deriv_F': [add_points_dinput, add_points_dinput] })
-
-N_ARGS = len(LAYERS[MEM_IND]['in_shape'])
-LAYERS[MEM_PREV_IND]['in_shape'] = LAYERS[MEM_IND]['in_shape']
-LAYERS[MEM_PREV_IND]['in_source'] = LAYERS[MEM_IND]['in_source']
-LAYERS[MEM_PREV_IND]['deriv_F'] = [mem_prev_deriv] * N_ARGS
-LAYERS[MEM_PREV_IND]['deriv_F_args'] = range(N_ARGS)
 
 # cosine
 COS_IND = len(LAYERS)
@@ -372,10 +398,20 @@ WEIGHTS[FR_IND][1] = random_function(LAYERS[FR_IND]['in_shape'][1])  # inputs
 WEIGHTS[FW_IND][1] = random_function(LAYERS[FW_IND]['in_shape'][1])  # inputs_prev
 check_weights(WEIGHTS, LAYERS)
 
+OUTPUT_PREV = [None] * len(LAYERS)
+OUTPUT_PREV[MEM_IND] = random_function(LAYERS[MEM_IND]['out_shape'])
+check_output_prev(OUTPUT_PREV, LAYERS)
+
+PARTIALS = init_partials(LAYERS)
+
+OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT_PREV)
+DERIVS, WEIGHT_DERIVS = local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
+reverse_network(deriv_top, len(LAYERS)-1, len(LAYERS), LAYERS, DERIVS, WEIGHT_DERIVS)
+
 ####
 gradient_layer = FW_IND
 gradient_arg = 0
-assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True
+assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = WEIGHTS[gradient_layer][gradient_arg]
 
 def f(y):
@@ -384,7 +420,7 @@ def f(y):
 	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
 	WEIGHTS_local[gradient_layer][gradient_arg] = Wy.reshape(weights_shape)
 	
-	OUTPUT = forward_network(LAYERS, WEIGHTS_local)
+	OUTPUT = forward_network(LAYERS, WEIGHTS_local, OUTPUT_PREV)
 	
 	return OUTPUT[-1][0]
 
@@ -394,14 +430,14 @@ def g(y):
 	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
 	WEIGHTS_local[gradient_layer][gradient_arg] = Wy.reshape(weights_shape)
 	
-	OUTPUT = forward_network(LAYERS, WEIGHTS_local)
-	DERIVS, WEIGHT_DERIVS = local_derivs(LAYERS, WEIGHTS_local, OUTPUT)
-	reverse_network(deriv_top, len(LAYERS)-1, LAYERS, DERIVS, WEIGHT_DERIVS)
+	OUTPUT = forward_network(LAYERS, WEIGHTS_local, OUTPUT_PREV)
+	DERIVS, WEIGHT_DERIVS = local_derivs(LAYERS, WEIGHTS_local, OUTPUT, OUTPUT_PREV)
+	reverse_network(deriv_top, len(LAYERS)-1, len(LAYERS), LAYERS, DERIVS, WEIGHT_DERIVS)
 	
 	return WEIGHT_DERIVS[gradient_layer][gradient_arg].ravel()[i_ind]
 
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e4
+eps = np.sqrt(np.finfo(np.float).eps)*1e5
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
