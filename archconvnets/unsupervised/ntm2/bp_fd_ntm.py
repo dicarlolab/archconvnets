@@ -25,6 +25,62 @@ dOl[t] -> dOl[t]/dR, dO[t]/dU_OUT[t], dO[t]/dmem[t]
 																				   dmem[t-3] -> dmem[t-3]/dW, dmem[t-3]/dU_OUT[t-4], 0
 																	               dmem[t-4] -> 0
 '''								                      
+############
+# cosine similarity between each controller's key and memory vector
+
+def cosine_sim_dmem(args):
+	keys, mem = args
+	n_controllers = keys.shape[0]
+	comb = np.zeros((n_controllers, mem.shape[0], mem.shape[0], mem.shape[1]),dtype='single')
+
+	keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
+	mem_sq_sum = np.sqrt(np.sum(mem**2, 1))
+
+	denom = np.einsum(keys_sq_sum, [0], mem_sq_sum, [1], [0,1])
+	numer = np.dot(keys, mem.T)
+
+	numer = numer / denom**2
+	denom = 1 / denom # = denom/denom**2
+
+	mem = mem / mem_sq_sum[:,np.newaxis]
+
+	temp = np.einsum(mem, [0,2], numer*keys_sq_sum[:,np.newaxis], [1,0], [1,0,2])
+	
+	keys_denom = keys[:,np.newaxis] * denom[:,:,np.newaxis]
+	
+	comb[:,range(mem.shape[0]),range(mem.shape[0])] = keys_denom - temp
+	return comb
+
+def cosine_sim_dkeys(args):
+	keys, mem = args
+	n_controllers = keys.shape[0]
+	comb = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]),dtype='single')
+	
+	keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
+	mem_sq_sum = np.sqrt(np.sum(mem**2, 1))
+	
+	denom = np.einsum(keys_sq_sum, [0], mem_sq_sum, [1], [0,1])
+	numer = np.dot(keys, mem.T)
+	
+	numer = numer / denom**2
+	denom = 1 / denom # = denom/denom**2
+	
+	keys = keys / keys_sq_sum[:,np.newaxis]
+	
+	temp = np.einsum(keys, [1,2], numer*mem_sq_sum[np.newaxis], [1,0], [1,0,2])
+	
+	mem_denom = mem[np.newaxis] * denom[:,:,np.newaxis]
+	
+	comb[range(n_controllers),:,range(n_controllers)] = mem_denom - temp
+	return comb
+
+def cosine_sim(args):
+	keys, mem = args
+	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
+	numer = np.dot(keys, mem.T)
+	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
+	return numer / denom # [n_controllers, n_mem_slots]
+
 def sum_points(args):
 	return args[0].sum()[np.newaxis]
 
@@ -179,14 +235,18 @@ def reverse_network(deriv_above, layer_ind, LAYERS, DERIVS, WEIGHT_DERIVS):
 			WEIGHT_DERIVS[layer_ind][arg] = deriv_above_new[0]
 
 #############
+N_CONTROLLERS = 16
+M_LENGTH = 6
+N_MEM_SLOTS = 8
+
 deriv_top = np.ones((1,1))
 
-F1_shape = (3,4)
-x_shape = (4,5)
+F1_shape = (N_CONTROLLERS,4)
+x_shape = (4,M_LENGTH)
 L1_shape = (F1_shape[0], x_shape[1])
 
-F2_shape = (8,L1_shape[0])
-L2_shape = (F2_shape[0], L1_shape[1])
+mem_shape = (N_MEM_SLOTS, M_LENGTH)
+L2_shape = (N_CONTROLLERS, N_MEM_SLOTS)
 
 F3_shape = (2,L2_shape[0])
 L3_shape = (F3_shape[0], L2_shape[1])
@@ -198,11 +258,11 @@ LAYERS.append({ 'forward_F': linear_F, \
 				'in_source': [random_function, -1], \
 				'deriv_F': [linear_F_dF, linear_F_dx] })
 
-LAYERS.append({ 'forward_F': linear_F, \
+LAYERS.append({ 'forward_F': cosine_sim, \
 				'out_shape': L2_shape, \
-				'in_shape': [F2_shape, L1_shape], \
-				'in_source': [random_function, 0], \
-				'deriv_F': [linear_F_dF, linear_F_dx] })
+				'in_shape': [L1_shape, mem_shape], \
+				'in_source': [0, -1], \
+				'deriv_F': [cosine_sim_dkeys, cosine_sim_dmem] })
 
 LAYERS.append({ 'forward_F': linear_F, \
 				'out_shape': L3_shape, \
@@ -225,9 +285,11 @@ LAYERS.append({ 'forward_F': sum_points, \
 
 WEIGHTS = init_weights(LAYERS)
 WEIGHTS[0][1] = random_function(LAYERS[0]['in_shape'][1])  # inputs
+WEIGHTS[1][1] = random_function(LAYERS[1]['in_shape'][1])  # mem
 
-gradient_layer = 1
+gradient_layer = 0
 gradient_arg = 0
+assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True
 ref = WEIGHTS[gradient_layer][gradient_arg]
 
 def f(y):
