@@ -226,7 +226,7 @@ LAYERS.append({ 'forward_F': sum_points, \
 WEIGHTS = init_weights(LAYERS)
 WEIGHTS[0][1] = random_function(LAYERS[0]['in_shape'][1])  # inputs
 
-gradient_layer = 2
+gradient_layer = 1
 gradient_arg = 0
 ref = WEIGHTS[gradient_layer][gradient_arg]
 
@@ -253,7 +253,7 @@ def g(y):
 	return WEIGHT_DERIVS[gradient_layer][gradient_arg].ravel()[i_ind]
 
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e10
+eps = np.sqrt(np.finfo(np.float).eps)*1e4
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
