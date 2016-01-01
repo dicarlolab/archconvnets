@@ -1,4 +1,6 @@
-__global__ void sum_points_kernel(float * points, float * out){ 
+__global__ void sum_points_kernel(float * points, float * out){
+	if(threadIdx.x == 0) out[0] = 0;
+	__syncthreads();
 	atomicAdd(&out[0], points[threadIdx.x]);
 }
 

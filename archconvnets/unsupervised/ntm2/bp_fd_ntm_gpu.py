@@ -50,18 +50,25 @@ xt = random_function(np.concatenate(((N_FRAMES,), LAYERS[FU_IND]['in_shape'][1])
 set_buffer(xt[0], WEIGHTS[FU_IND][1])
 check_weights(WEIGHTS, LAYERS)
 
-OUTPUT_PREV = [None] * len(LAYERS)
-#OUTPUT_PREV[MEM_IND] = init_buffer(random_function(LAYERS[MEM_IND]['out_shape']))
-check_output_prev(OUTPUT_PREV, LAYERS)
-
-OUTPUT = None; LOCAL_DERIVS = None; WEIGHT_DERIVS = None
 DERIV_TOP = init_buffer(np.ones((1,1), dtype='single'))
 
 PARTIALS_PREV = init_partials(LAYERS)
+
 '''OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 
 LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS)
 WEIGHT_DERIVS = reverse_network(DERIV_TOP, len(LAYERS)-1, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, WEIGHT_DERIVS)'''
+
+def free_list(LIST):
+	for layer_ind in range(len(LIST)):
+
+		# list of list, ex. partials
+		if isinstance(LIST[0][0], list):
+			for arg in range(len(LIST[layer_ind])):
+				free_buffer(LIST[layer_ind][arg])
+		# outputs
+		else:
+			free_buffer(LIST[layer_ind])
 
 ################
 gradient_layer = FU_IND
@@ -70,7 +77,8 @@ assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != Tru
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 
 def f(y):
-	OUTPUT_local = copy.deepcopy(OUTPUT); OUTPUT_PREV_local = copy.deepcopy(OUTPUT_PREV)
+	OUTPUT = None; OUTPUT_PREV = [None] * len(LAYERS)
+	#OUTPUT_PREV[MEM_IND] = init_buffer(random_function(LAYERS[MEM_IND]['out_shape']))
 	Wy = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
 	set_buffer(Wy.reshape(weights_shape), WEIGHTS[gradient_layer][gradient_arg])
@@ -78,13 +86,16 @@ def f(y):
 	for frame in range(N_FRAMES):
 		set_buffer(xt[frame], WEIGHTS[FU_IND][1])  # inputs
 		
-		OUTPUT_PREV_local = forward_network(LAYERS, WEIGHTS, OUTPUT_local, OUTPUT_PREV_local) ###
+		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV) ###
 	
-	return return_buffer(OUTPUT_PREV_local[-1])[0]
+	z = return_buffer(OUTPUT[-1])[0]
+	free_list(OUTPUT)
+	return z
 
 def g(y):
-	OUTPUT_local = copy.deepcopy(OUTPUT); OUTPUT_PREV_local = copy.deepcopy(OUTPUT_PREV)
-	LOCAL_DERIVS_local = copy.deepcopy(LOCAL_DERIVS); WEIGHT_DERIVS_local = copy.deepcopy(WEIGHT_DERIVS)
+	OUTPUT = None; LOCAL_DERIVS = None; WEIGHT_DERIVS = None
+	OUTPUT_PREV = [None] * len(LAYERS)
+	#OUTPUT_PREV[MEM_IND] = init_buffer(random_function(LAYERS[MEM_IND]['out_shape']))
 	Wy = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
 	set_buffer(Wy.reshape(weights_shape), WEIGHTS[gradient_layer][gradient_arg])
@@ -92,12 +103,17 @@ def g(y):
 	for frame in range(N_FRAMES):
 		set_buffer(xt[frame], WEIGHTS[FU_IND][1])  # inputs
 		
-		OUTPUT_local = forward_network(LAYERS, WEIGHTS, OUTPUT_local, OUTPUT_PREV_local)
+		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		
-		LOCAL_DERIVS_local = local_derivs(LAYERS, WEIGHTS, OUTPUT_local, OUTPUT_PREV_local, LOCAL_DERIVS)
-		WEIGHT_DERIVS_local = reverse_network(DERIV_TOP, len(LAYERS)-1, LAYERS, LOCAL_DERIVS_local, PARTIALS_PREV, WEIGHT_DERIVS_local)
+		LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS)
+		WEIGHT_DERIVS = reverse_network(DERIV_TOP, len(LAYERS)-1, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, WEIGHT_DERIVS)
 		
-	return return_buffer(WEIGHT_DERIVS_local[gradient_layer][gradient_arg]).ravel()[i_ind]
+	z = return_buffer(WEIGHT_DERIVS[gradient_layer][gradient_arg]).ravel()[i_ind]
+	
+	free_list(LOCAL_DERIVS)
+	free_list(OUTPUT)
+	free_list(WEIGHT_DERIVS)
+	return z
 
 np.random.seed(np.int64(time.time()))
 eps = np.sqrt(np.finfo(np.float).eps)*1e4

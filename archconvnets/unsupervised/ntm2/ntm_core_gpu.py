@@ -123,6 +123,8 @@ def build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS):
 	return args
 
 def forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV):
+	check_output_prev(OUTPUT_PREV, LAYERS)
+	
 	OUTPUT = init_gpu_list(OUTPUT, LAYERS, args=False)
 	
 	for layer_ind in range(len(LAYERS)):
@@ -152,6 +154,7 @@ def init_gpu_list(LIST, LAYERS, args=True):
 	return LIST
 
 def local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS):
+	check_output_prev(OUTPUT_PREV, LAYERS)
 	LOCAL_DERIVS = init_gpu_list(LOCAL_DERIVS, LAYERS)
 	
 	for layer_ind in range(len(LAYERS)):
