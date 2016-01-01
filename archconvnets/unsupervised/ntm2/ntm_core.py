@@ -4,11 +4,6 @@ deriv_top = np.ones((1,1))
 def random_function(size):
 	return np.asarray(np.random.random(size) - .5, dtype='single')
 
-def mem_prev_deriv(ARGS):
-	arg_ind = ARGS[0]
-	args = ARGS[1]
-	return np.zeros(np.concatenate((mem_shape, args[arg_ind].shape)), dtype='single')
-	
 def check_weights(WEIGHTS, LAYERS):
 	check_network(LAYERS)
 	for layer_ind in range(len(LAYERS)):
@@ -60,13 +55,13 @@ def check_output_prev(OUTPUT_PREV, LAYERS):
 def init_weights(LAYERS):
 	check_network(LAYERS)
 	WEIGHTS = [None]*len(LAYERS)
-	for i in range(len(LAYERS)):
-		L = LAYERS[i]
+	for layer_ind in range(len(LAYERS)):
+		L = LAYERS[layer_ind]
 		N_INPUTS = len(L['in_shape'])
-		WEIGHTS[i] = [None]*N_INPUTS
-		for j in range(N_INPUTS):
-			if isinstance(L['in_source'][j], int) != True:
-				WEIGHTS[i][j] = L['in_source'][j](L['in_shape'][j])
+		WEIGHTS[layer_ind] = [None]*N_INPUTS
+		for arg in range(N_INPUTS):
+			if isinstance(L['in_source'][arg], int) != True:
+				WEIGHTS[layer_ind][arg] = L['in_source'][arg]( L['in_shape'][arg] )
 				
 	return WEIGHTS
 
