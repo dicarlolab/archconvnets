@@ -9,6 +9,7 @@
 #include "gradient_functions/linear_F_dx.c"
 #include "gradient_functions/sum_points.c"
 #include "gradient_functions/sum_points_dinput.c"
+#include "gradient_functions/point_wise_add.c"
 
 static PyMethodDef _ntm_module2[] = {
 	{"sync", sync, METH_VARARGS},
@@ -20,6 +21,7 @@ static PyMethodDef _ntm_module2[] = {
 	{"dot", dot, METH_VARARGS},
 	{"sum_points", sum_points, METH_VARARGS},
 	{"sum_points_dinput", sum_points_dinput, METH_VARARGS},
+	{"point_wise_add", point_wise_add, METH_VARARGS},
 	{NULL, NULL}
 };
 

@@ -116,6 +116,8 @@ def linear_F(args, OUT_BUFFER=None, increment=0, gpu_ind=0):
 	OUT_BUFFER[1] = (BUFFER1[1][0], BUFFER2[1][1])
 	return OUT_BUFFER
 
+dot = linear_F
+
 def sum_points(args, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
@@ -143,4 +145,18 @@ def sum_points_dinput(args, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = tuple(np.concatenate(((1,), POINTS[1])))
 	return OUT_BUFFER
 	
+# a += b * scalar
+def point_wise_add(A, B, scalar=1, OUT_BUFFER=None, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	check_buffer(A)
+	check_buffer(B)
 	
+	if OUT_BUFFER != None:
+		check_buffer(OUT_BUFFER)
+		OUT_BUFFER[1] = copy.deepcopy(A[1])
+	else:
+		OUT_BUFFER = copy.deepcopy(A)
+	
+	_ntm_module2.point_wise_add(A[0], B[0], np.single(scalar), OUT_BUFFER[0], gpu_ind)
+	OUT_BUFFER[1] = copy.deepcopy(B[1])
+	return OUT_BUFFER
