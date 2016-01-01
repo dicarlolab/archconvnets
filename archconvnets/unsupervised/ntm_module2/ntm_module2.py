@@ -10,12 +10,21 @@ def sync(gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	return _ntm_module2.sync(gpu_ind)
 
+def return_buffer_sz(buffer_ind, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	assert isinstance(buffer_ind,int)
+	return _ntm_module2.return_buffer_sz(buffer_ind, gpu_ind)
+
 def check_buffer(BUFFER, gpu_ind=0):
 	assert len(BUFFER) == 2
 	assert isinstance(BUFFER[0], int)
 	assert BUFFER[0] >= 0
 	assert n_vars_allocated[gpu_ind, BUFFER[0]]
 	assert isinstance(BUFFER[1], tuple) or BUFFER[1] == None
+	if BUFFER[1] is not None:
+		assert return_buffer_sz(BUFFER[0], gpu_ind) == np.prod(BUFFER[1])
+	else:
+		assert return_buffer_sz(BUFFER[0], gpu_ind) == 0
 
 def free_buffer(BUFFER, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
@@ -146,8 +155,9 @@ def sum_points_dinput(args, OUT_BUFFER=None, gpu_ind=0):
 	return OUT_BUFFER
 	
 # a += b * scalar
-def point_wise_add(A, B, scalar=1, OUT_BUFFER=None, gpu_ind=0):
+def point_wise_add(args, OUT_BUFFER=None, scalar=1, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	A, B = args
 	check_buffer(A)
 	check_buffer(B)
 	
@@ -160,3 +170,43 @@ def point_wise_add(A, B, scalar=1, OUT_BUFFER=None, gpu_ind=0):
 	_ntm_module2.point_wise_add(A[0], B[0], np.single(scalar), OUT_BUFFER[0], gpu_ind)
 	OUT_BUFFER[1] = copy.deepcopy(B[1])
 	return OUT_BUFFER
+
+# unlike point_wise_add, this defaults to storing the output in a new buffer instead of overwriting the first argument
+def add_points(args, OUT_BUFFER=None, scalar=1, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	A, B = args
+	check_buffer(A)
+	check_buffer(B)
+	
+	if OUT_BUFFER != None:
+		check_buffer(OUT_BUFFER)
+		OUT_BUFFER[1] = copy.deepcopy(A[1])
+	else:
+		OUT_BUFFER = init_buffer()
+	
+	_ntm_module2.point_wise_add(A[0], B[0], np.single(scalar), OUT_BUFFER[0], gpu_ind)
+	OUT_BUFFER[1] = copy.deepcopy(B[1])
+	return OUT_BUFFER
+
+def add_points_dinput(args, OUT_BUFFER=None, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	A, B = args
+	check_buffer(A)
+	check_buffer(B)
+	assert A[1] == B[1]
+	
+	if OUT_BUFFER is None:
+		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
+	check_buffer(OUT_BUFFER)
+	_ntm_module2.add_points_dinput(A[1], OUT_BUFFER[0], gpu_ind)
+	OUT_BUFFER[1] = tuple(np.concatenate((A[1], A[1])))
+	return OUT_BUFFER
+
+'''def add_points_dinput(args):
+	assert len(args) == 2
+	assert args[0].shape == args[1].shape
+	out = np.zeros(np.concatenate((args[0].shape, args[0].shape)),dtype='single')
+	for i in range(out.shape[0]):
+		out[i,range(out.shape[1]),i,range(out.shape[1])] = 1
+	return out'''
+

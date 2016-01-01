@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define DEBUG 1
+
 #define CHECK_CUDA_ERR {err = cudaGetLastError();if(err != cudaSuccess){\
 		printf("CUDA error: %s, %s, %i\n",cudaGetErrorString(err),__FILE__,__LINE__);return NULL;}}
 

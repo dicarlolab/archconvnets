@@ -56,7 +56,7 @@ static PyObject * point_wise_add(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	if(a_ind == out_buffer_ind && buffer_prev_init != 0){
+	if(a_ind == out_buffer_ind && buffer_prev_init == 0){
 		cudaMemcpy(gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][b_ind], OUT_BUFFER_SZ, cudaMemcpyDeviceToDevice);
 	}else{
 		// determine number of blocks

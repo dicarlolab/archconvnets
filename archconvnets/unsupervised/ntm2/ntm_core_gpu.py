@@ -193,13 +193,13 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 				p_arg = P['in_arg'][arg2]
 				p_partial = P['partial'][arg2]
 				deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[layer_ind]['out_shape'])
-				WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add(WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp)
+				WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp))
 				
 				free_buffer(deriv_temp)
 		
 		# regular derivatives
 		else:
-			WEIGHT_DERIVS[layer_ind][arg] = point_wise_add(WEIGHT_DERIVS[layer_ind][arg], deriv_above_new)
+			WEIGHT_DERIVS[layer_ind][arg] = point_wise_add((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new))
 			if keep_dims == False:
 				assert WEIGHT_DERIVS[layer_ind][arg][1][0] == 1
 				WEIGHT_DERIVS[layer_ind][arg][1] = tuple(WEIGHT_DERIVS[layer_ind][arg][1][1:])
@@ -233,3 +233,29 @@ def init_partials(LAYERS):
 					init_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS)
 		
 	return PARTIALS
+	
+def reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS):
+	MEM_WEIGHT_DERIVS = init_gpu_list(MEM_WEIGHT_DERIVS)
+	
+	# update partials_prev
+	for i in range(len(LAYERS[MEM_IND]['in_source'])):
+		src_layer = LAYERS[MEM_IND]['in_source'][i]
+		
+		# DMEM_D[layers]_DW
+		if src_layer != MEM_IND:
+			MEM_WEIGHT_DERIVS = reverse_network(LOCAL_DERIVS[MEM_IND][i], src_layer, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS, keep_dims=True)
+		
+		# DMEM_DMEM_DW
+		else:
+			P = PARTIALS_PREV[MEM_IND]
+			N_ARGS2 = len(P['in_source'])
+			for arg2 in range(N_ARGS2):
+				p_layer_ind = P['in_source'][arg2]
+				p_arg = P['in_arg'][arg2]
+				p_partial = P['partial'][arg2]
+				deriv_temp = mult_partials(LOCAL_DERIVS[MEM_IND][i], p_partial, LAYERS[MEM_IND]['out_shape'])
+				MEM_WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((MEM_WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp))
+				free_buffer(deriv_temp)
+				
+				
+	return MEM_WEIGHT_DERIVS
