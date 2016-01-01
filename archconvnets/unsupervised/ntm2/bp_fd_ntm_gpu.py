@@ -78,7 +78,7 @@ def f(y):
 	for frame in range(N_FRAMES):
 		set_buffer(xt[frame], WEIGHTS[FU_IND][1])  # inputs
 		
-		OUTPUT_PREV_local = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV_local)
+		OUTPUT_PREV_local = forward_network(LAYERS, WEIGHTS, OUTPUT_local, OUTPUT_PREV_local) ###
 	
 	return return_buffer(OUTPUT_PREV_local[-1])[0]
 
