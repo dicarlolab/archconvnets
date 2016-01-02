@@ -1,9 +1,7 @@
 #define GPU_BUFFER1 gpu_buffers[gpu_ind][buffer_ind1]
 #define GPU_BUFFER2 gpu_buffers[gpu_ind][buffer_ind2]
-#define GPU_BUFFER_OUT gpu_buffers[gpu_ind][out_buffer_ind]
 #define BUFFER_SZ1 buffer_sz[gpu_ind][buffer_ind1]
 #define BUFFER_SZ2 buffer_sz[gpu_ind][buffer_ind2]
-#define OUT_BUFFER_SZ buffer_sz[gpu_ind][out_buffer_ind]
 
 #define DATA_OUT(A, B) data_out[(A)*buffer2_dim2 + (B)]
 #define DATA_OUT_IND(A, B) ((A)*buffer2_dim2 + (B))

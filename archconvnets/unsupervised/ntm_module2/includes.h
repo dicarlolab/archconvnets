@@ -27,6 +27,10 @@
 
 #define GPU_BUFFER gpu_buffers[gpu_ind][buffer_ind]
 #define BUFFER_SZ buffer_sz[gpu_ind][buffer_ind]
+
+#define OUT_BUFFER_SZ buffer_sz[gpu_ind][out_buffer_ind]
+#define GPU_BUFFER_OUT gpu_buffers[gpu_ind][out_buffer_ind]
+
 // BUFFER_SZ: size of buffer in bytes
 
 float *gpu_buffers[N_GPUS][N_BUFFERS];

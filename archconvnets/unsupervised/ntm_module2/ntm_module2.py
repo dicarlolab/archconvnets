@@ -63,11 +63,44 @@ def init_buffer(DATA=None, gpu_ind=0, warn=True):
 	n_vars_allocated[gpu_ind,buffer_ind] = True
 	return DATA_G
 
+# copy B to A
+def copy_buffer(B, A=None, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	check_buffer(B)
+	if A is None:
+		A = init_buffer()
+	check_buffer(A)
+	_ntm_module2.copy_buffer(B[0], A[0], gpu_ind)
+	A[1] = copy.deepcopy(B[1])
+	return A
+
+def copy_list(LIST_B, LIST_A=None, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	if LIST_A is None:
+		LIST_A = [None]*len(LIST_B)
+	
+	assert len(LIST_A) == len(LIST_B)
+	
+	for i in range(len(LIST_B)):
+		LIST_A[i] = copy_buffer(LIST_B[i], LIST_A[i], gpu_ind)
+	return LIST_A
+
 def free_all_buffers():
 	for gpu_ind in range(N_GPUS):
 		for buffer_ind in np.nonzero(n_vars_allocated[gpu_ind])[0]:
 			_ntm_module2.free_buffer(buffer_ind, gpu_ind)
 		n_vars_allocated[gpu_ind] = False
+
+def free_list(LIST):
+	for layer_ind in range(len(LIST)):
+		if LIST[layer_ind] is not None:
+			# list of list, ex. partials
+			if isinstance(LIST[layer_ind][0], list):
+				for arg in range(len(LIST[layer_ind])):
+					free_buffer(LIST[layer_ind][arg])
+			# outputs
+			else:
+				free_buffer(LIST[layer_ind])
 
 #######################################
 

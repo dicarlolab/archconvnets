@@ -5,6 +5,7 @@
 #include "return_buffer.c"
 #include "sync.c"
 #include "return_buffer_sz.c"
+#include "copy_buffer.c"
 #include "gradient_functions/dot.cu"
 #include "gradient_functions/linear_F_dF.c"
 #include "gradient_functions/linear_F_dx.c"
@@ -16,6 +17,7 @@
 static PyMethodDef _ntm_module2[] = {
 	{"sync", sync, METH_VARARGS},
 	{"set_buffer", set_buffer, METH_VARARGS},
+	{"copy_buffer", copy_buffer, METH_VARARGS},
 	{"free_buffer", free_buffer, METH_VARARGS},
 	{"return_buffer", return_buffer, METH_VARARGS},	
 	{"return_buffer_sz", return_buffer_sz, METH_VARARGS},

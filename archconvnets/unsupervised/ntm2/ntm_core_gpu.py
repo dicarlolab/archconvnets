@@ -234,8 +234,35 @@ def init_partials(LAYERS):
 		
 	return PARTIALS
 	
+def free_partials(PARTIALS_PREV):
+	for layer_ind in range(len(PARTIALS_PREV)):
+		free_list(PARTIALS_PREV[layer_ind]['partial'])
+
+def copy_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS, MEM_WEIGHT_DERIVS):
+	dest = LAYERS[layer_cur]['in_source'][arg]
+	# end:
+	if (isinstance(dest, int) == False) or dest == -1:
+		buffer = copy_buffer(MEM_WEIGHT_DERIVS[layer_cur][arg])
+		PARTIALS[layer_orig]['partial'].append(buffer)
+	else:
+		N_ARGS2 = len(LAYERS[dest]['in_source'])
+		for arg2 in range(N_ARGS2):
+			PARTIALS = copy_traverse_to_end(layer_orig, dest, arg2, LAYERS, PARTIALS, MEM_WEIGHT_DERIVS)
+	return PARTIALS
+
+def copy_partials(layer_ind, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS):
+	L = LAYERS[layer_ind]
+	N_ARGS = len(L['in_source'])
+	
+	for arg in range(N_ARGS):
+		if L['in_source'][arg] != layer_ind:
+			free_list(PARTIALS_PREV[layer_ind]['partial'])
+			PARTIALS_PREV[layer_ind]['partial'] = []
+			PARTIALS_PREV = copy_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
+	return PARTIALS_PREV
+
 def reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS):
-	MEM_WEIGHT_DERIVS = init_gpu_list(MEM_WEIGHT_DERIVS)
+	MEM_WEIGHT_DERIVS = init_gpu_list(MEM_WEIGHT_DERIVS, LAYERS)
 	
 	# update partials_prev
 	for i in range(len(LAYERS[MEM_IND]['in_source'])):
@@ -257,5 +284,5 @@ def reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT
 				MEM_WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((MEM_WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp))
 				free_buffer(deriv_temp)
 				
-				
 	return MEM_WEIGHT_DERIVS
+
