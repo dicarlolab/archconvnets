@@ -6,50 +6,23 @@ from ntm_gradients import *
 from ntm_core import *
 
 N_FRAMES = 14
-N_CONTROLLERS = 16
 M_LENGTH = 6
 N_MEM_SLOTS = 8
-mem_shape = (N_MEM_SLOTS, M_LENGTH)
 
 #############
 LAYERS = []
 
-# Fw write
-FW_IND = len(LAYERS)
-Fw_shape = (N_MEM_SLOTS,8)
-L0_shape = (8,M_LENGTH)
-LAYERS.append({ 'forward_F': linear_F, \
-				'out_shape': mem_shape, \
-				'in_shape': [Fw_shape, L0_shape], \
-				'in_source': [random_function, -1], \
-				'deriv_F': [linear_F_dF, linear_F_dx] })
-		
-# mem = mem_prev + Fw
-MEM_IND = len(LAYERS)
-LAYERS.append({ 'forward_F': add_points, \
-				'out_shape': mem_shape, \
-				'in_shape': [mem_shape, mem_shape], \
-				'in_source': [FW_IND, MEM_IND], \
-				'deriv_F': [add_points_dinput, add_points_dinput] })
-
-# Fw write
-FM_IND = len(LAYERS)
-Fw_shape = (N_MEM_SLOTS,8)
-L0_shape = (8,M_LENGTH)
-LAYERS.append({ 'forward_F': focus_keys, \
-				'out_shape': mem_shape, \
-				'in_shape': [mem_shape, (mem_shape[0],1)], \
-				'in_source': [MEM_IND, -1], \
-				'deriv_F': [focus_key_dkeys, focus_key_dbeta_out] })
-				
-# sum
-LAYERS.append({ 'forward_F': sum_points, \
-				'out_shape': (1,), \
-				'in_shape': [mem_shape], \
-				'in_source': [FM_IND], \
-				'deriv_F': [sum_points_dinput] })				
+add_linear_F_layer(LAYERS, 'FW', N_MEM_SLOTS, (8, M_LENGTH))
+add_add_layer(LAYERS, 'MEM', ['FW', 'MEM'])
+add_focus_keys_layer(LAYERS, 'FM', ['MEM', -1])
+add_linear_F_layer(LAYERS, 'F3', 25)
+add_sum_layer(LAYERS, 'SUM')
 
 ################
+FW_IND = find_layer(LAYERS, 'FW')
+FM_IND = find_layer(LAYERS, 'FM')
+MEM_IND = find_layer(LAYERS, 'MEM')
+
 WEIGHTS = init_weights(LAYERS)
 xt = 1e2*random_function(np.concatenate(((N_FRAMES,), LAYERS[FW_IND]['in_shape'][1]))) 
 WEIGHTS[FW_IND][1] = xt[0]  # inputs
@@ -61,7 +34,7 @@ OUTPUT_PREV[MEM_IND] = random_function(LAYERS[MEM_IND]['out_shape'])
 check_output_prev(OUTPUT_PREV, LAYERS)
 
 ################
-gradient_layer = FW_IND
+gradient_layer = find_layer(LAYERS, 'F3')
 gradient_arg = 0
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = WEIGHTS[gradient_layer][gradient_arg]
