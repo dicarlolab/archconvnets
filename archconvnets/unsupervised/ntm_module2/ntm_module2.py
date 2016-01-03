@@ -234,65 +234,28 @@ def add_points_dinput(args, OUT_BUFFER=None, gpu_ind=0):
 	_ntm_module2.add_points_dinput(A[1], OUT_BUFFER[0], gpu_ind)
 	OUT_BUFFER[1] = tuple(np.concatenate((A[1], A[1])))
 	return OUT_BUFFER
+	
+def cosine_sim(args, OUT_BUFFER=None, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	KEYS, MEM = args
+	check_buffer(KEYS)
+	check_buffer(MEM)
+	if OUT_BUFFER is None:
+		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
+	check_buffer(OUT_BUFFER)
+	assert len(KEYS[1]) == len(MEM[1]) == 2
+	assert KEYS[0] != MEM[0]
+	assert OUT_BUFFER[0] != KEYS[0]
+	assert OUT_BUFFER[0] != MEM[0]
+	assert KEYS[1][1] == MEM[1][1]
 
-'''
-def cosine_sim_dmem(args):
-	assert len(args) == 2
-	keys, mem = args
-	n_controllers = keys.shape[0]
-	comb = np.zeros((n_controllers, mem.shape[0], mem.shape[0], mem.shape[1]),dtype='single')
+	n_controllers, mem_length = KEYS[1]
+	M = MEM[1][0]
+	
+	_ntm_module2.cosine_sim(KEYS[0], KEYS[1], MEM[0], MEM[1], OUT_BUFFER[0], gpu_ind)
+	OUT_BUFFER[1] = (n_controllers, M)
+	return OUT_BUFFER
 
-	keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
-	mem_sq_sum = np.sqrt(np.sum(mem**2, 1))
-
-	denom = np.einsum(keys_sq_sum, [0], mem_sq_sum, [1], [0,1])
-	numer = np.dot(keys, mem.T)
-
-	numer = numer / denom**2
-	denom = 1 / denom # = denom/denom**2
-
-	mem = mem / mem_sq_sum[:,np.newaxis]
-
-	temp = np.einsum(mem, [0,2], numer*keys_sq_sum[:,np.newaxis], [1,0], [1,0,2])
-	
-	keys_denom = keys[:,np.newaxis] * denom[:,:,np.newaxis]
-	
-	comb[:,range(mem.shape[0]),range(mem.shape[0])] = keys_denom - temp
-	return comb
-
-def cosine_sim_dkeys(args):
-	assert len(args) == 2
-	keys, mem = args
-	n_controllers = keys.shape[0]
-	comb = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]),dtype='single')
-	
-	keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
-	mem_sq_sum = np.sqrt(np.sum(mem**2, 1))
-	
-	denom = np.einsum(keys_sq_sum, [0], mem_sq_sum, [1], [0,1])
-	numer = np.dot(keys, mem.T)
-	
-	numer = numer / denom**2
-	denom = 1 / denom # = denom/denom**2
-	
-	keys = keys / keys_sq_sum[:,np.newaxis]
-	
-	temp = np.einsum(keys, [1,2], numer*mem_sq_sum[np.newaxis], [1,0], [1,0,2])
-	
-	mem_denom = mem[np.newaxis] * denom[:,:,np.newaxis]
-	
-	comb[range(n_controllers),:,range(n_controllers)] = mem_denom - temp
-	return comb
-
-def cosine_sim(args):
-	assert len(args) == 2
-	keys, mem = args
-	# keys [n_controllers, m_length], mem: [n_mem_slots, m_length]
-	numer = np.dot(keys, mem.T)
-	denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-	return numer / denom # [n_controllers, n_mem_slots]'''
-	
-	
 def cosine_sim_dmem(args, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args
@@ -307,8 +270,7 @@ def cosine_sim_dmem(args, OUT_BUFFER=None, gpu_ind=0):
 	assert OUT_BUFFER[0] != MEM[0]
 	assert KEYS[1][1] == MEM[1][1]
 
-	n_controllers = KEYS[1][0]
-	mem_length = KEYS[1][1]
+	n_controllers, mem_length = KEYS[1]
 	M = MEM[1][0]
 	
 	_ntm_module2.cosine_sim_dmem(KEYS[0], KEYS[1], MEM[0], MEM[1], OUT_BUFFER[0], gpu_ind)
@@ -329,8 +291,7 @@ def cosine_sim_dkeys(args, OUT_BUFFER=None, gpu_ind=0):
 	assert OUT_BUFFER[0] != MEM[0]
 	assert KEYS[1][1] == MEM[1][1]
 
-	n_controllers = KEYS[1][0]
-	mem_length = KEYS[1][1]
+	n_controllers, mem_length = KEYS[1]
 	M = MEM[1][0]
 	
 	_ntm_module2.cosine_sim_dkeys(KEYS[0], KEYS[1], MEM[0], MEM[1], OUT_BUFFER[0], gpu_ind)

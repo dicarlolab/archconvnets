@@ -1,3 +1,6 @@
+#define ADD_POINTS_DINPUT_NUMEL (a_dim0*a_dim1*a_dim0*a_dim1)
+#define ADD_POINTS_DINPUT_SZ (ADD_POINTS_DINPUT_NUMEL*sizeof(DATA_TYPE))
+
 __global__ void add_points_dinput_kernel(float * out, int a_dim1, int a_dim1_a_dim0_a_dim1, int a_dim0_a_dim1, int data_out_numel){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
@@ -30,21 +33,6 @@ __global__ void add_points_dinput_kernel(float * out, int a_dim1, int a_dim1_a_d
 			out[ind_g] = 0;
 	}
 }
-
-/*_ntm_module2.add_points_dinput(A[1], OUT_BUFFER[0], gpu_ind)
-	return OUT_BUFFER
-
-'''def add_points_dinput(args):
-	assert len(args) == 2
-	assert args[0].shape == args[1].shape
-	out = np.zeros(np.concatenate((args[0].shape, args[0].shape)),dtype='single')
-	for i in range(out.shape[0]):
-		out[i,range(out.shape[1]),i,range(out.shape[1])] = 1
-	return out'''
-
-*/
-#define ADD_POINTS_DINPUT_NUMEL (a_dim0*a_dim1*a_dim0*a_dim1)
-#define ADD_POINTS_DINPUT_SZ (ADD_POINTS_DINPUT_NUMEL*sizeof(DATA_TYPE))
 
 static PyObject * add_points_dinput(PyObject *self, PyObject *args){
 	cudaError_t err;

@@ -3,8 +3,8 @@ import archconvnets.unsupervised.ntm_module2.ntm_module2 as nm
 import numpy as np
 import time
 
-keys = np.asarray(np.random.random((12,8)),dtype='single')
-mem_prev = np.asarray(np.random.random((6,8)),dtype='single')
+keys = np.asarray(np.random.random((10*128,128*2)),dtype='single')
+mem = np.asarray(np.random.random((4*256,128*2)),dtype='single')
 
 def cosine_sim(args):
 	assert len(args) == 2
@@ -16,22 +16,21 @@ def cosine_sim(args):
 
 ############
 t_start = time.time()
-z3 = cosine_sim((keys, mem_prev))
+z3 = cosine_sim((keys, mem))
 t_cpu = time.time() - t_start
 
-####
-'''O_G[KEY] = [1, O[KEY].shape]
-MEM_PREV = [2, mem_prev.shape]
-OUT_BUFFER = [3, None]
 
-nm.set_buffer(O[KEY], O_G[KEY][0])
-nm.set_buffer(mem_prev, MEM_PREV[0])
+####
+KEYS = nm.init_buffer(keys)
+MEM = nm.init_buffer(mem)
 
 
 ##############
 t_start = time.time()
-nm.cosine_sim_expand_dkeys(O_G[KEY], MEM_PREV, OUT_BUFFER)
-z3g = nm.return_buffer(OUT_BUFFER)
+OUT_BUFFER = nm.cosine_sim((KEYS, MEM))
+nm.sync()
 t_gpu = time.time() - t_start
+z3g = nm.return_buffer(OUT_BUFFER)
 
-print t_cpu, t_gpu, t_cpu/t_gpu, np.isclose(z3, z3g.reshape(z3.shape)).sum()/np.single(np.prod(z3.shape))'''
+
+print t_cpu, t_gpu, t_cpu/t_gpu, np.isclose(z3, z3g.reshape(z3.shape)).sum()/np.single(np.prod(z3.shape))
