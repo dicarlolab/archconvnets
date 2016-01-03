@@ -1,7 +1,6 @@
 import numpy as np
 
-
-def cosine_sim_dmem(args):
+def cosine_sim_dmem(args, layer_out):
 	assert len(args) == 2
 	keys, mem = args
 	n_controllers = keys.shape[0]
@@ -25,7 +24,7 @@ def cosine_sim_dmem(args):
 	comb[:,range(mem.shape[0]),range(mem.shape[0])] = keys_denom - temp
 	return comb
 
-def cosine_sim_dkeys(args):
+def cosine_sim_dkeys(args, layer_out):
 	assert len(args) == 2
 	keys, mem = args
 	n_controllers = keys.shape[0]
@@ -62,7 +61,7 @@ def add_points(args):
 	assert args[0].shape == args[1].shape
 	return args[0] + args[1]
 
-def add_points_dinput(args):
+def add_points_dinput(args, layer_out):
 	assert len(args) == 2
 	assert args[0].shape == args[1].shape
 	out = np.zeros(np.concatenate((args[0].shape, args[0].shape)),dtype='single')
@@ -74,7 +73,7 @@ def sum_points(args):
 	assert len(args) == 1
 	return args[0].sum()[np.newaxis]
 
-def sum_points_dinput(args):
+def sum_points_dinput(args, layer_out):
 	assert len(args) == 1
 	return np.ones(tuple(np.concatenate(((1,), args[0].shape))))
 
@@ -83,7 +82,7 @@ def sq_points(args):
 	input = args[0]
 	return input**2
 
-def sq_points_dinput(args):
+def sq_points_dinput(args, layer_out):
 	input = args[0]
 	n = input.shape[1]
 	dinput = np.zeros((input.shape[0], n, input.shape[0], n),dtype='single')
@@ -97,16 +96,70 @@ def linear_F(args):
 	
 	return np.dot(F,layer_in) # [n1, 1]
 
-def linear_F_dx(args):
+def linear_F_dx(args, layer_out):
 	F, x = args
 	n = x.shape[1]
 	temp = np.zeros((F.shape[0], n, x.shape[0], n),dtype='single')
 	temp[:,range(n),:,range(n)] = F
 	return temp
 
-def linear_F_dF(args):
+def linear_F_dF(args, layer_out):
 	F, x = args
 	n = F.shape[0]
 	temp = np.zeros((n, x.shape[1], n, F.shape[1]),dtype='single')
 	temp[range(n),:,range(n)] = x.T
 	return temp
+
+############
+##### check!
+# softmax over second dimension; first dim. treated independently
+def softmax(args):
+	assert len(args) == 1
+	layer_in = args[0]
+	exp_layer_in = np.exp(layer_in)
+	return exp_layer_in/np.sum(exp_layer_in,1)[:,np.newaxis]
+
+def softmax_dlayer_in(args, layer_out):
+	assert len(args) == 1
+	g = np.zeros((layer_out.shape[0], layer_out.shape[1], layer_out.shape[0], layer_out.shape[1]),dtype='single')
+	
+	# dsoftmax[:,i]/dlayer_in[:,j] when i = j:
+	temp = (layer_out * (1 - layer_out))
+	for i in range(g.shape[0]):
+		for j in range(g.shape[1]):
+			g[i,j,i,j] = temp[i,j]
+	
+	# i != j
+	for i in range(g.shape[0]):
+		for j in range(g.shape[1]):
+			for k in range(g.shape[1]):
+				if j != k:
+					g[i,j,i,k] -= layer_out[i,j]*layer_out[i,k]
+	return g
+
+##########
+# focus keys, scalar beta_out (one for each controller) multiplied with each of its keys
+def focus_keys(args):
+	keys, beta_out = args
+	# keys: [n_controllers, m_length], beta_out: [n_controllers, 1]
+	
+	return keys * beta_out # [n_controllers, m_length]
+
+def focus_key_dbeta_out(args, layer_out): 
+	keys, beta_out = args
+	# beta_out: [n_controllers, 1]
+	n_controllers, m_length = keys.shape
+	
+	g = np.zeros((n_controllers, m_length, n_controllers, 1),dtype='single')
+	g[range(n_controllers),:,range(n_controllers),0] = keys
+	return g
+
+def focus_key_dkeys(args, layer_out): 
+	keys, beta_out = args
+	# beta_out: [n_controllers, 1]
+	n_controllers, m_length = keys.shape
+	
+	g = np.zeros((n_controllers, m_length, n_controllers, m_length),dtype='single')
+	for j in range(m_length):
+		g[range(n_controllers),j,range(n_controllers),j] = np.squeeze(beta_out)
+	return g

@@ -29,12 +29,13 @@ def check_network(LAYERS):
 			args[arg] = np.asarray(np.random.random(L['in_shape'][arg]),dtype='single')
 		
 		# check if function corretly produces specified output dimensions
-		assert L['forward_F'](args).shape == L['out_shape'], "%i" % (layer_ind)
+		layer_output = L['forward_F'](args)
+		assert layer_output.shape == L['out_shape'], "%i" % (layer_ind)
 		
 		# check if deriv functions correctly produce correct shapes
 		for arg in range(N_ARGS):
 			expected_shape = tuple(np.concatenate((L['out_shape'], L['in_shape'][arg])))
-			assert L['deriv_F'][arg](args).shape == expected_shape
+			assert L['deriv_F'][arg](args, layer_output).shape == expected_shape
 		
 		# check if other layers claim to produce expected inputs
 		for arg in range(N_ARGS):
@@ -121,7 +122,7 @@ def local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV):
 		args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
 		
 		for arg in range(N_ARGS):
-			LOCAL_DERIVS[layer_ind][arg] = L['deriv_F'][arg](args)
+			LOCAL_DERIVS[layer_ind][arg] = L['deriv_F'][arg](args, OUTPUT[layer_ind])
 	return LOCAL_DERIVS
 
 def add_initialize(W, add):

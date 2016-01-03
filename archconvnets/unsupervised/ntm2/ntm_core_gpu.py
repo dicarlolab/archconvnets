@@ -32,16 +32,16 @@ def check_network(LAYERS):
 			args[arg] = init_buffer(np.asarray(np.random.random(L['in_shape'][arg]),dtype='single'))
 		
 		# check if function corretly produces specified output dimensions
-		OUT = L['forward_F'](args)
-		assert OUT[1] == L['out_shape'], "%i" % (layer_ind)
-		free_buffer(OUT)
+		LAYER_OUT = L['forward_F'](args)
+		assert LAYER_OUT[1] == L['out_shape'], "%i" % (layer_ind)
 		
 		# check if deriv functions correctly produce correct shapes
 		for arg in range(N_ARGS):
 			expected_shape = tuple(np.concatenate((L['out_shape'], L['in_shape'][arg])))
-			OUT = L['deriv_F'][arg](args)
+			OUT = L['deriv_F'][arg](args, LAYER_OUT)
 			assert OUT[1] == expected_shape
 			free_buffer(OUT)
+		free_buffer(LAYER_OUT)
 		
 		# free mem
 		for arg in range(N_ARGS):
@@ -164,7 +164,7 @@ def local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS):
 		args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
 		
 		for arg in range(N_ARGS):
-			L['deriv_F'][arg](args, LOCAL_DERIVS[layer_ind][arg])
+			L['deriv_F'][arg](args, OUTPUT[layer_ind], LOCAL_DERIVS[layer_ind][arg])
 	return LOCAL_DERIVS
 
 def reverse_network(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims=False): # multiply all partials together

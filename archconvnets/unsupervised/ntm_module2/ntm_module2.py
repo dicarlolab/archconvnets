@@ -104,11 +104,12 @@ def free_list(LIST):
 
 #######################################
 
-def linear_F_dx(args, OUT_BUFFER=None, gpu_ind=0):
+def linear_F_dx(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	F, X = args
 	check_buffer(F)
 	check_buffer(X)
+	check_buffer(LAYER_OUT)
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
@@ -122,11 +123,12 @@ def linear_F_dx(args, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = (F_dim0, X_dim1, X_dim0, X_dim1)
 	return OUT_BUFFER
 
-def linear_F_dF(args, OUT_BUFFER=None, gpu_ind=0):
+def linear_F_dF(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	F, X = args
 	check_buffer(F)
 	check_buffer(X)
+	check_buffer(LAYER_OUT)
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
@@ -173,12 +175,13 @@ def sum_points(args, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = (1,)
 	return OUT_BUFFER
 
-def sum_points_dinput(args, OUT_BUFFER=None, gpu_ind=0):
+def sum_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	assert len(args) == 1
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
 	POINTS = args[0]
 	check_buffer(POINTS)
+	check_buffer(LAYER_OUT)
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
@@ -221,11 +224,12 @@ def add_points(args, OUT_BUFFER=None, scalar=1, gpu_ind=0):
 	OUT_BUFFER[1] = copy.deepcopy(B[1])
 	return OUT_BUFFER
 
-def add_points_dinput(args, OUT_BUFFER=None, gpu_ind=0):
+def add_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	A, B = args
 	check_buffer(A)
 	check_buffer(B)
+	check_buffer(LAYER_OUT)
 	assert A[1] == B[1]
 	
 	if OUT_BUFFER is None:
@@ -256,11 +260,12 @@ def cosine_sim(args, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = (n_controllers, M)
 	return OUT_BUFFER
 
-def cosine_sim_dmem(args, OUT_BUFFER=None, gpu_ind=0):
+def cosine_sim_dmem(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args
 	check_buffer(KEYS)
 	check_buffer(MEM)
+	check_buffer(LAYER_OUT)
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
@@ -277,11 +282,12 @@ def cosine_sim_dmem(args, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = (n_controllers, M, M, mem_length)
 	return OUT_BUFFER
 
-def cosine_sim_dkeys(args, OUT_BUFFER=None, gpu_ind=0):
+def cosine_sim_dkeys(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args
 	check_buffer(KEYS)
 	check_buffer(MEM)
+	check_buffer(LAYER_OUT)
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
