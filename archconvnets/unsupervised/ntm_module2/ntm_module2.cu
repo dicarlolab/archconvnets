@@ -13,6 +13,8 @@
 #include "gradient_functions/sum_points_dinput.c"
 #include "gradient_functions/point_wise_add.c"
 #include "gradient_functions/add_points_dinput.c"
+#include "gradient_functions/cosine_sim_dkeys.c"
+#include "gradient_functions/cosine_sim_dmem.c"
 
 static PyMethodDef _ntm_module2[] = {
 	{"sync", sync, METH_VARARGS},
@@ -28,6 +30,8 @@ static PyMethodDef _ntm_module2[] = {
 	{"sum_points_dinput", sum_points_dinput, METH_VARARGS},
 	{"point_wise_add", point_wise_add, METH_VARARGS},
 	{"add_points_dinput", add_points_dinput, METH_VARARGS},
+	{"cosine_sim_dkeys", cosine_sim_dkeys, METH_VARARGS},
+	{"cosine_sim_dmem", cosine_sim_dmem, METH_VARARGS},
 	{NULL, NULL}
 };
 
