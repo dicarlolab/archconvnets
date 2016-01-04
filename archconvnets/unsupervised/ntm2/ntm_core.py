@@ -2,10 +2,6 @@ from gpu_flag import *
 import numpy as np
 import copy
 from archconvnets.unsupervised.ntm_module2.ntm_module2 import *
-from archconvnets.unsupervised.ntm_module2.ntm_gradients import *
-
-def random_function(size):
-	return np.asarray(np.random.random(size) - .5, dtype='single')
 
 def check_weights(WEIGHTS, LAYERS):
 	check_network(LAYERS)
@@ -289,4 +285,9 @@ def reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT
 				
 	return MEM_WEIGHT_DERIVS
 
-from layer_add import *
+def find_layer(LAYERS, name):
+	for layer_ind in range(len(LAYERS)):
+		if LAYERS[layer_ind]['name'] == name:
+			return layer_ind
+	return None
+	

@@ -139,3 +139,59 @@ def return_buffer(BUFFER, warn=1, gpu_ind=0):
 		else:
 			return 0
 
+# a += b * scalar
+def point_wise_add(args, OUT_BUFFER=None, scalar=1, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	A, B = args
+	check_buffer(A)
+	check_buffer(B)
+	
+	if OUT_BUFFER != None:
+		check_buffer(OUT_BUFFER)
+		OUT_BUFFER[1] = copy.deepcopy(A[1])
+	else:
+		OUT_BUFFER = copy.deepcopy(A)
+	
+	if GPU:
+		_ntm_module2.point_wise_add(A[0], B[0], np.single(scalar), OUT_BUFFER[0], gpu_ind)
+	else:
+		####### CPU
+		A_local = return_buffer(A,gpu_ind)
+		B_local = return_buffer(B,gpu_ind)
+		OUT_BUFFER = set_buffer(A_local + B_local*scalar, OUT_BUFFER, gpu_ind)
+		
+	OUT_BUFFER[1] = copy.deepcopy(B[1])
+	return OUT_BUFFER
+
+def dot(args, OUT_BUFFER=None, increment=0, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	BUFFER1, BUFFER2 = args
+	check_buffer(BUFFER1)
+	check_buffer(BUFFER2)
+	
+	if OUT_BUFFER is None:
+		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
+	
+	check_buffer(OUT_BUFFER)
+	assert len(BUFFER1[1]) == len(BUFFER2[1]) == 2
+	assert BUFFER1[1][1] == BUFFER2[1][0]
+	assert OUT_BUFFER[0] != BUFFER1[0]
+	assert OUT_BUFFER[0] != BUFFER2[0]
+	assert (OUT_BUFFER[1] is not None) or increment == 0
+	
+	if GPU:
+		_ntm_module2.dot(BUFFER1[0], BUFFER1[1], BUFFER2[0], BUFFER2[1], OUT_BUFFER[0], increment, gpu_ind)
+	else:
+		######### CPU
+		F = return_buffer(BUFFER1, gpu_ind)
+		x = return_buffer(BUFFER2, gpu_ind)
+		temp = np.asarray(np.dot(F,x),dtype='single') # [n1, 1]
+		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
+		
+	OUT_BUFFER[1] = (BUFFER1[1][0], BUFFER2[1][1])
+	return OUT_BUFFER
+	
+from gradient_functions.cosine_sim import *
+from gradient_functions.linear_F import *
+from gradient_functions.add_points import *
+from gradient_functions.sum_points import *
