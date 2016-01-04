@@ -16,7 +16,7 @@ LAYERS = []
 
 add_linear_F_layer(LAYERS, 'FW', N_MEM_SLOTS, (8, M_LENGTH))
 add_add_layer(LAYERS, 'MEM', ['FW', 'MEM'])
-#add_focus_keys_layer(LAYERS, 'FM', ['MEM', -1])
+add_focus_keys_layer(LAYERS, 'FM', ['MEM', -1])
 add_linear_F_layer(LAYERS, 'F3', 25)
 add_sum_layer(LAYERS, 'SUM')				
 
@@ -28,6 +28,7 @@ MEM_IND = find_layer(LAYERS, 'MEM')
 
 WEIGHTS = init_weights(LAYERS)
 xt = random_function(np.concatenate(((N_FRAMES,), LAYERS[FW_IND]['in_shape'][1])))
+ft = random_function(np.concatenate(((N_FRAMES,), LAYERS[FM_IND]['in_shape'][1])))
 mem_init = random_function(LAYERS[MEM_IND]['out_shape'])
 
 DERIV_TOP = init_buffer(np.ones((1,1), dtype='single'))
@@ -47,6 +48,8 @@ def f(y):
 	
 	for frame in range(N_FRAMES):
 		set_buffer(xt[frame], WEIGHTS[FW_IND][1])  # inputs
+		set_buffer(ft[frame], WEIGHTS[FM_IND][1])  # inputs
+		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
 	
@@ -66,6 +69,7 @@ def g(y):
 	PARTIALS_PREV = init_partials(LAYERS)
 	for frame in range(N_FRAMES):
 		set_buffer(xt[frame], WEIGHTS[FW_IND][1])  # inputs
+		set_buffer(ft[frame], WEIGHTS[FM_IND][1])  # inputs
 		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		

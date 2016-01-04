@@ -17,6 +17,9 @@
 #include "gradient_functions/cosine_sim_dkeys.c"
 #include "gradient_functions/cosine_sim_dmem.c"
 #include "gradient_functions/cosine_sim.c"
+#include "gradient_functions/focus_key_dkeys.c"
+#include "gradient_functions/focus_key_dbeta_out.c"
+#include "gradient_functions/focus_key.c"
 
 static PyMethodDef _ntm_module2[] = {
 	{"sync", sync, METH_VARARGS},
@@ -36,6 +39,9 @@ static PyMethodDef _ntm_module2[] = {
 	{"cosine_sim_dkeys", cosine_sim_dkeys, METH_VARARGS},
 	{"cosine_sim_dmem", cosine_sim_dmem, METH_VARARGS},
 	{"cosine_sim", cosine_sim, METH_VARARGS},
+	{"focus_key_dkeys", focus_key_dkeys, METH_VARARGS},
+	{"focus_key_dbeta_out", focus_key_dbeta_out, METH_VARARGS},
+	{"focus_key", focus_key, METH_VARARGS},
 	{NULL, NULL}
 };
 
