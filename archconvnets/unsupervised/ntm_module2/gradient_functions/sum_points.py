@@ -66,4 +66,4 @@ def add_sum_layer(LAYERS, name, source=None):
 				'deriv_F': [sum_points_dinput] })
 	
 	check_network(LAYERS)
-	return LAYERS
+	return len(LAYERS)-1

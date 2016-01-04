@@ -96,7 +96,7 @@ def add_focus_keys_layer(LAYERS, name, source):
 	source[0] = find_layer(LAYERS, source[0])
 	assert source[0] is not None, 'could not find source layer 0'
 	
-	if source[1] != -1:
+	if isinstance(source[1],int) and source[1] != -1:
 		source[1] = find_layer(LAYERS, source[1])
 	
 	in_shape[0] = LAYERS[source[0]]['out_shape']
@@ -109,4 +109,4 @@ def add_focus_keys_layer(LAYERS, name, source):
 				'deriv_F': [focus_key_dkeys, focus_key_dbeta_out] })
 	
 	check_network(LAYERS)
-	return LAYERS
+	return len(LAYERS)-1

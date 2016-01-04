@@ -74,4 +74,4 @@ def add_add_layer(LAYERS, name, source):
 				'deriv_F': [add_points_dinput, add_points_dinput] })
 	
 	check_network(LAYERS)
-	return LAYERS
+	return len(LAYERS)-1

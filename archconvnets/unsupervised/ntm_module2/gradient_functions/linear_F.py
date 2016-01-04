@@ -99,4 +99,4 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, random_function=ran
 				'deriv_F': [linear_F_dF, linear_F_dx] })
 	
 	check_network(LAYERS)
-	return LAYERS
+	return len(LAYERS)-1
