@@ -72,10 +72,6 @@ def g(y):
 	
 	PARTIALS_PREV = init_partials(LAYERS)
 	for frame in range(N_FRAMES):
-		if frame != 0: # todo: reverse_network should zero out weight_derivs before beginning
-			free_list(WEIGHT_DERIVS); WEIGHT_DERIVS = None
-			free_list(MEM_WEIGHT_DERIVS); MEM_WEIGHT_DERIVS = None
-		
 		set_buffer(xt[frame], WEIGHTS[FW_IND][1])  # inputs
 		check_weights(WEIGHTS, LAYERS)
 		

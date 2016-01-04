@@ -43,7 +43,7 @@ def check_buffer(BUFFER, gpu_ind=0):
 
 def free_buffer(BUFFER, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
-	#check_buffer(BUFFER)
+	check_buffer(BUFFER)
 	n_vars_allocated[gpu_ind, BUFFER[0]] = False
 	if GPU:
 		_ntm_module2.free_buffer(BUFFER[0], gpu_ind)
@@ -51,6 +51,15 @@ def free_buffer(BUFFER, gpu_ind=0):
 		CPU_BUFFER[gpu_ind][BUFFER[0]] = None
 	BUFFER = None
 
+def zero_buffer(BUFFER, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	check_buffer(BUFFER)
+	if GPU:
+		_ntm_module2.zero_buffer(BUFFER[0], gpu_ind)
+	else:
+		if CPU_BUFFER[gpu_ind][BUFFER[0]] is not None:
+			CPU_BUFFER[gpu_ind][BUFFER[0]] = np.zeros_like(CPU_BUFFER[gpu_ind][BUFFER[0]])
+	
 def return_n_allocated(gpu_ind=0):
 	return n_vars_allocated[gpu_ind].sum()
 

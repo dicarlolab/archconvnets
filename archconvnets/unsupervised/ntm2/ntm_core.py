@@ -152,6 +152,12 @@ def init_gpu_list(LIST, LAYERS, args=True):
 				LIST[layer_ind] = init_buffer()
 	return LIST
 
+def zero_buffer_list(WEIGHTS):
+	for layer_ind in range(len(WEIGHTS)):
+		for arg in range(len(WEIGHTS[layer_ind])):
+			if WEIGHTS[layer_ind][arg] is not None:
+				zero_buffer(WEIGHTS[layer_ind][arg])
+
 def local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS):
 	check_output_prev(OUTPUT_PREV, LAYERS)
 	LOCAL_DERIVS = init_gpu_list(LOCAL_DERIVS, LAYERS)
@@ -168,6 +174,7 @@ def local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS):
 
 def reverse_network(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims=False): # multiply all partials together
 	WEIGHT_DERIVS = init_gpu_list(WEIGHT_DERIVS, LAYERS)
+	zero_buffer_list(WEIGHT_DERIVS)
 
 	return reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims)
 

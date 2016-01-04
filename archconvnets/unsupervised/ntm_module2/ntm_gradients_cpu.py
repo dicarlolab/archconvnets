@@ -53,30 +53,28 @@ def focus_key_dkeys(args, layer_out):
 		g[range(n_controllers),j,range(n_controllers),j] = np.squeeze(beta_out)
 	return g
 
+def add_focus_keys_layer(LAYERS, name, source):
+	assert isinstance(name, str)
+	assert isinstance(source, list)
+	assert len(source) == 2
+	assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
 	
-if GPU == False:
-	def add_focus_keys_layer(LAYERS, name, source):
-		assert isinstance(name, str)
-		assert isinstance(source, list)
-		assert len(source) == 2
-		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
-		
-		in_shape = [None]*2
-		
-		source[0] = find_layer(LAYERS, source[0])
-		assert source[0] is not None, 'could not find source layer 0'
-		
-		if source[1] != -1:
-			source[1] = find_layer(LAYERS, source[1])
-		
-		in_shape[0] = LAYERS[source[0]]['out_shape']
-		in_shape[1] = (in_shape[0][0], 1)
-		
-		LAYERS.append({ 'name': name, 'forward_F': focus_keys, \
-					'out_shape': LAYERS[source[0]]['out_shape'], \
-					'in_shape': in_shape, \
-					'in_source': source, \
-					'deriv_F': [focus_key_dkeys, focus_key_dbeta_out] })
-		
-		check_network(LAYERS)
-		return LAYERS
+	in_shape = [None]*2
+	
+	source[0] = find_layer(LAYERS, source[0])
+	assert source[0] is not None, 'could not find source layer 0'
+	
+	if source[1] != -1:
+		source[1] = find_layer(LAYERS, source[1])
+	
+	in_shape[0] = LAYERS[source[0]]['out_shape']
+	in_shape[1] = (in_shape[0][0], 1)
+	
+	LAYERS.append({ 'name': name, 'forward_F': focus_keys, \
+				'out_shape': LAYERS[source[0]]['out_shape'], \
+				'in_shape': in_shape, \
+				'in_source': source, \
+				'deriv_F': [focus_key_dkeys, focus_key_dbeta_out] })
+	
+	check_network(LAYERS)
+	return LAYERS
