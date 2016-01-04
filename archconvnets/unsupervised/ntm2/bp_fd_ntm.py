@@ -28,12 +28,9 @@ MEM_IND = find_layer(LAYERS, 'MEM')
 
 WEIGHTS = init_weights(LAYERS)
 xt = random_function(np.concatenate(((N_FRAMES,), LAYERS[FW_IND]['in_shape'][1])))
-set_buffer(xt[0], WEIGHTS[FW_IND][1])
-check_weights(WEIGHTS, LAYERS)
+mem_init = random_function(LAYERS[MEM_IND]['out_shape'])
 
 DERIV_TOP = init_buffer(np.ones((1,1), dtype='single'))
-
-mem_init = random_function(LAYERS[MEM_IND]['out_shape'])
 
 ################
 gradient_layer = FW_IND
@@ -50,12 +47,8 @@ def f(y):
 	
 	for frame in range(N_FRAMES):
 		set_buffer(xt[frame], WEIGHTS[FW_IND][1])  # inputs
-		check_weights(WEIGHTS, LAYERS)
-		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
-		
-		free_list(OUTPUT_PREV)
-		OUTPUT_PREV = copy_list(OUTPUT)
+		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
 	
 	z = return_buffer(OUTPUT[-1])[0]
 	free_list(OUTPUT)
@@ -73,7 +66,6 @@ def g(y):
 	PARTIALS_PREV = init_partials(LAYERS)
 	for frame in range(N_FRAMES):
 		set_buffer(xt[frame], WEIGHTS[FW_IND][1])  # inputs
-		check_weights(WEIGHTS, LAYERS)
 		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		
@@ -83,12 +75,12 @@ def g(y):
 		# update partials_prev
 		MEM_WEIGHT_DERIVS = reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
 		PARTIALS_PREV = copy_partials(MEM_IND, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
-		free_list(OUTPUT_PREV)
-		OUTPUT_PREV = copy_list(OUTPUT)
+		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
 		
 	z = return_buffer(WEIGHT_DERIVS[gradient_layer][gradient_arg]).ravel()[i_ind]
 	
 	free_partials(PARTIALS_PREV)
+	free_list(MEM_WEIGHT_DERIVS)
 	free_list(LOCAL_DERIVS)
 	free_list(OUTPUT)
 	free_list(WEIGHT_DERIVS)

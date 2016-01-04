@@ -121,6 +121,7 @@ def build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS):
 	return args
 
 def forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV):
+	check_weights(WEIGHTS, LAYERS)
 	check_output_prev(OUTPUT_PREV, LAYERS)
 	
 	OUTPUT = init_gpu_list(OUTPUT, LAYERS, args=False)
