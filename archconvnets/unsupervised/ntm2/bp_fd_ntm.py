@@ -1,22 +1,27 @@
+from gpu_flag import *
 import numpy as np
 import copy
 import time
 import scipy.optimize
-from ntm_gradients import *
 from ntm_core import *
 
-N_FRAMES = 14
+N_FRAMES = 5
+N_CONTROLLERS = 16
 M_LENGTH = 6
 N_MEM_SLOTS = 8
+mem_shape = (N_MEM_SLOTS, M_LENGTH)
+
+free_all_buffers()
 
 #############
 LAYERS = []
 
 add_linear_F_layer(LAYERS, 'FW', N_MEM_SLOTS, (8, M_LENGTH))
 add_add_layer(LAYERS, 'MEM', ['FW', 'MEM'])
-add_focus_keys_layer(LAYERS, 'FM', ['MEM', -1])
+#add_focus_keys_layer(LAYERS, 'FM', ['MEM', -1])
 add_linear_F_layer(LAYERS, 'F3', 25)
-add_sum_layer(LAYERS, 'SUM')
+add_sum_layer(LAYERS, 'SUM')				
+
 
 ################
 FW_IND = find_layer(LAYERS, 'FW')
@@ -24,62 +29,84 @@ FM_IND = find_layer(LAYERS, 'FM')
 MEM_IND = find_layer(LAYERS, 'MEM')
 
 WEIGHTS = init_weights(LAYERS)
-xt = 1e2*random_function(np.concatenate(((N_FRAMES,), LAYERS[FW_IND]['in_shape'][1]))) 
-WEIGHTS[FW_IND][1] = xt[0]  # inputs
-WEIGHTS[FM_IND][1] = random_function(LAYERS[FM_IND]['in_shape'][1])   # inputs
+xt = random_function(np.concatenate(((N_FRAMES,), LAYERS[FW_IND]['in_shape'][1])))
+set_buffer(xt[0], WEIGHTS[FW_IND][1])
 check_weights(WEIGHTS, LAYERS)
 
-OUTPUT_PREV = [None] * len(LAYERS)
-OUTPUT_PREV[MEM_IND] = random_function(LAYERS[MEM_IND]['out_shape'])
-check_output_prev(OUTPUT_PREV, LAYERS)
+DERIV_TOP = init_buffer(np.ones((1,1), dtype='single'))
+
+mem_init = random_function(LAYERS[MEM_IND]['out_shape'])
 
 ################
-gradient_layer = find_layer(LAYERS, 'F3')
+gradient_layer = FW_IND
 gradient_arg = 0
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
-ref = WEIGHTS[gradient_layer][gradient_arg]
+ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 
 def f(y):
-	WEIGHTS_local = copy.deepcopy(WEIGHTS); OUTPUT_PREV_local = copy.deepcopy(OUTPUT_PREV)
-	Wy = WEIGHTS_local[gradient_layer][gradient_arg]
+	OUTPUT = None; OUTPUT_PREV = [None] * len(LAYERS)
+	OUTPUT_PREV[MEM_IND] = init_buffer(mem_init)
+	Wy = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
-	WEIGHTS_local[gradient_layer][gradient_arg] = Wy.reshape(weights_shape)
+	set_buffer(Wy.reshape(weights_shape), WEIGHTS[gradient_layer][gradient_arg])
 	
 	for frame in range(N_FRAMES):
-		WEIGHTS_local[FW_IND][1] = xt[frame]  # inputs
+		set_buffer(xt[frame], WEIGHTS[FW_IND][1])  # inputs
+		check_weights(WEIGHTS, LAYERS)
 		
-		OUTPUT_PREV_local = forward_network(LAYERS, WEIGHTS_local, OUTPUT_PREV_local)
+		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
+		
+		free_list(OUTPUT_PREV)
+		OUTPUT_PREV = copy_list(OUTPUT)
 	
-	#print OUTPUT_PREV_local[-1][0]
-	return OUTPUT_PREV_local[-1][0]
+	z = return_buffer(OUTPUT[-1])[0]
+	free_list(OUTPUT)
+	free_list(OUTPUT_PREV)
+	return z
 
 def g(y):
-	WEIGHTS_local = copy.deepcopy(WEIGHTS); OUTPUT_PREV_local = copy.deepcopy(OUTPUT_PREV)
-	Wy = WEIGHTS_local[gradient_layer][gradient_arg]
+	OUTPUT = None; LOCAL_DERIVS = None; WEIGHT_DERIVS = None
+	OUTPUT_PREV = [None] * len(LAYERS); MEM_WEIGHT_DERIVS = None
+	OUTPUT_PREV[MEM_IND] = init_buffer(mem_init)
+	Wy = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
-	WEIGHTS_local[gradient_layer][gradient_arg] = Wy.reshape(weights_shape)
+	set_buffer(Wy.reshape(weights_shape), WEIGHTS[gradient_layer][gradient_arg])
 	
-	PARTIALS_PREV = init_partials(LAYERS)	
+	PARTIALS_PREV = init_partials(LAYERS)
 	for frame in range(N_FRAMES):
-		WEIGHTS_local[FW_IND][1] = xt[frame]  # inputs
+		if frame != 0: # todo: reverse_network should zero out weight_derivs before beginning
+			free_list(WEIGHT_DERIVS); WEIGHT_DERIVS = None
+			free_list(MEM_WEIGHT_DERIVS); MEM_WEIGHT_DERIVS = None
 		
-		OUTPUT = forward_network(LAYERS, WEIGHTS_local, OUTPUT_PREV_local)
+		set_buffer(xt[frame], WEIGHTS[FW_IND][1])  # inputs
+		check_weights(WEIGHTS, LAYERS)
 		
-		LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS_local, OUTPUT, OUTPUT_PREV_local)
-		WEIGHT_DERIVS = reverse_network(deriv_top, len(LAYERS)-1, LAYERS, LOCAL_DERIVS, PARTIALS_PREV)
+		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
+		
+		LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS)
+		WEIGHT_DERIVS = reverse_network(DERIV_TOP, len(LAYERS)-1, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, WEIGHT_DERIVS)
 		
 		# update partials_prev
-		MEM_WEIGHT_DERIVS = reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV)
+		MEM_WEIGHT_DERIVS = reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
 		PARTIALS_PREV = copy_partials(MEM_IND, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
-		OUTPUT_PREV_local = copy.deepcopy(OUTPUT)
+		free_list(OUTPUT_PREV)
+		OUTPUT_PREV = copy_list(OUTPUT)
+		
+	z = return_buffer(WEIGHT_DERIVS[gradient_layer][gradient_arg]).ravel()[i_ind]
 	
-	return WEIGHT_DERIVS[gradient_layer][gradient_arg].ravel()[i_ind]
+	free_partials(PARTIALS_PREV)
+	free_list(LOCAL_DERIVS)
+	free_list(OUTPUT)
+	free_list(WEIGHT_DERIVS)
+	free_list(OUTPUT_PREV)
+	return z
 
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e7
+eps = np.sqrt(np.finfo(np.float).eps)*1e5
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
+t_start = time.time()
 for sample in range(N_SAMPLES):
 	i_ind = np.random.randint(np.prod(ref.shape))
 	y = ref.ravel()[i_ind]
@@ -91,5 +118,4 @@ for sample in range(N_SAMPLES):
 		ratios[sample] = gtx/gt
 	print gt, gtx, ratios[sample]
 	
-print ratios.mean(), ratios.std()
-
+print ratios.mean(), ratios.std(), time.time() - t_start, GPU
