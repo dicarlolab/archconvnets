@@ -86,7 +86,7 @@ static PyObject *dot(PyObject *self, PyObject *args){
 	}
 	
 	if(buffer1_dim1*buffer1_dim2*sizeof(DATA_TYPE) != BUFFER_SZ1 || buffer2_dim1*buffer2_dim2*sizeof(DATA_TYPE) != BUFFER_SZ2){
-		printf("specified input sizes do not equal to stored gpu buffer. dot_cpu()\n");
+		printf("specified input sizes do not equal to stored gpu buffer. dot()\n");
 		printf("%li %li %li %li", buffer1_dim1*buffer1_dim2*sizeof(DATA_TYPE), BUFFER_SZ1, buffer2_dim1*buffer2_dim2*sizeof(DATA_TYPE), BUFFER_SZ2);
 		return NULL;
 	}

@@ -21,6 +21,7 @@ def check_network(LAYERS):
 	n_allocated = return_n_allocated()
 	for layer_ind in range(len(LAYERS)):
 		L = LAYERS[layer_ind]
+		assert isinstance(L['out_shape'],tuple)
 		assert len(L['in_shape']) == len(L['deriv_F']) == len(L['in_source'])
 		
 		# build arguments
@@ -31,7 +32,7 @@ def check_network(LAYERS):
 		
 		# check if function corretly produces specified output dimensions
 		LAYER_OUT = L['forward_F'](args)
-		assert LAYER_OUT[1] == L['out_shape'], "%i" % (layer_ind)
+		assert LAYER_OUT[1] == L['out_shape'], "layer %i didn't produce expected output (%i, %i)" % (layer_ind, np.prod(LAYER_OUT[1]), np.prod(L['out_shape']))
 		
 		# check if deriv functions correctly produce correct shapes
 		for arg in range(N_ARGS):

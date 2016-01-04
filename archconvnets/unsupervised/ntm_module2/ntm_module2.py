@@ -205,3 +205,4 @@ from gradient_functions.linear_F import *
 from gradient_functions.add_points import *
 from gradient_functions.sum_points import *
 from gradient_functions.focus_key import *
+from gradient_functions.sigmoid import *

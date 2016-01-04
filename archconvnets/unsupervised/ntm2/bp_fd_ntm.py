@@ -15,10 +15,11 @@ free_all_buffers()
 LAYERS = []
 
 FW_IND = add_linear_F_layer(LAYERS, 'FW', N_MEM_SLOTS, (8, M_LENGTH))
+S1_IND = add_sigmoid_layer(LAYERS, 'S1')
 MEM_IND = add_add_layer(LAYERS, 'MEM', ['FW', 'MEM'])
 FM_IND = add_focus_keys_layer(LAYERS, 'FM', ['MEM', random_function])
 add_linear_F_layer(LAYERS, 'F3', 25)
-add_sum_layer(LAYERS, 'SUM')				
+add_sum_layer(LAYERS, 'SUM')
 
 ################
 
@@ -30,8 +31,8 @@ mem_init = random_function(LAYERS[MEM_IND]['out_shape'])
 DERIV_TOP = init_buffer(np.ones((1,1), dtype='single'))
 
 ################
-gradient_layer = FM_IND
-gradient_arg = 1
+gradient_layer = FW_IND
+gradient_arg = 0
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 
