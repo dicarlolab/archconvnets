@@ -5,9 +5,8 @@
 
 __global__ void focus_key_kernel(float * keys, float * beta_out, float * out, int n_controllers, int mem_length){ 
 	int i = threadIdx.x / mem_length;
-	int j = threadIdx.x % mem_length;
 
-	out[i*mem_length + j] = keys[i*mem_length + j] * beta_out[i];
+	out[threadIdx.x] = keys[threadIdx.x] * beta_out[i];
 }
 
 static PyObject * focus_key(PyObject *self, PyObject *args){

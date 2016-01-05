@@ -12,7 +12,7 @@ __global__ void sigmoid_dlayer_in_kernel(float * layer_out, float * out_buffer, 
 	int n_duplicates = min_duplicates_per_thread;
 	if(ind < n_additional_duplicates) n_duplicates++;
 	
-	unsigned ind_g, ind_l;
+	unsigned ind_g, ind_g_out,i,j;
 	for(int dup = 0; dup < n_duplicates; dup++){
 		ind_g = dup*THREAD_CAPACITY + ind;
 		
@@ -22,13 +22,12 @@ __global__ void sigmoid_dlayer_in_kernel(float * layer_out, float * out_buffer, 
 		
 		// we are computing the output data_out[i,j,i,j]... determine indices into layer_out
 		
-		/*i = ind_g / layer_out_dim2_layer_out_dim1_layer_out_dim2;
-		j = (ind_g % layer_out_dim2_layer_out_dim1_layer_out_dim2) / layer_out_dim1_layer_out_dim2;
+		i = ind_g / layer_out_dim2;
+		j = ind_g % layer_out_dim2;
 		
-		ind_l = i*layer_out_dim2 + j;*/
-		ind_l = (ind_g / layer_out_dim1_layer_out_dim2) + (ind_g % layer_out_dim2_layer_out_dim1_layer_out_dim2) / layer_out_dim1_layer_out_dim2;
-		
-		out_buffer[ind_g + ind_l] = layer_out[ind_l] * (1-layer_out[ind_l]);
+		ind_g_out = i*layer_out_dim2_layer_out_dim1_layer_out_dim2 + j*layer_out_dim1_layer_out_dim2 + ind_g;
+			
+		out_buffer[ind_g_out] = layer_out[ind_g] * (1-layer_out[ind_g]);
 	}
 }
 
@@ -47,11 +46,6 @@ static PyObject *sigmoid_dlayer_in(PyObject *self, PyObject *args){
 	
 	if(gpu_ind >= N_GPUS || gpu_ind < 0){
 		printf("gpu index incorrect, set_buffers().\n");
-		return NULL;
-	}
-	
-	if(buffer_sz[gpu_ind][layer_out_ind] <= 0){
-		printf("input buffer not initialized\n");
 		return NULL;
 	}
 	

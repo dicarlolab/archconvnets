@@ -22,6 +22,9 @@
 #include "gradient_functions/focus_key.c"
 #include "gradient_functions/sigmoid.c"
 #include "gradient_functions/sigmoid_dlayer_in.c"
+#include "gradient_functions/sharpen.c"
+#include "gradient_functions/sharpen_dgamma.c"
+#include "gradient_functions/sharpen_dw.c"
 
 static PyMethodDef _ntm_module2[] = {
 	{"sync", sync, METH_VARARGS},
@@ -46,6 +49,9 @@ static PyMethodDef _ntm_module2[] = {
 	{"focus_key", focus_key, METH_VARARGS},
 	{"sigmoid", sigmoid, METH_VARARGS},
 	{"sigmoid_dlayer_in", sigmoid_dlayer_in, METH_VARARGS},
+	{"sharpen", sharpen, METH_VARARGS},
+	{"sharpen_dw", sharpen_dw, METH_VARARGS},
+	{"sharpen_dgamma", sharpen_dgamma, METH_VARARGS},
 	{NULL, NULL}
 };
 

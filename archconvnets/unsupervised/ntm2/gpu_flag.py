@@ -1,1 +1,2 @@
 GPU = False
+GPU = True
