@@ -40,26 +40,6 @@ def dsharpen_dw(w, gamma):
 	
 	return g
 
-
-
-#############
-# relu below 'thresh' (0 = normal relu)
-def relu(layer_in, thresh=0):
-	temp = copy.deepcopy(layer_in)
-	temp[layer_in < thresh] = thresh
-	return temp
-
-def relu_dlayer_in(layer_in, thresh=0):
-	temp = np.ones_like(layer_in)
-	temp[layer_in <= thresh] = 0
-	
-	temp2 = np.zeros(np.concatenate((layer_in.shape, layer_in.shape)),dtype='single')
-	for i in range(layer_in.shape[0]):
-		for j in range(layer_in.shape[1]):
-			temp2[i,j,i,j] = temp[i,j]
-	return temp2
-	
-
 ############
 # softmax over second dimension; first dim. treated independently
 def softmax(layer_in):

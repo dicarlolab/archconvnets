@@ -1,4 +1,3 @@
-###################### gpu error
 import numpy as np
 import archconvnets.unsupervised.ntm_module2._ntm_module2 as _ntm_module2
 from archconvnets.unsupervised.ntm_module2.ntm_module2 import *
@@ -37,7 +36,7 @@ def sigmoid_dlayer_in_test(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	print t
 	return OUT_BUFFER
 
-def sigmoid(args, OUT_BUFFER=None, scalar=1, gpu_ind=0):
+def sigmoid(args, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
 	LAYER_IN = args[0]

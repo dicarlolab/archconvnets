@@ -207,3 +207,4 @@ from gradient_functions.sum_points import *
 from gradient_functions.focus_key import *
 from gradient_functions.sigmoid import *
 from gradient_functions.sharpen import * ##### ?
+from gradient_functions.relu import *
