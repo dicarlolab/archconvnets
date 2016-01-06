@@ -27,6 +27,9 @@
 #include "gradient_functions/sharpen_dw.c"
 #include "gradient_functions/relu.c"
 #include "gradient_functions/relu_dlayer_in.c"
+#include "gradient_functions/shift_w.c"
+#include "gradient_functions/shift_w_dshift_out.c"
+#include "gradient_functions/shift_w_dw_interp.c"
 
 static PyMethodDef _ntm_module2[] = {
 	{"sync", sync, METH_VARARGS},
@@ -56,6 +59,9 @@ static PyMethodDef _ntm_module2[] = {
 	{"sharpen_dgamma", sharpen_dgamma, METH_VARARGS},
 	{"relu", relu, METH_VARARGS},
 	{"relu_dlayer_in", relu_dlayer_in, METH_VARARGS},
+	{"shift_w", shift_w, METH_VARARGS},
+	{"shift_w_dshift_out", shift_w_dshift_out, METH_VARARGS},
+	{"shift_w_dw_interp", shift_w_dw_interp, METH_VARARGS},
 	{NULL, NULL}
 };
 

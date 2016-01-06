@@ -17,6 +17,7 @@ LAYERS = []
 FW_IND = add_linear_F_layer(LAYERS, 'FW', N_MEM_SLOTS, (8, M_LENGTH))
 R1_IND = add_relu_layer(LAYERS,'R1')
 S1_IND = add_sigmoid_layer(LAYERS, 'S1')
+S2_IND = add_shift_w_layer(LAYERS,'S2', [random_function, 'S1'])
 #FS_IND = add_sharpen_layer(LAYERS, 'FS', ['S1', random_function_1])
 MEM_IND = add_add_layer(LAYERS, 'MEM', ['S1', 'MEM'])
 FM_IND = add_focus_keys_layer(LAYERS, 'FM', ['MEM', random_function])
@@ -86,7 +87,7 @@ def g(y):
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e6
+eps = np.sqrt(np.finfo(np.float).eps)*1e5
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

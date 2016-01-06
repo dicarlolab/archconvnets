@@ -208,3 +208,4 @@ from gradient_functions.focus_key import *
 from gradient_functions.sigmoid import *
 from gradient_functions.sharpen import * ##### ?
 from gradient_functions.relu import *
+from gradient_functions.shift_w import * ######

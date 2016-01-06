@@ -29,8 +29,8 @@ static PyObject * focus_key(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
-	long n_controllers = PyLong_AsLong(PyTuple_GetItem((PyObject *)keys_shape,0));
-	long mem_length = PyLong_AsLong(PyTuple_GetItem((PyObject *)keys_shape,1));
+	long n_controllers = PyLong_AsLong(PyTuple_GetItem(keys_shape,0));
+	long mem_length = PyLong_AsLong(PyTuple_GetItem(keys_shape,1));
 	
 	if(n_controllers*mem_length*sizeof(DATA_TYPE) != KEYS_SZ || n_controllers*sizeof(DATA_TYPE) != BETA_OUT_SZ){
 		printf("specified input sizes do not equal to stored gpu buffer\n");
@@ -38,7 +38,7 @@ static PyObject * focus_key(PyObject *self, PyObject *args){
 	}
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
-		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DFKB_SZ); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &GPU_BUFFER_OUT, FOCUS_SZ); MALLOC_ERR_CHECK
 		
 		OUT_BUFFER_SZ = FOCUS_SZ;
 	}else if(FOCUS_SZ != OUT_BUFFER_SZ){ // does the output size match the buffer size?
