@@ -7,6 +7,42 @@ from archconvnets.unsupervised.ntm2.ntm_core import *
 ##########
 N_SHIFTS = 3
 
+def shift_w_test(args, OUT_BUFFER=None, gpu_ind=0):
+	# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, mem_length]
+	assert isinstance(gpu_ind,int)
+	SHIFT_OUT, W_INTERP = args
+	check_buffer(SHIFT_OUT)
+	check_buffer(W_INTERP)
+	assert SHIFT_OUT[1][0] == W_INTERP[1][0]
+	assert len(SHIFT_OUT[1]) == len(W_INTERP[1]) == 2
+	assert SHIFT_OUT[1][1] == 3 # 3 shifts
+	if OUT_BUFFER is None:
+		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
+	check_buffer(OUT_BUFFER)
+	
+	_ntm_module2.shift_w(SHIFT_OUT[0], W_INTERP[0], W_INTERP[1], OUT_BUFFER[0], gpu_ind)
+	
+	######## CPU
+	shift_out = return_buffer(SHIFT_OUT,gpu_ind)
+	w_interp = return_buffer(W_INTERP,gpu_ind)
+	
+	w_tilde = np.zeros_like(w_interp)
+	n_mem_slots = w_interp.shape[1]
+	
+	for loc in range(n_mem_slots):
+		w_tilde[:,loc] = shift_out[:,0]*w_interp[:,loc-1] + shift_out[:,1]*w_interp[:,loc] + \
+				shift_out[:,2]*w_interp[:,(loc+1)%n_mem_slots]
+		
+	OUT_BUFFER[1] = copy.deepcopy(W_INTERP[1])
+	z = return_buffer(OUT_BUFFER)
+	
+	print z
+	print '...'
+	print w_tilde
+	print np.isclose(z, w_tilde).sum()/np.single(np.prod(z.shape))
+	
+	return OUT_BUFFER
+
 def shift_w(args, OUT_BUFFER=None, gpu_ind=0):
 	# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, mem_length]
 	assert isinstance(gpu_ind,int)

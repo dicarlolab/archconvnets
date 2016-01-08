@@ -2,20 +2,20 @@
 #define W_INTERP(A, B) w_interp[(A)*M + B]
 
 __global__ void shift_w_kernel(float * shift_out, float * w_interp, float * out, int n_controllers, int M){ 
-	int controller = threadIdx.x / n_controllers;
-	int loc = threadIdx.x % n_controllers;
+	int controller = threadIdx.x / M;
+	int loc = threadIdx.x % M;
 	
 	int shift_out_ind = controller*N_SHIFTS;
 	
 	if(loc-1 >= 0)
-		out[threadIdx.x] = shift_out[shift_out_ind]*W_INTERP(controller, loc-1);
+		out[threadIdx.x] = shift_out[shift_out_ind]*w_interp[threadIdx.x - 1];
 	else
-		out[threadIdx.x] = shift_out[shift_out_ind]*W_INTERP(controller, n_controllers-1);
+		out[threadIdx.x] = shift_out[shift_out_ind]*W_INTERP(controller, M-1);
 	
-	out[threadIdx.x] += shift_out[shift_out_ind+1]*W_INTERP(controller, loc);
+	out[threadIdx.x] += shift_out[shift_out_ind+1]*w_interp[threadIdx.x];
 	
-	if(loc+1 < n_controllers)
-		out[threadIdx.x] += shift_out[shift_out_ind+2]*W_INTERP(controller, loc+1);
+	if(loc+1 < M)
+		out[threadIdx.x] += shift_out[shift_out_ind+2]*w_interp[threadIdx.x + 1];
 	else
 		out[threadIdx.x] += shift_out[shift_out_ind+2]*W_INTERP(controller, 0);
 }
