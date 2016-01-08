@@ -210,4 +210,6 @@ from gradient_functions.sharpen import * ##### ?
 from gradient_functions.relu import *
 from gradient_functions.shift_w import *
 from gradient_functions.interpolate import *
+from gradient_functions.softmax import *
+from gradient_functions.sq_points import *
 

@@ -34,6 +34,10 @@
 #include "gradient_functions/interpolate_do_prev.c"
 #include "gradient_functions/interpolate_do_content.c"
 #include "gradient_functions/interpolate_dinterp_gate_out.c"
+#include "gradient_functions/softmax.c"
+#include "gradient_functions/softmax_dlayer_in.c"
+#include "gradient_functions/sq_points.c"
+#include "gradient_functions/sq_points_dinput.c"
 
 static PyMethodDef _ntm_module2[] = {
 	{"sync", sync, METH_VARARGS},
@@ -70,6 +74,10 @@ static PyMethodDef _ntm_module2[] = {
 	{"interpolate_do_prev", interpolate_do_prev, METH_VARARGS},
 	{"interpolate_do_content", interpolate_do_content, METH_VARARGS},
 	{"interpolate_dinterp_gate_out", interpolate_dinterp_gate_out, METH_VARARGS},
+	{"softmax", softmax, METH_VARARGS},
+	{"softmax_dlayer_in", softmax_dlayer_in, METH_VARARGS},
+	{"sq_points", sq_points, METH_VARARGS},
+	{"sq_points_dinput", sq_points_dinput, METH_VARARGS},
 	{NULL, NULL}
 };
 
