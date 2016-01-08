@@ -43,7 +43,7 @@ DERIV_TOP = init_buffer(np.ones((1,1), dtype='single'))
 
 
 ################ which gradient to test
-gradient_layer = F1_IND
+gradient_layer = F2_IND
 gradient_arg = 0
 
 def f(y):

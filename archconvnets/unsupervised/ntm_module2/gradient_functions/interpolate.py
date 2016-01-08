@@ -63,10 +63,8 @@ def interpolate_dinterp_gate_out(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		temp = o_content - o_prev
 		temp2 = np.zeros((temp.shape[0], temp.shape[1], interp_gate_out.shape[0], 1),dtype='single')
 		
-		for i in range(temp2.shape[0]):
-			for j in range(temp2.shape[1]):
-				temp2[i,j,i] = temp[i,j]
-				
+		temp2[range(temp2.shape[0]), :, range(temp2.shape[0])] = temp[:,:,np.newaxis]
+		
 		OUT_BUFFER = set_buffer(temp2, OUT_BUFFER, gpu_ind)
 	
 	OUT_BUFFER[1] = tuple(np.concatenate((O_CONTENT[1], INTERP_GATE_OUT[1])))

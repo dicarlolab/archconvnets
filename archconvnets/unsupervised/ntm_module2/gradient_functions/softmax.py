@@ -4,10 +4,7 @@ from archconvnets.unsupervised.ntm_module2.ntm_module2 import *
 from archconvnets.unsupervised.ntm2.gpu_flag import *
 from archconvnets.unsupervised.ntm2.ntm_core import *
 
-def random_function_1(size):
-	return np.asarray(np.random.random(size) +1, dtype='single')
-
-def sigmoid(args, OUT_BUFFER=None, gpu_ind=0):
+def softmax(args, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
 	LAYER_IN = args[0]
@@ -29,7 +26,7 @@ def sigmoid(args, OUT_BUFFER=None, gpu_ind=0):
 		
 	return OUT_BUFFER
 
-def sigmoid_dlayer_in(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def softmax_dlayer_in(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
 	check_buffer(args[0])
@@ -45,17 +42,41 @@ def sigmoid_dlayer_in(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	else: 
 		############ CPU
 		layer_out = return_buffer(LAYER_OUT, gpu_ind)
-		d = layer_out * (1-layer_out)
-		t = np.zeros(np.concatenate((layer_out.shape, layer_out.shape)),dtype='single')
-		for i in range(layer_out.shape[0]):
-			for j in range(layer_out.shape[1]):
-				t[i,j,i,j] = d[i,j]
+		
+		
 		OUT_BUFFER = set_buffer(t, OUT_BUFFER, gpu_ind)
 	
 	OUT_BUFFER[1] = (dim1,dim2,dim1,dim2)
 	return OUT_BUFFER
 
+############
+##### check!
+# softmax over second dimension; first dim. treated independently
+def softmax(args):
+	assert len(args) == 1
+	layer_in = args[0]
+	exp_layer_in = np.exp(layer_in)
+	return exp_layer_in/np.sum(exp_layer_in,1)[:,np.newaxis]
 
+def softmax_dlayer_in(args, layer_out):
+	assert len(args) == 1
+	g = np.zeros((layer_out.shape[0], layer_out.shape[1], layer_out.shape[0], layer_out.shape[1]),dtype='single')
+	
+	# dsoftmax[:,i]/dlayer_in[:,j] when i = j:
+	temp = (layer_out * (1 - layer_out))
+	for i in range(g.shape[0]):
+		for j in range(g.shape[1]):
+			g[i,j,i,j] = temp[i,j]
+	
+	# i != j
+	for i in range(g.shape[0]):
+		for j in range(g.shape[1]):
+			for k in range(g.shape[1]):
+				if j != k:
+					g[i,j,i,k] -= layer_out[i,j]*layer_out[i,k]
+	return g
+	
+	
 def add_sigmoid_layer(LAYERS, name, source=None):
 	assert isinstance(name, str)
 	assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name

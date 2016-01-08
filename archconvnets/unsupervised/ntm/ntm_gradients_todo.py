@@ -90,33 +90,3 @@ def add_mem_dgw(add_out):
 	return temp
 
 
-################# interpolate
-def interpolate(interp_gate_out, o_content, o_prev):
-	return interp_gate_out * o_content + (1 - interp_gate_out) * o_prev
-
-def interpolate_dinterp_gate_out(interp_gate_out, o_content, o_prev):
-	temp = o_content - o_prev
-	temp2 = np.zeros((temp.shape[0], temp.shape[1], interp_gate_out.shape[0], 1),dtype='single')
-	
-	for i in range(temp2.shape[0]):
-		for j in range(temp2.shape[1]):
-			temp2[i,j,i] = temp[i,j]
-	return temp2
-
-def interpolate_do_content(interp_gate_out, o_content):
-	temp = interp_gate_out
-	n = o_content.shape[1]
-	temp2 = np.zeros((o_content.shape[0], n, o_content.shape[0], n),dtype='single')
-	
-	for i in range(temp2.shape[0]):
-		temp2[i,range(n),i,range(n)] = temp[i]
-	return temp2
-
-def interpolate_do_prev(interp_gate_out, o_previ):
-	temp = 1 - interp_gate_out
-	n = o_previ.shape[1]
-	temp2 = np.zeros((o_previ.shape[0], n, o_previ.shape[0], n),dtype='single')
-	
-	for i in range(temp2.shape[0]):
-		temp2[i,range(n),i,range(n)] = temp[i]
-	return temp2
