@@ -30,6 +30,10 @@
 #include "gradient_functions/shift_w.c"
 #include "gradient_functions/shift_w_dshift_out.c"
 #include "gradient_functions/shift_w_dw_interp.c"
+#include "gradient_functions/interpolate.c"
+#include "gradient_functions/interpolate_do_prev.c"
+#include "gradient_functions/interpolate_do_content.c"
+#include "gradient_functions/interpolate_dinterp_gate_out.c"
 
 static PyMethodDef _ntm_module2[] = {
 	{"sync", sync, METH_VARARGS},
@@ -62,6 +66,10 @@ static PyMethodDef _ntm_module2[] = {
 	{"shift_w", shift_w, METH_VARARGS},
 	{"shift_w_dshift_out", shift_w_dshift_out, METH_VARARGS},
 	{"shift_w_dw_interp", shift_w_dw_interp, METH_VARARGS},
+	{"interpolate", interpolate, METH_VARARGS},
+	{"interpolate_do_prev", interpolate_do_prev, METH_VARARGS},
+	{"interpolate_do_content", interpolate_do_content, METH_VARARGS},
+	{"interpolate_dinterp_gate_out", interpolate_dinterp_gate_out, METH_VARARGS},
 	{NULL, NULL}
 };
 

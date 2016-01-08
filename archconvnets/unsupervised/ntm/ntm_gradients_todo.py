@@ -63,39 +63,6 @@ def softmax_dlayer_in(layer_out):
 					g[i,j,i,k] -= layer_out[i,j]*layer_out[i,k]
 	return g
 
-############### shift w
-def shift_w(shift_out, w_interp):	
-	# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, mem_length]
-	
-	w_tilde = np.zeros_like(w_interp)
-	n_mem_slots = w_interp.shape[1]
-	
-	for loc in range(n_mem_slots):
-		w_tilde[:,loc] = shift_out[:,0]*w_interp[:,loc-1] + shift_out[:,1]*w_interp[:,loc] + \
-				shift_out[:,2]*w_interp[:,(loc+1)%n_mem_slots]
-	return w_tilde # [n_controllers, mem_length]
-
-def shift_w_dshift_out(w_interp):
-	n_shifts = 3 #...
-	
-	temp = np.zeros((C, M, C, n_shifts),dtype='single')
-	for m in range(M):
-		for H in [-1,0,1]:
-			temp[range(C),m,range(C),H+1] = w_interp[:, (m+H)%M]
-	
-	return temp
-
-def shift_w_dw_interp(shift_out):
-	# shift_out: [n_controllers, n_shifts]
-	temp = np.zeros((C, M, C, M),dtype='single')
-	
-	for loc in range(M):
-		temp[range(C),loc,range(C),loc-1] = shift_out[:,0]
-		temp[range(C),loc,range(C),loc] = shift_out[:,1]
-		temp[range(C),loc,range(C),(loc+1)%M] = shift_out[:,2]
-			
-	return temp
-
 
 ##################
 def sq_points(input):

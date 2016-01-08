@@ -14,7 +14,14 @@ free_all_buffers()
 ############# init layers
 LAYERS = []
 
-FW_IND = add_linear_F_layer(LAYERS, 'FW', N_MEM_SLOTS, (8, M_LENGTH))
+F1_IND = add_linear_F_layer(LAYERS, 'F1', N_MEM_SLOTS, (N_MEM_SLOTS, 1))
+F2_IND = add_linear_F_layer(LAYERS, 'F2', N_MEM_SLOTS, (N_MEM_SLOTS, M_LENGTH))
+F3_IND = add_linear_F_layer(LAYERS, 'F3', N_MEM_SLOTS, (N_MEM_SLOTS, M_LENGTH))
+FI_IND = add_interpolate_layer(LAYERS, 'FI', ['F1','F2','F3'])
+MEM_IND = add_add_layer(LAYERS, 'MEM', ['FI', 'MEM'])
+add_sum_layer(LAYERS, 'SUM')
+
+'''FW_IND = add_linear_F_layer(LAYERS, 'FW', N_MEM_SLOTS, (8, M_LENGTH))
 #R1_IND = add_relu_layer(LAYERS,'R1')
 #S1_IND = add_sigmoid_layer(LAYERS, 'S1')
 S2_IND = add_shift_w_layer(LAYERS,'S2', [random_function, 'FW'])
@@ -22,20 +29,21 @@ S2_IND = add_shift_w_layer(LAYERS,'S2', [random_function, 'FW'])
 MEM_IND = add_add_layer(LAYERS, 'MEM', ['S2', 'MEM'])
 FM_IND = add_focus_keys_layer(LAYERS, 'FM', ['MEM', random_function])
 add_linear_F_layer(LAYERS, 'F3', 25)
-add_sum_layer(LAYERS, 'SUM')
+add_sum_layer(LAYERS, 'SUM')'''
 
 ################ init weights and inputs
 
 WEIGHTS = init_weights(LAYERS)
-xt = random_function(np.concatenate(((N_FRAMES,), LAYERS[FW_IND]['in_shape'][1])))
-ft = random_function(np.concatenate(((N_FRAMES,), LAYERS[FM_IND]['in_shape'][1])))
+x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1])))
+x2t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F2_IND]['in_shape'][1])))
+x3t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F3_IND]['in_shape'][1])))
 mem_init = random_function(LAYERS[MEM_IND]['out_shape'])
 
 DERIV_TOP = init_buffer(np.ones((1,1), dtype='single'))
 
 
 ################ which gradient to test
-gradient_layer = S2_IND
+gradient_layer = F1_IND
 gradient_arg = 0
 
 def f(y):
@@ -46,7 +54,9 @@ def f(y):
 	set_buffer(Wy.reshape(weights_shape), WEIGHTS[gradient_layer][gradient_arg])
 	
 	for frame in range(N_FRAMES):
-		set_buffer(xt[frame], WEIGHTS[FW_IND][1])  # inputs	
+		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
+		set_buffer(x2t[frame], WEIGHTS[F2_IND][1])  # inputs
+		set_buffer(x3t[frame], WEIGHTS[F3_IND][1])  # inputs
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
 	
@@ -65,7 +75,9 @@ def g(y):
 	
 	PARTIALS_PREV = init_partials(LAYERS)
 	for frame in range(N_FRAMES):
-		set_buffer(xt[frame], WEIGHTS[FW_IND][1])  # inputs
+		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
+		set_buffer(x2t[frame], WEIGHTS[F2_IND][1])  # inputs
+		set_buffer(x3t[frame], WEIGHTS[F3_IND][1])  # inputs
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS)
 		WEIGHT_DERIVS = reverse_network(DERIV_TOP, len(LAYERS)-1, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, WEIGHT_DERIVS)
