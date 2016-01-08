@@ -14,6 +14,14 @@ free_all_buffers()
 ############# init layers
 LAYERS = []
 
+'''F1_IND = add_linear_F_layer(LAYERS, 'F1', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
+F1SQ_IND = add_sq_points_layer(LAYERS, 'F1SQ')
+F2_IND = add_linear_F_layer(LAYERS, 'F2', N_MEM_SLOTS, (N_MEM_SLOTS, 1))
+FS_IND = add_sharpen_layer(LAYERS, 'FS', ['F1SQ', 'F2'])
+MEM_IND = add_add_layer(LAYERS, 'MEM', ['FS', 'MEM'])
+SQ_IND = add_sq_points_layer(LAYERS, 'SQ')
+add_sum_layer(LAYERS, 'SUM')'''
+
 F1_IND = add_linear_F_layer(LAYERS, 'F1', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
 F2_IND = add_linear_F_layer(LAYERS, 'F2', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
 F1S_IND = add_softmax_layer(LAYERS, 'F1S', 'F1')
@@ -109,7 +117,7 @@ def g(y):
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*2e5
+eps = np.sqrt(np.finfo(np.float).eps)*1e5
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

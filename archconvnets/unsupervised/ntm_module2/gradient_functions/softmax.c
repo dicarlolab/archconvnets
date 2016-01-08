@@ -1,10 +1,3 @@
-#define W(A, B) w[(A)*dim1 + B]
-#define DSDW(A, B, C, D) dsdw[(A)*dim1*dim0*dim1 + \
-	(B)*dim0*dim1 + (C)*dim1 + D]
-#define DSDW_SZ (dim0*dim1*dim0*dim1*sizeof(DATA_TYPE))
-#define W_SZ buffer_sz[gpu_ind][w_ind]
-#define WG_SUM wg[dim1]
-
 __global__ void softmax_kernel(float * layer_in, float * out, int dim0, int dim1){ 
 	int i = blockIdx.x;
 	int j = threadIdx.x;
@@ -67,7 +60,7 @@ static PyObject *softmax(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	softmax_kernel <<< dim0, dim1, sizeof(float)*(dim1 + 1) >>> (gpu_buffers[gpu_ind][layer_in_ind], gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
+	softmax_kernel <<< dim0, dim1, sizeof(float) >>> (gpu_buffers[gpu_ind][layer_in_ind], gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	

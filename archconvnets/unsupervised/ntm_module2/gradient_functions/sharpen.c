@@ -2,9 +2,23 @@
 #define GAMMA_SZ buffer_sz[gpu_ind][gamma_ind]
 
 __global__ void sharpen_kernel(float * w, float * gamma, float * out, int dim1, int dim2){ 
-	int i = threadIdx.x / dim2;
+	int i = blockIdx.x;
+	int j = threadIdx.x;
+	int ind = i*dim2 + j;
 
-	out[threadIdx.x] = __powf(w[i], gamma[i]);
+	float pow_local = __powf(w[ind], gamma[i]);
+	
+	extern __shared__ float shared_mem[];
+	float * local_sum = (float*)&shared_mem;
+	
+	if(j == 0)
+		local_sum[0] = 0;
+	__syncthreads();
+	
+	atomicAdd(&local_sum[0], pow_local);
+	__syncthreads();
+
+	out[ind] = pow_local / local_sum[0];
 }
 
 /*def sharpen(w, gamma):
@@ -50,7 +64,7 @@ static PyObject * sharpen(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	sharpen_kernel <<< 1, dim1 * dim2 >>> (gpu_buffers[gpu_ind][w_ind], gpu_buffers[gpu_ind][gamma_ind],
+	sharpen_kernel <<< dim1, dim2, sizeof(float) >>> (gpu_buffers[gpu_ind][w_ind], gpu_buffers[gpu_ind][gamma_ind],
 		gpu_buffers[gpu_ind][out_buffer_ind], dim1, dim2);
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
