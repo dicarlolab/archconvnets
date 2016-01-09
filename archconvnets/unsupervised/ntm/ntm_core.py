@@ -56,6 +56,7 @@ def forward_pass(WUNDER,BUNDER, WR,WW,BR,BW, WABOVE, BABOVE, OR_PREV, OW_PREV, m
 	read_mem = linear_F(OR[F], mem_prev)
 	
 	mem = mem_prev * (1 - add_mem(OW[F], OW[ERASE])) + add_mem(OW[F], OW[ADD])
+	print '..............', mem_prev.shape, add_mem(OW[F], OW[ERASE]).shape
 
 	# above
 	OABOVE[L1_ABOVE] = relu(linear_F(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1)) + BABOVE[L1_ABOVE])

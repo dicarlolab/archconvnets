@@ -1,7 +1,7 @@
 #define ADD_POINTS_DINPUT_NUMEL (a_dim0*a_dim1*a_dim0*a_dim1)
 #define ADD_POINTS_DINPUT_SZ (ADD_POINTS_DINPUT_NUMEL*sizeof(DATA_TYPE))
 
-__global__ void add_points_dinput_kernel(float * out, int a_dim1, int a_dim1_a_dim0_a_dim1, int a_dim0_a_dim1, int data_out_numel){
+__global__ void add_points_dinput_kernel(float * out, int a_dim1, int a_dim1_a_dim0_a_dim1, int a_dim0_a_dim1, int data_out_numel, float scalar){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
 	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
@@ -28,7 +28,7 @@ __global__ void add_points_dinput_kernel(float * out, int a_dim1, int a_dim1_a_d
 		int l = remainder % a_dim1;
 		
 		if(i == k && j == l)
-			out[ind_g] = 1;
+			out[ind_g] = scalar;
 		else
 			out[ind_g] = 0;
 	}
@@ -37,9 +37,10 @@ __global__ void add_points_dinput_kernel(float * out, int a_dim1, int a_dim1_a_d
 static PyObject * add_points_dinput(PyObject *self, PyObject *args){
 	cudaError_t err;
 	int gpu_ind, out_buffer_ind;
+	float scalar;
 	PyObject *a_shape;
 	
-	if (!PyArg_ParseTuple(args, "O!ii", &PyTuple_Type, &a_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "O!ifi", &PyTuple_Type, &a_shape, &out_buffer_ind, &scalar, &gpu_ind)) 
 		return NULL;
     
 	if(out_buffer_ind >= N_BUFFERS){ 
@@ -72,7 +73,8 @@ static PyObject * add_points_dinput(PyObject *self, PyObject *args){
 	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
 	
 	// run kernel
-	add_points_dinput_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][out_buffer_ind], a_dim1, a_dim1*a_dim0*a_dim1, a_dim0*a_dim1, ADD_POINTS_DINPUT_NUMEL);
+	add_points_dinput_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][out_buffer_ind], a_dim1, a_dim1*a_dim0*a_dim1, 
+		a_dim0*a_dim1, ADD_POINTS_DINPUT_NUMEL, scalar);
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
