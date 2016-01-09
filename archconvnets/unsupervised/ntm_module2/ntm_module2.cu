@@ -38,6 +38,9 @@
 #include "gradient_functions/softmax_dlayer_in.c"
 #include "gradient_functions/sq_points.c"
 #include "gradient_functions/sq_points_dinput.c"
+#include "gradient_functions/dotT.c"
+#include "gradient_functions/dotT_da.c"
+#include "gradient_functions/dotT_db.c"
 
 static PyMethodDef _ntm_module2[] = {
 	{"sync", sync, METH_VARARGS},
@@ -78,6 +81,9 @@ static PyMethodDef _ntm_module2[] = {
 	{"softmax_dlayer_in", softmax_dlayer_in, METH_VARARGS},
 	{"sq_points", sq_points, METH_VARARGS},
 	{"sq_points_dinput", sq_points_dinput, METH_VARARGS},
+	{"dotT", dotT, METH_VARARGS},
+	{"dotT_da", dotT_da, METH_VARARGS},
+	{"dotT_db", dotT_db, METH_VARARGS},
 	{NULL, NULL}
 };
 

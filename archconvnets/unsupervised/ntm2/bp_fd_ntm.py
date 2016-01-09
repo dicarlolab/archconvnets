@@ -14,6 +14,13 @@ free_all_buffers()
 ############# init layers
 LAYERS = []
 
+F1_IND = add_linear_F_layer(LAYERS, 'F1', N_MEM_SLOTS, (N_MEM_SLOTS, 3))
+F2_IND = add_linear_F_layer(LAYERS, 'F2', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
+F3_IND = add_dotT_layer(LAYERS, 'F3', ('F1','F2'))
+MEM_IND = add_add_layer(LAYERS, 'MEM', ['F3', 'MEM'])
+SQ_IND = add_sq_points_layer(LAYERS, 'SQ')
+add_sum_layer(LAYERS, 'SUM')
+
 '''F1_IND = add_linear_F_layer(LAYERS, 'F1', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
 F1SQ_IND = add_sq_points_layer(LAYERS, 'F1SQ')
 F2_IND = add_linear_F_layer(LAYERS, 'F2', N_MEM_SLOTS, (N_MEM_SLOTS, 1))
@@ -22,13 +29,13 @@ MEM_IND = add_add_layer(LAYERS, 'MEM', ['FS', 'MEM'])
 SQ_IND = add_sq_points_layer(LAYERS, 'SQ')
 add_sum_layer(LAYERS, 'SUM')'''
 
-F1_IND = add_linear_F_layer(LAYERS, 'F1', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
+'''F1_IND = add_linear_F_layer(LAYERS, 'F1', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
 F2_IND = add_linear_F_layer(LAYERS, 'F2', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
 F1S_IND = add_softmax_layer(LAYERS, 'F1S', 'F1')
 F3_IND = add_add_layer(LAYERS, 'F3', ['F1S', 'F2'])
 MEM_IND = add_add_layer(LAYERS, 'MEM', ['F3', 'MEM'])
 SQ_IND = add_sq_points_layer(LAYERS, 'SQ')
-add_sum_layer(LAYERS, 'SUM')
+add_sum_layer(LAYERS, 'SUM')'''
 
 '''F1_IND = add_linear_F_layer(LAYERS, 'F1', N_MEM_SLOTS, (N_MEM_SLOTS, 1))
 F2_IND = add_linear_F_layer(LAYERS, 'F2', N_MEM_SLOTS, (N_MEM_SLOTS, M_LENGTH))
@@ -60,7 +67,7 @@ DERIV_TOP = init_buffer(np.ones((1,1), dtype='single'))
 
 
 ################ which gradient to test
-gradient_layer = F1_IND
+gradient_layer = F2_IND
 gradient_arg = 0
 
 def f(y):
