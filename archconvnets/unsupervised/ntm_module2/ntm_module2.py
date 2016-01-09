@@ -202,8 +202,8 @@ def dot(args, OUT_BUFFER=None, increment=0, gpu_ind=0):
 	
 from gradient_functions.cosine_sim import *
 from gradient_functions.linear_F import *
-from gradient_functions.add_points import *
-from gradient_functions.sum_points import *
+from gradient_functions.add_points import * # sum two layers together, preserving dimensionaltiy
+from gradient_functions.sum_points import * # sum one layer into a scalar
 from gradient_functions.focus_key import *
 from gradient_functions.sigmoid import *
 from gradient_functions.sharpen import *
@@ -213,4 +213,5 @@ from gradient_functions.interpolate import *
 from gradient_functions.softmax import *
 from gradient_functions.sq_points import *
 from gradient_functions.dotT import *
+from gradient_functions.mult_points import *
 
