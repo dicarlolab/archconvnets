@@ -71,5 +71,6 @@ def add_sum_layer(LAYERS, name, source=None, init=0):
 		LAYERS[layer_ind]['in_shape'] = [in_shape]
 		LAYERS[layer_ind]['in_source'] = [in_source]
 		LAYERS[layer_ind]['deriv_F'] = [sum_points_dinput]
+		LAYERS[layer_ind]['in_prev'] = [False]
 		
 		return layer_ind

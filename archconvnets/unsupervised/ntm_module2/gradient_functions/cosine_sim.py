@@ -156,5 +156,6 @@ def add_cosine_sim_layer(LAYERS, name, source, init=0):
 		LAYERS[layer_ind]['in_shape'] = in_shape
 		LAYERS[layer_ind]['in_source'] = in_source
 		LAYERS[layer_ind]['deriv_F'] = [cosine_sim_dkeys, cosine_sim_dmem]
+		LAYERS[layer_ind]['in_prev'] = [False, False]
 		
 		return layer_ind

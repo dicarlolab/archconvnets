@@ -121,6 +121,7 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, random_function=ran
 		LAYERS[layer_ind]['in_shape'] = in_shape
 		LAYERS[layer_ind]['in_source'] = [random_function, in_source]
 		LAYERS[layer_ind]['deriv_F'] = [linear_F_dF, linear_F_dx]
+		LAYERS[layer_ind]['in_prev'] = [False, False]
 		
 		return layer_ind
 		

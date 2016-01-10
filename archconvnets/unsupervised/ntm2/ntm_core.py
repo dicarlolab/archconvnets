@@ -21,8 +21,10 @@ def check_network(LAYERS):
 	n_allocated = return_n_allocated()
 	for layer_ind in range(len(LAYERS)):
 		L = LAYERS[layer_ind]
+		assert isinstance(L['name'],str)
+		assert L['name'] != '-' # reserved for prior time step layer outputs
 		assert isinstance(L['out_shape'],tuple)
-		assert len(L['in_shape']) == len(L['deriv_F']) == len(L['in_source'])
+		assert len(L['in_prev']) == len(L['in_shape']) == len(L['deriv_F']) == len(L['in_source'])
 		
 		if 'additional_forward_args' in L:
 			assert len(L['additional_deriv_args']) == len(L['deriv_F'])
@@ -60,10 +62,10 @@ def check_network(LAYERS):
 			if L['in_source'][arg] >= 0 and isinstance(L['in_source'][arg], int):
 				assert L['in_shape'][arg] == LAYERS[L['in_source'][arg]]['out_shape'], '%i %i' % (layer_ind, arg)
 				
-		'''# check if layers are ordered (no inputs to this layer come after this one in the list... unless recursive mem layer)
+		# check if layers are ordered (no inputs to this layer come after this one in the list... unless recursive mem layer)
 		for arg in range(N_ARGS):
 			if L['in_source'][arg] >= 0 and isinstance(L['in_source'][arg], int):
-				assert L['in_source'][arg] <= layer_ind or layer_ind in LAYERS[L['in_source'][arg]]['in_source']'''
+				assert L['in_source'][arg] < layer_ind or L['in_prev'][arg]
 	assert n_allocated == return_n_allocated(), 'check_network() leaked memory'
 
 def check_output_prev(OUTPUT_PREV, LAYERS):
@@ -121,13 +123,14 @@ def build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS):
 		src = L['in_source'][arg]
 		
 		# input is from another layer
-		if isinstance(src, int) and src != -1 and src < layer_ind:
-			args[arg] = OUTPUT[src]
-		# input is memory layer, return previous value
-		elif (src >= layer_ind) and isinstance(src,int): #################
-			args[arg] = OUTPUT_PREV[src]
+		if isinstance(src, int) and src != -1:
+			if L['in_prev'][arg]: # from prior timestep
+				args[arg] = OUTPUT_PREV[src]
+			else: # from current timestep
+				args[arg] = OUTPUT[src]
 		else: # input is a weighting
 			args[arg] = WEIGHTS[layer_ind][arg]
+		
 	return args
 
 def forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV):
@@ -172,6 +175,7 @@ def zero_buffer_list(WEIGHTS):
 			if WEIGHTS[layer_ind][arg] is not None:
 				zero_buffer(WEIGHTS[layer_ind][arg])
 
+# compute derivs at each layer
 def local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS):
 	check_output_prev(OUTPUT_PREV, LAYERS)
 	LOCAL_DERIVS = init_gpu_list(LOCAL_DERIVS, LAYERS)
@@ -189,6 +193,7 @@ def local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS):
 				L['deriv_F'][arg](args, OUTPUT[layer_ind], LOCAL_DERIVS[layer_ind][arg])
 	return LOCAL_DERIVS
 
+# apply chain-rule down the network
 def reverse_network(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims=False): # multiply all partials together
 	WEIGHT_DERIVS = init_gpu_list(WEIGHT_DERIVS, LAYERS)
 	zero_buffer_list(WEIGHT_DERIVS)
@@ -204,23 +209,25 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 		deriv_above_new = mult_partials(deriv_above, LOCAL_DERIVS[layer_ind][arg], LAYERS[layer_ind]['out_shape'])
 		src = LAYERS[layer_ind]['in_source'][arg]
 		
-		# go back farther... avoid infinite loops
-		if isinstance(src, int) and src != -1 and src != layer_ind:
-			reverse_network_recur(deriv_above_new, src, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims)
+		# input is a layer:
+		if isinstance(src, int) and src != -1:
+			# memory partials, stop here:
+			if L['in_prev'][arg]:
+				N_ARGS2 = len(P['in_source'])
+				for arg2 in range(N_ARGS2):
+					p_layer_ind = P['in_source'][arg2]
+					p_arg = P['in_arg'][arg2]
+					p_partial = P['partial'][arg2]
+					deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[layer_ind]['out_shape'])
+					WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp))
+					
+					free_buffer(deriv_temp)
+					
+			# another layer (At this time step, go back farther)
+			else: 
+				reverse_network_recur(deriv_above_new, src, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims)
 		
-		# add memory partials
-		elif src == layer_ind:
-			N_ARGS2 = len(P['in_source'])
-			for arg2 in range(N_ARGS2):
-				p_layer_ind = P['in_source'][arg2]
-				p_arg = P['in_arg'][arg2]
-				p_partial = P['partial'][arg2]
-				deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[layer_ind]['out_shape'])
-				WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp))
-				
-				free_buffer(deriv_temp)
-		
-		# regular derivatives
+		# input is not a layer, end here
 		else:
 			WEIGHT_DERIVS[layer_ind][arg] = point_wise_add((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new))
 			if keep_dims == False:
@@ -233,7 +240,7 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
 	dest = LAYERS[layer_cur]['in_source'][arg]
 	# end:
-	if (isinstance(dest, int) == False) or dest == -1:
+	if (isinstance(dest, int) == False) or dest == -1 or LAYERS[layer_cur]['in_prev'][arg]: #((isinstance(dest, int) == True) and (layer_cur < dest)):
 		PARTIALS[layer_orig]['in_source'].append(layer_cur)
 		PARTIALS[layer_orig]['in_arg'].append(arg)
 		OUT = init_buffer(np.zeros(np.concatenate((LAYERS[layer_orig]['out_shape'], LAYERS[layer_cur]['in_shape'][arg])), dtype='single'))
@@ -243,6 +250,8 @@ def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
 		for arg2 in range(N_ARGS2):
 			init_traverse_to_end(layer_orig, dest, arg2, LAYERS, PARTIALS)
 
+# collect all weight partials which contribute to the memory layers.
+# store them at the memory layer
 def init_partials(LAYERS):
 	PARTIALS = [None]*len(LAYERS)
 	for layer_ind in range(len(LAYERS)):
@@ -252,7 +261,7 @@ def init_partials(LAYERS):
 		
 		if layer_ind in L['in_source']: # memory layer
 			for arg in range(N_ARGS):
-				if L['in_source'][arg] != layer_ind:
+				if L['in_source'][arg] != layer_ind and L['in_source'][arg] < layer_ind:
 					init_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS)
 		
 	return PARTIALS
@@ -263,27 +272,33 @@ def free_partials(PARTIALS_PREV):
 
 def copy_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS, MEM_WEIGHT_DERIVS):
 	dest = LAYERS[layer_cur]['in_source'][arg]
-	# end:
-	if (isinstance(dest, int) == False) or dest == -1:
+	
+	# end (weighting, input or mem layer input):
+	if (isinstance(dest, int) == False) or dest == -1 or LAYERS[layer_cur]['in_prev'][arg]:
 		buffer = copy_buffer(MEM_WEIGHT_DERIVS[layer_cur][arg])
 		PARTIALS[layer_orig]['partial'].append(buffer)
+	
+	# continue (another layer)
 	else:
 		N_ARGS2 = len(LAYERS[dest]['in_source'])
 		for arg2 in range(N_ARGS2):
 			PARTIALS = copy_traverse_to_end(layer_orig, dest, arg2, LAYERS, PARTIALS, MEM_WEIGHT_DERIVS)
 	return PARTIALS
 
+# copy MEM_WEIGHT_DERIVS (partials starting at memory layer) into PARTIALS_PREV
+# at the memory layer entry in PARTIALS_PREV
 def copy_partials(layer_ind, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS):
 	L = LAYERS[layer_ind]
 	N_ARGS = len(L['in_source'])
 	
 	for arg in range(N_ARGS):
-		if L['in_source'][arg] != layer_ind:
+		if L['in_source'][arg] < layer_ind:
 			free_list(PARTIALS_PREV[layer_ind]['partial'])
 			PARTIALS_PREV[layer_ind]['partial'] = []
 			PARTIALS_PREV = copy_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
 	return PARTIALS_PREV
 
+# apply chain rule down network starting at the memory layer
 def reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS):
 	MEM_WEIGHT_DERIVS = init_gpu_list(MEM_WEIGHT_DERIVS, LAYERS)
 	
@@ -310,6 +325,8 @@ def reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT
 	return MEM_WEIGHT_DERIVS
 
 def find_layer(LAYERS, name):
+	if name[-1] == '-':
+		name = name[:len(name)-1]
 	for layer_ind in range(len(LAYERS)):
 		if LAYERS[layer_ind]['name'] == name:
 			return layer_ind

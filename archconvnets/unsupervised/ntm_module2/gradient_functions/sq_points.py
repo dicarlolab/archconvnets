@@ -89,6 +89,7 @@ def add_sq_points_layer(LAYERS, name, source=None, init=0):
 		LAYERS[layer_ind]['in_shape'] = in_shape
 		LAYERS[layer_ind]['in_source'] = [in_source]
 		LAYERS[layer_ind]['deriv_F'] = [sq_points_dinput]
+		LAYERS[layer_ind]['in_prev'] = [False]
 		
 		return layer_ind
 
