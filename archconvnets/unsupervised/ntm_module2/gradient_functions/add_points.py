@@ -58,28 +58,38 @@ def add_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[1], gpu
 	return OUT_BUFFER
 	
 # c = a + scalar*b
-def add_add_layer(LAYERS, name, source, scalar=1):
+def add_add_layer(LAYERS, name, source, scalar=1, init=0):
 	assert isinstance(name, str)
 	assert isinstance(source, list)
 	assert len(source) == 2
-	assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
 	
-	source_A = find_layer(LAYERS, source[0])
-	out_shape = LAYERS[source_A]['out_shape']
-	if source[1] == name: # input is itself
-		source_B = len(LAYERS)
-		assert source_A != source_B
+	if init == 0:
+		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
+		LAYERS.append({'name': name})
+		return len(LAYERS)-1
 	else:
-		source_B = find_layer(LAYERS, source[1])
-		assert out_shape == LAYERS[source_B]['out_shape']
+		layer_ind = find_layer(LAYERS, name)
+		assert layer_ind is not None, 'layer %s has not already been added' % name
+		
+		source_A = find_layer(LAYERS, source[0])
+		out_shape = LAYERS[source_A]['out_shape']
+		if source[1] == name: # input is itself
+			source_B = layer_ind
+			assert source_A != source_B
+		else:
+			source_B = find_layer(LAYERS, source[1])
+			assert source_B is not None
+			if source_B < layer_ind:
+				assert out_shape == LAYERS[source_B]['out_shape']
+		
+		LAYERS[layer_ind]['forward_F'] = add_points
+		LAYERS[layer_ind]['out_shape'] = out_shape
+		LAYERS[layer_ind]['in_shape'] = [out_shape, out_shape]
+		LAYERS[layer_ind]['in_source'] = [source_A, source_B]
+		LAYERS[layer_ind]['deriv_F'] = [add_points_dinput, add_points_dinput]
+		LAYERS[layer_ind]['additional_forward_args'] = [scalar]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[1], [scalar]]
+		
+		return layer_ind
+
 	
-	LAYERS.append({ 'name': name, 'forward_F': add_points, \
-				'out_shape': out_shape, \
-				'in_shape': [out_shape, out_shape], \
-				'in_source': [source_A, source_B], \
-				'deriv_F': [add_points_dinput, add_points_dinput],\
-				'additional_forward_args': [scalar],\
-				'additional_deriv_args': [[1], [scalar]]})
-	
-	check_network(LAYERS)
-	return len(LAYERS)-1

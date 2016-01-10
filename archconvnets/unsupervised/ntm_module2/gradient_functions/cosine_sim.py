@@ -128,28 +128,33 @@ def cosine_sim_dkeys(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 
 # keys: N_CONTROLLERS, M_LENGTH
 # mem: N_MEM_SLOTS, M_LENGTH
-def add_cosine_sim_layer(LAYERS, name, source):
+def add_cosine_sim_layer(LAYERS, name, source, init=0):
 	assert isinstance(name, str)
-	assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
 	assert len(source) == 2
-	
-	in_shape = [None]*2
-	in_source = [None]*2
-	
-	for arg in range(2):
-		in_source[arg] = find_layer(LAYERS, source[arg])
-		assert in_source[arg] is not None, 'could not find source layer %i' % source[arg]
-		in_shape[arg] = LAYERS[in_source[arg]]['out_shape']
-		assert (len(in_shape[arg]) == 2) or ((len(in_shape[arg]) == 3) and (in_shape[arg][2] == 1)), 'ndim != 2, arg: %i' % arg
-	assert in_shape[0][1] == in_shape[1][1]
-	
-	out_shape = (in_shape[0][0], in_shape[1][0])
-	
-	LAYERS.append({ 'name': name, 'forward_F': cosine_sim, \
-				'out_shape': out_shape, \
-				'in_shape': in_shape, \
-				'in_source': in_source, \
-				'deriv_F': [cosine_sim_dkeys, cosine_sim_dmem] })
-	
-	check_network(LAYERS)
-	return len(LAYERS)-1
+	if init == 0:
+		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
+		LAYERS.append({'name': name})
+		return len(LAYERS)-1
+	else:
+		layer_ind = find_layer(LAYERS, name)
+		assert layer_ind is not None, 'layer %s has not already been added' % name
+		
+		in_shape = [None]*2
+		in_source = [None]*2
+		
+		for arg in range(2):
+			in_source[arg] = find_layer(LAYERS, source[arg])
+			assert in_source[arg] is not None, 'could not find source layer %i' % source[arg]
+			in_shape[arg] = LAYERS[in_source[arg]]['out_shape']
+			assert (len(in_shape[arg]) == 2) or ((len(in_shape[arg]) == 3) and (in_shape[arg][2] == 1)), 'ndim != 2, arg: %i' % arg
+		assert in_shape[0][1] == in_shape[1][1]
+		
+		out_shape = (in_shape[0][0], in_shape[1][0])
+		
+		LAYERS[layer_ind]['forward_F'] = cosine_sim
+		LAYERS[layer_ind]['out_shape'] = out_shape
+		LAYERS[layer_ind]['in_shape'] = in_shape
+		LAYERS[layer_ind]['in_source'] = in_source
+		LAYERS[layer_ind]['deriv_F'] = [cosine_sim_dkeys, cosine_sim_dmem]
+		
+		return layer_ind

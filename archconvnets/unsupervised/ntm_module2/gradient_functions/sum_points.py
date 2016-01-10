@@ -43,27 +43,33 @@ def sum_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = tuple(np.concatenate(((1,), POINTS[1])))
 	return OUT_BUFFER
 	
-def add_sum_layer(LAYERS, name, source=None):
+def add_sum_layer(LAYERS, name, source=None, init=0):
 	assert isinstance(name, str)
-	assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
 	
-	# default to previous layer as input
-	if source is None:
-		in_source = len(LAYERS)-1
-		in_shape = LAYERS[in_source]['out_shape']
-	# find layer specified
-	elif isinstance(source,str):
-		in_source = find_layer(LAYERS, source)
-		assert in_source is not None, 'could not find source layer %i' % source
-		in_shape = LAYERS[in_source]['out_shape']
+	if init == 0:
+		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
+		LAYERS.append({'name': name})
+		return len(LAYERS)-1
 	else:
-		assert False, 'unknown source input'
-	
-	LAYERS.append({ 'name': name, 'forward_F': sum_points, \
-				'out_shape': (1,), \
-				'in_shape': [in_shape], \
-				'in_source': [in_source], \
-				'deriv_F': [sum_points_dinput] })
-	
-	check_network(LAYERS)
-	return len(LAYERS)-1
+		layer_ind = find_layer(LAYERS, name)
+		assert layer_ind is not None, 'layer %s has not already been added' % name
+		
+		# default to previous layer as input
+		if source is None:
+			in_source = layer_ind - 1
+			in_shape = LAYERS[in_source]['out_shape']
+		# find layer specified
+		elif isinstance(source,str):
+			in_source = find_layer(LAYERS, source)
+			assert in_source is not None, 'could not find source layer %i' % source
+			in_shape = LAYERS[in_source]['out_shape']
+		else:
+			assert False, 'unknown source input'
+		
+		LAYERS[layer_ind]['forward_F'] = sum_points
+		LAYERS[layer_ind]['out_shape'] = (1,)
+		LAYERS[layer_ind]['in_shape'] = [in_shape]
+		LAYERS[layer_ind]['in_source'] = [in_source]
+		LAYERS[layer_ind]['deriv_F'] = [sum_points_dinput]
+		
+		return layer_ind

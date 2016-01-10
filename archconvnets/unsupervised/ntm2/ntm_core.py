@@ -60,10 +60,10 @@ def check_network(LAYERS):
 			if L['in_source'][arg] >= 0 and isinstance(L['in_source'][arg], int):
 				assert L['in_shape'][arg] == LAYERS[L['in_source'][arg]]['out_shape'], '%i %i' % (layer_ind, arg)
 				
-		# check if layers are ordered (no inputs to this layer come after this one in the list... unless recursive mem layer)
+		'''# check if layers are ordered (no inputs to this layer come after this one in the list... unless recursive mem layer)
 		for arg in range(N_ARGS):
 			if L['in_source'][arg] >= 0 and isinstance(L['in_source'][arg], int):
-				assert L['in_source'][arg] <= layer_ind or layer_ind in LAYERS[L['in_source'][arg]]['in_source']
+				assert L['in_source'][arg] <= layer_ind or layer_ind in LAYERS[L['in_source'][arg]]['in_source']'''
 	assert n_allocated == return_n_allocated(), 'check_network() leaked memory'
 
 def check_output_prev(OUTPUT_PREV, LAYERS):
@@ -121,10 +121,10 @@ def build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS):
 		src = L['in_source'][arg]
 		
 		# input is from another layer
-		if isinstance(src, int) and src != -1 and src != layer_ind:
+		if isinstance(src, int) and src != -1 and src < layer_ind:
 			args[arg] = OUTPUT[src]
-		# input is current layer, return previous value
-		elif src == layer_ind:
+		# input is memory layer, return previous value
+		elif (src >= layer_ind) and isinstance(src,int): #################
 			args[arg] = OUTPUT_PREV[src]
 		else: # input is a weighting
 			args[arg] = WEIGHTS[layer_ind][arg]

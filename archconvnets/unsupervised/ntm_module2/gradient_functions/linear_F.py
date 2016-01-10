@@ -80,41 +80,47 @@ def linear_F_dF(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	
 linear_F = dot
 
-def add_linear_F_layer(LAYERS, name, n_filters, source=None, random_function=random_function):
+def add_linear_F_layer(LAYERS, name, n_filters, source=None, random_function=random_function, init=0):
 	assert isinstance(name, str)
-	assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
-	
-	in_shape = [None]*2
-	
-	# default to previous layer as input
-	if source is None:
-		in_source = len(LAYERS)-1
-		in_shape[1] = LAYERS[in_source]['out_shape']
-	# find layer specified
-	elif isinstance(source,str):
-		in_source = find_layer(LAYERS, source)
-		assert in_source is not None, 'could not find source layer %i' % source
-		in_shape[1] = LAYERS[in_source]['out_shape']
-	
-	# input is user supplied
-	elif isinstance(source,tuple):
-		in_shape[1] = source
-		in_source = -1
+	if init == 0:
+		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
+		LAYERS.append({'name': name})
+		return len(LAYERS)-1
 	else:
-		assert False, 'unknown source input'
-	
-	if isinstance(n_filters,int):
-		in_shape[0] = (n_filters, in_shape[1][0])
-		out_shape = (in_shape[0][0], in_shape[1][1])
-	else:
-		in_shape[0] = tuple(np.concatenate((np.asarray(n_filters), np.asarray(in_shape[1][0])[np.newaxis])))
-		out_shape = tuple(np.concatenate((in_shape[0][:len(in_shape[0])-1], np.asarray(in_shape[1][1])[np.newaxis])))
-	
-	LAYERS.append({ 'name': name, 'forward_F': linear_F, \
-				'out_shape': out_shape, \
-				'in_shape': in_shape, \
-				'in_source': [random_function, in_source], \
-				'deriv_F': [linear_F_dF, linear_F_dx] })
-	
-	check_network(LAYERS)
-	return len(LAYERS)-1
+		layer_ind = find_layer(LAYERS, name)
+		assert layer_ind is not None, 'layer %s has not already been added' % name
+		
+		in_shape = [None]*2
+		
+		# default to previous layer as input
+		if source is None:
+			in_source = layer_ind-1
+			in_shape[1] = LAYERS[in_source]['out_shape']
+		# find layer specified
+		elif isinstance(source,str):
+			in_source = find_layer(LAYERS, source)
+			assert in_source is not None, 'could not find source layer %i' % source
+			in_shape[1] = LAYERS[in_source]['out_shape']
+		
+		# input is user supplied
+		elif isinstance(source,tuple):
+			in_shape[1] = source
+			in_source = -1
+		else:
+			assert False, 'unknown source input'
+		
+		if isinstance(n_filters,int):
+			in_shape[0] = (n_filters, in_shape[1][0])
+			out_shape = (in_shape[0][0], in_shape[1][1])
+		else:
+			in_shape[0] = tuple(np.concatenate((np.asarray(n_filters), np.asarray(in_shape[1][0])[np.newaxis])))
+			out_shape = tuple(np.concatenate((in_shape[0][:len(in_shape[0])-1], np.asarray(in_shape[1][1])[np.newaxis])))
+		
+		LAYERS[layer_ind]['forward_F'] = linear_F
+		LAYERS[layer_ind]['out_shape'] = out_shape
+		LAYERS[layer_ind]['in_shape'] = in_shape
+		LAYERS[layer_ind]['in_source'] = [random_function, in_source]
+		LAYERS[layer_ind]['deriv_F'] = [linear_F_dF, linear_F_dx]
+		
+		return layer_ind
+		

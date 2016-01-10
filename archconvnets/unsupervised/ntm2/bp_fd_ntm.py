@@ -20,22 +20,24 @@ N_F2 = 7
 N_F3 = 9
 HEAD_INPUT = 'F3'
 
-F1_IND = add_linear_F_layer(LAYERS, 'F1', N_F1, (2, 10))
-F2_IND = add_linear_F_layer(LAYERS, 'F2', N_F2)
-F3_IND = add_linear_F_layer(LAYERS, HEAD_INPUT, N_F3)
+for init in [0,1]:
+	F1_IND = add_linear_F_layer(LAYERS, 'F1', N_F1, (2, 10), init=init)
+	F2_IND = add_linear_F_layer(LAYERS, 'F2', N_F2, init=init)
+	F3_IND = add_linear_F_layer(LAYERS, HEAD_INPUT, N_F3, init=init)
 
-# read
-##RKEY_IND = add_linear_F_layer(LAYERS, 'RKEY', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT)
+	# read
+	##RKEY_IND = add_linear_F_layer(LAYERS, 'RKEY', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)
 
-RBETA_IND = add_linear_F_layer(LAYERS, 'RBETA', N_CONTROLLERS, HEAD_INPUT)
+	RBETA_IND = add_linear_F_layer(LAYERS, 'RBETA', N_CONTROLLERS, HEAD_INPUT, init=init)
 
-FT_IND = add_linear_F_layer(LAYERS, 'FT', M_LENGTH, (3,10))
+	FT_IND = add_linear_F_layer(LAYERS, 'FT', M_LENGTH, (3,10), init=init)
 
-RCONTENT_IND = add_cosine_sim_layer(LAYERS, 'RCONTENT', ['RBETA', 'FT'])
+	RCONTENT_IND = add_cosine_sim_layer(LAYERS, 'RCONTENT', ['RBETA', 'FT'], init=init)
+	RCONTENT_SUM_IND = add_add_layer(LAYERS, 'RCONTENT_SUM', ['RCONTENT', 'MEM'], init=init)
 
-MEM_IND = add_add_layer(LAYERS, 'MEM', ['RCONTENT', 'MEM'], -1)
-SQ_IND = add_sq_points_layer(LAYERS, 'SQ')
-add_sum_layer(LAYERS, 'SUM')
+	MEM_IND = add_add_layer(LAYERS, 'MEM', ['RCONTENT_SUM', 'MEM'], -1, init=init)
+	SQ_IND = add_sq_points_layer(LAYERS, 'SQ', init=init)
+	add_sum_layer(LAYERS, 'SUM', init=init)
 
 '''F1_IND = add_linear_F_layer(LAYERS, 'F1', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
 F2_IND = add_linear_F_layer(LAYERS, 'F2', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
