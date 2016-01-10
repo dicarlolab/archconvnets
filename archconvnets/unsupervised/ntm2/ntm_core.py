@@ -211,7 +211,7 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 		
 		# input is a layer:
 		if isinstance(src, int) and src != -1:
-			# memory partials, stop here:
+			# memory partials, stop here, add these partials to the correct weight derivs:
 			if L['in_prev'][arg]:
 				N_ARGS2 = len(P['in_source'])
 				for arg2 in range(N_ARGS2):
@@ -223,14 +223,14 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 					
 					free_buffer(deriv_temp)
 					
-			# another layer (At this time step, go back farther)
+			# another layer (At this time step, go back to earlier layers)
 			else: 
 				reverse_network_recur(deriv_above_new, src, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims)
 		
 		# input is not a layer, end here
 		else:
 			WEIGHT_DERIVS[layer_ind][arg] = point_wise_add((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new))
-			if keep_dims == False:
+			if keep_dims == False: # squeeze
 				assert WEIGHT_DERIVS[layer_ind][arg][1][0] == 1
 				WEIGHT_DERIVS[layer_ind][arg][1] = tuple(WEIGHT_DERIVS[layer_ind][arg][1][1:])
 		
@@ -239,16 +239,22 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 
 def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
 	dest = LAYERS[layer_cur]['in_source'][arg]
-	# end:
-	if (isinstance(dest, int) == False) or dest == -1 or LAYERS[layer_cur]['in_prev'][arg]: #((isinstance(dest, int) == True) and (layer_cur < dest)):
-		PARTIALS[layer_orig]['in_source'].append(layer_cur)
-		PARTIALS[layer_orig]['in_arg'].append(arg)
-		OUT = init_buffer(np.zeros(np.concatenate((LAYERS[layer_orig]['out_shape'], LAYERS[layer_cur]['in_shape'][arg])), dtype='single'))
-		PARTIALS[layer_orig]['partial'].append(OUT)
-	else:
-		N_ARGS2 = len(LAYERS[dest]['in_source'])
-		for arg2 in range(N_ARGS2):
-			init_traverse_to_end(layer_orig, dest, arg2, LAYERS, PARTIALS)
+	
+	# don't traverse previous states
+	if LAYERS[layer_cur]['in_prev'][arg] == False:
+		
+		# input or weights, end:
+		if (isinstance(dest, int) == False) or dest == -1:
+			PARTIALS[layer_orig]['in_source'].append(layer_cur)
+			PARTIALS[layer_orig]['in_arg'].append(arg)
+			OUT = init_buffer(np.zeros(np.concatenate((LAYERS[layer_orig]['out_shape'], LAYERS[layer_cur]['in_shape'][arg])), dtype='single'))
+			PARTIALS[layer_orig]['partial'].append(OUT)
+		
+		# another layer, go back farther through the network:
+		else:
+			N_ARGS2 = len(LAYERS[dest]['in_source'])
+			for arg2 in range(N_ARGS2):
+				init_traverse_to_end(layer_orig, dest, arg2, LAYERS, PARTIALS)
 
 # collect all weight partials which contribute to the memory layers.
 # store them at the memory layer
@@ -261,7 +267,7 @@ def init_partials(LAYERS):
 		
 		if layer_ind in L['in_source']: # memory layer
 			for arg in range(N_ARGS):
-				if L['in_source'][arg] != layer_ind and L['in_source'][arg] < layer_ind:
+				if L['in_prev'][arg] == False:
 					init_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS)
 		
 	return PARTIALS
@@ -273,16 +279,17 @@ def free_partials(PARTIALS_PREV):
 def copy_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS, MEM_WEIGHT_DERIVS):
 	dest = LAYERS[layer_cur]['in_source'][arg]
 	
-	# end (weighting, input or mem layer input):
-	if (isinstance(dest, int) == False) or dest == -1 or LAYERS[layer_cur]['in_prev'][arg]:
-		buffer = copy_buffer(MEM_WEIGHT_DERIVS[layer_cur][arg])
-		PARTIALS[layer_orig]['partial'].append(buffer)
-	
-	# continue (another layer)
-	else:
-		N_ARGS2 = len(LAYERS[dest]['in_source'])
-		for arg2 in range(N_ARGS2):
-			PARTIALS = copy_traverse_to_end(layer_orig, dest, arg2, LAYERS, PARTIALS, MEM_WEIGHT_DERIVS)
+	if LAYERS[layer_cur]['in_prev'][arg] == False:
+		# end (weighting, input or mem layer input):
+		if (isinstance(dest, int) == False) or dest == -1:
+			buffer = copy_buffer(MEM_WEIGHT_DERIVS[layer_cur][arg])
+			PARTIALS[layer_orig]['partial'].append(buffer)
+		
+		# continue (another layer)
+		else:
+			N_ARGS2 = len(LAYERS[dest]['in_source'])
+			for arg2 in range(N_ARGS2):
+				PARTIALS = copy_traverse_to_end(layer_orig, dest, arg2, LAYERS, PARTIALS, MEM_WEIGHT_DERIVS)
 	return PARTIALS
 
 # copy MEM_WEIGHT_DERIVS (partials starting at memory layer) into PARTIALS_PREV
@@ -292,7 +299,7 @@ def copy_partials(layer_ind, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS):
 	N_ARGS = len(L['in_source'])
 	
 	for arg in range(N_ARGS):
-		if L['in_source'][arg] < layer_ind:
+		if L['in_prev'][arg] == False:
 			free_list(PARTIALS_PREV[layer_ind]['partial'])
 			PARTIALS_PREV[layer_ind]['partial'] = []
 			PARTIALS_PREV = copy_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
@@ -301,14 +308,17 @@ def copy_partials(layer_ind, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS):
 # apply chain rule down network starting at the memory layer
 def reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS):
 	MEM_WEIGHT_DERIVS = init_gpu_list(MEM_WEIGHT_DERIVS, LAYERS)
+	zero_buffer_list(MEM_WEIGHT_DERIVS)
 	
 	# update partials_prev
 	for i in range(len(LAYERS[MEM_IND]['in_source'])):
 		src_layer = LAYERS[MEM_IND]['in_source'][i]
 		
+		#MEM_WEIGHT_DERIVS = reverse_network_recur(LOCAL_DERIVS[MEM_IND][i], src_layer, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS, keep_dims=True)
+		
 		# DMEM_D[layers]_DW
 		if src_layer != MEM_IND:
-			MEM_WEIGHT_DERIVS = reverse_network(LOCAL_DERIVS[MEM_IND][i], src_layer, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS, keep_dims=True)
+			MEM_WEIGHT_DERIVS = reverse_network_recur(LOCAL_DERIVS[MEM_IND][i], src_layer, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS, keep_dims=True)
 		
 		# DMEM_DMEM_DW
 		else:
@@ -320,6 +330,7 @@ def reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT
 				p_partial = P['partial'][arg2]
 				deriv_temp = mult_partials(LOCAL_DERIVS[MEM_IND][i], p_partial, LAYERS[MEM_IND]['out_shape'])
 				MEM_WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((MEM_WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp))
+				
 				free_buffer(deriv_temp)
 				
 	return MEM_WEIGHT_DERIVS

@@ -15,29 +15,15 @@ free_all_buffers()
 ############# init layers
 LAYERS = []
 
-N_F1 = 12
-N_F2 = 7
-N_F3 = 9
-HEAD_INPUT = 'F3'
-
 for init in [0,1]:
-	F1_IND = add_linear_F_layer(LAYERS, 'F1', N_F1, (2, 10), init=init)
-	F2_IND = add_linear_F_layer(LAYERS, 'F2', N_F2, init=init)
-	F3_IND = add_linear_F_layer(LAYERS, HEAD_INPUT, N_F3, init=init)
-
-	# read
-	##RKEY_IND = add_linear_F_layer(LAYERS, 'RKEY', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)
-
-	RBETA_IND = add_linear_F_layer(LAYERS, 'RBETA', N_CONTROLLERS, HEAD_INPUT, init=init)
-
-	FT_IND = add_linear_F_layer(LAYERS, 'FT', M_LENGTH, (3,10), init=init)
+	FT_IND = add_linear_F_layer(LAYERS, 'FT', N_CONTROLLERS, (3,M_LENGTH), init=init)
+	
 	FT2_IND = add_linear_F_layer(LAYERS, 'FT2', N_CONTROLLERS, (4,M_LENGTH), init=init)
+	RCONTENT_SUM_IND = add_add_layer(LAYERS, 'RCONTENT_SUM', ['FT', 'FT2'], init=init)
+	
+	#RCONTENT_SUM_IND = add_add_layer(LAYERS, 'RCONTENT_SUM', ['FT', 'MEM-'], init=init)
 
-	RCONTENT_IND = add_cosine_sim_layer(LAYERS, 'RCONTENT', ['RBETA', 'FT'], init=init)
-	RCONTENT_SUM_IND = add_add_layer(LAYERS, 'RCONTENT_SUM', ['RCONTENT', 'FT2'], init=init)
-
-	MEM_IND = add_add_layer(LAYERS, 'MEM', ['RCONTENT_SUM', 'MEM-'], -1, init=init)
-	SQ_IND = add_sq_points_layer(LAYERS, 'SQ', init=init)
+	MEM_IND = add_add_layer(LAYERS, 'MEM', ['RCONTENT_SUM', 'MEM-'], init=init)
 	add_sum_layer(LAYERS, 'SUM', init=init)
 
 check_network(LAYERS)
@@ -45,7 +31,6 @@ check_network(LAYERS)
 ################ init weights and inputs
 
 WEIGHTS = init_weights(LAYERS)
-x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1])))
 x2t = random_function(np.concatenate(((N_FRAMES,), LAYERS[FT_IND]['in_shape'][1])))
 x3t = random_function(np.concatenate(((N_FRAMES,), LAYERS[FT2_IND]['in_shape'][1])))
 mem_init = random_function(LAYERS[MEM_IND]['out_shape'])
@@ -53,7 +38,7 @@ mem_init = random_function(LAYERS[MEM_IND]['out_shape'])
 DERIV_TOP = init_buffer(np.ones((1,1), dtype='single'))
 
 ################ which gradient to test
-gradient_layer = F1_IND
+gradient_layer = FT_IND
 gradient_arg = 0
 
 '''y=.1;frame=0;i_ind=3
@@ -66,7 +51,6 @@ weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
 set_buffer(Wy.reshape(weights_shape), WEIGHTS[gradient_layer][gradient_arg])
 
 PARTIALS_PREV = init_partials(LAYERS)
-set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
 set_buffer(x2t[frame], WEIGHTS[FT_IND][1])  # inputs
 set_buffer(x3t[frame], WEIGHTS[FT2_IND][1])  # inputs
 OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
@@ -75,8 +59,8 @@ WEIGHT_DERIVS = reverse_network(DERIV_TOP, len(LAYERS)-1, LAYERS, LOCAL_DERIVS, 
 
 # update partials_prev
 MEM_WEIGHT_DERIVS = reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
-PARTIALS_PREV = copy_partials(MEM_IND, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
-OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)'''
+#PARTIALS_PREV = copy_partials(MEM_IND, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
+#OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)'''
 
 def f(y):
 	OUTPUT = None; OUTPUT_PREV = [None] * len(LAYERS)
@@ -86,7 +70,6 @@ def f(y):
 	set_buffer(Wy.reshape(weights_shape), WEIGHTS[gradient_layer][gradient_arg])
 	
 	for frame in range(N_FRAMES):
-		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
 		set_buffer(x2t[frame], WEIGHTS[FT_IND][1])  # inputs
 		set_buffer(x3t[frame], WEIGHTS[FT2_IND][1])  # inputs
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
@@ -107,7 +90,6 @@ def g(y):
 	
 	PARTIALS_PREV = init_partials(LAYERS)
 	for frame in range(N_FRAMES):
-		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
 		set_buffer(x2t[frame], WEIGHTS[FT_IND][1])  # inputs
 		set_buffer(x3t[frame], WEIGHTS[FT2_IND][1])  # inputs
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
@@ -116,6 +98,7 @@ def g(y):
 		
 		# update partials_prev
 		MEM_WEIGHT_DERIVS = reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
+		#MEM_WEIGHT_DERIVS = reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
 		PARTIALS_PREV = copy_partials(MEM_IND, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
 		
