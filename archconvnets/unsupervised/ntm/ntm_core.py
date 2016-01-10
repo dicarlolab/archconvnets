@@ -14,6 +14,7 @@ def weight_address(W, B, O_PREV, inputs, mem_prev):
 	
 	# content
 	O[KEY] = linear_2d_F(W[KEY], inputs) + B[KEY]
+	print O[KEY].shape, linear_2d_F(W[KEY], inputs).shape, W[KEY].shape, inputs.shape, B[KEY].shape
 	O[BETA] = linear_F(W[BETA], inputs) + B[BETA]
 	O[CONTENT] = cosine_sim(O[KEY], mem_prev)
 	O[CONTENT_FOCUSED] = focus_keys(O[CONTENT], O[BETA]) # beta*cos
@@ -56,7 +57,6 @@ def forward_pass(WUNDER,BUNDER, WR,WW,BR,BW, WABOVE, BABOVE, OR_PREV, OW_PREV, m
 	read_mem = linear_F(OR[F], mem_prev)
 	
 	mem = mem_prev * (1 - add_mem(OW[F], OW[ERASE])) + add_mem(OW[F], OW[ADD])
-	print '..............', mem_prev.shape, add_mem(OW[F], OW[ERASE]).shape
 
 	# above
 	OABOVE[L1_ABOVE] = relu(linear_F(WABOVE[L1_ABOVE], read_mem.reshape(C*mem_length,1)) + BABOVE[L1_ABOVE])
@@ -124,7 +124,7 @@ def do_dw__inputs(W, WUNDER, BUNDER, o_prev, OUNDER, DO_DWUNDER, DO_DBUNDER, O, 
 	dgammarelu_dgamma = relu_dlayer_in(O[GAMMA], thresh=1)
 	do_dgamma = mult_partials(do_dgammarelu, dgammarelu_dgamma, O[GAMMA])
 	DO_DB_NEW[GAMMA] += do_dgamma
-	#print 'W[GAMMA]', W[GAMMA].shape, 'OUNDER[F_UNDER]', OUNDER[F_UNDER].shape
+	# 'W[GAMMA]', W[GAMMA].shape, 'OUNDER[F_UNDER]', OUNDER[F_UNDER].shape
 	dgamma_dwgamma = linear_F_dF(W[GAMMA], OUNDER[F_UNDER])
 	dgamma_dg3under = linear_F_dx(W[GAMMA], OUNDER[F_UNDER])
 	#print 'do_dgamma',do_dgamma.shape, 'dgamma_dwgamma',dgamma_dwgamma.shape, 'O[GAMMA]',O[GAMMA].shape, 'DO_DW_NEW[GAMMA]',DO_DW_NEW[GAMMA].shape

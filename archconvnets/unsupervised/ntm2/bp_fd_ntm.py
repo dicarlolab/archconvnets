@@ -5,8 +5,9 @@ from ntm_core import *
 
 N_FRAMES = 5
 N_CONTROLLERS = 16
-M_LENGTH = 6
-N_MEM_SLOTS = 8
+N_MEM_SLOTS = 6
+M_LENGTH = 8
+
 mem_shape = (N_MEM_SLOTS, M_LENGTH)
 
 free_all_buffers()
@@ -14,12 +15,27 @@ free_all_buffers()
 ############# init layers
 LAYERS = []
 
-F1_IND = add_linear_F_layer(LAYERS, 'F1', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
+N_F1 = 12
+N_F2 = 7
+N_F3 = 8
+
+F1_IND = add_linear_F_layer(LAYERS, 'F1', N_F1, (2, 1))
+F2_IND = add_linear_F_layer(LAYERS, 'F2', N_F2)
+F3_IND = add_linear_F_layer(LAYERS, 'F3', N_F3)
+
+# read
+KEY_IND = add_linear_F_layer(LAYERS, 'RKEY', (N_CONTROLLERS, M_LENGTH), 'F3')
+
+MEM_IND = add_add_layer(LAYERS, 'MEM', ['F3', 'MEM'], -1)
+SQ_IND = add_sq_points_layer(LAYERS, 'SQ')
+add_sum_layer(LAYERS, 'SUM')
+
+'''F1_IND = add_linear_F_layer(LAYERS, 'F1', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
 F2_IND = add_linear_F_layer(LAYERS, 'F2', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
 F3_IND = add_mult_layer(LAYERS, 'F3', ['F1','F2'])
 MEM_IND = add_add_layer(LAYERS, 'MEM', ['F3', 'MEM'], -1)
 SQ_IND = add_sq_points_layer(LAYERS, 'SQ')
-add_sum_layer(LAYERS, 'SUM')
+add_sum_layer(LAYERS, 'SUM')'''
 
 '''F1_IND = add_linear_F_layer(LAYERS, 'F1', N_MEM_SLOTS, (N_MEM_SLOTS, 3))
 F2_IND = add_linear_F_layer(LAYERS, 'F2', N_MEM_SLOTS, (N_MEM_SLOTS, 5))
@@ -86,7 +102,7 @@ def f(y):
 	
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
-		set_buffer(x2t[frame], WEIGHTS[F2_IND][1])  # inputs
+		#set_buffer(x2t[frame], WEIGHTS[F2_IND][1])  # inputs
 		#set_buffer(x3t[frame], WEIGHTS[F3_IND][1])  # inputs
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
@@ -107,7 +123,7 @@ def g(y):
 	PARTIALS_PREV = init_partials(LAYERS)
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
-		set_buffer(x2t[frame], WEIGHTS[F2_IND][1])  # inputs
+		#set_buffer(x2t[frame], WEIGHTS[F2_IND][1])  # inputs
 		#set_buffer(x3t[frame], WEIGHTS[F3_IND][1])  # inputs
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS)

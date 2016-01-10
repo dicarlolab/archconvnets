@@ -365,7 +365,6 @@ def interpolate_softmax_do_prev(out, o_gatei, o_previ):
 	
 ################# interpolate
 def interpolate(interp_gate_out, o_content, o_prev):
-	print interp_gate_out.shape, o_content.shape, o_prev.shape
 	return interp_gate_out * o_content + (1 - interp_gate_out) * o_prev
 
 def interpolate_dinterp_gate_out(interp_gate_out, o_content, o_prev):
