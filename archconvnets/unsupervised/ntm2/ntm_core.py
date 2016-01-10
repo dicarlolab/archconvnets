@@ -206,8 +206,11 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 	N_ARGS = len(L['in_shape'])
 	
 	for arg in range(N_ARGS):
-		deriv_above_new = mult_partials(deriv_above, LOCAL_DERIVS[layer_ind][arg], LAYERS[layer_ind]['out_shape'])
-		src = LAYERS[layer_ind]['in_source'][arg]
+		if deriv_above is None:
+			deriv_above_new = LOCAL_DERIVS[layer_ind][arg]
+		else:
+			deriv_above_new = mult_partials(deriv_above, LOCAL_DERIVS[layer_ind][arg], LAYERS[layer_ind]['out_shape'])
+		src = L['in_source'][arg]
 		
 		# input is a layer:
 		if isinstance(src, int) and src != -1:
@@ -234,7 +237,8 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 				assert WEIGHT_DERIVS[layer_ind][arg][1][0] == 1
 				WEIGHT_DERIVS[layer_ind][arg][1] = tuple(WEIGHT_DERIVS[layer_ind][arg][1][1:])
 		
-		free_buffer(deriv_above_new)
+		if deriv_above is not None:
+			free_buffer(deriv_above_new)
 	return WEIGHT_DERIVS
 
 def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
@@ -305,35 +309,6 @@ def copy_partials(layer_ind, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS):
 			PARTIALS_PREV = copy_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
 	return PARTIALS_PREV
 
-# apply chain rule down network starting at the memory layer
-def reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS):
-	MEM_WEIGHT_DERIVS = init_gpu_list(MEM_WEIGHT_DERIVS, LAYERS)
-	zero_buffer_list(MEM_WEIGHT_DERIVS)
-	
-	# update partials_prev
-	for i in range(len(LAYERS[MEM_IND]['in_source'])):
-		src_layer = LAYERS[MEM_IND]['in_source'][i]
-		
-		#MEM_WEIGHT_DERIVS = reverse_network_recur(LOCAL_DERIVS[MEM_IND][i], src_layer, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS, keep_dims=True)
-		
-		# DMEM_D[layers]_DW
-		if src_layer != MEM_IND:
-			MEM_WEIGHT_DERIVS = reverse_network_recur(LOCAL_DERIVS[MEM_IND][i], src_layer, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS, keep_dims=True)
-		
-		# DMEM_DMEM_DW
-		else:
-			P = PARTIALS_PREV[MEM_IND]
-			N_ARGS2 = len(P['in_source'])
-			for arg2 in range(N_ARGS2):
-				p_layer_ind = P['in_source'][arg2]
-				p_arg = P['in_arg'][arg2]
-				p_partial = P['partial'][arg2]
-				deriv_temp = mult_partials(LOCAL_DERIVS[MEM_IND][i], p_partial, LAYERS[MEM_IND]['out_shape'])
-				MEM_WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((MEM_WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp))
-				
-				free_buffer(deriv_temp)
-				
-	return MEM_WEIGHT_DERIVS
 
 def find_layer(LAYERS, name):
 	if name[-1] == '-':
