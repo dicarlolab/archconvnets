@@ -3,7 +3,7 @@ import time
 import scipy.optimize
 from ntm_core import *
 
-N_FRAMES = 5
+N_FRAMES = 2
 N_CONTROLLERS = 16
 N_MEM_SLOTS = 6
 M_LENGTH = 8
@@ -19,9 +19,9 @@ for init in [0,1]:
 	FT_IND = add_linear_F_layer(LAYERS, 'FT', N_CONTROLLERS, (3,M_LENGTH), init=init)
 	
 	FT2_IND = add_linear_F_layer(LAYERS, 'FT2', N_CONTROLLERS, (4,M_LENGTH), init=init)
-	RCONTENT_SUM_IND = add_add_layer(LAYERS, 'RCONTENT_SUM', ['FT', 'FT2'], init=init)
+	#RCONTENT_SUM_IND = add_add_layer(LAYERS, 'RCONTENT_SUM', ['FT', 'FT2'], init=init)
 	
-	#RCONTENT_SUM_IND = add_add_layer(LAYERS, 'RCONTENT_SUM', ['FT', 'MEM-'], init=init)
+	RCONTENT_SUM_IND = add_add_layer(LAYERS, 'RCONTENT_SUM', ['FT', 'MEM-'], init=init)
 
 	MEM_IND = add_add_layer(LAYERS, 'MEM', ['RCONTENT_SUM', 'MEM-'], init=init)
 	add_sum_layer(LAYERS, 'SUM', init=init)
@@ -41,6 +41,7 @@ DERIV_TOP = init_buffer(np.ones((1,1), dtype='single'))
 gradient_layer = FT_IND
 gradient_arg = 0
 
+
 '''y=.1;frame=0;i_ind=3
 
 OUTPUT = None; LOCAL_DERIVS = None; WEIGHT_DERIVS = None
@@ -55,13 +56,13 @@ set_buffer(x2t[frame], WEIGHTS[FT_IND][1])  # inputs
 set_buffer(x3t[frame], WEIGHTS[FT2_IND][1])  # inputs
 OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS)
-WEIGHT_DERIVS = reverse_network(DERIV_TOP, len(LAYERS)-1, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, WEIGHT_DERIVS)
 
 # update partials_prev
-#MEM_WEIGHT_DERIVS = reverse_network(None, MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS, keep_dims=True)
-MEM_WEIGHT_DERIVS = reverse_mem_network(MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
+MEM_WEIGHT_DERIVS = reverse_network(None, MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS, keep_dims=True)
 #PARTIALS_PREV = copy_partials(MEM_IND, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
-#OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)'''
+#OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
+
+'''
 
 def f(y):
 	OUTPUT = None; OUTPUT_PREV = [None] * len(LAYERS)

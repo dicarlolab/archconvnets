@@ -202,7 +202,6 @@ def reverse_network(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIG
 
 def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims): # multiply all partials together
 	L = LAYERS[layer_ind]
-	P = PARTIALS[layer_ind]
 	N_ARGS = len(L['in_shape'])
 	
 	for arg in range(N_ARGS):
@@ -216,11 +215,13 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 		if isinstance(src, int) and src != -1:
 			# memory partials, stop here, add these partials to the correct weight derivs:
 			if L['in_prev'][arg]:
+				P = PARTIALS[src]
 				N_ARGS2 = len(P['in_source'])
 				for arg2 in range(N_ARGS2):
 					p_layer_ind = P['in_source'][arg2]
 					p_arg = P['in_arg'][arg2]
 					p_partial = P['partial'][arg2]
+					
 					deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[layer_ind]['out_shape'])
 					WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp))
 					
