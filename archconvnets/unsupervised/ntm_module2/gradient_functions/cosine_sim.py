@@ -2,7 +2,10 @@ import numpy as np
 import archconvnets.unsupervised.ntm_module2._ntm_module2 as _ntm_module2
 from archconvnets.unsupervised.ntm_module2.ntm_module2 import *
 from archconvnets.unsupervised.ntm2.gpu_flag import *
+from archconvnets.unsupervised.ntm2.ntm_core import *
 
+# keys: N_CONTROLLERS, M_LENGTH
+# mem: N_MEM_SLOTS, M_LENGTH
 def cosine_sim(args, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args
@@ -122,3 +125,31 @@ def cosine_sim_dkeys(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		
 	OUT_BUFFER[1] = (n_controllers, M, n_controllers, mem_length)
 	return OUT_BUFFER
+
+# keys: N_CONTROLLERS, M_LENGTH
+# mem: N_MEM_SLOTS, M_LENGTH
+def add_cosine_sim_layer(LAYERS, name, source):
+	assert isinstance(name, str)
+	assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
+	assert len(source) == 2
+	
+	in_shape = [None]*2
+	in_source = [None]*2
+	
+	for arg in range(2):
+		in_source[arg] = find_layer(LAYERS, source[arg])
+		assert in_source[arg] is not None, 'could not find source layer %i' % source[arg]
+		in_shape[arg] = LAYERS[in_source[arg]]['out_shape']
+		assert (len(in_shape[arg]) == 2) or ((len(in_shape[arg]) == 3) and (in_shape[arg][2] == 1)), 'ndim != 2, arg: %i' % arg
+	assert in_shape[0][1] == in_shape[1][1]
+	
+	out_shape = (in_shape[0][0], in_shape[1][0])
+	
+	LAYERS.append({ 'name': name, 'forward_F': cosine_sim, \
+				'out_shape': out_shape, \
+				'in_shape': in_shape, \
+				'in_source': in_source, \
+				'deriv_F': [cosine_sim_dkeys, cosine_sim_dmem] })
+	
+	check_network(LAYERS)
+	return len(LAYERS)-1

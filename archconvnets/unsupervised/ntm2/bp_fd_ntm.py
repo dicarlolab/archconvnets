@@ -17,16 +17,23 @@ LAYERS = []
 
 N_F1 = 12
 N_F2 = 7
-N_F3 = 8
+N_F3 = 9
+HEAD_INPUT = 'F3'
 
-F1_IND = add_linear_F_layer(LAYERS, 'F1', N_F1, (2, 1))
+F1_IND = add_linear_F_layer(LAYERS, 'F1', N_F1, (2, 10))
 F2_IND = add_linear_F_layer(LAYERS, 'F2', N_F2)
-F3_IND = add_linear_F_layer(LAYERS, 'F3', N_F3)
+F3_IND = add_linear_F_layer(LAYERS, HEAD_INPUT, N_F3)
 
 # read
-KEY_IND = add_linear_F_layer(LAYERS, 'RKEY', (N_CONTROLLERS, M_LENGTH), 'F3')
+##RKEY_IND = add_linear_F_layer(LAYERS, 'RKEY', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT)
 
-MEM_IND = add_add_layer(LAYERS, 'MEM', ['F3', 'MEM'], -1)
+RBETA_IND = add_linear_F_layer(LAYERS, 'RBETA', N_CONTROLLERS, HEAD_INPUT)
+
+FT_IND = add_linear_F_layer(LAYERS, 'FT', M_LENGTH, (3,10))
+
+RCONTENT_IND = add_cosine_sim_layer(LAYERS, 'RCONTENT', ['RBETA', 'FT'])
+
+MEM_IND = add_add_layer(LAYERS, 'MEM', ['RCONTENT', 'MEM'], -1)
 SQ_IND = add_sq_points_layer(LAYERS, 'SQ')
 add_sum_layer(LAYERS, 'SUM')
 
@@ -82,7 +89,7 @@ add_sum_layer(LAYERS, 'SUM')'''
 
 WEIGHTS = init_weights(LAYERS)
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1])))
-x2t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F2_IND]['in_shape'][1])))
+x2t = random_function(np.concatenate(((N_FRAMES,), LAYERS[FT_IND]['in_shape'][1])))
 #x3t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F3_IND]['in_shape'][1])))
 mem_init = random_function(LAYERS[MEM_IND]['out_shape'])
 
@@ -90,7 +97,7 @@ DERIV_TOP = init_buffer(np.ones((1,1), dtype='single'))
 
 
 ################ which gradient to test
-gradient_layer = F2_IND
+gradient_layer = F1_IND
 gradient_arg = 0
 
 def f(y):
@@ -102,7 +109,7 @@ def f(y):
 	
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
-		#set_buffer(x2t[frame], WEIGHTS[F2_IND][1])  # inputs
+		set_buffer(x2t[frame], WEIGHTS[FT_IND][1])  # inputs
 		#set_buffer(x3t[frame], WEIGHTS[F3_IND][1])  # inputs
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
@@ -123,7 +130,7 @@ def g(y):
 	PARTIALS_PREV = init_partials(LAYERS)
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
-		#set_buffer(x2t[frame], WEIGHTS[F2_IND][1])  # inputs
+		set_buffer(x2t[frame], WEIGHTS[FT_IND][1])  # inputs
 		#set_buffer(x3t[frame], WEIGHTS[F3_IND][1])  # inputs
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS)
