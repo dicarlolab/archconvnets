@@ -25,14 +25,16 @@ def weight_address(W, B, O_PREV, inputs, mem_prev):
 	# B[BETA]: (16, 1)
 	
 	O[CONTENT] = cosine_sim(O[KEY], mem_prev)
-	print O[CONTENT].shape, mem_prev.shape
+	# O[CONTENT]: (16,6)
 	
 	O[CONTENT_FOCUSED] = focus_keys(O[CONTENT], O[BETA]) # beta*cos
 	O[CONTENT_SM] = softmax(O[CONTENT_FOCUSED])
 	
 	# interpolate
 	O[IN_GATE] = sigmoid(linear_F(W[IN_GATE], inputs) + B[IN_GATE])
+	# O[IN_GATE]: (16,1)
 	O[IN] = interpolate_softmax(O[IN_GATE], O[CONTENT_SM], O_PREV[F])
+	print O[IN].shape, O[CONTENT_SM].shape, O_PREV[F].shape
 	
 	# shift
 	O[SHIFT] = softmax(linear_2d_F(W[SHIFT], inputs) + B[SHIFT])

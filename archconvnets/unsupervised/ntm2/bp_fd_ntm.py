@@ -20,33 +20,37 @@ N_F2 = 7
 N_F3 = 9
 HEAD_INPUT = 'F3'
 
-for init in [0,1]:
+'''for init in [0,1]:
 	F1_IND = add_linear_F_layer(LAYERS, 'F1', N_F1, (2, 1), init=init)
 	F2_IND = add_linear_F_layer(LAYERS, 'F2', N_F2, init=init)
 	F3_IND = add_linear_F_layer(LAYERS, HEAD_INPUT, N_F3, init=init)
 
 	# read
 	R_KEY_IND = add_linear_F_layer(LAYERS, 'R_KEY', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)
-	R_BETA_IND = add_linear_F_layer(LAYERS, 'R_BETA', N_CONTROLLERS, HEAD_INPUT, init=init)
-
 	R_CONTENT_IND = add_cosine_sim_layer(LAYERS, 'R_CONTENT', ['R_KEY', 'MEM-'], mem_shape, init=init)
+	R_BETA_IND = add_linear_F_layer(LAYERS, 'R_BETA', N_CONTROLLERS, HEAD_INPUT, init=init)
 	R_CONTENT_FOCUSED_IND = add_focus_keys_layer(LAYERS, 'R_CONTENT_FOCUSED', ['R_CONTENT', 'R_BETA'], init=init)
+	R_CONTENT_SM_IND = add_softmax_layer(LAYERS, 'R_CONTENT_SM', init=init)
+	
+	R_IN_GATE_PRE_IND = add_linear_F_layer(LAYERS, 'R_IN_GATE_PRE', N_CONTROLLERS, HEAD_INPUT, init=init)
+	R_IN_GATE_IND = add_sigmoid_layer(LAYERS, 'R_IN_GATE', init=init)
+
 	
 	R_T_IND = add_linear_F_layer(LAYERS, 'R_T', N_MEM_SLOTS, (3, M_LENGTH), init=init)
 	
 	MEM_IND = add_add_layer(LAYERS, 'MEM', ['R_T', 'MEM-'], -1, init=init)
 	SQ_IND = add_sq_points_layer(LAYERS, 'SQ', init=init)
-	add_sum_layer(LAYERS, 'SUM', init=init)
+	add_sum_layer(LAYERS, 'SUM', init=init)'''
 
-'''for init in [0,1]:
-	FT_IND = add_linear_F_layer(LAYERS, 'FT', N_CONTROLLERS, (3,M_LENGTH), init=init)
-	
-	FT2_IND = add_linear_F_layer(LAYERS, 'FT2', N_CONTROLLERS, (4,M_LENGTH), init=init)
-	
-	RCONTENT_SUM_IND = add_add_layer(LAYERS, 'RCONTENT_SUM', ['FT', 'MEM-'], init=init)
+for init in [0,1]:
+	F1_IND = add_linear_F_layer(LAYERS, 'F1', N_CONTROLLERS, (3,M_LENGTH), init=init)
+	F2_IND = add_linear_F_layer(LAYERS, 'F2', N_CONTROLLERS, (3,M_LENGTH), init=init)
+	RCONTENT_SUM_IND = add_add_layer(LAYERS, 'RCONTENT_SUM', ['F1', 'MEM-'], init=init)
+	RCONTENT_SUM2_IND = add_add_layer(LAYERS, 'RCONTENT_SUM2', ['F2', 'MEM2-'], init=init)
 
 	MEM_IND = add_add_layer(LAYERS, 'MEM', ['RCONTENT_SUM', 'MEM-'], init=init)
-	add_sum_layer(LAYERS, 'SUM', init=init)'''
+	MEM2_IND = add_add_layer(LAYERS, 'MEM2', ['RCONTENT_SUM2', 'MEM2-'], init=init)
+	add_sum_layer(LAYERS, 'SUM', init=init)
 
 check_network(LAYERS)
 
@@ -54,25 +58,27 @@ check_network(LAYERS)
 
 WEIGHTS = init_weights(LAYERS)
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1])))
-x2t = random_function(np.concatenate(((N_FRAMES,), LAYERS[R_T_IND]['in_shape'][1])))
+x2t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F2_IND]['in_shape'][1])))
 mem_init = random_function(LAYERS[MEM_IND]['out_shape'])
+mem2_init = random_function(LAYERS[MEM2_IND]['out_shape'])
 
 DERIV_TOP = init_buffer(np.ones((1,1), dtype='single'))
 
 ################ which gradient to test
-gradient_layer = R_T_IND
+gradient_layer = F1_IND
 gradient_arg = 0
 
 def f(y):
 	OUTPUT = None; OUTPUT_PREV = [None] * len(LAYERS)
 	OUTPUT_PREV[MEM_IND] = init_buffer(mem_init)
+	OUTPUT_PREV[MEM2_IND] = init_buffer(mem2_init)
 	Wy = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
 	set_buffer(Wy.reshape(weights_shape), WEIGHTS[gradient_layer][gradient_arg])
 	
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
-		set_buffer(x2t[frame], WEIGHTS[R_T_IND][1])  # inputs
+		set_buffer(x2t[frame], WEIGHTS[F2_IND][1])  # inputs
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
 	
@@ -84,7 +90,9 @@ def f(y):
 def g(y):
 	OUTPUT = None; LOCAL_DERIVS = None; WEIGHT_DERIVS = None
 	OUTPUT_PREV = [None] * len(LAYERS); MEM_WEIGHT_DERIVS = None
+	MEM2_WEIGHT_DERIVS = None
 	OUTPUT_PREV[MEM_IND] = init_buffer(mem_init)
+	OUTPUT_PREV[MEM2_IND] = init_buffer(mem2_init)
 	Wy = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
 	set_buffer(Wy.reshape(weights_shape), WEIGHTS[gradient_layer][gradient_arg])
@@ -92,14 +100,16 @@ def g(y):
 	PARTIALS_PREV = init_partials(LAYERS)
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
-		set_buffer(x2t[frame], WEIGHTS[R_T_IND][1])  # inputs
+		set_buffer(x2t[frame], WEIGHTS[F2_IND][1])  # inputs
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS)
 		WEIGHT_DERIVS = reverse_network(DERIV_TOP, len(LAYERS)-1, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, WEIGHT_DERIVS)
 		
 		# update partials_prev
 		MEM_WEIGHT_DERIVS = reverse_network(None, MEM_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_WEIGHT_DERIVS, keep_dims=True)
+		MEM2_WEIGHT_DERIVS = reverse_network(None, MEM2_IND, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM2_WEIGHT_DERIVS, keep_dims=True)
 		PARTIALS_PREV = copy_partials(MEM_IND, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
+		PARTIALS_PREV = copy_partials(MEM2_IND, LAYERS, PARTIALS_PREV, MEM2_WEIGHT_DERIVS)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
 		
 	z = return_buffer(WEIGHT_DERIVS[gradient_layer][gradient_arg]).ravel()[i_ind]
