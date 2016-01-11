@@ -142,31 +142,40 @@ def interpolate_do_prev(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = tuple(np.concatenate((O_CONTENT[1], O_PREV[1])))
 	return OUT_BUFFER
 
-def add_interpolate_layer(LAYERS, name, source):
+def add_interpolate_layer(LAYERS, name, source, init=0):
 	assert isinstance(name, str)
 	assert isinstance(source, list)
 	assert len(source) == 3
-	assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
 	
-	in_shape = [None]*3
-	
-	for arg in range(3):
-		source[arg] = find_layer(LAYERS, source[arg])
-		assert source[arg] is not None, 'could not find source layer %i' % arg
-		in_shape[arg] = LAYERS[source[arg]]['out_shape']
-	
-	out_shape = LAYERS[source[1]]['out_shape']
-	
-	assert len(out_shape) == len(LAYERS[source[1]]['out_shape']) == 2
-	assert out_shape == LAYERS[source[1]]['out_shape']
-	assert out_shape[0] == LAYERS[source[0]]['out_shape'][0]
-	assert LAYERS[source[0]]['out_shape'][1] == 1
-	
-	LAYERS.append({ 'name': name, 'forward_F': interpolate, \
-				'out_shape': LAYERS[source[1]]['out_shape'], \
-				'in_shape': in_shape, \
-				'in_source': source, \
-				'deriv_F': [interpolate_dinterp_gate_out, interpolate_do_content, interpolate_do_prev] })
-	
-	check_network(LAYERS)
-	return len(LAYERS)-1
+	if init == 0:
+		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
+		LAYERS.append({'name': name})
+		return len(LAYERS)-1
+	else:
+		layer_ind = find_layer(LAYERS, name)
+		assert layer_ind is not None, 'layer %s has not already been added' % name
+		
+		arg2_prev = source[2][-1] == '-'
+		
+		in_shape = [None]*3
+		
+		for arg in range(3):
+			source[arg] = find_layer(LAYERS, source[arg])
+			assert source[arg] is not None, 'could not find source layer %i' % arg
+			in_shape[arg] = LAYERS[source[arg]]['out_shape']
+		
+		out_shape = LAYERS[source[1]]['out_shape']
+		
+		assert len(out_shape) == len(LAYERS[source[1]]['out_shape']) == 2
+		assert out_shape == LAYERS[source[1]]['out_shape']
+		assert out_shape[0] == LAYERS[source[0]]['out_shape'][0]
+		assert LAYERS[source[0]]['out_shape'][1] == 1
+		
+		LAYERS[layer_ind]['forward_F']= interpolate
+		LAYERS[layer_ind]['out_shape'] = LAYERS[source[1]]['out_shape']
+		LAYERS[layer_ind]['in_shape'] = in_shape
+		LAYERS[layer_ind]['in_source'] = source
+		LAYERS[layer_ind]['deriv_F'] = [interpolate_dinterp_gate_out, interpolate_do_content, interpolate_do_prev]
+		LAYERS[layer_ind]['in_prev'] = [False, False, arg2_prev]
+		
+		return layer_ind

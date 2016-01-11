@@ -33,10 +33,12 @@ def weight_address(W, B, O_PREV, inputs, mem_prev):
 	# interpolate
 	O[IN_GATE] = sigmoid(linear_F(W[IN_GATE], inputs) + B[IN_GATE])
 	# O[IN_GATE]: (16,1)
+	# O[IN]: (16,6)
+	# O[F]: (16,6)
 	O[IN] = interpolate_softmax(O[IN_GATE], O[CONTENT_SM], O_PREV[F])
-	print O[IN].shape, O[CONTENT_SM].shape, O_PREV[F].shape
 	
 	# shift
+	print linear_2d_F(W[SHIFT], inputs).shape
 	O[SHIFT] = softmax(linear_2d_F(W[SHIFT], inputs) + B[SHIFT])
 	O[SHIFTED] = shift_w(O[SHIFT], O[IN])
 	

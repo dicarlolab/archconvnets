@@ -40,7 +40,7 @@ def check_network(LAYERS):
 			LAYER_OUT = L['forward_F'](args, additional_args=L['additional_forward_args'])
 		else:
 			LAYER_OUT = L['forward_F'](args)
-		assert LAYER_OUT[1] == L['out_shape'], "layer %i didn't produce expected output (%i, %i)" % (layer_ind, np.prod(LAYER_OUT[1]), np.prod(L['out_shape']))
+		assert LAYER_OUT[1] == L['out_shape'], "layer %s (%i) didn't produce expected output (%i, %i)" % (L['name'], layer_ind, np.prod(LAYER_OUT[1]), np.prod(L['out_shape']))
 		
 		# check if deriv functions correctly produce correct shapes
 		for arg in range(N_ARGS):

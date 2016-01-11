@@ -9,7 +9,10 @@ def softmax(args, OUT_BUFFER=None, gpu_ind=0):
 	assert len(args) == 1
 	LAYER_IN = args[0]
 	check_buffer(LAYER_IN)
-	assert len(LAYER_IN[1]) == 2
+	assert (len(LAYER_IN[1]) == 2) or ((len(LAYER_IN[1]) == 3) and (LAYER_IN[1][2] == 1))
+	
+	LAYER_IN_R = copy.deepcopy(LAYER_IN)
+	LAYER_IN_R[1] = LAYER_IN_R[1][:2]
 	
 	if OUT_BUFFER != None:
 		check_buffer(OUT_BUFFER)
@@ -17,13 +20,13 @@ def softmax(args, OUT_BUFFER=None, gpu_ind=0):
 		OUT_BUFFER = init_buffer()
 	
 	if GPU:
-		_ntm_module2.softmax(LAYER_IN[0], LAYER_IN[1], OUT_BUFFER[0], gpu_ind)
+		_ntm_module2.softmax(LAYER_IN_R[0], LAYER_IN_R[1], OUT_BUFFER[0], gpu_ind)
 	else:
 		####### CPU
-		layer_in = return_buffer(LAYER_IN,gpu_ind)
+		layer_in = return_buffer(LAYER_IN_R,gpu_ind)
 		exp_layer_in = np.exp(layer_in)
 		OUT_BUFFER = set_buffer(exp_layer_in/np.sum(exp_layer_in,1)[:,np.newaxis], OUT_BUFFER, gpu_ind)
-	OUT_BUFFER[1] = copy.deepcopy(LAYER_IN[1])
+	OUT_BUFFER[1] = copy.deepcopy(LAYER_IN_R[1])
 		
 	return OUT_BUFFER
 
@@ -31,7 +34,8 @@ def softmax_dlayer_in(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
 	check_buffer(args[0])
-	assert len(args[0][1]) == 2
+	assert (len(args[0][1]) == 2) or ((len(args[0][1]) == 3) and (args[0][1][2] == 1))
+	
 	check_buffer(LAYER_OUT)
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
@@ -61,7 +65,10 @@ def softmax_dlayer_in(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		
 		OUT_BUFFER = set_buffer(g, OUT_BUFFER, gpu_ind)
 	
-	OUT_BUFFER[1] = (dim1,dim2,dim1,dim2)
+	if len(args[0][1]) == 2:
+		OUT_BUFFER[1] = (dim1,dim2,dim1,dim2)
+	else:
+		OUT_BUFFER[1] = (dim1,dim2,dim1,dim2,1)
 	return OUT_BUFFER
 
 	
@@ -93,8 +100,10 @@ def add_softmax_layer(LAYERS, name, source=None, init=0):
 		else:
 			assert False, 'unknown source input'
 		
+		assert len(in_shape[0]) == 2 or (len(in_shape[0]) == 3 and in_shape[0][2] == 1)
+		
 		LAYERS[layer_ind]['forward_F'] = softmax
-		LAYERS[layer_ind]['out_shape'] = in_shape[0]
+		LAYERS[layer_ind]['out_shape'] = in_shape[0][:2]
 		LAYERS[layer_ind]['in_shape'] = in_shape
 		LAYERS[layer_ind]['in_source'] = [in_source]
 		LAYERS[layer_ind]['deriv_F'] = [softmax_dlayer_in]
