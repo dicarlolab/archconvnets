@@ -75,6 +75,7 @@ def add_add_layer(LAYERS, name, source, scalar=1, init=0):
 		in_prev[0] = False
 		
 		source_A = find_layer(LAYERS, source[0])
+		assert source_A is not None, 'could not find layer %s' % source[0]
 		out_shape = LAYERS[source_A]['out_shape']
 		
 		source_B = find_layer(LAYERS, source[1])

@@ -20,8 +20,13 @@ def weight_address(W, B, O_PREV, inputs, mem_prev):
 	# B[KEY]: (16, 8)
 	#print O[KEY].shape, linear_2d_F(W[KEY], inputs).shape, W[KEY].shape, inputs.shape, B[KEY].shape
 	O[BETA] = linear_F(W[BETA], inputs) + B[BETA]
-	print O[BETA].shape, W[BETA].shape, B[BETA].shape
+	# O[BETA]: (16, 1)
+	# W[BETA]: (16, 9)
+	# B[BETA]: (16, 1)
+	
 	O[CONTENT] = cosine_sim(O[KEY], mem_prev)
+	print O[CONTENT].shape, mem_prev.shape
+	
 	O[CONTENT_FOCUSED] = focus_keys(O[CONTENT], O[BETA]) # beta*cos
 	O[CONTENT_SM] = softmax(O[CONTENT_FOCUSED])
 	

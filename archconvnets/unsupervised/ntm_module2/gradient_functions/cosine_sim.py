@@ -14,20 +14,21 @@ def cosine_sim(args, OUT_BUFFER=None, gpu_ind=0):
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
-	assert len(KEYS[1]) == len(MEM[1]) == 2
+	assert len(MEM[1]) == 2
+	assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
 	assert KEYS[0] != MEM[0]
 	assert OUT_BUFFER[0] != KEYS[0]
 	assert OUT_BUFFER[0] != MEM[0]
 	assert KEYS[1][1] == MEM[1][1]
 
-	n_controllers, mem_length = KEYS[1]
+	n_controllers, mem_length = KEYS[1][:2]
 	M = MEM[1][0]
 	
 	if GPU:
 		_ntm_module2.cosine_sim(KEYS[0], KEYS[1], MEM[0], MEM[1], OUT_BUFFER[0], gpu_ind)
 	else:
 		######## CPU
-		keys = return_buffer(KEYS, gpu_ind)
+		keys = return_buffer(KEYS, gpu_ind)[:,:,0]
 		mem = return_buffer(MEM, gpu_ind)
 		numer = np.dot(keys, mem.T)
 		denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
@@ -45,20 +46,21 @@ def cosine_sim_dmem(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
-	assert len(KEYS[1]) == len(MEM[1]) == 2
+	assert len(MEM[1]) == 2
+	assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
 	assert KEYS[0] != MEM[0]
 	assert OUT_BUFFER[0] != KEYS[0]
 	assert OUT_BUFFER[0] != MEM[0]
 	assert KEYS[1][1] == MEM[1][1]
 
-	n_controllers, mem_length = KEYS[1]
+	n_controllers, mem_length = KEYS[1][:2]
 	M = MEM[1][0]
 	
 	if GPU:
 		_ntm_module2.cosine_sim_dmem(KEYS[0], KEYS[1], MEM[0], MEM[1], OUT_BUFFER[0], gpu_ind)
 	else:
 		########## CPU
-		keys = return_buffer(KEYS, gpu_ind)
+		keys = return_buffer(KEYS, gpu_ind)[:,:,0]
 		mem = return_buffer(MEM, gpu_ind)
 		comb = np.zeros((n_controllers, mem.shape[0], mem.shape[0], mem.shape[1]),dtype='single')
 
@@ -90,20 +92,21 @@ def cosine_sim_dkeys(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
-	assert len(KEYS[1]) == len(MEM[1]) == 2
+	assert len(MEM[1]) == 2
+	assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
 	assert KEYS[0] != MEM[0]
 	assert OUT_BUFFER[0] != KEYS[0]
 	assert OUT_BUFFER[0] != MEM[0]
 	assert KEYS[1][1] == MEM[1][1]
 
-	n_controllers, mem_length = KEYS[1]
+	n_controllers, mem_length = KEYS[1][:2]
 	M = MEM[1][0]
 	
 	if GPU:
 		_ntm_module2.cosine_sim_dkeys(KEYS[0], KEYS[1], MEM[0], MEM[1], OUT_BUFFER[0], gpu_ind)
 	else:
 		######## CPU
-		keys = return_buffer(KEYS, gpu_ind)
+		keys = return_buffer(KEYS, gpu_ind)[:,:,0]
 		mem = return_buffer(MEM, gpu_ind)
 		comb = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]),dtype='single')
 		
@@ -123,12 +126,15 @@ def cosine_sim_dkeys(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		comb[range(n_controllers),:,range(n_controllers)] = mem_denom - temp
 		OUT_BUFFER = set_buffer(comb, OUT_BUFFER, gpu_ind)
 		
-	OUT_BUFFER[1] = (n_controllers, M, n_controllers, mem_length)
+	if len(KEYS[1]) == 2:
+		OUT_BUFFER[1] = (n_controllers, M, n_controllers, mem_length)
+	else:
+		OUT_BUFFER[1] = (n_controllers, M, n_controllers, mem_length, 1)
 	return OUT_BUFFER
 
 # keys: N_CONTROLLERS, M_LENGTH
 # mem: N_MEM_SLOTS, M_LENGTH
-def add_cosine_sim_layer(LAYERS, name, source, init=0):
+def add_cosine_sim_layer(LAYERS, name, source, mem_shape=None, init=0):
 	assert isinstance(name, str)
 	assert len(source) == 2
 	if init == 0:
@@ -142,11 +148,23 @@ def add_cosine_sim_layer(LAYERS, name, source, init=0):
 		in_shape = [None]*2
 		in_source = [None]*2
 		
-		for arg in range(2):
-			in_source[arg] = find_layer(LAYERS, source[arg])
-			assert in_source[arg] is not None, 'could not find source layer %i' % source[arg]
-			in_shape[arg] = LAYERS[in_source[arg]]['out_shape']
-			assert (len(in_shape[arg]) == 2) or ((len(in_shape[arg]) == 3) and (in_shape[arg][2] == 1)), 'ndim != 2, arg: %i' % arg
+		# arg 0
+		in_source[0] = find_layer(LAYERS, source[0])
+		assert in_source[0] is not None, 'could not find source layer %i' % source[0]
+		in_shape[0] = LAYERS[in_source[0]]['out_shape']
+		assert (len(in_shape[0]) == 2) or ((len(in_shape[0]) == 3) and (in_shape[0][2] == 1)), 'ndim != 2, arg0'
+		
+		# arg 1
+		in_source[1] = find_layer(LAYERS, source[1])
+		assert in_source[1] is not None, 'could not find source layer %i' % source[1]
+		if source[1][-1] != '-': # input is another layer
+			in_source_prev = False
+			in_shape[1] = LAYERS[in_source[1]]['out_shape']
+		else:
+			in_source_prev = True
+			assert mem_shape is not None, 'shape must be provided if layer is a memory layer'
+			in_shape[1] = mem_shape
+		assert (len(in_shape[1]) == 2) or ((len(in_shape[1]) == 3) and (in_shape[1][2] == 1)), 'ndim != 2, arg1'
 		assert in_shape[0][1] == in_shape[1][1]
 		
 		out_shape = (in_shape[0][0], in_shape[1][0])
@@ -156,6 +174,6 @@ def add_cosine_sim_layer(LAYERS, name, source, init=0):
 		LAYERS[layer_ind]['in_shape'] = in_shape
 		LAYERS[layer_ind]['in_source'] = in_source
 		LAYERS[layer_ind]['deriv_F'] = [cosine_sim_dkeys, cosine_sim_dmem]
-		LAYERS[layer_ind]['in_prev'] = [False, False]
+		LAYERS[layer_ind]['in_prev'] = [False, in_source_prev]
 		
 		return layer_ind
