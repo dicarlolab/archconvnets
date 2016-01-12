@@ -145,28 +145,35 @@ def sharpen_dw(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = tuple(np.concatenate((W[1], W[1])))
 	return OUT_BUFFER
 
-def add_sharpen_layer(LAYERS, name, source):
+def add_sharpen_layer(LAYERS, name, source, init=0):
 	assert isinstance(name, str)
 	assert isinstance(source, list)
 	assert len(source) == 2
-	assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
 	
-	in_shape = [None]*2
-	
-	source[0] = find_layer(LAYERS, source[0])
-	assert source[0] is not None, 'could not find source layer 0'
-	
-	if isinstance(source[1],int) != True and source[1] != -1:
-		source[1] = find_layer(LAYERS, source[1])
-	
-	in_shape[0] = LAYERS[source[0]]['out_shape']
-	in_shape[1] = (in_shape[0][0], 1)
-	
-	LAYERS.append({ 'name': name, 'forward_F': sharpen, \
-				'out_shape': LAYERS[source[0]]['out_shape'], \
-				'in_shape': in_shape, \
-				'in_source': source, \
-				'deriv_F': [sharpen_dw, sharpen_dgamma] })
-	
-	check_network(LAYERS)
-	return len(LAYERS)-1
+	if init == 0:
+		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
+		LAYERS.append({'name': name})
+		return len(LAYERS)-1
+	else:
+		layer_ind = find_layer(LAYERS, name)
+		assert layer_ind is not None, 'layer %s has not already been added' % name
+		
+		in_shape = [None]*2
+		
+		source[0] = find_layer(LAYERS, source[0])
+		assert source[0] is not None, 'could not find source layer 0'
+		
+		if isinstance(source[1],int) != True and source[1] != -1:
+			source[1] = find_layer(LAYERS, source[1])
+		
+		in_shape[0] = LAYERS[source[0]]['out_shape']
+		in_shape[1] = (in_shape[0][0], 1)
+		
+		LAYERS[layer_ind]['forward_F'] = sharpen
+		LAYERS[layer_ind]['out_shape'] = LAYERS[source[0]]['out_shape']
+		LAYERS[layer_ind]['in_shape'] = in_shape
+		LAYERS[layer_ind]['in_source'] = source
+		LAYERS[layer_ind]['deriv_F'] = [sharpen_dw, sharpen_dgamma]
+		LAYERS[layer_ind]['in_prev'] = [False, False]
+		
+		return layer_ind

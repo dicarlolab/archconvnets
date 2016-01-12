@@ -162,7 +162,10 @@ def add_interpolate_layer(LAYERS, name, source, init=0):
 		for arg in range(3):
 			source[arg] = find_layer(LAYERS, source[arg])
 			assert source[arg] is not None, 'could not find source layer %i' % arg
-			in_shape[arg] = LAYERS[source[arg]]['out_shape']
+			
+		in_shape[0] = LAYERS[source[0]]['out_shape']
+		in_shape[1] = LAYERS[source[1]]['out_shape']
+		in_shape[2] = LAYERS[source[1]]['out_shape']
 		
 		out_shape = LAYERS[source[1]]['out_shape']
 		

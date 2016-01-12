@@ -38,12 +38,12 @@ def weight_address(W, B, O_PREV, inputs, mem_prev):
 	O[IN] = interpolate_softmax(O[IN_GATE], O[CONTENT_SM], O_PREV[F])
 	
 	# shift
-	print linear_2d_F(W[SHIFT], inputs).shape
 	O[SHIFT] = softmax(linear_2d_F(W[SHIFT], inputs) + B[SHIFT])
 	O[SHIFTED] = shift_w(O[SHIFT], O[IN])
 	
 	# sharpen
 	O[GAMMA] = relu(linear_F(W[GAMMA], inputs) + B[GAMMA], thresh=1)
+	print W[GAMMA].shape, linear_F(W[GAMMA], inputs).shape, O[GAMMA].shape
 	O[SHARPENED] = sharpen(O[SHIFTED], O[GAMMA])
 	
 	O[F] = O[SHARPENED]
