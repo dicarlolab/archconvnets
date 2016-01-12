@@ -36,15 +36,54 @@ for init in [0,1]:
 	F2_IND = add_linear_F_layer(LAYERS, 'F2', N_F2, init=init)
 	F3_IND = add_linear_F_layer(LAYERS, HEAD_INPUT, N_F3, init=init)
 
-	MEM_T_IND = add_linear_F_layer(LAYERS, 'MEM_T', (N_MEM_SLOTS, M_LENGTH), HEAD_INPUT, squeeze=True, init=init)
-
+	R_T_F_IND = add_linear_F_layer(LAYERS, 'R_T_F', (N_CONTROLLERS, N_MEM_SLOTS), HEAD_INPUT, squeeze=True, init=init)
+	MEM_T_IND = add_linear_F_layer(LAYERS, 'MEM_T', mem_shape, HEAD_INPUT, squeeze=True, init=init)
 	
-	ERASE_PRE_IND = add_linear_F_layer(LAYERS, 'ERASE_PRE', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, squeeze=True, init=init)
-	add_linear_F_layer(LAYERS, 'W_CONTENT2', (N_CONTROLLERS, N_MEM_SLOTS), HEAD_INPUT, squeeze=True, init=init)
-	ERASE_HEAD_IND = add_dotT_layer(LAYERS, 'ERASE_HEAD', ['W_CONTENT2', 'ERASE_PRE'], init=init)
+	for RW in ['R', 'W']:
+		# content
+		KEY_IND[RW] = add_linear_F_layer(LAYERS, RW+'_KEY', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, squeeze=True, init=init)
+		CONTENT_IND[RW] = add_cosine_sim_layer(LAYERS, RW+'_CONTENT', [RW+'_KEY', 'MEM-'], mem_shape, init=init)
+		BETA_IND[RW] = add_linear_F_layer(LAYERS, RW+'_BETA', N_CONTROLLERS, HEAD_INPUT, init=init)
+		CONTENT_FOCUSED_IND[RW] = add_focus_keys_layer(LAYERS, RW+'_CONTENT_FOCUSED', [RW+'_CONTENT', RW+'_BETA'], init=init)
+		CONTENT_SM_IND[RW] = add_softmax_layer(LAYERS, RW+'_CONTENT_SM', init=init)
+		
+		# interpolate
+		IN_GATE_PRE_IND[RW] = add_linear_F_layer(LAYERS, RW+'_IN_GATE_PRE', N_CONTROLLERS, HEAD_INPUT, init=init)
+		IN_GATE_IND[RW] = add_sigmoid_layer(LAYERS, RW+'_IN_GATE', init=init)
+		IN_PRE_IND[RW] = add_interpolate_layer(LAYERS, RW+'_IN_PRE', [RW+'_IN_GATE', RW+'_CONTENT_SM', 'R_T_F'], init=init)
+		IN_IND[RW] = add_softmax_layer(LAYERS, RW+'_IN', init=init)
+		
+		# shift
+		SHIFT_PRE_IND[RW] = add_linear_F_layer(LAYERS, RW+'_SHIFT_PRE', (N_CONTROLLERS, N_SHIFTS), HEAD_INPUT, init=init)
+		SHIFT_IND[RW] = add_softmax_layer(LAYERS, RW+'_SHIFT', init=init)
+		SHIFTED_IND[RW] = add_shift_w_layer(LAYERS, RW+'_SHIFTED', [RW+'_SHIFT', RW+'_IN'], init=init)
+		
+		# sharpen
+		GAMMA_PRE_IND[RW] = add_linear_F_layer(LAYERS, RW+'_GAMMA_PRE', N_CONTROLLERS, HEAD_INPUT, init=init)
+		GAMMA_IND[RW] = add_relu_layer(LAYERS, RW+'_GAMMA', init=init)
+		F_IND[RW] = add_sharpen_layer(LAYERS, RW+'_F', [RW+'_SHIFTED', RW+'_GAMMA'], init=init)
 	
-	MEM_IND = add_add_layer(LAYERS, 'MEM', ['ERASE_HEAD', 'MEM-'], -1, init=init)
-	#MEM_IND = add_add_layer(LAYERS, 'MEM', ['MEM_T', 'MEM-'], -1, init=init)
+	# erase/add output
+	ERASE_PRE_IND = add_linear_F_layer(LAYERS, 'ERASE_PRE', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)
+	ERASE_IND = add_sigmoid_layer(LAYERS, 'ERASE', init=init)
+	
+	ADD_PRE_IND = add_linear_F_layer(LAYERS, 'ADD_PRE', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)
+	ADD_IND = add_sigmoid_layer(LAYERS, 'ADD', init=init)
+	
+	ERASE_HEAD_IND = add_dotT_layer(LAYERS, 'ERASE_HEAD', ['W_F', 'ERASE'], init=init)
+	ADD_HEAD_IND = add_dotT_layer(LAYERS, 'ADD_HEAD', ['W_F', 'ADD'], init=init)
+	
+	
+	# mem = mem_prev * (1 - dotT(W_F, ERASE) + dotT(W_F, ADD)
+	
+	# mem_prev*erase
+	MEM_ERASE_IND = add_mult_layer(LAYERS, 'MEM_ERASE', ['ERASE_HEAD', 'MEM-'], init=init)
+	# mem_prev -= mem_prev*erase
+	MEM_ERASED_IND = add_add_layer(LAYERS, 'MEM_ERASED', ['MEM-', 'MEM_ERASE'], scalar=-1, init=init)
+	# mem_prev += add
+	MEM_IND = add_add_layer(LAYERS, 'MEM', ['ADD_HEAD', 'MEM_ERASED'], init=init)
+	
+	
 	SQ_IND = add_sq_points_layer(LAYERS, 'SQ', init=init)
 	add_sum_layer(LAYERS, 'SUM', init=init)
 
@@ -94,7 +133,7 @@ def g(y):
 	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
 	set_buffer(Wy.reshape(weights_shape), WEIGHTS[gradient_layer][gradient_arg])
 	
-	PARTIALS_PREV = init_partials(LAYERS)
+	PARTIALS_PREV = init_partials(LAYERS, MEM_IND)
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
 		

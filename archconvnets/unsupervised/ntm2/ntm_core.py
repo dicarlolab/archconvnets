@@ -222,7 +222,8 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 					p_arg = P['in_arg'][arg2]
 					p_partial = P['partial'][arg2]
 					
-					deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[layer_ind]['out_shape'])
+					deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[src]['out_shape'])
+					
 					WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp))
 					
 					free_buffer(deriv_temp)
@@ -271,23 +272,23 @@ def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
 
 # collect all weight partials which contribute to the memory layers.
 # store them at the memory layer
-def init_partials(LAYERS):
+def init_partials(LAYERS, layer_ind):
 	PARTIALS = [None]*len(LAYERS)
-	for layer_ind in range(len(LAYERS)):
-		L = LAYERS[layer_ind]
-		N_ARGS = len(L['in_source'])
-		PARTIALS[layer_ind] = {'in_source': [], 'in_arg': [], 'partial': []}
-		
-		if layer_ind in L['in_source']: # memory layer
-			for arg in range(N_ARGS):
-				if L['in_prev'][arg] == False:
-					init_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS)
+	
+	L = LAYERS[layer_ind]
+	N_ARGS = len(L['in_source'])
+	PARTIALS[layer_ind] = {'in_source': [], 'in_arg': [], 'partial': []}
+	
+	for arg in range(N_ARGS):
+		if L['in_prev'][arg] == False:
+			init_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS)
 		
 	return PARTIALS
 	
 def free_partials(PARTIALS_PREV):
 	for layer_ind in range(len(PARTIALS_PREV)):
-		free_list(PARTIALS_PREV[layer_ind]['partial'])
+		if PARTIALS_PREV[layer_ind] is not None:
+			free_list(PARTIALS_PREV[layer_ind]['partial'])
 
 def copy_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS, MEM_WEIGHT_DERIVS):
 	dest = LAYERS[layer_cur]['in_source'][arg]
@@ -299,7 +300,7 @@ def copy_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS, MEM_WEIGH
 			t1 = np.asarray(PARTIALS[layer_orig]['in_source'])
 			t2 = np.asarray(PARTIALS[layer_orig]['in_arg'])
 			inds = np.nonzero((t1 == layer_cur) * (t2 == arg))[0]
-			assert len(inds) == 1, 'partials have not been added to partials list'
+			assert len(inds) == 1, 'partials have not been added to partials list %i' % len(inds)
 			
 			# copy partials to mem_weight_derivs
 			# note: there is redundant copying happening if a layer contributes to multiple
