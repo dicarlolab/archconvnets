@@ -47,6 +47,7 @@ for init in [0,1]:
 	# shift
 	R_SHIFT_PRE = add_linear_F_layer(LAYERS, 'R_SHIFT_PRE', (N_CONTROLLERS, N_SHIFTS), HEAD_INPUT, init=init)
 	R_SHIFT = add_softmax_layer(LAYERS, 'R_SHIFT', init=init)
+	R_SHIFTED = add_shift_w_layer(LAYERS, 'R_SHIFTED', ['R_SHIFT', 'R_IN'], init=init)
 	
 	R_T_IND = add_linear_F_layer(LAYERS, 'R_T', N_MEM_SLOTS, (3, M_LENGTH), init=init)
 	
