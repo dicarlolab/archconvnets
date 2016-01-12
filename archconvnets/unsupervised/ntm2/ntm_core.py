@@ -49,7 +49,7 @@ def check_network(LAYERS):
 				OUT = L['deriv_F'][arg](args, LAYER_OUT, additional_args=L['additional_deriv_args'][arg])
 			else:
 				OUT = L['deriv_F'][arg](args, LAYER_OUT)
-			assert OUT[1] == expected_shape
+			assert OUT[1] == expected_shape, 'deriv not expected size (layer %s)' % L['name']
 			free_buffer(OUT)
 		free_buffer(LAYER_OUT)
 		
@@ -250,10 +250,18 @@ def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
 		
 		# input or weights, end:
 		if (isinstance(dest, int) == False) or dest == -1:
-			PARTIALS[layer_orig]['in_source'].append(layer_cur)
-			PARTIALS[layer_orig]['in_arg'].append(arg)
-			OUT = init_buffer(np.zeros(np.concatenate((LAYERS[layer_orig]['out_shape'], LAYERS[layer_cur]['in_shape'][arg])), dtype='single'))
-			PARTIALS[layer_orig]['partial'].append(OUT)
+			# have these inputs already been added?
+			t1 = np.asarray(PARTIALS[layer_orig]['in_source'])
+			t2 = np.asarray(PARTIALS[layer_orig]['in_arg'])
+			inds = np.nonzero((t1 == layer_cur) * (t2 == arg))[0]
+			assert len(inds) <= 1, 'partials have been added more than once'
+			
+			# inputs have not been added, add them:
+			if len(inds) == 0:
+				PARTIALS[layer_orig]['in_source'].append(layer_cur)
+				PARTIALS[layer_orig]['in_arg'].append(arg)
+				OUT = init_buffer(np.zeros(np.concatenate((LAYERS[layer_orig]['out_shape'], LAYERS[layer_cur]['in_shape'][arg])), dtype='single'))
+				PARTIALS[layer_orig]['partial'].append(OUT)
 		
 		# another layer, go back farther through the network:
 		else:
@@ -287,8 +295,16 @@ def copy_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS, MEM_WEIGH
 	if LAYERS[layer_cur]['in_prev'][arg] == False:
 		# end (weighting, input or mem layer input):
 		if (isinstance(dest, int) == False) or dest == -1:
-			buffer = copy_buffer(MEM_WEIGHT_DERIVS[layer_cur][arg])
-			PARTIALS[layer_orig]['partial'].append(buffer)
+			# have these inputs already been added?
+			t1 = np.asarray(PARTIALS[layer_orig]['in_source'])
+			t2 = np.asarray(PARTIALS[layer_orig]['in_arg'])
+			inds = np.nonzero((t1 == layer_cur) * (t2 == arg))[0]
+			assert len(inds) == 1, 'partials have not been added to partials list'
+			
+			# copy partials to mem_weight_derivs
+			# note: there is redundant copying happening if a layer contributes to multiple
+			# branches...this in principle should be checked for to save some time
+			copy_buffer(MEM_WEIGHT_DERIVS[layer_cur][arg], PARTIALS[layer_orig]['partial'][inds[0]])
 		
 		# continue (another layer)
 		else:
@@ -305,8 +321,6 @@ def copy_partials(layer_ind, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS):
 	
 	for arg in range(N_ARGS):
 		if L['in_prev'][arg] == False:
-			free_list(PARTIALS_PREV[layer_ind]['partial'])
-			PARTIALS_PREV[layer_ind]['partial'] = []
 			PARTIALS_PREV = copy_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
 	return PARTIALS_PREV
 

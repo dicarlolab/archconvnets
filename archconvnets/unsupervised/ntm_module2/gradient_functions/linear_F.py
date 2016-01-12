@@ -7,7 +7,7 @@ from archconvnets.unsupervised.ntm2.ntm_core import *
 def random_function(size):
 	return np.asarray(np.random.random(size) - .5, dtype='single')
 
-def linear_F_dx(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def linear_F_dx(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	F, X = args
 	check_buffer(F)
@@ -39,10 +39,13 @@ def linear_F_dx(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		temp[:,range(n),:,range(n)] = f
 		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(F[1][:len(F[1])-1]), np.asarray(X[1][1])[np.newaxis], np.asarray(X[1]))))
+	if additional_args[0] and X[1][1] == 1: # squeeze
+		OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(F[1][:len(F[1])-1]), np.asarray(X[1]))))
+	else:
+		OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(F[1][:len(F[1])-1]), np.asarray(X[1][1])[np.newaxis], np.asarray(X[1]))))
 	return OUT_BUFFER
 
-def linear_F_dF(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def linear_F_dF(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	F, X = args
 	check_buffer(F)
@@ -74,13 +77,16 @@ def linear_F_dF(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		temp[range(n),:,range(n)] = x.T
 		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
 		
-	OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(F[1][:len(F[1])-1]), np.asarray(X[1][1])[np.newaxis], np.asarray(F[1]))))
+	if additional_args[0] and X[1][1] == 1: # squeeze
+		OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(F[1][:len(F[1])-1]), np.asarray(F[1]))))
+	else:
+		OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(F[1][:len(F[1])-1]), np.asarray(X[1][1])[np.newaxis], np.asarray(F[1]))))
 	#OUT_BUFFER[1] = (F_dim0, X_dim1, F_dim0, X_dim0)
 	return OUT_BUFFER
 	
 linear_F = dot
 
-def add_linear_F_layer(LAYERS, name, n_filters, source=None, random_function=random_function, init=0):
+def add_linear_F_layer(LAYERS, name, n_filters, source=None, squeeze=False, random_function=random_function, init=0):
 	assert isinstance(name, str)
 	if init == 0:
 		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
@@ -116,12 +122,17 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, random_function=ran
 			in_shape[0] = tuple(np.concatenate((np.asarray(n_filters), np.asarray(in_shape[1][0])[np.newaxis])))
 			out_shape = tuple(np.concatenate((in_shape[0][:len(in_shape[0])-1], np.asarray(in_shape[1][1])[np.newaxis])))
 		
+		if squeeze and out_shape[-1] == 1:
+			out_shape = out_shape[:len(out_shape)-1]
+		
 		LAYERS[layer_ind]['forward_F'] = linear_F
 		LAYERS[layer_ind]['out_shape'] = out_shape
 		LAYERS[layer_ind]['in_shape'] = in_shape
 		LAYERS[layer_ind]['in_source'] = [random_function, in_source]
 		LAYERS[layer_ind]['deriv_F'] = [linear_F_dF, linear_F_dx]
 		LAYERS[layer_ind]['in_prev'] = [False, False]
+		LAYERS[layer_ind]['additional_forward_args'] = [squeeze]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[squeeze], [squeeze]]
 		
 		return layer_ind
 		

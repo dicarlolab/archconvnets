@@ -72,18 +72,25 @@ def add_add_layer(LAYERS, name, source, scalar=1, init=0):
 		assert layer_ind is not None, 'layer %s has not already been added' % name
 		
 		in_prev = [None]*2
-		in_prev[0] = False
+		
+		in_prev[0] = source[0][-1] == '-'
+		in_prev[1] = source[1][-1] == '-'
 		
 		source_A = find_layer(LAYERS, source[0])
 		assert source_A is not None, 'could not find layer %s' % source[0]
-		out_shape = LAYERS[source_A]['out_shape']
 		
 		source_B = find_layer(LAYERS, source[1])
+		assert source_B is not None, 'could not find layer %s' % source[1]
+		
 		assert source_A != source_B
-		assert source_B is not None
-		in_prev[1] = source[1][-1] == '-'
-		if source_B < layer_ind:
-			assert out_shape == LAYERS[source_B]['out_shape']
+		
+		if in_prev[0]:
+			out_shape = LAYERS[source_B]['out_shape']
+		else:
+			out_shape = LAYERS[source_A]['out_shape']
+		
+		if np.sum(in_prev) == 0:
+			assert LAYERS[source_B]['out_shape'] == LAYERS[source_A]['out_shape']
 		
 		LAYERS[layer_ind]['forward_F'] = add_points
 		LAYERS[layer_ind]['out_shape'] = out_shape

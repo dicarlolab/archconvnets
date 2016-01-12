@@ -43,7 +43,8 @@ def weight_address(W, B, O_PREV, inputs, mem_prev):
 	
 	# sharpen
 	O[GAMMA] = relu(linear_F(W[GAMMA], inputs) + B[GAMMA], thresh=1)
-	print W[GAMMA].shape, linear_F(W[GAMMA], inputs).shape, O[GAMMA].shape
+	#print W[GAMMA].shape, linear_F(W[GAMMA], inputs).shape, O[GAMMA].shape
+	# (16, 9) (16, 1) (16, 1)
 	O[SHARPENED] = sharpen(O[SHIFTED], O[GAMMA])
 	
 	O[F] = O[SHARPENED]
@@ -65,6 +66,7 @@ def forward_pass(WUNDER,BUNDER, WR,WW,BR,BW, WABOVE, BABOVE, OR_PREV, OW_PREV, m
 	
 	# erase/add output
 	OW[ERASE] = sigmoid(linear_2d_F(WW[ERASE], OUNDER[F_UNDER]) + BW[ERASE])
+	print OW[ERASE].shape, OUNDER[F_UNDER].shape
 	OW[ADD] = linear_2d_F(WW[ADD], OUNDER[F_UNDER]) + BW[ADD]
 	
 	# read then write to mem

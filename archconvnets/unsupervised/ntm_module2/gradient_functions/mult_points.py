@@ -64,28 +64,35 @@ def mult_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[0], gp
 	return OUT_BUFFER
 	
 # c = a*b
-def add_mult_layer(LAYERS, name, source):
+def add_mult_layer(LAYERS, name, source, init=0):
 	assert isinstance(name, str)
-	assert isinstance(source, list)
 	assert len(source) == 2
-	assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
-	
-	source_A = find_layer(LAYERS, source[0])
-	out_shape = LAYERS[source_A]['out_shape']
-	if source[1] == name: # input is itself
-		source_B = len(LAYERS)
-		assert source_A != source_B
+	if init == 0:
+		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
+		LAYERS.append({'name': name})
+		return len(LAYERS)-1
 	else:
+		layer_ind = find_layer(LAYERS, name)
+		assert layer_ind is not None, 'layer %s has not already been added' % name
+		
+		in_prev = [None]*2
+		in_prev[0] = False
+		in_prev[1] = source[1][-1] == '-'
+		
+		source_A = find_layer(LAYERS, source[0])
+		out_shape = LAYERS[source_A]['out_shape']
+		
 		source_B = find_layer(LAYERS, source[1])
-		assert out_shape == LAYERS[source_B]['out_shape']
-	
-	LAYERS.append({ 'name': name, 'forward_F': mult_points, \
-				'out_shape': out_shape, \
-				'in_shape': [out_shape, out_shape], \
-				'in_source': [source_A, source_B], \
-				'deriv_F': [mult_points_dinput, mult_points_dinput], \
-				'additional_forward_args': [],\
-				'additional_deriv_args': [[0], [1]]})
-	
-	check_network(LAYERS)
-	return len(LAYERS)-1
+		if in_prev[1] == False:
+			assert out_shape == LAYERS[source_B]['out_shape']
+		
+		LAYERS[layer_ind]['forward_F'] = mult_points
+		LAYERS[layer_ind]['out_shape'] = out_shape
+		LAYERS[layer_ind]['in_shape'] = [out_shape, out_shape]
+		LAYERS[layer_ind]['in_source'] = [source_A, source_B]
+		LAYERS[layer_ind]['deriv_F'] = [mult_points_dinput, mult_points_dinput]
+		LAYERS[layer_ind]['additional_forward_args'] = []
+		LAYERS[layer_ind]['additional_deriv_args'] = [[0], [1]]
+		LAYERS[layer_ind]['in_prev'] = in_prev
+		
+		return layer_ind

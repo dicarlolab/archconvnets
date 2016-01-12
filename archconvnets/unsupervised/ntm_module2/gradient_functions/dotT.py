@@ -89,29 +89,35 @@ def dotT_db(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = (F_dim1, X_dim1, X_dim0, X_dim1)
 	return OUT_BUFFER
 
-def add_dotT_layer(LAYERS, name, source):
+def add_dotT_layer(LAYERS, name, source, init=0):
 	assert isinstance(name, str)
-	assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
-	assert isinstance(source,tuple)
 	assert len(source) == 2
 	
-	in_shape = [None]*2
-	in_source = [None]*2
+	if init == 0:
+		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
+		LAYERS.append({'name': name})
+		return len(LAYERS)-1
+	else:
+		layer_ind = find_layer(LAYERS, name)
+		assert layer_ind is not None, 'layer %s has not already been added' % name
 	
-	in_source[0] = find_layer(LAYERS, source[0])
-	in_source[1] = find_layer(LAYERS, source[1])
-	
-	assert (in_source[0] is not None) and (in_source[1] is not None)
-	
-	in_shape[0] = LAYERS[in_source[0]]['out_shape']
-	in_shape[1] = LAYERS[in_source[1]]['out_shape']
-	
-	LAYERS.append({ 'name': name, 'forward_F': dotT, \
-				'out_shape': (in_shape[0][1], in_shape[1][1]), \
-				'in_shape': in_shape, \
-				'in_source': in_source, \
-				'deriv_F': [dotT_da, dotT_db] })
-	
-	check_network(LAYERS)
-	return len(LAYERS)-1
+		in_shape = [None]*2
+		in_source = [None]*2
+		
+		in_source[0] = find_layer(LAYERS, source[0])
+		in_source[1] = find_layer(LAYERS, source[1])
+		
+		assert (in_source[0] is not None) and (in_source[1] is not None)
+		
+		in_shape[0] = LAYERS[in_source[0]]['out_shape']
+		in_shape[1] = LAYERS[in_source[1]]['out_shape']
+		
+		LAYERS[layer_ind]['forward_F'] = dotT
+		LAYERS[layer_ind]['out_shape'] = (in_shape[0][1], in_shape[1][1])
+		LAYERS[layer_ind]['in_shape'] = in_shape
+		LAYERS[layer_ind]['in_source'] = in_source
+		LAYERS[layer_ind]['deriv_F'] = [dotT_da, dotT_db]
+		LAYERS[layer_ind]['in_prev'] = [False, False]
+		
+		return layer_ind
 	

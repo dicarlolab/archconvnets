@@ -14,7 +14,7 @@ def cosine_sim(args, OUT_BUFFER=None, gpu_ind=0):
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
-	assert len(MEM[1]) == 2
+	assert (len(MEM[1]) == 2) or ((len(MEM[1]) == 3) and (MEM[1][2] == 1))
 	assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
 	assert KEYS[0] != MEM[0]
 	assert OUT_BUFFER[0] != KEYS[0]
@@ -25,11 +25,11 @@ def cosine_sim(args, OUT_BUFFER=None, gpu_ind=0):
 	M = MEM[1][0]
 	
 	if GPU:
-		_ntm_module2.cosine_sim(KEYS[0], KEYS[1], MEM[0], MEM[1], OUT_BUFFER[0], gpu_ind)
+		_ntm_module2.cosine_sim(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER[0], gpu_ind)
 	else:
 		######## CPU
 		keys = return_buffer(KEYS, gpu_ind)[:,:,0]
-		mem = return_buffer(MEM, gpu_ind)
+		mem = return_buffer(MEM, gpu_ind)[:,:,0]
 		numer = np.dot(keys, mem.T)
 		denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
 		OUT_BUFFER = set_buffer(numer/denom, OUT_BUFFER, gpu_ind)
@@ -46,7 +46,7 @@ def cosine_sim_dmem(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
-	assert len(MEM[1]) == 2
+	assert (len(MEM[1]) == 2) or ((len(MEM[1]) == 3) and (MEM[1][2] == 1))
 	assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
 	assert KEYS[0] != MEM[0]
 	assert OUT_BUFFER[0] != KEYS[0]
@@ -57,11 +57,11 @@ def cosine_sim_dmem(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	M = MEM[1][0]
 	
 	if GPU:
-		_ntm_module2.cosine_sim_dmem(KEYS[0], KEYS[1], MEM[0], MEM[1], OUT_BUFFER[0], gpu_ind)
+		_ntm_module2.cosine_sim_dmem(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER[0], gpu_ind)
 	else:
 		########## CPU
 		keys = return_buffer(KEYS, gpu_ind)[:,:,0]
-		mem = return_buffer(MEM, gpu_ind)
+		mem = return_buffer(MEM, gpu_ind)[:,:,0]
 		comb = np.zeros((n_controllers, mem.shape[0], mem.shape[0], mem.shape[1]),dtype='single')
 
 		keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
@@ -79,8 +79,11 @@ def cosine_sim_dmem(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		
 		comb[:,range(mem.shape[0]),range(mem.shape[0])] = keys_denom - temp
 		OUT_BUFFER = set_buffer(comb, OUT_BUFFER, gpu_ind)
-		
-	OUT_BUFFER[1] = (n_controllers, M, M, mem_length)
+	
+	if len(MEM[1]) == 2:
+		OUT_BUFFER[1] = (n_controllers, M, M, mem_length)
+	else:
+		OUT_BUFFER[1] = (n_controllers, M, M, mem_length,1)
 	return OUT_BUFFER
 
 def cosine_sim_dkeys(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
@@ -92,7 +95,7 @@ def cosine_sim_dkeys(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
-	assert len(MEM[1]) == 2
+	assert (len(MEM[1]) == 2) or ((len(MEM[1]) == 3) and (MEM[1][2] == 1))
 	assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
 	assert KEYS[0] != MEM[0]
 	assert OUT_BUFFER[0] != KEYS[0]
@@ -103,11 +106,11 @@ def cosine_sim_dkeys(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	M = MEM[1][0]
 	
 	if GPU:
-		_ntm_module2.cosine_sim_dkeys(KEYS[0], KEYS[1], MEM[0], MEM[1], OUT_BUFFER[0], gpu_ind)
+		_ntm_module2.cosine_sim_dkeys(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER[0], gpu_ind)
 	else:
 		######## CPU
 		keys = return_buffer(KEYS, gpu_ind)[:,:,0]
-		mem = return_buffer(MEM, gpu_ind)
+		mem = return_buffer(MEM, gpu_ind)[:,:,0]
 		comb = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]),dtype='single')
 		
 		keys_sq_sum = np.sqrt(np.sum(keys**2, 1))

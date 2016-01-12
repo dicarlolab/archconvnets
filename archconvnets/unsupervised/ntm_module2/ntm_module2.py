@@ -85,6 +85,18 @@ def free_list(LIST):
 			else:
 				free_buffer(LIST[layer_ind])
 
+def zero_list(LIST):
+	for layer_ind in range(len(LIST)):
+		if LIST[layer_ind] is not None:
+			# list of list, ex. partials
+			if isinstance(LIST[layer_ind][0], list):
+				for arg in range(len(LIST[layer_ind])):
+					zero_buffer(LIST[layer_ind][arg])
+			# outputs
+			else:
+				zero_buffer(LIST[layer_ind])
+				
+				
 def set_buffer(DATA, DATA_G, gpu_ind=0, warn=True):
 	assert DATA.dtype == np.dtype('float32')
 	if not DATA.flags.contiguous and warn:
@@ -149,6 +161,7 @@ def return_buffer(BUFFER, warn=1, gpu_ind=0):
 			return 0
 
 # a += b * scalar
+# when OUT_BUFFER=None, store results in "a"
 def point_wise_add(args, OUT_BUFFER=None, scalar=1, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	A, B = args
@@ -172,7 +185,8 @@ def point_wise_add(args, OUT_BUFFER=None, scalar=1, gpu_ind=0):
 	OUT_BUFFER[1] = copy.deepcopy(B[1])
 	return OUT_BUFFER
 
-def dot(args, OUT_BUFFER=None, increment=0, gpu_ind=0):
+# additional_args: Squeeze output or not
+def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	BUFFER1, BUFFER2 = args
 	check_buffer(BUFFER1)
@@ -201,8 +215,10 @@ def dot(args, OUT_BUFFER=None, increment=0, gpu_ind=0):
 		x = return_buffer(BUFFER2, gpu_ind)
 		temp = np.asarray(np.dot(F,x),dtype='single') # [n1, 1]
 		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
-		
-	OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(BUFFER1[1][:len(BUFFER1[1])-1]), np.asarray(BUFFER2[1][1])[np.newaxis])))
+	
+	OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(BUFFER1[1][:len(BUFFER1[1])-1]), np.asarray(BUFFER2[1][1])[np.newaxis])))	
+	if additional_args[0] and OUT_BUFFER[1][-1] == 1: # squeeze
+		OUT_BUFFER[1] = OUT_BUFFER[1][:len(OUT_BUFFER[1])-1]
 	return OUT_BUFFER
 	
 from gradient_functions.cosine_sim import *
