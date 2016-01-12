@@ -272,8 +272,9 @@ def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
 
 # collect all weight partials which contribute to the memory layers.
 # store them at the memory layer
-def init_partials(LAYERS, layer_ind):
-	PARTIALS = [None]*len(LAYERS)
+def init_partials(LAYERS, layer_ind, PARTIALS=None):
+	if PARTIALS is None:
+		PARTIALS = [None]*len(LAYERS)
 	
 	L = LAYERS[layer_ind]
 	N_ARGS = len(L['in_source'])
