@@ -12,7 +12,7 @@ def check_weights(WEIGHTS, LAYERS):
 		for arg in range(N_ARGS):
 			if isinstance(L['in_source'][arg], int) == False or L['in_source'][arg] == -1:
 				assert WEIGHTS[layer_ind][arg] is not None, 'layer %i argument %i not initialized' % (layer_ind, arg)
-				assert WEIGHTS[layer_ind][arg][1] == L['in_shape'][arg], 'layer %i argument %i not initialized to right size' % (layer_ind, arg)
+				assert WEIGHTS[layer_ind][arg][1] == L['in_shape'][arg], 'layer %s argument %i not initialized to right size' % (L['name'], arg)
 			else:
 				assert WEIGHTS[layer_ind][arg] is None, 'layer %i argument %i should not have weightings because it should be computed from layer %i' % (layer_ind, arg,  L['in_source'][arg])
 
@@ -374,3 +374,61 @@ def init_output_prev(LAYERS, INDS, PREV_VALS):
 def free_list_list(LIST):
 	for i in range(len(LIST)):
 		free_list(LIST[i])
+		
+def update_weights(LAYERS, WEIGHTS, WEIGHT_DERIVS, EPS):
+	for layer_ind in range(len(LAYERS)):
+		L = LAYERS[layer_ind]
+		for arg in range(len(L['in_source'])):
+			# only update weight layers, not input layers
+			if hasattr(L['in_source'][arg], '__call__'):
+				point_wise_add((WEIGHTS[layer_ind][arg], WEIGHT_DERIVS[layer_ind][arg]), scalar=EPS)
+	return WEIGHTS
+	
+def update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS, frame, FRAME_LAG):
+	WEIGHT_DERIVS_RMS = init_gpu_list(WEIGHT_DERIVS_RMS, LAYERS)
+	deriv_sq = None
+	
+	for layer_ind in range(len(LAYERS)):
+		L = LAYERS[layer_ind]
+		for arg in range(len(L['in_source'])):
+			# only update weight layers, not input layers
+			if hasattr(L['in_source'][arg], '__call__'):
+				
+				# deriv_sq = WEIGHT_DERIVS ** 2
+				deriv_sq = sq_points([WEIGHT_DERIVS[layer_ind][arg]], deriv_sq, deriv_computable=False)
+				
+				if WEIGHT_DERIVS_RMS[layer_ind][arg][1] is None: # init WEIGHT_DERIVS_RMS, todo: cleanup this
+					copy_buffer(WEIGHT_DERIVS[layer_ind][arg], WEIGHT_DERIVS_RMS[layer_ind][arg])
+					zero_buffer(WEIGHT_DERIVS_RMS[layer_ind][arg])
+				
+				# WEIGHT_DERIVS_RMS = 0.9*WEIGHT_DERIVS_RMS + 0.1*WEIGHT_DERIVS**2
+				point_wise_add((WEIGHT_DERIVS_RMS[layer_ind][arg], deriv_sq), scalar0=.9, scalar=.1)
+				deriv_sq = free_buffer(deriv_sq)
+				
+				# WEIGHT_DERIVS /= sqrt(WEIGHT_DERIVS_RMS
+				point_wise_div_sqrt((WEIGHT_DERIVS[layer_ind][arg], WEIGHT_DERIVS_RMS[layer_ind][arg]), clip=10)
+				
+				if frame > FRAME_LAG:
+					point_wise_add((WEIGHTS[layer_ind][arg], WEIGHT_DERIVS[layer_ind][arg]), scalar=EPS)
+				
+	return WEIGHT_DERIVS_RMS
+
+def print_layer(LAYERS, print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_len, EPS):
+	w_ind = find_layer(LAYERS, print_name+'_lin')
+	b_ind = find_layer(LAYERS, print_name+'_b')
+	o_ind = find_layer(LAYERS, print_name)
+	if b_ind is None: # if there are no linearities (sigmoid, relu)
+		b_ind = o_ind
+	
+	W = return_buffer(WEIGHTS[w_ind][0])
+	B = return_buffer(WEIGHTS[b_ind][0])
+	
+	DW = return_buffer(WEIGHT_DERIVS[w_ind][0])
+	DB = return_buffer(WEIGHT_DERIVS[b_ind][0])
+	
+	O = return_buffer(OUTPUT[o_ind])
+	
+	print '  ', print_name, ' '*(max_print_len - len(print_name)), \
+			' W: %.1e %.1e (%.1e)  B: %.1e %.1e (%.1e) -- %.1e %.1e' % (\
+		np.min(W), np.max(W), -EPS*np.median(np.abs(DW/W)), \
+		np.min(B), np.max(B), -EPS*np.median(np.abs(DB/B)), np.min(O), np.max(O))

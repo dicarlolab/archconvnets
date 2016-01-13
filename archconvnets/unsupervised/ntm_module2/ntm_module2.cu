@@ -43,6 +43,7 @@
 #include "gradient_functions/dotT_db.c"
 #include "gradient_functions/mult_points.c"
 #include "gradient_functions/mult_points_dinput.c"
+#include "gradient_functions/point_wise_div_sqrt.c"
 
 static PyMethodDef _ntm_module2[] = {
 	{"sync", sync, METH_VARARGS},
@@ -88,6 +89,7 @@ static PyMethodDef _ntm_module2[] = {
 	{"dotT_db", dotT_db, METH_VARARGS},
 	{"mult_points", mult_points, METH_VARARGS},
 	{"mult_points_dinput", mult_points_dinput, METH_VARARGS},
+	{"point_wise_div_sqrt", point_wise_div_sqrt, METH_VARARGS},
 	{NULL, NULL}
 };
 

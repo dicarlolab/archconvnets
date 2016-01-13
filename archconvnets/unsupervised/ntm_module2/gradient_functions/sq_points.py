@@ -4,12 +4,14 @@ from archconvnets.unsupervised.ntm_module2.ntm_module2 import *
 from archconvnets.unsupervised.ntm2.gpu_flag import *
 from archconvnets.unsupervised.ntm2.ntm_core import *
 
-def sq_points(args, OUT_BUFFER=None, gpu_ind=0):
+# deriv_computable: require dimensions be <= 2, required for sq_points_dinput to work correctly
+def sq_points(args, OUT_BUFFER=None, deriv_computable=True, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
 	LAYER_IN = args[0]
 	check_buffer(LAYER_IN)
-	assert len(LAYER_IN[1]) <= 2
+	if deriv_computable:
+		assert len(LAYER_IN[1]) <= 2
 	
 	if OUT_BUFFER != None:
 		check_buffer(OUT_BUFFER)

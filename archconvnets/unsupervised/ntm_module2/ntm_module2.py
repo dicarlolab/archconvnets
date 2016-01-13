@@ -4,7 +4,7 @@ import copy
 from archconvnets.unsupervised.ntm2.gpu_flag import *
 
 N_GPUS = 4
-N_BUFFERS = 1024
+N_BUFFERS = 5000
 n_vars_allocated = np.zeros((N_GPUS, N_BUFFERS), dtype='bool') # variable slots allocated per gpu
 
 if GPU == False:
@@ -39,7 +39,7 @@ def check_buffer(BUFFER, gpu_ind=0):
 	if BUFFER[1] is not None:
 		assert return_buffer_sz(BUFFER[0], gpu_ind) == np.prod(BUFFER[1]), 'stored size %i did not match actual size %i' % (return_buffer_sz(BUFFER[0], gpu_ind), np.prod(BUFFER[1]))
 	else:
-		assert return_buffer_sz(BUFFER[0], gpu_ind) == 0
+		assert return_buffer_sz(BUFFER[0], gpu_ind) == 0, '%i' % return_buffer_sz(BUFFER[0], gpu_ind)
 
 def free_buffer(BUFFER, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
@@ -162,10 +162,11 @@ def return_buffer(BUFFER, warn=1, gpu_ind=0):
 		else:
 			return 0
 
-# a += b * scalar
+# out_buffer = a * scalar0 + b * scalar
 # when OUT_BUFFER=None, store results in "a"
-def point_wise_add(args, OUT_BUFFER=None, scalar=1, gpu_ind=0):
+def point_wise_add(args, OUT_BUFFER=None, scalar=1, scalar0=1, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	
 	A, B = args
 	check_buffer(A)
 	check_buffer(B)
@@ -177,12 +178,41 @@ def point_wise_add(args, OUT_BUFFER=None, scalar=1, gpu_ind=0):
 		OUT_BUFFER = copy.deepcopy(A)
 	
 	if GPU:
-		_ntm_module2.point_wise_add(A[0], B[0], np.single(scalar), OUT_BUFFER[0], gpu_ind)
+		_ntm_module2.point_wise_add(A[0], B[0], np.single(scalar), np.single(scalar0), OUT_BUFFER[0], gpu_ind)
 	else:
 		####### CPU
 		A_local = return_buffer(A,gpu_ind)
 		B_local = return_buffer(B,gpu_ind)
-		OUT_BUFFER = set_buffer(A_local + B_local*scalar, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER = set_buffer(A_local*scalar0 + B_local*scalar, OUT_BUFFER, gpu_ind)
+		
+	OUT_BUFFER[1] = copy.deepcopy(B[1])
+	return OUT_BUFFER
+
+# out_buffer = a / sqrt(b)
+# when OUT_BUFFER=None, store results in "a"
+def point_wise_div_sqrt(args, OUT_BUFFER=None, clip=10, gpu_ind=0):
+	assert isinstance(gpu_ind,int)
+	
+	A, B = args
+	check_buffer(A)
+	check_buffer(B)
+	
+	if OUT_BUFFER != None:
+		check_buffer(OUT_BUFFER)
+		OUT_BUFFER[1] = copy.deepcopy(A[1])
+	else:
+		OUT_BUFFER = copy.deepcopy(A)
+	
+	if GPU:
+		_ntm_module2.point_wise_div_sqrt(A[0], B[0], OUT_BUFFER[0], np.single(clip), gpu_ind)
+	else:
+		####### CPU
+		A_local = return_buffer(A,gpu_ind)
+		B_local = return_buffer(B,gpu_ind)
+		temp = A_local/np.sqrt(B_local)
+		temp[temp > clip] = clip
+		temp[temp < -clip] = -clip
+		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
 		
 	OUT_BUFFER[1] = copy.deepcopy(B[1])
 	return OUT_BUFFER

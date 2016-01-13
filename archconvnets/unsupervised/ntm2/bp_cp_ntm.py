@@ -21,6 +21,7 @@ training = 0
 START_SIGNAL = 0; TRAIN_SIGNAL = 1
 SAVE_FREQ = 25 # instantaneous checkpoint
 WRITE_FREQ = 50 # new checkpoint
+FRAME_LAG = 200
 STOP_POINT = np.inf
 inputs = np.zeros((2,1),dtype='single')
 
@@ -45,7 +46,7 @@ OUT_IND = find_layer(LAYERS, 'SUM')
 F1_IND = find_layer(LAYERS, 'F1_lin')
 
 OUTPUT = None; LOCAL_DERIVS = None; WEIGHT_DERIVS = None
-MEM_DERIVS = [None]*len(MEM_INDS)
+MEM_DERIVS = [None]*len(MEM_INDS); WEIGHT_DERIVS_RMS = None
 
 OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
 PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
@@ -101,7 +102,8 @@ while True:
 	
 	# take step
 	if frame < STOP_POINT and frame > SAVE_FREQ:
-		update_weights(LAYERS, WEIGHTS, WEIGHT_DERIVS, EPS)
+		#update_weights(LAYERS, WEIGHTS, WEIGHT_DERIVS, EPS)
+		WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS, frame, FRAME_LAG)
 		
 		
 	# print

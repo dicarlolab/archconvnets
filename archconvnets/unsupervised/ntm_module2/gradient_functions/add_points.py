@@ -21,7 +21,7 @@ def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=0):
 		OUT_BUFFER = init_buffer()
 	
 	if GPU:
-		_ntm_module2.point_wise_add(A[0], B[0], np.single(scalar), OUT_BUFFER[0], gpu_ind)
+		_ntm_module2.point_wise_add(A[0], B[0], np.single(scalar), np.single(1), OUT_BUFFER[0], gpu_ind)
 	else:
 		####### CPU
 		A_local = return_buffer(A,gpu_ind)
