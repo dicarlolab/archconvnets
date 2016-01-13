@@ -194,11 +194,21 @@ def local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS):
 	return LOCAL_DERIVS
 
 # apply chain-rule down the network
-def reverse_network(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims=False): # multiply all partials together
-	WEIGHT_DERIVS = init_gpu_list(WEIGHT_DERIVS, LAYERS)
-	zero_buffer_list(WEIGHT_DERIVS)
+def reverse_network(layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims=False): # multiply all partials together
+	# compute partials starting from single layer
+	if isinstance(layer_ind,int):
+		WEIGHT_DERIVS = init_gpu_list(WEIGHT_DERIVS, LAYERS)
+		zero_buffer_list(WEIGHT_DERIVS)
 
-	return reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims)
+		WEIGHT_DERIVS = reverse_network_recur(None, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims)
+	# compute partials from multiple layers, store result in a list
+	else:
+		for i in range(len(layer_ind)):
+			WEIGHT_DERIVS[i] = init_gpu_list(WEIGHT_DERIVS[i], LAYERS)
+			zero_buffer_list(WEIGHT_DERIVS[i])
+
+			WEIGHT_DERIVS[i] = reverse_network_recur(None, layer_ind[i], LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS[i], keep_dims)
+	return WEIGHT_DERIVS
 
 def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims): # multiply all partials together
 	L = LAYERS[layer_ind]
@@ -272,18 +282,18 @@ def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
 
 # collect all weight partials which contribute to the memory layers.
 # store them at the memory layer
-def init_partials(LAYERS, layer_ind, PARTIALS=None):
-	if PARTIALS is None:
-		PARTIALS = [None]*len(LAYERS)
+def init_partials(LAYERS, MEM_INDS):
+	PARTIALS = [None]*len(LAYERS)
 	
-	L = LAYERS[layer_ind]
-	N_ARGS = len(L['in_source'])
-	PARTIALS[layer_ind] = {'in_source': [], 'in_arg': [], 'partial': []}
-	
-	for arg in range(N_ARGS):
-		if L['in_prev'][arg] == False:
-			init_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS)
+	for layer_ind in MEM_INDS:
+		L = LAYERS[layer_ind]
+		N_ARGS = len(L['in_source'])
+		PARTIALS[layer_ind] = {'in_source': [], 'in_arg': [], 'partial': []}
 		
+		for arg in range(N_ARGS):
+			if L['in_prev'][arg] == False:
+				init_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS)
+			
 	return PARTIALS
 	
 def free_partials(PARTIALS_PREV):
@@ -315,15 +325,18 @@ def copy_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS, MEM_WEIGH
 				PARTIALS = copy_traverse_to_end(layer_orig, dest, arg2, LAYERS, PARTIALS, MEM_WEIGHT_DERIVS)
 	return PARTIALS
 
-# copy MEM_WEIGHT_DERIVS (partials starting at memory layer) into PARTIALS_PREV
-# at the memory layer entry in PARTIALS_PREV
-def copy_partials(layer_ind, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS):
-	L = LAYERS[layer_ind]
-	N_ARGS = len(L['in_source'])
-	
-	for arg in range(N_ARGS):
-		if L['in_prev'][arg] == False:
-			PARTIALS_PREV = copy_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS_PREV, MEM_WEIGHT_DERIVS)
+# copy MEM_DERIVS (list of partials starting at memory layer LAYER_IND[i]):
+# into PARTIALS_PREV at the memory layer entry LAYER_IND[i] in PARTIALS_PREV
+def copy_partials(LAYER_IND, LAYERS, PARTIALS_PREV, MEM_DERIVS):
+	assert len(LAYER_IND) == len(MEM_DERIVS)
+	for i in range(len(LAYER_IND)):
+		layer_ind = LAYER_IND[i]
+		L = LAYERS[layer_ind]
+		N_ARGS = len(L['in_source'])
+		
+		for arg in range(N_ARGS):
+			if L['in_prev'][arg] == False:
+				PARTIALS_PREV = copy_traverse_to_end(layer_ind, layer_ind, arg, LAYERS, PARTIALS_PREV, MEM_DERIVS[i])
 	return PARTIALS_PREV
 
 
@@ -335,3 +348,21 @@ def find_layer(LAYERS, name):
 			return layer_ind
 	return None
 	
+# randomly generate outputs for layer INDS
+def random_function_list(LAYERS, INDS):
+	PREV_VALS = []
+	for layer_ind in INDS:
+		PREV_VALS.append(random_function(LAYERS[layer_ind]['out_shape']))
+	return PREV_VALS
+
+# move PREV_VALS into OUTPUT_PREV in layers INDS
+def init_output_prev(LAYERS, INDS, PREV_VALS):
+	OUTPUT_PREV = [None]*len(LAYERS)
+	for layer_ind in range(len(INDS)):
+		assert OUTPUT_PREV[INDS[layer_ind]] is None
+		OUTPUT_PREV[INDS[layer_ind]] = init_buffer(PREV_VALS[layer_ind])
+	return OUTPUT_PREV
+
+def free_list_list(LIST):
+	for i in range(len(LIST)):
+		free_list(LIST[i])
