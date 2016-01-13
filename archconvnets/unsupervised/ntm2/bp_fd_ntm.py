@@ -25,7 +25,7 @@ HEAD_INPUT = 'F3'
 
 for init in [0,1]:
 	# below
-	F1_IND = add_linear_F_layer(LAYERS, 'F1', N_F1, (2, 1), init=init)
+	add_linear_F_layer(LAYERS, 'F1', N_F1, (2, 1), init=init)
 	add_linear_F_layer(LAYERS, 'F2', N_F2, init=init)
 	add_linear_F_layer(LAYERS, HEAD_INPUT, N_F3, init=init)
 	
@@ -51,7 +51,7 @@ for init in [0,1]:
 		# sharpen
 		add_linear_F_layer(LAYERS, RW+'_GAMMA_PRE', N_CONTROLLERS, HEAD_INPUT, init=init)
 		add_relu_layer(LAYERS, RW+'_GAMMA', init=init)
-		F_IND[RW] = add_sharpen_layer(LAYERS, RW+'_F', [RW+'_SHIFTED', RW+'_GAMMA'], init=init)
+		add_sharpen_layer(LAYERS, RW+'_F', [RW+'_SHIFTED', RW+'_GAMMA'], init=init)
 	
 	# erase/add output
 	add_linear_F_layer(LAYERS, 'ERASE_PRE', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)
@@ -70,23 +70,24 @@ for init in [0,1]:
 	# mem_prev -= mem_prev*erase
 	add_add_layer(LAYERS, 'MEM_ERASED', ['MEM-', 'MEM_ERASE'], scalar=-1, init=init)
 	# mem_prev += add
-	MEM_IND = add_add_layer(LAYERS, 'MEM', ['ADD_HEAD', 'MEM_ERASED'], init=init)
+	add_add_layer(LAYERS, 'MEM', ['ADD_HEAD', 'MEM_ERASED'], init=init)
 	
 	add_sq_points_layer(LAYERS, 'SQ', init=init)
 	add_sum_layer(LAYERS, 'SUM', init=init)
 
-MEM_INDS = [MEM_IND, F_IND['R'], F_IND['W']]
-
 check_network(LAYERS)
 
 ################ init weights and inputs
+
+F1_IND = find_layer(LAYERS, 'F1')
+MEM_INDS = find_layer(LAYERS, ['MEM', 'R_F', 'W_F'])
 
 WEIGHTS = init_weights(LAYERS)
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1])))
 PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 
 ################ which gradient to test
-gradient_layer = F1_IND
+gradient_layer = find_layer(LAYERS, 'F1')
 gradient_arg = 0
 
 def f(y):

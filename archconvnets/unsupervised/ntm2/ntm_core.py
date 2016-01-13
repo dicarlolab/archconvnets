@@ -341,11 +341,19 @@ def copy_partials(LAYER_IND, LAYERS, PARTIALS_PREV, MEM_DERIVS):
 
 
 def find_layer(LAYERS, name):
-	if name[-1] == '-':
-		name = name[:len(name)-1]
-	for layer_ind in range(len(LAYERS)):
-		if LAYERS[layer_ind]['name'] == name:
-			return layer_ind
+	if isinstance(name, str):
+		if name[-1] == '-':
+			name = name[:len(name)-1]
+		for layer_ind in range(len(LAYERS)):
+			if LAYERS[layer_ind]['name'] == name:
+				return layer_ind
+	else:
+		INDS = [None]*len(name)
+		for i in range(len(name)):
+			for layer_ind in range(len(LAYERS)):
+				if LAYERS[layer_ind]['name'] == name[i]:
+					INDS[i] = layer_ind
+		return INDS
 	return None
 	
 # randomly generate outputs for layer INDS
