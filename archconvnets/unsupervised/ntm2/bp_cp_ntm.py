@@ -9,9 +9,8 @@ from model_architecture import init_model
 free_all_buffers()
 
 ################ init save vars
-save_name = 'ntm_test'
-
-EPS = -1e-2
+EPS = -1e-3
+save_name = 'ntm_test2_%f' % (-EPS)
 TIME_LENGTH = 3
 elapsed_time = 1000
 frame = 0
@@ -19,9 +18,9 @@ err = 0
 n_saves = 0
 training = 0
 START_SIGNAL = 0; TRAIN_SIGNAL = 1
-SAVE_FREQ = 25 # instantaneous checkpoint
+SAVE_FREQ = 250 # instantaneous checkpoint
 WRITE_FREQ = 50 # new checkpoint
-FRAME_LAG = 200
+FRAME_LAG = 250
 STOP_POINT = np.inf
 inputs = np.zeros((2,1),dtype='single')
 
@@ -134,7 +133,7 @@ while True:
 		
 		#######
 		
-		#savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS_BR': EPS_BR, 'EPS_WW': EPS_WW, 'EPS_WR': EPS_WR, 'EPS_BUNDER': EPS_BUNDER, 'EPS_WUNDER': EPS_WUNDER, 'EPS_WABOVE': EPS_WABOVE, 'EPS_BABOVE': EPS_BABOVE, 'training_flag_buffer': training_flag_buffer})
+		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, 'training_flag_buffer': training_flag_buffer})
 		
 		t_start = time.time()
 		
