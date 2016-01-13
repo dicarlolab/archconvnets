@@ -98,7 +98,9 @@ def zero_list(LIST):
 				
 				
 def set_buffer(DATA, DATA_G, gpu_ind=0, warn=True):
-	assert DATA.dtype == np.dtype('float32')
+	if isinstance(DATA, int) or isinstance(DATA, np.single):
+		DATA = np.asarray(DATA,dtype='float32')[np.newaxis]
+	assert DATA.dtype == np.dtype('float32'), DATA.dtype
 	if not DATA.flags.contiguous and warn:
 		print 'warning: input to init_buffer not C-contiguous'
 		DATA = np.ascontiguousarray(DATA)

@@ -65,9 +65,14 @@ def init_model():
 		## above
 		add_relu_F_bias_layer(LAYERS, 'A_F1', A_F1, init=init)
 		add_linear_F_bias_layer(LAYERS, 'A_F2', A_F2, init=init)
-		
-		add_sq_points_layer(LAYERS, 'SQ', init=init)
 		add_sum_layer(LAYERS, 'SUM', init=init)
+		
+		add_add_layer(LAYERS, 'ERR', ['SUM', -1], scalar=-1, init=init)
+		
+		#####
+		
+		add_sq_points_layer(LAYERS, 'SQ_ERR', init=init)
+		add_sum_layer(LAYERS, 'SUM_ERR', init=init)
 
 	check_network(LAYERS)
 	

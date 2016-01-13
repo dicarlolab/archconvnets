@@ -9,7 +9,7 @@ def sq_points(args, OUT_BUFFER=None, gpu_ind=0):
 	assert len(args) == 1
 	LAYER_IN = args[0]
 	check_buffer(LAYER_IN)
-	assert len(LAYER_IN[1]) == 2
+	assert len(LAYER_IN[1]) <= 2
 	
 	if OUT_BUFFER != None:
 		check_buffer(OUT_BUFFER)
@@ -31,19 +31,24 @@ def sq_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	assert len(args) == 1
 	LAYER_IN = args[0]
 	check_buffer(LAYER_IN)
-	assert len(LAYER_IN[1]) == 2
+	assert len(LAYER_IN[1]) <= 2
 	assert LAYER_IN[1] == LAYER_OUT[1]
+	
+	LAYER_IN_R = copy.deepcopy(LAYER_IN)
+	if len(LAYER_IN[1]) == 1:
+		LAYER_IN_R[1] = (LAYER_IN_R[1][0],1)
+		
 	check_buffer(LAYER_OUT)
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
-	dim1, dim2 = LAYER_OUT[1]
+	dim1, dim2 = LAYER_IN_R[1]
 	
 	if GPU:
-		_ntm_module2.sq_points_dinput(LAYER_IN[0], LAYER_IN[1], OUT_BUFFER[0], gpu_ind)
+		_ntm_module2.sq_points_dinput(LAYER_IN[0], LAYER_IN_R[1], OUT_BUFFER[0], gpu_ind)
 	else: 
 		############ CPU
-		input = return_buffer(LAYER_IN, gpu_ind)
+		input = return_buffer(LAYER_IN_R, gpu_ind)
 		
 		n = input.shape[1]
 		dinput = np.zeros((input.shape[0], n, input.shape[0], n),dtype='single')
@@ -52,7 +57,10 @@ def sq_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 			
 		OUT_BUFFER = set_buffer(dinput, OUT_BUFFER, gpu_ind)
 	
-	OUT_BUFFER[1] = (dim1,dim2,dim1,dim2)
+	if len(LAYER_IN[1]) == 1:
+		OUT_BUFFER[1] = (dim1,dim1)
+	else:
+		OUT_BUFFER[1] = (dim1,dim2,dim1,dim2)
 	return OUT_BUFFER
 
 	

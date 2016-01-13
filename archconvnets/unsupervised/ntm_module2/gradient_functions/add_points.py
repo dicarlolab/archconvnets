@@ -73,13 +73,18 @@ def add_add_layer(LAYERS, name, source, scalar=1, init=0):
 		
 		in_prev = [None]*2
 		
-		in_prev[0] = source[0][-1] == '-'
-		in_prev[1] = source[1][-1] == '-'
-		
 		source_A = find_layer(LAYERS, source[0])
-		assert source_A is not None, 'could not find layer %s' % source[0]
+		in_prev[0] = source[0][-1] == '-'
 		
-		source_B = find_layer(LAYERS, source[1])
+		if isinstance(source[1], str):
+			in_prev[1] = source[1][-1] == '-'
+			source_B = find_layer(LAYERS, source[1])
+		else:
+			in_prev[1] = False
+			source_B = source[1]
+			assert isinstance(source_B,int)
+		
+		assert source_A is not None, 'could not find layer %s' % source[0]
 		assert source_B is not None, 'could not find layer %s' % source[1]
 		
 		assert source_A != source_B
@@ -89,7 +94,7 @@ def add_add_layer(LAYERS, name, source, scalar=1, init=0):
 		else:
 			out_shape = LAYERS[source_A]['out_shape']
 		
-		if np.sum(in_prev) == 0:
+		if np.sum(in_prev) == 0 and source_B != -1:
 			assert LAYERS[source_B]['out_shape'] == LAYERS[source_A]['out_shape']
 		
 		LAYERS[layer_ind]['forward_F'] = add_points

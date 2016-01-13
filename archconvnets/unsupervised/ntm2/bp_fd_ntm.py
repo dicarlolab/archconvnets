@@ -71,7 +71,7 @@ def g(y):
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e6#6
+eps = np.sqrt(np.finfo(np.float).eps)*1e7#6
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
