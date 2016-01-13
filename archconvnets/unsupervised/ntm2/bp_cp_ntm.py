@@ -10,7 +10,7 @@ free_all_buffers()
 
 ################ init save vars
 EPS = -1e-3
-save_name = 'ntm_test2_%f' % (-EPS)
+save_name = 'ntm_test_stop_%f' % (-EPS)
 TIME_LENGTH = 3
 elapsed_time = 1000
 frame = 0
@@ -21,7 +21,7 @@ START_SIGNAL = 0; TRAIN_SIGNAL = 1
 SAVE_FREQ = 250 # instantaneous checkpoint
 WRITE_FREQ = 50 # new checkpoint
 FRAME_LAG = 250
-STOP_POINT = np.inf
+STOP_POINT = SAVE_FREQ*15
 inputs = np.zeros((2,1),dtype='single')
 
 target_seq = np.abs(np.asarray(np.random.normal(size=TIME_LENGTH),dtype='single'))
