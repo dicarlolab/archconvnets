@@ -97,6 +97,7 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, squeeze=False, rand
 		assert layer_ind is not None, 'layer %s has not already been added' % name
 		
 		in_shape = [None]*2
+		in_prev1 = False
 		
 		# default to previous layer as input
 		if source is None:
@@ -107,6 +108,7 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, squeeze=False, rand
 			in_source = find_layer(LAYERS, source)
 			assert in_source is not None, 'could not find source layer %i' % source
 			in_shape[1] = LAYERS[in_source]['out_shape']
+			in_prev1 = source[-1] == '-'
 		
 		# input is user supplied
 		elif isinstance(source,tuple):
@@ -115,6 +117,7 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, squeeze=False, rand
 		else:
 			assert False, 'unknown source input'
 		
+		# if n_filters is an int or a tuple
 		if isinstance(n_filters,int):
 			in_shape[0] = (n_filters, in_shape[1][0])
 			out_shape = (in_shape[0][0], in_shape[1][1])
@@ -130,7 +133,7 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, squeeze=False, rand
 		LAYERS[layer_ind]['in_shape'] = in_shape
 		LAYERS[layer_ind]['in_source'] = [random_function, in_source]
 		LAYERS[layer_ind]['deriv_F'] = [linear_F_dF, linear_F_dx]
-		LAYERS[layer_ind]['in_prev'] = [False, False]
+		LAYERS[layer_ind]['in_prev'] = [False, in_prev1]
 		LAYERS[layer_ind]['additional_forward_args'] = [squeeze]
 		LAYERS[layer_ind]['additional_deriv_args'] = [[squeeze], [squeeze]]
 		
