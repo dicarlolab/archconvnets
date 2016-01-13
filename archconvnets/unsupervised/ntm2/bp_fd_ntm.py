@@ -11,7 +11,9 @@ N_FRAMES = 2
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
 
 F1_IND = find_layer(LAYERS, 'F1_lin')
+ERR_IND = find_layer(LAYERS, 'ERR')
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1])))
+set_buffer(2, WEIGHTS[ERR_IND][1]) # target
 
 ################ which gradient to test
 gradient_layer = find_layer(LAYERS, 'F3_lin')

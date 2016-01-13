@@ -11,7 +11,7 @@ free_all_buffers()
 ################ init save vars
 save_name = 'ntm_test'
 
-EPS = -1e-3
+EPS = -1e-2
 TIME_LENGTH = 3
 elapsed_time = 1000
 frame = 0
