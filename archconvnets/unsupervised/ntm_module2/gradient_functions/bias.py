@@ -33,3 +33,13 @@ def add_linear_F_bias_layer(LAYERS, name, n_filters, source=None, squeeze=False,
 	add_linear_F_layer(LAYERS, name+'_lin', n_filters, source, squeeze, random_function, init)
 	add_bias_layer(LAYERS, name, random_function, init)
 	
+def add_sigmoid_F_bias_layer(LAYERS, name, n_filters, source=None, squeeze=False, random_function=random_function, init=0):
+	add_linear_F_layer(LAYERS, name+'_lin', n_filters, source, squeeze, random_function, init)
+	add_bias_layer(LAYERS, name+'_b', random_function, init)
+	add_sigmoid_layer(LAYERS, name, init=init)
+	
+def add_relu_F_bias_layer(LAYERS, name, n_filters, source=None, squeeze=False, random_function=random_function, init=0):
+	add_linear_F_layer(LAYERS, name+'_lin', n_filters, source, squeeze, random_function, init)
+	add_bias_layer(LAYERS, name+'_b', random_function, init)
+	add_relu_layer(LAYERS, name, init=init)
+	

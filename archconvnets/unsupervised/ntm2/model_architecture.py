@@ -9,16 +9,19 @@ def init_model():
 
 	mem_shape = (N_MEM_SLOTS, M_LENGTH)
 
-	N_F1 = 12
-	N_F2 = 7
-	N_F3 = 9
+	U_F1 = 12
+	U_F2 = 7
+	U_F3 = 9
+	
+	A_F1 = 4
+	A_F2 = 7
 	HEAD_INPUT = 'F3'
 
 	for init in [0,1]:
 		# below
-		add_linear_F_bias_layer(LAYERS, 'F1', N_F1, (2, 1), init=init)
-		add_linear_F_bias_layer(LAYERS, 'F2', N_F2, init=init)
-		add_linear_F_bias_layer(LAYERS, HEAD_INPUT, N_F3, init=init)
+		add_linear_F_bias_layer(LAYERS, 'F1', U_F1, (2, 1), init=init)
+		add_linear_F_bias_layer(LAYERS, 'F2', U_F2, init=init)
+		add_linear_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
 		
 		for RW in ['R', 'W']:
 			# content
@@ -29,8 +32,7 @@ def init_model():
 			add_softmax_layer(LAYERS, RW+'_CONTENT_SM', init=init)
 			
 			# interpolate
-			add_linear_F_bias_layer(LAYERS, RW+'_IN_GATE_PRE', N_CONTROLLERS, HEAD_INPUT, init=init)
-			add_sigmoid_layer(LAYERS, RW+'_IN_GATE', init=init)
+			add_sigmoid_F_bias_layer(LAYERS, RW+'_IN_GATE', N_CONTROLLERS, HEAD_INPUT, init=init)
 			add_interpolate_layer(LAYERS, RW+'_IN_PRE', [RW+'_IN_GATE', RW+'_CONTENT_SM', RW+'_F-'], init=init)
 			add_softmax_layer(LAYERS, RW+'_IN', init=init)
 			
@@ -40,17 +42,13 @@ def init_model():
 			add_shift_w_layer(LAYERS, RW+'_SHIFTED', [RW+'_SHIFT', RW+'_IN'], init=init)
 			
 			# sharpen
-			add_linear_F_bias_layer(LAYERS, RW+'_GAMMA_PRE', N_CONTROLLERS, HEAD_INPUT, init=init)
-			add_relu_layer(LAYERS, RW+'_GAMMA', init=init)
+			add_relu_F_bias_layer(LAYERS, RW+'_GAMMA', N_CONTROLLERS, HEAD_INPUT, init=init)
 			add_sharpen_layer(LAYERS, RW+'_F', [RW+'_SHIFTED', RW+'_GAMMA'], init=init)
 		
 		##### write
 		# erase/add output
-		add_linear_F_bias_layer(LAYERS, 'ERASE_PRE', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)
-		add_sigmoid_layer(LAYERS, 'ERASE', init=init)
-		
-		add_linear_F_bias_layer(LAYERS, 'ADD_PRE', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)
-		add_sigmoid_layer(LAYERS, 'ADD', init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'ERASE', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'ADD', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)
 		
 		add_dotT_layer(LAYERS, 'ERASE_HEAD', ['W_F', 'ERASE'], init=init)
 		add_dotT_layer(LAYERS, 'ADD_HEAD', ['W_F', 'ADD'], init=init)
@@ -63,6 +61,11 @@ def init_model():
 		##### read
 		add_linear_F_bias_layer(LAYERS, 'READ_MEM', N_CONTROLLERS, 'R_F', 'MEM-', init=init)
 		
+		
+		## above
+		add_relu_F_bias_layer(LAYERS, 'A_F1', A_F1, init=init)
+		add_linear_F_bias_layer(LAYERS, 'A_F2', A_F2, init=init)
+		
 		add_sq_points_layer(LAYERS, 'SQ', init=init)
 		add_sum_layer(LAYERS, 'SUM', init=init)
 
@@ -74,3 +77,4 @@ def init_model():
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
 	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS
+

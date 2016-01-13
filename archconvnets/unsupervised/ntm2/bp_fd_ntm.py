@@ -11,11 +11,7 @@ N_FRAMES = 2
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
 
 F1_IND = find_layer(LAYERS, 'F1_lin')
-
-
-
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1])))
-
 
 ################ which gradient to test
 gradient_layer = find_layer(LAYERS, 'F3_lin')
@@ -75,7 +71,7 @@ def g(y):
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e7#6
+eps = np.sqrt(np.finfo(np.float).eps)*1e6#6
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
