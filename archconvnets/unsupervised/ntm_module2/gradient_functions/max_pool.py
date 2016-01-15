@@ -75,10 +75,11 @@ def max_pool_dinput(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[0], gpu_i
 	return OUT_BUFFER
 
 
-'''def add_sharpen_layer(LAYERS, name, source, init=0):
+# source = None: source is previous layer
+# source = -1: source is user-supplied
+# source = str: source is another layer
+def add_max_pool_layer(LAYERS, name, init=0):
 	assert isinstance(name, str)
-	assert isinstance(source, list)
-	assert len(source) == 2
 	
 	if init == 0:
 		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
@@ -87,24 +88,24 @@ def max_pool_dinput(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[0], gpu_i
 	else:
 		layer_ind = find_layer(LAYERS, name)
 		assert layer_ind is not None, 'layer %s has not already been added' % name
+		assert layer_ind >= 0
 		
-		in_shape = [None]*2
+		in_shape = LAYERS[layer_ind-1]['out_shape']
 		
-		source[0] = find_layer(LAYERS, source[0])
-		assert source[0] is not None, 'could not find source layer 0'
+		# empirically determine output shape
+		IMGS_temp = init_buffer(np.zeros(in_shape, dtype='single'))
 		
-		if isinstance(source[1],int) != True and source[1] != -1:
-			source[1] = find_layer(LAYERS, source[1])
+		O = max_pool((IMGS_temp,))
+		out_shape = copy.deepcopy(O[1])
 		
-		in_shape[0] = LAYERS[source[0]]['out_shape']
-		in_shape[1] = (in_shape[0][0], 1)
+		free_buffer(O)
+		free_buffer(IMGS_temp)
 		
-		LAYERS[layer_ind]['forward_F'] = sharpen
-		LAYERS[layer_ind]['out_shape'] = LAYERS[source[0]]['out_shape']
-		LAYERS[layer_ind]['in_shape'] = in_shape
-		LAYERS[layer_ind]['in_source'] = source
-		LAYERS[layer_ind]['deriv_F'] = [sharpen_dw, sharpen_dgamma]
-		LAYERS[layer_ind]['in_prev'] = [False, False]
+		LAYERS[layer_ind]['forward_F'] = max_pool
+		LAYERS[layer_ind]['out_shape'] = out_shape
+		LAYERS[layer_ind]['in_shape'] = [in_shape]
+		LAYERS[layer_ind]['in_source'] = [layer_ind-1]
+		LAYERS[layer_ind]['deriv_F'] = [max_pool_dinput]
+		LAYERS[layer_ind]['in_prev'] = [False]
 		
 		return layer_ind
-'''
