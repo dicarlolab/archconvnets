@@ -268,4 +268,5 @@ from gradient_functions.sq_points import *
 from gradient_functions.dotT import *
 from gradient_functions.mult_points import *
 from gradient_functions.bias import *
+from gradient_functions.conv import *
 

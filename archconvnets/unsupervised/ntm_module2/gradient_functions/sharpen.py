@@ -4,37 +4,6 @@ from archconvnets.unsupervised.ntm_module2.ntm_module2 import *
 from archconvnets.unsupervised.ntm2.gpu_flag import *
 from archconvnets.unsupervised.ntm2.ntm_core import *
 
-def sharpen_test(args, OUT_BUFFER=None, gpu_ind=0):
-	assert isinstance(gpu_ind,int)
-	W, GAMMA = args
-	check_buffer(W)
-	check_buffer(GAMMA)
-	assert len(GAMMA[1]) == len(W[1]) == 2
-	assert GAMMA[1][0] == W[1][0]
-	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-	else:
-		OUT_BUFFER = init_buffer()
-	
-	_ntm_module2.sharpen(W[0], W[1], GAMMA[0], OUT_BUFFER[0], gpu_ind)
-	
-	####### CPU
-	w = return_buffer(W,gpu_ind)
-	gamma = return_buffer(GAMMA,gpu_ind)
-	
-	assert np.min(w) >= 0
-	
-	wg = w ** gamma
-	z = wg / wg.sum(1)[:,np.newaxis]
-		
-	OUT_BUFFER[1] = copy.deepcopy(W[1])
-	z2 = return_buffer(OUT_BUFFER)
-	
-	print np.isclose(z, z2).sum()/np.single(np.prod(z.shape))
-		
-	return OUT_BUFFER
-
 ############# sharpen across mem_slots separately for each controller
 # w: [dim1, dim0]
 # gamma: [dim1, 1]

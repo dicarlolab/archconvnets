@@ -84,7 +84,7 @@ static PyObject *conv_dfilter_buffers(PyObject *self, PyObject *args)  {
 		printf("%i %i\n", n_filters_out, data_dims[1][gpu_ind][conv_out_ind]);
 		printf("%i %i\n", conv_out_sz_x, data_dims[2][gpu_ind][conv_out_ind]);
 		printf("%i %i\n", conv_out_sz_y, data_dims[3][gpu_ind][conv_out_ind]);
-		return NULL;
+		//return NULL;
 	}
 	
 	//--------------------------------------

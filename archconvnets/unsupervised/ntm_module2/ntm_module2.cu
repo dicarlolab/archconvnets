@@ -44,6 +44,9 @@
 #include "gradient_functions/mult_points.c"
 #include "gradient_functions/mult_points_dinput.c"
 #include "gradient_functions/point_wise_div_sqrt.c"
+#include "gradient_functions/conv.c"
+#include "gradient_functions/conv_ddata.c"
+#include "gradient_functions/conv_dfilter.c"
 
 static PyMethodDef _ntm_module2[] = {
 	{"sync", sync, METH_VARARGS},
@@ -90,6 +93,9 @@ static PyMethodDef _ntm_module2[] = {
 	{"mult_points", mult_points, METH_VARARGS},
 	{"mult_points_dinput", mult_points_dinput, METH_VARARGS},
 	{"point_wise_div_sqrt", point_wise_div_sqrt, METH_VARARGS},
+	{"conv", conv, METH_VARARGS},
+	{"conv_ddata", conv_ddata, METH_VARARGS},
+	{"conv_dfilter", conv_dfilter, METH_VARARGS},
 	{NULL, NULL}
 };
 
@@ -97,11 +103,28 @@ extern "C" void init_ntm_module2(){
 	(void) Py_InitModule("_ntm_module2", _ntm_module2);
 	import_array();
 	
+	cudnnStatus_t status;
+	status = cudnnCreate(&handle);  ERR_CHECK_R
+	
 	/////////////////////////////////////////////////////////
 	for(int gpu_ind = 0; gpu_ind < N_GPUS; gpu_ind++){
 		for(int buffer_ind = 0; buffer_ind < N_BUFFERS; buffer_ind++){
 			GPU_BUFFER = NULL;
 			BUFFER_SZ = 0;
+			
+			//---------------------------------------
+			// Create general Descriptors
+			//---------------------------------------
+			status = cudnnCreateTensor4dDescriptor(&srcDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
+			status = cudnnCreateTensor4dDescriptor(&gradDesc_data[gpu_ind][buffer_ind]);  ERR_CHECK_R
+			status = cudnnCreateTensor4dDescriptor(&destDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
+			status = cudnnCreateFilterDescriptor(&filterDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
+			status = cudnnCreateFilterDescriptor(&gradDesc_filter[gpu_ind][buffer_ind]);  ERR_CHECK_R
+			status = cudnnCreateConvolutionDescriptor(&convDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
+			
+			//status = cudnnCreatePoolingDescriptor(&poolingDesc);  ERR_CHECK_R
+			//status = cudnnCreateTensor4dDescriptor(&srcDiffDesc);  ERR_CHECK_R
+			//status = cudnnCreateTensor4dDescriptor(&destDiffDesc);  ERR_CHECK_R
 		}
 	}
     

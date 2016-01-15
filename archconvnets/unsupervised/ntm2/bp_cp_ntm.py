@@ -137,25 +137,12 @@ while True:
 		
 		t_start = time.time()
 		
-	'''# write
-	if frame % WRITE_FREQ == 0:
-		print 'writing', save_name
-		#####
-		
-		file = open('/home/darren/ntm_saves/' + save_name + '_' + str(n_saves) + '.pk','w')
-		pk.dump({'WR': WR, 'BR': BR, 'WW': WW, 'BW': BW, 'WUNDER': WUNDER, 'BUNDER': BUNDER, 'frame': frame, \
-			'EPS_BABOVE': EPS_BABOVE, 'EPS_WABOVE': EPS_WABOVE, 'WABOVE': WABOVE, 'BABOVE': BABOVE,\
-			'EPS_BR': EPS_BR, 'EPS_WW': EPS_WW, 'EPS_WR': EPS_WR, 'EPS_BUNDER': EPS_BUNDER, 'EPS_WUNDER': EPS_WUNDER}, file)
-		file.close()
-		
-		n_saves += 1'''
-		
 	frame += 1
 	elapsed_time += 1
 	if frame == STOP_POINT:
 		print 'stopping'
-	if frame == (STOP_POINT + 3*SAVE_FREQ):
-		break
+	#if frame == (STOP_POINT + 3*SAVE_FREQ):
+	#	break
 
 free_list_list(MEM_DERIVS)
 free_partials(PARTIALS_PREV)

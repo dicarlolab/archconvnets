@@ -32,7 +32,7 @@ static PyObject *conv_ddata_buffers(PyObject *self, PyObject *args)  {
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	cudnnSetStream(handle, streams[gpu_ind]);
     
-    int n_imgs = data_dims[0][gpu_ind][imgs_ind];
+	int n_imgs = data_dims[0][gpu_ind][conv_out_ind];
 	int n_channels = data_dims[1][gpu_ind][imgs_ind];
 	int img_sz = data_dims[2][gpu_ind][imgs_ind];
 	
@@ -66,7 +66,7 @@ static PyObject *conv_ddata_buffers(PyObject *self, PyObject *args)  {
     int n_imgs_out, n_filters_out, conv_out_sz_x, conv_out_sz_y;
 	status = cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_FWD, &n_imgs_out, &n_filters_out, &conv_out_sz_x, &conv_out_sz_y);    ERR_CHECK
 
-	if(n_imgs_out*n_filters_out*conv_out_sz_x*conv_out_sz_x != data_dims[0][gpu_ind][conv_out_ind]*data_dims[1][gpu_ind][conv_out_ind]*
+	/*if(n_imgs_out*n_filters_out*conv_out_sz_x*conv_out_sz_x != data_dims[0][gpu_ind][conv_out_ind]*data_dims[1][gpu_ind][conv_out_ind]*
 		data_dims[2][gpu_ind][conv_out_ind]*data_dims[3][gpu_ind][conv_out_ind]){
 		printf("predicted conv output not matching given input %s %i\n", __FILE__, __LINE__);
 		printf("%i %i\n", n_imgs_out*n_filters_out*conv_out_sz_x*conv_out_sz_x, data_dims[0][gpu_ind][conv_out_ind]*data_dims[1][gpu_ind][conv_out_ind]*
@@ -76,7 +76,7 @@ static PyObject *conv_ddata_buffers(PyObject *self, PyObject *args)  {
 		printf("%i %i\n", conv_out_sz_x, data_dims[2][gpu_ind][conv_out_ind]);
 		printf("%i %i\n", conv_out_sz_y, data_dims[3][gpu_ind][conv_out_ind]);
 		return NULL;
-	}
+	}*/
     
 	
 	//--------------------------------------
