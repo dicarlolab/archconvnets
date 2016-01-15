@@ -72,12 +72,6 @@ static PyObject * conv_ddata(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
-	PyObject *tuple = PyTuple_New(4);
-	if(NULL == tuple) return NULL;
-	if(-1 == PyTuple_SetItem(tuple, 0, Py_BuildValue("i", n_imgs_out))) return NULL;
-	if(-1 == PyTuple_SetItem(tuple, 1, Py_BuildValue("i", n_channels))) return NULL;
-	if(-1 == PyTuple_SetItem(tuple, 2, Py_BuildValue("i", img_sz))) return NULL;
-	if(-1 == PyTuple_SetItem(tuple, 3, Py_BuildValue("i", img_sz))) return NULL;
-	
-	return tuple;
+	Py_INCREF(Py_None);
+	return Py_None;
 }

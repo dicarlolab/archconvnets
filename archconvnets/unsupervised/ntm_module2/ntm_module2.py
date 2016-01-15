@@ -229,26 +229,32 @@ def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True], gpu_ind=0):
 	
 	check_buffer(OUT_BUFFER)
 	assert len(BUFFER1[1]) >= 2
-	assert len(BUFFER2[1]) == 2
-	assert BUFFER1[1][-1] == BUFFER2[1][0]
+	assert len(BUFFER2[1]) == 2 or len(BUFFER2[1]) == 4
 	assert OUT_BUFFER[0] != BUFFER1[0]
 	assert OUT_BUFFER[0] != BUFFER2[0]
 	assert (OUT_BUFFER[1] is not None) or increment == 0
+	
+	# if source is a conv layer (4D input), sum across everything
+	BUFFER2_reshaped = copy.deepcopy(BUFFER2)
+	if len(BUFFER2[1]) == 4:
+		BUFFER2_reshaped[1] = (np.prod(BUFFER2[1]), 1)
+	
+	assert BUFFER1[1][-1] == BUFFER2_reshaped[1][0]
 	
 	if GPU:
 		# reshape buffer1 into two dimensions:
 		# (a,b,c,d,e) -> (a*b*c*d, e)
 		BUFFER1_new_shape = (np.prod(BUFFER1[1][:len(BUFFER1[1])-1]), BUFFER1[1][-1])
 		
-		_ntm_module2.dot(BUFFER1[0], BUFFER1_new_shape, BUFFER2[0], BUFFER2[1], OUT_BUFFER[0], increment, gpu_ind)
+		_ntm_module2.dot(BUFFER1[0], BUFFER1_new_shape, BUFFER2[0], BUFFER2_reshaped[1], OUT_BUFFER[0], increment, gpu_ind)
 	else:
 		######### CPU
 		F = return_buffer(BUFFER1, gpu_ind)
-		x = return_buffer(BUFFER2, gpu_ind)
+		x = return_buffer(BUFFER2_reshaped, gpu_ind)
 		temp = np.asarray(np.dot(F,x),dtype='single') # [n1, 1]
 		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(BUFFER1[1][:len(BUFFER1[1])-1]), np.asarray(BUFFER2[1][1])[np.newaxis])))	
+	OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(BUFFER1[1][:len(BUFFER1[1])-1]), np.asarray(BUFFER2_reshaped[1][1])[np.newaxis])))	
 	if additional_args[0] and OUT_BUFFER[1][-1] == 1: # squeeze
 		OUT_BUFFER[1] = OUT_BUFFER[1][:len(OUT_BUFFER[1])-1]
 	return OUT_BUFFER

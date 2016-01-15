@@ -115,11 +115,14 @@ def conv_dfilter(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[0], gpu_ind=
 	
 	return OUT_BUFFER
 	
-'''
-def add_sharpen_layer(LAYERS, name, source, init=0):
+
+# source = None: source is previous layer
+# source = -1: source is user-supplied
+# source = str: source is another layer
+def add_conv_layer(LAYERS, name, n_filters, filter_sz, source=None, imgs_shape=None, random_function=random_function, init=0):
+	assert isinstance(n_filters, int)
+	assert isinstance(filter_sz, int)
 	assert isinstance(name, str)
-	assert isinstance(source, list)
-	assert len(source) == 2
 	
 	if init == 0:
 		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
@@ -130,22 +133,42 @@ def add_sharpen_layer(LAYERS, name, source, init=0):
 		assert layer_ind is not None, 'layer %s has not already been added' % name
 		
 		in_shape = [None]*2
+		source_meta = [None]*2
 		
-		source[0] = find_layer(LAYERS, source[0])
-		assert source[0] is not None, 'could not find source layer 0'
+		source_meta[0] = random_function
 		
-		if isinstance(source[1],int) != True and source[1] != -1:
+		if source is None: # previous layer
+			source_meta[1] = layer_ind-1
+			in_shape[1] = LAYERS[layer_ind-1]['out_shape']
+		elif source == -1: # user supplied
+			source_meta[1] = -1
+			in_shape[1] = imgs_shape
+			assert len(imgs_shape) == 4
+			assert imgs_shape[0] == 1
+		elif isinstance(source,str):
 			source[1] = find_layer(LAYERS, source[1])
+			assert source[1] is not None, 'could not find source conv inputs'
+			in_shape[1] = LAYERS[source[1]]['out_shape']
+
+		n_channels = in_shape[1][1]
+		in_shape[0] = (n_filters, n_channels, filter_sz, filter_sz)
 		
-		in_shape[0] = LAYERS[source[0]]['out_shape']
-		in_shape[1] = (in_shape[0][0], 1)
+		# empirically determine output shape
+		F_temp = init_buffer(np.zeros(in_shape[0], dtype='single'))
+		IMGS_temp = init_buffer(np.zeros(in_shape[1], dtype='single'))
 		
-		LAYERS[layer_ind]['forward_F'] = sharpen
-		LAYERS[layer_ind]['out_shape'] = LAYERS[source[0]]['out_shape']
+		O = conv((F_temp, IMGS_temp))
+		out_shape = copy.deepcopy(O[1])
+		
+		free_buffer(O)
+		free_buffer(F_temp)
+		free_buffer(IMGS_temp)
+		
+		LAYERS[layer_ind]['forward_F'] = conv
+		LAYERS[layer_ind]['out_shape'] = out_shape
 		LAYERS[layer_ind]['in_shape'] = in_shape
-		LAYERS[layer_ind]['in_source'] = source
-		LAYERS[layer_ind]['deriv_F'] = [sharpen_dw, sharpen_dgamma]
+		LAYERS[layer_ind]['in_source'] = source_meta
+		LAYERS[layer_ind]['deriv_F'] = [conv_dfilter, conv_ddata]
 		LAYERS[layer_ind]['in_prev'] = [False, False]
 		
 		return layer_ind
-'''

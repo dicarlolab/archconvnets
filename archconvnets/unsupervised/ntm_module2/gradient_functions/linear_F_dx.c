@@ -3,16 +3,31 @@
 #define DLDX_SZ (F_dim0*x_dim1*x_dim0*x_dim1*sizeof(DATA_TYPE))
 #define F_SZ buffer_sz[gpu_ind][F_ind]
 
-__global__ void linear_F_dx_kernel(float * F, float * dldx, int x_dim0, int x_dim1){ 
-	int i = blockIdx.x;
-	int j = threadIdx.x;
+__global__ void linear_F_dx_kernel(float * F, float * dldx, int x_dim0, 
+		int x_dim1, int data_out_numel){ 
+	int i, j;
+	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
+	
+	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
+	int n_additional_duplicates = data_out_numel % THREAD_CAPACITY;
+	
+	int n_duplicates = min_duplicates_per_thread;
+	if(ind < n_additional_duplicates) n_duplicates++;
+	
+	unsigned ind_g;
+	for(int dup = 0; dup < n_duplicates; dup++){
+		ind_g = dup*THREAD_CAPACITY + ind;
+	
+		i = ind_g / x_dim0;
+		j = ind_g % x_dim0;
 
-	for(int k = 0; k < x_dim1; k++){
-		for(int k_local = 0; k_local < x_dim1; k_local++){
-			if(k_local == k)
-				DLDX(i,k,j,k_local) = FM(i,j);
-			else
-				DLDX(i,k,j,k_local) = 0;
+		for(int k = 0; k < x_dim1; k++){
+			for(int k_local = 0; k_local < x_dim1; k_local++){
+				if(k_local == k)
+					DLDX(i,k,j,k_local) = FM(i,j);
+				else
+					DLDX(i,k,j,k_local) = 0;
+			}
 		}
 	}
 	
@@ -64,8 +79,11 @@ static PyObject * linear_F_dx(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	linear_F_dx_kernel <<< F_dim0, x_dim0 >>> (gpu_buffers[gpu_ind][F_ind], 
-		gpu_buffers[gpu_ind][out_buffer_ind], x_dim0, x_dim1);
+	int n_blocks = (int)ceil((double)(F_dim0 * x_dim0)/MAX_THREADS_PER_BLOCK);
+	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
+	
+	linear_F_dx_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][F_ind], 
+		gpu_buffers[gpu_ind][out_buffer_ind], x_dim0, x_dim1, F_dim0 * x_dim0);
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
