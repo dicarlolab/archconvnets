@@ -269,4 +269,4 @@ from gradient_functions.dotT import *
 from gradient_functions.mult_points import *
 from gradient_functions.bias import *
 from gradient_functions.conv import *
-
+from gradient_functions.max_pool import *

@@ -47,7 +47,6 @@
 #define OUT_BUFFER_SZ buffer_sz[gpu_ind][out_buffer_ind]
 #define GPU_BUFFER_OUT gpu_buffers[gpu_ind][out_buffer_ind]
 
-// BUFFER_SZ: size of buffer in bytes
 
 #define DATA_TYPE_SZ sizeof(float)
 
@@ -63,3 +62,10 @@ cudnnConvolutionDescriptor_t convDesc[N_GPUS][N_BUFFERS];
 cudnnTensor4dDescriptor_t destDesc[N_GPUS][N_BUFFERS];
 cudnnTensor4dDescriptor_t gradDesc_data[N_GPUS][N_BUFFERS];
 cudnnFilterDescriptor_t gradDesc_filter[N_GPUS][N_BUFFERS];
+cudnnTensor4dDescriptor_t srcDiffDesc[N_GPUS][N_BUFFERS];
+cudnnTensor4dDescriptor_t destDiffDesc[N_GPUS][N_BUFFERS];
+
+cudnnPoolingDescriptor_t poolingDesc;
+
+#define POOL_WINDOW_SZ 3
+#define POOL_STRIDE 2

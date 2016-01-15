@@ -3,6 +3,8 @@ static PyObject *max_pool_back_cudnn_buffers(PyObject *self, PyObject *args)  {
 	cudnnStatus_t status;
 	int gpu_ind, src_ind, src_diff_ind, dest_ind, out_ind;
 	
+	// src = max output
+	// dest = conv output
 	if (!PyArg_ParseTuple(args, "iiiii", &src_ind, &src_diff_ind, &dest_ind, &out_ind, &gpu_ind)) 
 		return NULL;
 	

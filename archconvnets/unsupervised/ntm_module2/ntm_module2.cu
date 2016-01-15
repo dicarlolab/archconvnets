@@ -47,6 +47,8 @@
 #include "gradient_functions/conv.c"
 #include "gradient_functions/conv_ddata.c"
 #include "gradient_functions/conv_dfilter.c"
+#include "gradient_functions/max_pool.c"
+#include "gradient_functions/max_pool_dinput.c"
 
 static PyMethodDef _ntm_module2[] = {
 	{"sync", sync, METH_VARARGS},
@@ -96,6 +98,8 @@ static PyMethodDef _ntm_module2[] = {
 	{"conv", conv, METH_VARARGS},
 	{"conv_ddata", conv_ddata, METH_VARARGS},
 	{"conv_dfilter", conv_dfilter, METH_VARARGS},
+	{"max_pool", max_pool, METH_VARARGS},
+	{"max_pool_dinput", max_pool_dinput, METH_VARARGS},
 	{NULL, NULL}
 };
 
@@ -105,6 +109,10 @@ extern "C" void init_ntm_module2(){
 	
 	cudnnStatus_t status;
 	status = cudnnCreate(&handle);  ERR_CHECK_R
+	
+	status = cudnnCreatePoolingDescriptor(&poolingDesc);  ERR_CHECK_R
+	
+	status = cudnnSetPoolingDescriptor(poolingDesc, CUDNN_POOLING_MAX, POOL_WINDOW_SZ, POOL_WINDOW_SZ, POOL_STRIDE, POOL_STRIDE); ERR_CHECK_R
 	
 	/////////////////////////////////////////////////////////
 	for(int gpu_ind = 0; gpu_ind < N_GPUS; gpu_ind++){
@@ -121,10 +129,8 @@ extern "C" void init_ntm_module2(){
 			status = cudnnCreateFilterDescriptor(&filterDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
 			status = cudnnCreateFilterDescriptor(&gradDesc_filter[gpu_ind][buffer_ind]);  ERR_CHECK_R
 			status = cudnnCreateConvolutionDescriptor(&convDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
-			
-			//status = cudnnCreatePoolingDescriptor(&poolingDesc);  ERR_CHECK_R
-			//status = cudnnCreateTensor4dDescriptor(&srcDiffDesc);  ERR_CHECK_R
-			//status = cudnnCreateTensor4dDescriptor(&destDiffDesc);  ERR_CHECK_R
+			status = cudnnCreateTensor4dDescriptor(&srcDiffDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
+			status = cudnnCreateTensor4dDescriptor(&destDiffDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
 		}
 	}
     

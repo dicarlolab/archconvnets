@@ -4,7 +4,6 @@ from archconvnets.unsupervised.ntm_module2.ntm_module2 import *
 from archconvnets.unsupervised.ntm2.gpu_flag import *
 from archconvnets.unsupervised.ntm2.ntm_core import *
 
-############# sharpen across mem_slots separately for each controller
 # additional_args= [PAD]
 def conv(args, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
