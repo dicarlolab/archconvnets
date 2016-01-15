@@ -8,7 +8,10 @@ def init_model():
 	M_LENGTH = 8
 
 	mem_shape = (N_MEM_SLOTS, M_LENGTH)
-
+	
+	U_F1_FILTER_SZ = 3
+	U_F2_FILTER_SZ = 3
+	
 	U_F1 = 12
 	U_F2 = 7
 	U_F3 = 9
@@ -19,8 +22,10 @@ def init_model():
 
 	for init in [0,1]:
 		# below
-		add_linear_F_bias_layer(LAYERS, 'F1', U_F1, (2, 1), init=init)
-		add_linear_F_bias_layer(LAYERS, 'F2', U_F2, init=init)
+		add_conv_layer(LAYERS, 'F1', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(1,2,12,12), init=init)
+		add_max_pool_layer(LAYERS, 'F1_MAX', init=init)
+		add_conv_layer(LAYERS, 'F2', U_F2, U_F2_FILTER_SZ, init=init)
+		add_max_pool_layer(LAYERS, 'F2_MAX', init=init)
 		add_linear_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
 		
 		for RW in ['R', 'W']:
