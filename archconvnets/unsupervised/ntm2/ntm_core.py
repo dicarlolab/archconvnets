@@ -49,7 +49,9 @@ def check_network(LAYERS):
 				OUT = L['deriv_F'][arg](args, LAYER_OUT, additional_args=L['additional_deriv_args'][arg])
 			else:
 				OUT = L['deriv_F'][arg](args, LAYER_OUT)
+			
 			assert OUT[1] == expected_shape, 'deriv not expected size (layer %s, arg %i)' % (L['name'], arg)
+			
 			free_buffer(OUT)
 		free_buffer(LAYER_OUT)
 		

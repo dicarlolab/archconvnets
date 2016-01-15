@@ -46,7 +46,7 @@ def linear_F_dx(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_in
 		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
 	
 	#### forward out shape:
-	forward_shape = tuple(np.concatenate((np.asarray(F_new_shape[1][:len(F_new_shape[1])-1]), np.asarray(X_reshaped[1][1])[np.newaxis])))	
+	forward_shape = tuple(np.concatenate((np.asarray(F[1][:len(F[1])-1]), np.asarray(X_reshaped[1][1])[np.newaxis])))	
 	if additional_args[0] and forward_shape[-1] == 1: # squeeze
 		forward_shape = forward_shape[:len(forward_shape)-1]
 	###
@@ -94,7 +94,7 @@ def linear_F_dF(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_in
 		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
 		
 	#### forward out shape:
-	forward_shape = tuple(np.concatenate((np.asarray(F_new_shape[1][:len(F_new_shape[1])-1]), np.asarray(X_reshaped[1][1])[np.newaxis])))	
+	forward_shape = tuple(np.concatenate((np.asarray(F[1][:len(F[1])-1]), np.asarray(X_reshaped[1][1])[np.newaxis])))	
 	if additional_args[0] and forward_shape[-1] == 1: # squeeze
 		forward_shape = forward_shape[:len(forward_shape)-1]
 	###
