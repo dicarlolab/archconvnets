@@ -22,25 +22,37 @@ def sum_points(args, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = (1,)
 	return OUT_BUFFER
 
-def sum_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def sum_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, gpu_ind=0):
 	assert len(args) == 1
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
 	POINTS = args[0]
 	check_buffer(POINTS)
 	check_buffer(LAYER_OUT)
+	check_buffer(DERIV_ABOVE)
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
 	
-	if GPU:
-		_ntm_module3.sum_points_dinput(POINTS[0], np.prod(POINTS[1]), OUT_BUFFER[0], gpu_ind)
-	else:
-		######### CPU
-		temp = np.ones(tuple(np.concatenate(((1,), args[0][1]))),dtype='single')
-		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
-		
-	OUT_BUFFER[1] = tuple(np.concatenate(((1,), POINTS[1])))
+	points = return_buffer(POINTS)
+	deriv_above = return_buffer(DERIV_ABOVE)
+	
+	DERIV_ABOVE_shape = DERIV_ABOVE[1]
+	POINTS_shape = POINTS[1]
+	
+	# DERIV_ABOVE: (a,b,c, 1)
+	# LAYER_OUT: (1)
+	# n_dims_not_summed: a,b,c
+	# POINTS: (g,h,i,j)	
+	
+	# exclude/sume over layer_output dimension:
+	dims_keep = np.concatenate((range(deriv_above.ndim - 1),  deriv_above.ndim + np.arange(points.ndim)))
+	
+	output = np.einsum(deriv_above, range(deriv_above.ndim), np.ones_like(points), deriv_above.ndim + np.arange(points.ndim), dims_keep)
+	
+	OUT_BUFFER = set_buffer(output, OUT_BUFFER)
+	
 	return OUT_BUFFER
 	
 def add_sum_layer(LAYERS, name, source=None, init=0):

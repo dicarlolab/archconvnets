@@ -111,12 +111,7 @@ def conv_dfilter(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=
 		assert False, 'cpu conv not supported'
 	
 	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dims_not_summed], F[1])))
-	'''print 'OUT_BUFFER[1]', OUT_BUFFER[1]
-	print 'F[1]', F[1]
-	print 'DERIV_ABOVE[1]', DERIV_ABOVE[1]
-	print 'DERIV_ABOVE_reshaped[1]', DERIV_ABOVE_reshaped[1]
-	print 'n_dims_not_summed', n_dims_not_summed
-	print 'LAYER_OUT[1]', LAYER_OUT[1]'''
+	
 	check_buffer(OUT_BUFFER)
 	
 	return OUT_BUFFER

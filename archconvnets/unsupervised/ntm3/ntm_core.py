@@ -179,51 +179,42 @@ def zero_buffer_list(WEIGHTS):
 			if WEIGHTS[layer_ind][arg] is not None:
 				zero_buffer(WEIGHTS[layer_ind][arg])
 
-# compute derivs at each layer
-def local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS):
-	check_output_prev(OUTPUT_PREV, LAYERS)
-	LOCAL_DERIVS = init_gpu_list(LOCAL_DERIVS, LAYERS)
-	
-	for layer_ind in range(len(LAYERS)):
-		L = LAYERS[layer_ind]
-		N_ARGS = len(L['in_shape'])
-		
-		args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
-		
-		for arg in range(N_ARGS):
-			if 'additional_forward_args' in L:
-				L['deriv_F'][arg](args, OUTPUT[layer_ind], LOCAL_DERIVS[layer_ind][arg], additional_args=L['additional_deriv_args'][arg])
-			else:
-				L['deriv_F'][arg](args, OUTPUT[layer_ind], LOCAL_DERIVS[layer_ind][arg])
-	return LOCAL_DERIVS
-
 # apply chain-rule down the network
-def reverse_network(layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims=False): # multiply all partials together
+def reverse_network(layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims=False): # multiply all partials together
 	# compute partials starting from single layer
 	if isinstance(layer_ind,int):
 		WEIGHT_DERIVS = init_gpu_list(WEIGHT_DERIVS, LAYERS)
 		zero_buffer_list(WEIGHT_DERIVS)
 
-		WEIGHT_DERIVS = reverse_network_recur(None, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims)
+		WEIGHT_DERIVS = reverse_network_recur(None, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims)
 	# compute partials from multiple layers, store result in a list
 	else:
 		for i in range(len(layer_ind)):
 			WEIGHT_DERIVS[i] = init_gpu_list(WEIGHT_DERIVS[i], LAYERS)
 			zero_buffer_list(WEIGHT_DERIVS[i])
 
-			WEIGHT_DERIVS[i] = reverse_network_recur(None, layer_ind[i], LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS[i], keep_dims)
+			WEIGHT_DERIVS[i] = reverse_network_recur(None, layer_ind[i], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS[i], keep_dims)
 	return WEIGHT_DERIVS
 
-def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims): # multiply all partials together
+def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims): # multiply all partials together
 	L = LAYERS[layer_ind]
 	N_ARGS = len(L['in_shape'])
 	
-	for arg in range(N_ARGS):
-		if deriv_above is None:
-			deriv_above_new = LOCAL_DERIVS[layer_ind][arg]
-		else:
-			deriv_above_new = mult_partials(deriv_above, LOCAL_DERIVS[layer_ind][arg], LAYERS[layer_ind]['out_shape'])
+	if deriv_above is None:
+		deriv_above = init_buffer(np.ones(np.concatenate((LAYERS[layer_ind]['out_shape'], LAYERS[layer_ind]['out_shape'])), dtype='single'))
+	
+	for arg in range(N_ARGS):		
 		src = L['in_source'][arg]
+		
+		############ compute derivs
+		args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
+		if 'additional_forward_args' in L:
+			deriv_above_new = L['deriv_F'][arg](args, OUTPUT[layer_ind], deriv_above, additional_args=L['additional_deriv_args'][arg])
+		else:
+			deriv_above_new = L['deriv_F'][arg](args, OUTPUT[layer_ind], deriv_above)
+		
+		#print deriv_above_new[1], deriv_above[1], layer_ind, arg
+		#deriv_above_new = 
 		
 		# input is a layer:
 		if isinstance(src, int) and src != -1:
@@ -244,7 +235,7 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 					
 			# another layer (At this time step, go back to earlier layers)
 			else: 
-				reverse_network_recur(deriv_above_new, src, LAYERS, LOCAL_DERIVS, PARTIALS, WEIGHT_DERIVS, keep_dims)
+				reverse_network_recur(deriv_above_new, src, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims)
 		
 		# input is not a layer, end here
 		else:
@@ -253,8 +244,7 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, LOCAL_DERIVS, PARTIALS
 				assert WEIGHT_DERIVS[layer_ind][arg][1][0] == 1
 				WEIGHT_DERIVS[layer_ind][arg][1] = tuple(WEIGHT_DERIVS[layer_ind][arg][1][1:])
 		
-		if deriv_above is not None:
-			free_buffer(deriv_above_new)
+	free_buffer(deriv_above)
 	return WEIGHT_DERIVS
 
 def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
