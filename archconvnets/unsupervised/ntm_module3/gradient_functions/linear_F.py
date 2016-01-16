@@ -7,7 +7,8 @@ from archconvnets.unsupervised.ntm3.ntm_core import *
 def random_function(size):
 	return np.asarray(np.random.random(size) - .5, dtype='single')
 
-def linear_F_dx(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
+# additional_args = [True]: squeeze output last dimension
+def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	F, X = args
 	check_buffer(F)
@@ -16,6 +17,7 @@ def linear_F_dx(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_in
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
+	check_buffer(DERIV_ABOVE)
 	assert len(F[1]) >= 2
 	assert len(X[1]) == 2 or len(X[1]) == 4
 	
@@ -34,8 +36,10 @@ def linear_F_dx(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_in
 	F_dim0, F_dim1 = F_new_shape[1]
 	X_dim0, X_dim1 = X_reshaped[1]
 	
+	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	
 	if GPU:
-		_ntm_module3.linear_F_dx(F_new_shape[0], X_reshaped[1], F_new_shape[1], OUT_BUFFER[0], gpu_ind)
+		_ntm_module3.linear_F_dx(F_new_shape[0], X_reshaped[1], F_new_shape[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	else: 
 		############ CPU
 		f = return_buffer(F_new_shape, gpu_ind)
@@ -43,7 +47,7 @@ def linear_F_dx(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_in
 		n = x.shape[1]
 		temp = np.zeros((f.shape[0], n, x.shape[0], n),dtype='single')
 		temp[:,range(n),:,range(n)] = f
-		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER_TEMP = set_buffer(temp, OUT_BUFFER_TEMP, gpu_ind)
 	
 	#### forward out shape:
 	forward_shape = tuple(np.concatenate((np.asarray(F[1][:len(F[1])-1]), np.asarray(X_reshaped[1][1])[np.newaxis])))	
@@ -51,11 +55,16 @@ def linear_F_dx(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_in
 		forward_shape = forward_shape[:len(forward_shape)-1]
 	###
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((forward_shape, np.asarray(X[1]))))
+	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((forward_shape, np.asarray(X[1]))))
+	check_buffer(OUT_BUFFER_TEMP)
+	
+	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
+	free_buffer(OUT_BUFFER_TEMP)
 	
 	return OUT_BUFFER
 
-def linear_F_dF(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
+# additional_args = [True]: squeeze output last dimension
+def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	F, X = args
 	check_buffer(F)
@@ -64,6 +73,7 @@ def linear_F_dF(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_in
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
+	check_buffer(DERIV_ABOVE)
 	assert len(F[1]) >= 2
 	assert len(X[1]) == 2 or len(X[1]) == 4
 	
@@ -82,8 +92,10 @@ def linear_F_dF(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_in
 	F_dim0, F_dim1 = F_new_shape[1]
 	X_dim0, X_dim1 = X_reshaped[1]
 	
+	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	
 	if GPU:
-		_ntm_module3.linear_F_dF(X_reshaped[0], X_reshaped[1], F_new_shape[1], OUT_BUFFER[0], gpu_ind)
+		_ntm_module3.linear_F_dF(X_reshaped[0], X_reshaped[1], F_new_shape[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	else:
 		############ CPU
 		f = return_buffer(F_new_shape, gpu_ind)
@@ -91,7 +103,7 @@ def linear_F_dF(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_in
 		n = f.shape[0]
 		temp = np.zeros((n, x.shape[1], n, f.shape[1]),dtype='single')
 		temp[range(n),:,range(n)] = x.T
-		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER_TEMP = set_buffer(temp, OUT_BUFFER_TEMP, gpu_ind)
 		
 	#### forward out shape:
 	forward_shape = tuple(np.concatenate((np.asarray(F[1][:len(F[1])-1]), np.asarray(X_reshaped[1][1])[np.newaxis])))	
@@ -99,7 +111,11 @@ def linear_F_dF(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[True], gpu_in
 		forward_shape = forward_shape[:len(forward_shape)-1]
 	###
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((forward_shape, np.asarray(F[1]))))
+	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((forward_shape, np.asarray(F[1]))))
+	check_buffer(OUT_BUFFER_TEMP)
+	
+	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
+	free_buffer(OUT_BUFFER_TEMP)
 	
 	return OUT_BUFFER
 	
