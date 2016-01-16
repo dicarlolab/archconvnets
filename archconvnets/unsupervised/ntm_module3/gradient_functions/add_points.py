@@ -31,7 +31,7 @@ def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=0):
 	OUT_BUFFER[1] = copy.deepcopy(B[1])
 	return OUT_BUFFER
 
-def add_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[1], gpu_ind=0):
+def add_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[1], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	assert len(additional_args) == 1
 	scalar = additional_args[0]
@@ -39,23 +39,33 @@ def add_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, additional_args=[1], gpu
 	check_buffer(A)
 	check_buffer(B)
 	check_buffer(LAYER_OUT)
+	check_buffer(DERIV_ABOVE)
 	assert A[1] == B[1]
+	assert len(A[1]) == 2 or len(A[1]) == 4
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
 	
+	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	
 	if GPU:
-		_ntm_module3.add_points_dinput(A[1], OUT_BUFFER[0], np.single(scalar), gpu_ind)
+		_ntm_module3.add_points_dinput((np.prod(A[1]), 1), OUT_BUFFER_TEMP[0], np.single(scalar), gpu_ind)
 	else:
 		######### CPU
 		out = np.zeros(np.concatenate((args[0][1], args[0][1])), dtype='single')
 		for i in range(out.shape[0]):
 			out[i,range(out.shape[1]),i,range(out.shape[1])] = scalar
-		OUT_BUFFER = set_buffer(out, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER_TEMP = set_buffer(out, OUT_BUFFER_TEMP, gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((A[1], A[1])))
+	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((A[1], A[1])))
+	check_buffer(OUT_BUFFER_TEMP)
+	
+	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
+	free_buffer(OUT_BUFFER_TEMP)
+	
 	return OUT_BUFFER
+	
 	
 # c = a + scalar*b
 def add_add_layer(LAYERS, name, source, scalar=1, init=0):

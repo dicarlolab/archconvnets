@@ -25,6 +25,11 @@ def init_model():
 		add_conv_layer(LAYERS, 'F1', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(1,2,6,6), init=init)
 		add_conv_layer(LAYERS, 'F2', U_F2, U_F2_FILTER_SZ, init=init)
 		
+		add_conv_layer(LAYERS, 'F11', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(1,2,6,6), init=init)
+		add_conv_layer(LAYERS, 'F22', U_F2, U_F2_FILTER_SZ, init=init)
+		
+		add_add_layer(LAYERS, 'ADD', ['F2', 'F22'], init=init)
+		
 		add_sum_layer(LAYERS, 'SUM_ERR', init=init)
 
 	check_network(LAYERS)

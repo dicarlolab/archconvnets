@@ -11,10 +11,12 @@ N_FRAMES = 2
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
 
 F1_IND = find_layer(LAYERS, 'F1')
+F11_IND = find_layer(LAYERS, 'F11')
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1])))
+x11t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F11_IND]['in_shape'][1])))
 
 ################ which gradient to test
-gradient_layer = find_layer(LAYERS, 'F1')
+gradient_layer = find_layer(LAYERS, 'F11')
 gradient_arg = 0
 
 def f(y):
@@ -27,6 +29,7 @@ def f(y):
 	
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
+		set_buffer(x11t[frame], WEIGHTS[F11_IND][1])  # inputs
 
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
@@ -47,6 +50,7 @@ def g(y):
 	PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
+		set_buffer(x11t[frame], WEIGHTS[F11_IND][1])  # inputs
 		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)
