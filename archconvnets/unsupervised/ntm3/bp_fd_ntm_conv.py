@@ -5,7 +5,7 @@ from ntm_core import *
 from model_architecture_conv_test import init_model
 
 free_all_buffers()
-N_FRAMES = 2
+N_FRAMES = 5
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
@@ -73,7 +73,7 @@ def g(y):
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e4#6
+eps = np.sqrt(np.finfo(np.float).eps)*1e6
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
@@ -90,3 +90,5 @@ for sample in range(N_SAMPLES):
 	print gt, gtx, ratios[sample]
 	
 print ratios.mean(), ratios.std(), time.time() - t_start, GPU
+
+

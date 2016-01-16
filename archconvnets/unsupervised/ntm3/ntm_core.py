@@ -192,7 +192,8 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 	deriv_above_created = False
 	
 	if deriv_above is None:
-		deriv_above = init_buffer(np.ones(np.concatenate((LAYERS[layer_ind]['out_shape'], LAYERS[layer_ind]['out_shape'])), dtype='single'))
+		deriv_above_shape = np.concatenate((LAYERS[layer_ind]['out_shape'], LAYERS[layer_ind]['out_shape']))
+		deriv_above = init_buffer(np.single(np.eye(np.prod(LAYERS[layer_ind]['out_shape'])).reshape(deriv_above_shape)))
 		deriv_above_created = True
 	
 	for arg in range(N_ARGS):		
@@ -216,6 +217,10 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 					deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[src]['out_shape'])
 					
 					WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp))
+					
+					if keep_dims == False: # squeeze
+						assert WEIGHT_DERIVS[p_layer_ind][p_arg][1][0] == 1
+						WEIGHT_DERIVS[p_layer_ind][p_arg][1] = tuple(WEIGHT_DERIVS[p_layer_ind][p_arg][1][1:])
 					
 					free_buffer(deriv_temp)
 					
