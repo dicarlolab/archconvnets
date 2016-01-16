@@ -224,8 +224,8 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 			WEIGHT_DERIVS[layer_ind][arg] = point_wise_add((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new))
 			squeeze_dim1(WEIGHT_DERIVS[layer_ind][arg], keep_dims)
 			
+		free_buffer(deriv_above_new)
 	
-	free_buffer(deriv_above_new)	
 	if deriv_above_created:
 		free_buffer(deriv_above)
 	
