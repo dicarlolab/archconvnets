@@ -32,7 +32,7 @@ def init_model():
 		add_conv_layer(LAYERS, 'F22', U_F2, U_F2_FILTER_SZ, init=init)
 		add_sigmoid_F_bias_layer(LAYERS, 'F33', U_F3, init=init)
 		
-		add_add_layer(LAYERS, 'MEM', ['F33', 'MEM-'], init=init)
+		add_mult_layer(LAYERS, 'MEM', ['F33', 'MEM-'], init=init)
 		
 		add_sq_points_layer(LAYERS, 'SQ_ERR', init=init)
 		add_sum_layer(LAYERS, 'SUM_ERR', init=init)
