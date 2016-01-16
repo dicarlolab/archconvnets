@@ -43,17 +43,19 @@ def check_network(LAYERS):
 		assert LAYER_OUT[1] == L['out_shape'], "layer %s (%i) didn't produce expected output (%i, %i)" % (L['name'], layer_ind, np.prod(LAYER_OUT[1]), np.prod(L['out_shape']))
 		
 		# check if deriv functions correctly produce correct shapes
+		DERIV_ABOVE = init_buffer(np.zeros(np.concatenate(((2,3), L['out_shape'])), dtype='single'))
 		for arg in range(N_ARGS):
-			expected_shape = tuple(np.concatenate((L['out_shape'], L['in_shape'][arg])))
+			expected_shape = tuple(np.concatenate(((2,3), L['in_shape'][arg])))
 			if 'additional_forward_args' in L:
-				OUT = L['deriv_F'][arg](args, LAYER_OUT, additional_args=L['additional_deriv_args'][arg])
+				OUT = L['deriv_F'][arg](args, LAYER_OUT, DERIV_ABOVE, additional_args=L['additional_deriv_args'][arg])
 			else:
-				OUT = L['deriv_F'][arg](args, LAYER_OUT)
+				OUT = L['deriv_F'][arg](args, LAYER_OUT, DERIV_ABOVE)
 			
 			assert OUT[1] == expected_shape, 'deriv not expected size (layer %s, arg %i)' % (L['name'], arg)
 			
 			free_buffer(OUT)
 		free_buffer(LAYER_OUT)
+		free_buffer(DERIV_ABOVE)
 		
 		# free mem
 		for arg in range(N_ARGS):
