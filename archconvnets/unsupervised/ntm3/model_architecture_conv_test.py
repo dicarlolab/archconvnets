@@ -25,12 +25,12 @@ def init_model():
 		add_conv_layer(LAYERS, 'F1', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(1,2,12,12), init=init)
 		add_max_pool_layer(LAYERS, 'MF1', init=init)
 		add_conv_layer(LAYERS, 'F2', U_F2, U_F2_FILTER_SZ, init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'F3', U_F3, init=init)
+		add_relu_F_bias_layer(LAYERS, 'F3', U_F3, init=init)
 		
 		add_conv_layer(LAYERS, 'F11', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(1,2,12,12), init=init)
 		add_max_pool_layer(LAYERS, 'MF11', init=init)
 		add_conv_layer(LAYERS, 'F22', U_F2, U_F2_FILTER_SZ, init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'F33', U_F3, init=init)
+		add_relu_F_bias_layer(LAYERS, 'F33', U_F3, init=init)
 		
 		add_mult_layer(LAYERS, 'MEM', ['F33', 'MEM-'], init=init)
 		

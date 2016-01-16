@@ -5,7 +5,8 @@ from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
 
-def relu(args, OUT_BUFFER=None, gpu_ind=0):
+def relu(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	assert additional_args == [None]
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
 	LAYER_IN = args[0]
@@ -29,19 +30,24 @@ def relu(args, OUT_BUFFER=None, gpu_ind=0):
 		
 	return OUT_BUFFER
 
-def relu_dlayer_in(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def relu_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	assert additional_args == [None]
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
 	LAYER_IN = args[0]
 	check_buffer(LAYER_IN)
 	check_buffer(LAYER_OUT)
+	check_buffer(DERIV_ABOVE)
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
 	dim1, dim2 = LAYER_IN[1]
 	
+	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	
 	if GPU:
-		_ntm_module3.relu_dlayer_in(LAYER_IN[0], LAYER_IN[1], OUT_BUFFER[0], 0, gpu_ind)
+		_ntm_module3.relu_dlayer_in(LAYER_IN[0], LAYER_IN[1], OUT_BUFFER_TEMP[0], 0, gpu_ind)
 	else: 
 		############ CPU
 		layer_in = return_buffer(LAYER_IN, gpu_ind)
@@ -53,9 +59,14 @@ def relu_dlayer_in(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		for i in range(layer_in.shape[0]):
 			for j in range(layer_in.shape[1]):
 				temp2[i,j,i,j] = temp[i,j]
-		OUT_BUFFER = set_buffer(temp2, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER_TEMP = set_buffer(temp2, OUT_BUFFER_TEMP, gpu_ind)
 	
-	OUT_BUFFER[1] = (dim1,dim2,dim1,dim2)
+	OUT_BUFFER_TEMP[1] = (dim1,dim2,dim1,dim2)
+	check_buffer(OUT_BUFFER_TEMP)
+	
+	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
+	free_buffer(OUT_BUFFER_TEMP)
+	
 	return OUT_BUFFER
 
 
@@ -93,5 +104,7 @@ def add_relu_layer(LAYERS, name, source=None, init=0):
 		LAYERS[layer_ind]['in_source'] = [in_source]
 		LAYERS[layer_ind]['deriv_F'] = [relu_dlayer_in]
 		LAYERS[layer_ind]['in_prev'] = [False]
+		LAYERS[layer_ind]['additional_forward_args'] = [None]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[None]]
 		
 		return layer_ind
