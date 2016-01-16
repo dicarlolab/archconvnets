@@ -5,7 +5,7 @@ from ntm_core import *
 from model_architecture_conv_test import init_model
 
 free_all_buffers()
-N_FRAMES = 5
+N_FRAMES = 3
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
