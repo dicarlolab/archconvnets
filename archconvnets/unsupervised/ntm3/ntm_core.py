@@ -163,11 +163,6 @@ def init_gpu_list(LIST, LAYERS, args=True):
 				LIST[layer_ind] = init_buffer()
 	return LIST
 
-def zero_buffer_list(WEIGHTS):
-	for layer_ind in range(len(WEIGHTS)):
-		for arg in range(len(WEIGHTS[layer_ind])):
-			if WEIGHTS[layer_ind][arg] is not None:
-				zero_buffer(WEIGHTS[layer_ind][arg])
 
 # apply chain-rule down the network
 def reverse_network(layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims=False): # multiply all partials together
@@ -215,13 +210,9 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 					p_partial = P['partial'][arg2]
 					
 					deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[src]['out_shape'])
-					
 					WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp))
 					
-					if keep_dims == False: # squeeze
-						assert WEIGHT_DERIVS[p_layer_ind][p_arg][1][0] == 1
-						WEIGHT_DERIVS[p_layer_ind][p_arg][1] = tuple(WEIGHT_DERIVS[p_layer_ind][p_arg][1][1:])
-					
+					squeeze_dim1(WEIGHT_DERIVS[p_layer_ind][p_arg], keep_dims)
 					free_buffer(deriv_temp)
 					
 			# another layer (At this time step, go back to earlier layers)
@@ -231,9 +222,8 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 		# input is not a layer, end here
 		else:
 			WEIGHT_DERIVS[layer_ind][arg] = point_wise_add((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new))
-			if keep_dims == False: # squeeze
-				assert WEIGHT_DERIVS[layer_ind][arg][1][0] == 1
-				WEIGHT_DERIVS[layer_ind][arg][1] = tuple(WEIGHT_DERIVS[layer_ind][arg][1][1:])
+			squeeze_dim1(WEIGHT_DERIVS[layer_ind][arg], keep_dims)
+			
 	
 	free_buffer(deriv_above_new)	
 	if deriv_above_created:
@@ -359,10 +349,7 @@ def init_output_prev(LAYERS, INDS, PREV_VALS):
 		OUTPUT_PREV[INDS[layer_ind]] = init_buffer(PREV_VALS[layer_ind])
 	return OUTPUT_PREV
 
-def free_list_list(LIST):
-	for i in range(len(LIST)):
-		free_list(LIST[i])
-		
+
 def update_weights(LAYERS, WEIGHTS, WEIGHT_DERIVS, EPS):
 	for layer_ind in range(len(LAYERS)):
 		L = LAYERS[layer_ind]

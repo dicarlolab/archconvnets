@@ -259,6 +259,22 @@ def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True], gpu_ind=0):
 		OUT_BUFFER[1] = OUT_BUFFER[1][:len(OUT_BUFFER[1])-1]
 	return OUT_BUFFER
 	
+def zero_buffer_list(WEIGHTS):
+	for layer_ind in range(len(WEIGHTS)):
+		for arg in range(len(WEIGHTS[layer_ind])):
+			if WEIGHTS[layer_ind][arg] is not None:
+				zero_buffer(WEIGHTS[layer_ind][arg])
+
+
+def squeeze_dim1(BUFFER, keep_dims):
+	if keep_dims == False: # squeeze
+		assert BUFFER[1][0] == 1
+		BUFFER[1] = tuple(BUFFER[1][1:])
+
+def free_list_list(LIST):
+	for i in range(len(LIST)):
+		free_list(LIST[i])
+
 from gradient_functions.cosine_sim import *
 from gradient_functions.linear_F import *
 from gradient_functions.add_points import * # sum two layers together, preserving dimensionaltiy
