@@ -5,8 +5,9 @@ from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
 
 # deriv_computable: require dimensions be <= 2, required for sq_points_dinput to work correctly
-def sq_points(args, OUT_BUFFER=None, deriv_computable=True, gpu_ind=0):
+def sq_points(args, OUT_BUFFER=None, additional_args=[None], deriv_computable=True, gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	assert additional_args == [None]
 	assert len(args) == 1
 	LAYER_IN = args[0]
 	check_buffer(LAYER_IN)
@@ -28,11 +29,13 @@ def sq_points(args, OUT_BUFFER=None, deriv_computable=True, gpu_ind=0):
 		
 	return OUT_BUFFER
 
-def sq_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def sq_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	assert additional_args == [None]
 	assert len(args) == 1
 	LAYER_IN = args[0]
 	check_buffer(LAYER_IN)
+	check_buffer(DERIV_ABOVE)
 	assert len(LAYER_IN[1]) <= 2
 	assert LAYER_IN[1] == LAYER_OUT[1]
 	
@@ -46,8 +49,10 @@ def sq_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	check_buffer(OUT_BUFFER)
 	dim1, dim2 = LAYER_IN_R[1]
 	
+	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	
 	if GPU:
-		_ntm_module3.sq_points_dinput(LAYER_IN[0], LAYER_IN_R[1], OUT_BUFFER[0], gpu_ind)
+		_ntm_module3.sq_points_dinput(LAYER_IN[0], LAYER_IN_R[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	else: 
 		############ CPU
 		input = return_buffer(LAYER_IN_R, gpu_ind)
@@ -57,12 +62,17 @@ def sq_points_dinput(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		for i in range(input.shape[0]):
 			dinput[i,range(n),i,range(n)] = 2*input[i]
 			
-		OUT_BUFFER = set_buffer(dinput, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER_TEMP = set_buffer(dinput, OUT_BUFFER_TEMP, gpu_ind)
 	
 	if len(LAYER_IN[1]) == 1:
-		OUT_BUFFER[1] = (dim1,dim1)
+		OUT_BUFFER_TEMP[1] = (dim1,dim1)
 	else:
-		OUT_BUFFER[1] = (dim1,dim2,dim1,dim2)
+		OUT_BUFFER_TEMP[1] = (dim1,dim2,dim1,dim2)
+	check_buffer(OUT_BUFFER_TEMP)
+	
+	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
+	free_buffer(OUT_BUFFER_TEMP)
+	
 	return OUT_BUFFER
 
 	
@@ -100,6 +110,8 @@ def add_sq_points_layer(LAYERS, name, source=None, init=0):
 		LAYERS[layer_ind]['in_source'] = [in_source]
 		LAYERS[layer_ind]['deriv_F'] = [sq_points_dinput]
 		LAYERS[layer_ind]['in_prev'] = [False]
+		LAYERS[layer_ind]['additional_forward_args'] = [None]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[None]]
 		
 		return layer_ind
 

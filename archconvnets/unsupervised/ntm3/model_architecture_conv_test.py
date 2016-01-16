@@ -32,16 +32,15 @@ def init_model():
 		add_conv_layer(LAYERS, 'F22', U_F2, U_F2_FILTER_SZ, init=init)
 		add_sigmoid_F_bias_layer(LAYERS, 'F33', U_F3, init=init)
 		
-		#add_add_layer(LAYERS, 'MEM', ['F22', 'F2'], init=init)
 		add_add_layer(LAYERS, 'MEM', ['F33', 'MEM-'], init=init)
 		
+		add_sq_points_layer(LAYERS, 'SQ_ERR', init=init)
 		add_sum_layer(LAYERS, 'SUM_ERR', init=init)
 
 	check_network(LAYERS)
 	
 	################ init weights and inputs
 	WEIGHTS = init_weights(LAYERS)
-	#MEM_INDS = []
 	MEM_INDS = find_layer(LAYERS, ['MEM'])
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
