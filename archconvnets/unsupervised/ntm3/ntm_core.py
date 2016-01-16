@@ -25,9 +25,7 @@ def check_network(LAYERS):
 		assert L['name'] != '-' # reserved for prior time step layer outputs
 		assert isinstance(L['out_shape'],tuple)
 		assert len(L['in_prev']) == len(L['in_shape']) == len(L['deriv_F']) == len(L['in_source'])
-		
-		if 'additional_forward_args' in L:
-			assert len(L['additional_deriv_args']) == len(L['deriv_F'])
+		assert len(L['additional_deriv_args']) == len(L['deriv_F'])
 		
 		# build arguments
 		N_ARGS = len(L['in_shape'])
@@ -36,20 +34,14 @@ def check_network(LAYERS):
 			args[arg] = init_buffer(np.asarray(np.random.random(L['in_shape'][arg]),dtype='single'))
 		
 		# check if function corretly produces specified output dimensions
-		if 'additional_forward_args' in L:
-			LAYER_OUT = L['forward_F'](args, additional_args=L['additional_forward_args'])
-		else:
-			LAYER_OUT = L['forward_F'](args)
+		LAYER_OUT = L['forward_F'](args, additional_args=L['additional_forward_args'])
 		assert LAYER_OUT[1] == L['out_shape'], "layer %s (%i) didn't produce expected output (%i, %i)" % (L['name'], layer_ind, np.prod(LAYER_OUT[1]), np.prod(L['out_shape']))
 		
 		# check if deriv functions correctly produce correct shapes
 		DERIV_ABOVE = init_buffer(np.zeros(np.concatenate(((2,3), L['out_shape'])), dtype='single'))
 		for arg in range(N_ARGS):
 			expected_shape = tuple(np.concatenate(((2,3), L['in_shape'][arg])))
-			if 'additional_forward_args' in L:
-				OUT = L['deriv_F'][arg](args, LAYER_OUT, DERIV_ABOVE, additional_args=L['additional_deriv_args'][arg])
-			else:
-				OUT = L['deriv_F'][arg](args, LAYER_OUT, DERIV_ABOVE)
+			OUT = L['deriv_F'][arg](args, LAYER_OUT, DERIV_ABOVE, additional_args=L['additional_deriv_args'][arg])
 			
 			assert OUT[1] == expected_shape, 'deriv not expected size (layer %s, arg %i)' % (L['name'], arg)
 			
@@ -149,10 +141,8 @@ def forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV):
 
 		args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
 		
-		if 'additional_forward_args' in L:
-			L['forward_F'](args, OUTPUT[layer_ind], additional_args=L['additional_forward_args'])
-		else:
-			L['forward_F'](args, OUTPUT[layer_ind])
+		L['forward_F'](args, OUTPUT[layer_ind], additional_args=L['additional_forward_args'])
+		
 	return OUTPUT
 	
 def init_gpu_list(LIST, LAYERS, args=True):
@@ -208,10 +198,7 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 		
 		############ compute derivs
 		args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
-		if 'additional_forward_args' in L:
-			deriv_above_new = L['deriv_F'][arg](args, OUTPUT[layer_ind], deriv_above, additional_args=L['additional_deriv_args'][arg])
-		else:
-			deriv_above_new = L['deriv_F'][arg](args, OUTPUT[layer_ind], deriv_above)
+		deriv_above_new = L['deriv_F'][arg](args, OUTPUT[layer_ind], deriv_above, additional_args=L['additional_deriv_args'][arg])
 		
 		#print deriv_above_new[1], deriv_above[1], layer_ind, arg
 		#deriv_above_new = 

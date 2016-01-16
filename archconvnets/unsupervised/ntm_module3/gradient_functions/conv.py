@@ -120,10 +120,12 @@ def conv_dfilter(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=
 # source = None: source is previous layer
 # source = -1: source is user-supplied
 # source = str: source is another layer
-def add_conv_layer(LAYERS, name, n_filters, filter_sz, source=None, imgs_shape=None, random_function=random_function, init=0):
+def add_conv_layer(LAYERS, name, n_filters, filter_sz, source=None, imgs_shape=None, random_function=random_function, PAD=0, init=0):
 	assert isinstance(n_filters, int)
 	assert isinstance(filter_sz, int)
 	assert isinstance(name, str)
+	assert isinstance(PAD, int)
+	assert PAD >= 0
 	
 	if init == 0:
 		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
@@ -171,5 +173,7 @@ def add_conv_layer(LAYERS, name, n_filters, filter_sz, source=None, imgs_shape=N
 		LAYERS[layer_ind]['in_source'] = source_meta
 		LAYERS[layer_ind]['deriv_F'] = [conv_dfilter, conv_ddata]
 		LAYERS[layer_ind]['in_prev'] = [False, False]
+		LAYERS[layer_ind]['additional_forward_args'] = [PAD]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[PAD], [PAD]]
 		
 		return layer_ind

@@ -4,7 +4,8 @@ from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
 
-def sum_points(args, OUT_BUFFER=None, gpu_ind=0):
+def sum_points(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	assert additional_args == [None]
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
 	POINTS = args[0]
@@ -22,7 +23,8 @@ def sum_points(args, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = (1,)
 	return OUT_BUFFER
 
-def sum_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, gpu_ind=0):
+def sum_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	assert additional_args == [None]
 	assert len(args) == 1
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
@@ -84,5 +86,7 @@ def add_sum_layer(LAYERS, name, source=None, init=0):
 		LAYERS[layer_ind]['in_source'] = [in_source]
 		LAYERS[layer_ind]['deriv_F'] = [sum_points_dinput]
 		LAYERS[layer_ind]['in_prev'] = [False]
+		LAYERS[layer_ind]['additional_forward_args'] = [None]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[None]]
 		
 		return layer_ind
