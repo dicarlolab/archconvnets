@@ -4,13 +4,13 @@ import scipy.optimize
 from ntm_core import *
 from scipy.io import savemat
 from scipy.stats import zscore, pearsonr
-from model_architecture import init_model
+from model_architecture_cp import init_model
 
 free_all_buffers()
 
 ################ init save vars
 EPS = -1e-3
-save_name = 'ntm_test_stop_%f' % (-EPS)
+save_name = 'ntm_test_reset_partials_only_%f' % (-EPS)
 TIME_LENGTH = 3
 elapsed_time = 1000
 frame = 0
@@ -21,7 +21,7 @@ START_SIGNAL = 0; TRAIN_SIGNAL = 1
 SAVE_FREQ = 250 # instantaneous checkpoint
 WRITE_FREQ = 50 # new checkpoint
 FRAME_LAG = 250
-STOP_POINT = SAVE_FREQ*15
+STOP_POINT = np.inf #SAVE_FREQ*15
 inputs = np.zeros((2,1),dtype='single')
 
 target_seq = np.abs(np.asarray(np.random.normal(size=TIME_LENGTH),dtype='single'))
@@ -44,7 +44,7 @@ ERR_IND = find_layer(LAYERS, 'ERR')
 OUT_IND = find_layer(LAYERS, 'SUM')
 F1_IND = find_layer(LAYERS, 'F1_lin')
 
-OUTPUT = None; LOCAL_DERIVS = None; WEIGHT_DERIVS = None
+OUTPUT = None; WEIGHT_DERIVS = None
 MEM_DERIVS = [None]*len(MEM_INDS); WEIGHT_DERIVS_RMS = None
 
 OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
@@ -59,12 +59,14 @@ while True:
 		training = 1 - training
 		elapsed_time = 0
 		if training == 1: # new training sequence
-			free_list(OUTPUT_PREV)
+			'''free_list(OUTPUT_PREV)
 			free_partials(PARTIALS_PREV)
 			
 			OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
+			PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)'''
+			free_partials(PARTIALS_PREV)
 			PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
-
+			
 			target_seq = np.single(np.abs(np.random.normal(size=TIME_LENGTH)) + 2) #-.5
 			inputs[START_SIGNAL] = 1
 	
@@ -90,11 +92,10 @@ while True:
 	output_buffer[frame % SAVE_FREQ] =  return_buffer(OUTPUT[OUT_IND])
 	
 	###### reverse
-	LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS)
-	WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, WEIGHT_DERIVS)
-	
+	WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)
+		
 	# update partials_prev
-	MEM_DERIVS = reverse_network(MEM_INDS, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_DERIVS, keep_dims=True)
+	MEM_DERIVS = reverse_network(MEM_INDS, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, MEM_DERIVS, keep_dims=True)
 	PARTIALS_PREV = copy_partials(MEM_INDS, LAYERS, PARTIALS_PREV, MEM_DERIVS)
 	
 	OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
@@ -146,7 +147,6 @@ while True:
 
 free_list_list(MEM_DERIVS)
 free_partials(PARTIALS_PREV)
-free_list(LOCAL_DERIVS)
 free_list(OUTPUT)
 free_list(WEIGHT_DERIVS)
 free_list(OUTPUT_PREV)

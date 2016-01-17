@@ -2,7 +2,7 @@ import numpy as np
 import time
 import scipy.optimize
 from ntm_core import *
-from model_architecture import init_model
+from model_architecture_movie import init_model
 
 free_all_buffers()
 N_FRAMES = 3
@@ -12,7 +12,7 @@ LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
 
 F1_IND = find_layer(LAYERS, 'F1')
 ERR_IND = find_layer(LAYERS, 'ERR')
-x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1])))
+x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) / 100
 set_buffer(2, WEIGHTS[ERR_IND][1]) # target
 
 ################ which gradient to test
@@ -71,7 +71,7 @@ def g(y):
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*8e6#6
+eps = np.sqrt(np.finfo(np.float).eps)*1e5#6
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
