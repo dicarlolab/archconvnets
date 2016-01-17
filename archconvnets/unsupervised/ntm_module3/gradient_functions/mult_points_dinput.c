@@ -71,6 +71,10 @@ static PyObject * mult_points_dinput(PyObject *self, PyObject *args){
 		gpu_buffers[gpu_ind][out_buffer_ind], a_dim1, a_dim1*a_dim0*a_dim1, 
 		a_dim0*a_dim1, MULT_POINTS_DINPUT_NUMEL);
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

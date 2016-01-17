@@ -62,6 +62,10 @@ static PyObject *softmax(PyObject *self, PyObject *args){
 	
 	softmax_kernel <<< dim0, dim1, sizeof(float) >>> (gpu_buffers[gpu_ind][layer_in_ind], gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

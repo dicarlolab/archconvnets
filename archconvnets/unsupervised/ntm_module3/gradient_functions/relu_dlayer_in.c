@@ -65,6 +65,10 @@ static PyObject * relu_dlayer_in(PyObject *self, PyObject *args){
 	relu_dlayer_in_kernel <<< 1, dim0 * dim1 >>> (gpu_buffers[gpu_ind][layer_in_ind], 
 		gpu_buffers[gpu_ind][out_buffer_ind], thresh, dim0, dim1);
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

@@ -91,9 +91,11 @@ static PyObject *cosine_sim_dkeys(PyObject *self, PyObject *args){
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	// run kernel
-	cosine_sim_dkeys_kernel <<< n_controllers, M*mem_length >>> 
-			(GPU_KEYS, GPU_MEM, GPU_BUFFER_OUT, 
-			n_controllers, mem_length, M);
+	cosine_sim_dkeys_kernel <<< n_controllers, M*mem_length >>> (GPU_KEYS, GPU_MEM, GPU_BUFFER_OUT, n_controllers, mem_length, M);
+	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	

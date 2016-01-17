@@ -59,10 +59,11 @@ static PyObject * interpolate_dinterp_gate_out(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	interpolate_dinterp_gate_out_kernel <<< 1, dim0*dim1 >>> (
-		gpu_buffers[gpu_ind][o_content_ind],
-		gpu_buffers[gpu_ind][o_prev_ind],
-		gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
+	interpolate_dinterp_gate_out_kernel <<< 1, dim0*dim1 >>> (gpu_buffers[gpu_ind][o_content_ind], gpu_buffers[gpu_ind][o_prev_ind], gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
+	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	

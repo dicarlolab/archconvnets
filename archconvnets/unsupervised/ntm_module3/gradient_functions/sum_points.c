@@ -39,6 +39,10 @@ static PyObject * sum_points(PyObject *self, PyObject *args){
 	
 	sum_points_kernel <<< 1, points_len >>> (gpu_buffers[gpu_ind][points_ind], gpu_buffers[gpu_ind][out_buffer_ind]);
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

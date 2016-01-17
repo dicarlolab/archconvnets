@@ -104,6 +104,10 @@ static PyObject *cosine_sim(PyObject *self, PyObject *args){
 	// run kernel
 	cosine_sim_kernel <<< n_controllers, M >>> (GPU_KEYS, GPU_MEM, GPU_BUFFER_OUT, n_controllers, mem_length, M);
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

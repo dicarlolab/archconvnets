@@ -85,6 +85,10 @@ static PyObject * linear_F_dx(PyObject *self, PyObject *args){
 	linear_F_dx_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][F_ind], 
 		gpu_buffers[gpu_ind][out_buffer_ind], x_dim0, x_dim1, F_dim0 * x_dim0);
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

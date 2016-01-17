@@ -61,6 +61,10 @@ static PyObject * mult_points(PyObject *self, PyObject *args){
 	mult_points_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][a_ind], gpu_buffers[gpu_ind][b_ind], 
 		buffer_sz[gpu_ind][a_ind]/(sizeof(DATA_TYPE)));
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

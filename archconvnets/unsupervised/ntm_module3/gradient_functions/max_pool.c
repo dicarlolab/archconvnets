@@ -53,6 +53,10 @@ static PyObject *max_pool(PyObject *self, PyObject *args){
 	//--------------------------------------
 	status = cudnnPoolingForward(handle, poolingDesc, srcDesc[gpu_ind][imgs_ind], gpu_buffers[gpu_ind][imgs_ind], destDesc[gpu_ind][out_buffer_ind], GPU_BUFFER_OUT);  ERR_CHECK
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	PyObject *tuple = PyTuple_New(4);

@@ -31,8 +31,6 @@ __global__ void linear_F_dF_kernel(float * x, float * dldf, int F_dim0,
 			}
 		}
 	}
-
-	return;
 }
 
 static PyObject * linear_F_dF(PyObject *self, PyObject *args){
@@ -86,6 +84,10 @@ static PyObject * linear_F_dF(PyObject *self, PyObject *args){
 	
 	linear_F_dF_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][x_ind], 
 		gpu_buffers[gpu_ind][out_buffer_ind], F_dim0, x_dim0, x_dim1, x_dim1 * x_dim0);
+	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	

@@ -12,8 +12,6 @@ __global__ void focus_key_dbeta_out_kernel(float * keys, float * dfkb, int n_con
 		if(i_local != i)
 			DFKB(i,j,i_local) = 0;
 	}
-
-	return;
 }
 
 static PyObject * focus_key_dbeta_out(PyObject *self, PyObject *args){
@@ -60,8 +58,11 @@ static PyObject * focus_key_dbeta_out(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	focus_key_dbeta_out_kernel <<< 1, n_controllers * mem_length >>> (gpu_buffers[gpu_ind][keys_ind], 
-		gpu_buffers[gpu_ind][out_buffer_ind], n_controllers, mem_length);
+	focus_key_dbeta_out_kernel <<< 1, n_controllers * mem_length >>> (gpu_buffers[gpu_ind][keys_ind], gpu_buffers[gpu_ind][out_buffer_ind], n_controllers, mem_length);
+	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	

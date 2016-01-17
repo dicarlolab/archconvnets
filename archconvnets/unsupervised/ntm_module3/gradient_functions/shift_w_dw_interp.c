@@ -60,8 +60,11 @@ static PyObject * shift_w_dw_interp(PyObject *self, PyObject *args){
 
 	cudaMemset(gpu_buffers[gpu_ind][out_buffer_ind], 0, OUT_BUFFER_SZ); CHECK_CUDA_ERR
 	
-	shift_w_dw_interp_kernel <<< N_SHIFTS, C * M  >>> (
-		gpu_buffers[gpu_ind][shift_out_ind], gpu_buffers[gpu_ind][out_buffer_ind], C, M);
+	shift_w_dw_interp_kernel <<< N_SHIFTS, C * M  >>> (gpu_buffers[gpu_ind][shift_out_ind], gpu_buffers[gpu_ind][out_buffer_ind], C, M);
+	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
 	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	

@@ -70,6 +70,10 @@ static PyObject * conv_ddata(PyObject *self, PyObject *args){
 	status = cudnnConvolutionBackwardData(handle, filterDesc[gpu_ind][filters_ind], gpu_buffers[gpu_ind][filters_ind], destDesc[gpu_ind][deriv_above_ind], gpu_buffers[gpu_ind][deriv_above_ind], 
 		convDesc[gpu_ind][out_buffer_ind], gradDesc_data[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][out_buffer_ind], CUDNN_RESULT_NO_ACCUMULATE);  ERR_CHECK
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

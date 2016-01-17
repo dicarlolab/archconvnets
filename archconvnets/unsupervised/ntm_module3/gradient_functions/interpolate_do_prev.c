@@ -56,6 +56,10 @@ static PyObject * interpolate_do_prev(PyObject *self, PyObject *args){
 	interpolate_do_prev_kernel <<< 1, dim0*dim1 >>> (gpu_buffers[gpu_ind][interp_gate_out_ind], 
 		gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

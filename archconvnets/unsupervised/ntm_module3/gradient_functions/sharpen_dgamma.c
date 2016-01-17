@@ -84,6 +84,10 @@ static PyObject *sharpen_dgamma(PyObject *self, PyObject *args){
 	sharpen_dgamma_kernel <<< dim0, dim1, sizeof(float)*2 >>> (gpu_buffers[gpu_ind][w_ind], gpu_buffers[gpu_ind][gamma_ind], 
 		gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

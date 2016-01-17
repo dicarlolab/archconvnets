@@ -76,6 +76,10 @@ static PyObject * add_points_dinput(PyObject *self, PyObject *args){
 	add_points_dinput_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][out_buffer_ind], a_dim1, a_dim1*a_dim0*a_dim1, 
 		a_dim0*a_dim1, ADD_POINTS_DINPUT_NUMEL, scalar);
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

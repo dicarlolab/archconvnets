@@ -80,7 +80,11 @@ static PyObject *interpolate(PyObject *self, PyObject *args){
 	// run kernel
 	interpolate_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][interp_gate_ind], gpu_buffers[gpu_ind][o_content_ind],
 		gpu_buffers[gpu_ind][o_prev_ind], gpu_buffers[gpu_ind][out_buffer_ind], dim1, dim2, dim1*dim2);
-		
+	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

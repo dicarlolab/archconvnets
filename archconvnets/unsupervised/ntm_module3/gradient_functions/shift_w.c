@@ -70,6 +70,10 @@ static PyObject * shift_w(PyObject *self, PyObject *args){
 	shift_w_kernel <<< 1, n_controllers * M >>> (gpu_buffers[gpu_ind][shift_out_ind], gpu_buffers[gpu_ind][w_interp_ind],
 		gpu_buffers[gpu_ind][out_buffer_ind], n_controllers, M);
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

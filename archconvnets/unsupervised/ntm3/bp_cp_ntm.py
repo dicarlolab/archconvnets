@@ -10,7 +10,7 @@ free_all_buffers()
 
 ################ init save vars
 EPS = -1e-3
-save_name = 'ntm_test_reset_partials_only2_%f' % (-EPS)
+save_name = 'ntm_reset_rand2_%f' % (-EPS)
 TIME_LENGTH = 3
 elapsed_time = 1000
 frame = 0
@@ -59,12 +59,11 @@ while True:
 		training = 1 - training
 		elapsed_time = 0
 		if training == 1: # new training sequence
-			'''free_list(OUTPUT_PREV)
+			free_list(OUTPUT_PREV)
 			free_partials(PARTIALS_PREV)
-			
+		
+			PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 			OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
-			PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)'''
-			free_partials(PARTIALS_PREV)
 			PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 			
 			target_seq = np.single(np.abs(np.random.normal(size=TIME_LENGTH)) + 2) #-.5

@@ -76,6 +76,10 @@ static PyObject * point_wise_div_sqrt(PyObject *self, PyObject *args){
 			clip, buffer_sz[gpu_ind][a_ind]/(sizeof(DATA_TYPE)));
 	}
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

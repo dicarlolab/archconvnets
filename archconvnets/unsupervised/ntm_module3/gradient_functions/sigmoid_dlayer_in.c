@@ -78,6 +78,10 @@ static PyObject *sigmoid_dlayer_in(PyObject *self, PyObject *args){
 	sigmoid_dlayer_in_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][layer_out_ind], gpu_buffers[gpu_ind][out_buffer_ind], 
 		layer_out_dim2, layer_out_dim2 * layer_out_dim1 * layer_out_dim2, layer_out_dim1 * layer_out_dim2, SIGMOID_DLAYER_IN_NUMEL);
 		
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

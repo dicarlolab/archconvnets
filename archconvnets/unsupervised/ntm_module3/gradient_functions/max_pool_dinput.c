@@ -70,6 +70,10 @@ static PyObject *max_pool_dinput(PyObject *self, PyObject *args){
 			destDiffDesc[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][out_buffer_ind] + out_offset);  ERR_CHECK
 	}
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

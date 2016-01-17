@@ -91,9 +91,12 @@ static PyObject *dotT(PyObject *self, PyObject *args){
 	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
 	
 	// run kernel
-	dotT_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (GPU_BUFFER1, GPU_BUFFER2, GPU_BUFFER_OUT, buffer1_dim1, buffer1_dim2, 
-			buffer2_dim2, DATA_T_OUT_NUMEL);
-		
+	dotT_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (GPU_BUFFER1, GPU_BUFFER2, GPU_BUFFER_OUT, buffer1_dim1, buffer1_dim2, buffer2_dim2, DATA_T_OUT_NUMEL);
+	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

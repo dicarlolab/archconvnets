@@ -60,6 +60,10 @@ static PyObject *sq_points_dinput(PyObject *self, PyObject *args){
 
 	sq_points_dinput_kernel <<< dim0, dim1*dim1 >>> (gpu_buffers[gpu_ind][input_ind], GPU_BUFFER_OUT, dim0, dim1);
 	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);

@@ -97,6 +97,10 @@ static PyObject *dotT_da(PyObject *self, PyObject *args){
 	add_mem_dgw_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][add_out_ind], 
 			GPU_BUFFER_OUT, mem_length, M, C*M, mem_length*C*M, ADD_MEM_DGW_NUMEL);
 		
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
+	
 	cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
