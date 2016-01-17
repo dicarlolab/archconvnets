@@ -10,7 +10,7 @@ free_all_buffers()
 
 ################ init save vars
 EPS = -1e-3
-save_name = 'ntm_test_reset_partials_only_%f' % (-EPS)
+save_name = 'ntm_test_reset_partials_only2_%f' % (-EPS)
 TIME_LENGTH = 3
 elapsed_time = 1000
 frame = 0
@@ -114,7 +114,7 @@ while True:
 		print 'err: ', err_log[-1][0], 'frame: ', frame, 'corr: ', corr_log[-1], 'time: ', time.time() - t_start, save_name
 		
 		print_names = ['F1','F2','F3','', '_KEY', '_BETA', '_IN_GATE', '_SHIFT_PRE', '_GAMMA', '', 'ERASE', 'ADD', 'READ_MEM',\
-			'A_F1', 'A_F2']
+			'MEM', 'A_F1', 'A_F2']
 		
 		max_print_len = 0
 		for print_name in print_names:

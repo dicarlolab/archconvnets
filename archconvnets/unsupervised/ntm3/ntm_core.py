@@ -394,15 +394,18 @@ def print_layer(LAYERS, print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_le
 	if b_ind is None: # if there are no linearities (sigmoid, relu)
 		b_ind = o_ind
 	
-	W = return_buffer(WEIGHTS[w_ind][0])
-	B = return_buffer(WEIGHTS[b_ind][0])
-	
-	DW = return_buffer(WEIGHT_DERIVS[w_ind][0])
-	DB = return_buffer(WEIGHT_DERIVS[b_ind][0])
-	
 	O = return_buffer(OUTPUT[o_ind])
-	
-	print '  ', print_name, ' '*(max_print_len - len(print_name)), \
-			' W: %.1e %.1e (%.1e)  B: %.1e %.1e (%.1e) -- %.1e %.1e' % (\
-		np.min(W), np.max(W), -EPS*np.median(np.abs(DW/W)), \
-		np.min(B), np.max(B), -EPS*np.median(np.abs(DB/B)), np.min(O), np.max(O))
+
+	if w_ind is None:
+		print '  ', print_name, ' '*(max_print_len - len(print_name)), '  %.1e %.1e %.1e' % (np.min(O), np.median(O), np.max(O))
+	else:
+		W = return_buffer(WEIGHTS[w_ind][0])
+		B = return_buffer(WEIGHTS[b_ind][0])
+		
+		DW = return_buffer(WEIGHT_DERIVS[w_ind][0])
+		DB = return_buffer(WEIGHT_DERIVS[b_ind][0])
+		
+		print '  ', print_name, ' '*(max_print_len - len(print_name)), \
+				' W: %.1e %.1e (%.1e)  B: %.1e %.1e (%.1e) -- %.1e %.1e' % (\
+			np.min(W), np.max(W), -EPS*np.median(np.abs(DW/W)), \
+			np.min(B), np.max(B), -EPS*np.median(np.abs(DB/B)), np.min(O), np.max(O))
