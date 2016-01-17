@@ -4,8 +4,9 @@ from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
 
-def dotT(args, OUT_BUFFER=None, gpu_ind=0):
+def dotT(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	assert additional_args == [None]
 	BUFFER1, BUFFER2 = args
 	check_buffer(BUFFER1)
 	check_buffer(BUFFER2)
@@ -31,23 +32,28 @@ def dotT(args, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = (BUFFER1[1][1], BUFFER2[1][1])
 	return OUT_BUFFER
 
-def dotT_da(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def dotT_da(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	assert additional_args == [None]
 	F, X = args
 	check_buffer(F)
 	check_buffer(X)
 	check_buffer(LAYER_OUT)
+	check_buffer(DERIV_ABOVE)
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
+	check_buffer(DERIV_ABOVE)
 	assert len(F[1]) == len(X[1]) == 2
 	assert F[1][0] == X[1][0]
 	
 	F_dim0, F_dim1 = F[1]
 	X_dim0, X_dim1 = X[1]
 	
+	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	
 	if GPU:
-		_ntm_module3.dotT_da(X[0], F[1], X[1], OUT_BUFFER[0], gpu_ind)
+		_ntm_module3.dotT_da(X[0], F[1], X[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	else: 
 		############ CPU
 		x = return_buffer(X, gpu_ind)
@@ -55,28 +61,38 @@ def dotT_da(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		temp = np.zeros((F_dim1, X_dim1, F_dim0, F_dim1),dtype='single')
 		temp[range(F_dim1),:,:,range(F_dim1)] = x.T
 		
-		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER_TEMP = set_buffer(temp, OUT_BUFFER_TEMP, gpu_ind)
 	
-	OUT_BUFFER[1] = (F_dim1, X_dim1, F_dim0, F_dim1)
+	OUT_BUFFER_TEMP[1] = (F_dim1, X_dim1, F_dim0, F_dim1)
+	check_buffer(OUT_BUFFER_TEMP)
+	
+	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
+	free_buffer(OUT_BUFFER_TEMP)
+	
 	return OUT_BUFFER
 
-def dotT_db(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def dotT_db(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	assert additional_args == [None]
 	F, X = args
 	check_buffer(F)
 	check_buffer(X)
 	check_buffer(LAYER_OUT)
+	check_buffer(DERIV_ABOVE)
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
+	check_buffer(DERIV_ABOVE)
 	assert len(F[1]) == len(X[1]) == 2
 	assert F[1][0] == X[1][0]
 	
 	F_dim0, F_dim1 = F[1]
 	X_dim0, X_dim1 = X[1]
 	
+	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	
 	if GPU:
-		_ntm_module3.dotT_db(F[0], F[1], X[1], OUT_BUFFER[0], gpu_ind)
+		_ntm_module3.dotT_db(F[0], F[1], X[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	else: 
 		############ CPU
 		f = return_buffer(F, gpu_ind)
@@ -84,9 +100,14 @@ def dotT_db(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		temp = np.zeros((F_dim1, X_dim1, X_dim0, X_dim1),dtype='single')
 		temp[:,range(X_dim1),:,range(X_dim1)] = f.T
 		
-		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER_TEMP = set_buffer(temp, OUT_BUFFER_TEMP, gpu_ind)
 	
-	OUT_BUFFER[1] = (F_dim1, X_dim1, X_dim0, X_dim1)
+	OUT_BUFFER_TEMP[1] = (F_dim1, X_dim1, X_dim0, X_dim1)
+	check_buffer(OUT_BUFFER_TEMP)
+	
+	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
+	free_buffer(OUT_BUFFER_TEMP)
+	
 	return OUT_BUFFER
 
 def add_dotT_layer(LAYERS, name, source, init=0):
@@ -118,6 +139,8 @@ def add_dotT_layer(LAYERS, name, source, init=0):
 		LAYERS[layer_ind]['in_source'] = in_source
 		LAYERS[layer_ind]['deriv_F'] = [dotT_da, dotT_db]
 		LAYERS[layer_ind]['in_prev'] = [False, False]
+		LAYERS[layer_ind]['additional_forward_args'] = [None]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[None], [None]]
 		
 		return layer_ind
 	

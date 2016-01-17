@@ -41,7 +41,7 @@ def add_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	check_buffer(LAYER_OUT)
 	check_buffer(DERIV_ABOVE)
 	assert A[1] == B[1]
-	assert len(A[1]) == 2 or len(A[1]) == 4
+	#assert len(A[1]) == 2 or len(A[1]) == 4
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)

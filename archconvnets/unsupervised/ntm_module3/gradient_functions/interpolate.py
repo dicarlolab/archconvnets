@@ -6,8 +6,9 @@ from archconvnets.unsupervised.ntm3.ntm_core import *
 
 # print interp_gate_out.shape, o_content.shape, o_prev.shape
 # (16, 1) (16, 6) (16, 6)
-def interpolate(args, OUT_BUFFER=None, scalar=1, gpu_ind=0):
+def interpolate(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	assert additional_args == [None]
 	INTERP_GATE_OUT, O_CONTENT, O_PREV = args
 	
 	check_buffer(INTERP_GATE_OUT)
@@ -33,16 +34,19 @@ def interpolate(args, OUT_BUFFER=None, scalar=1, gpu_ind=0):
 		OUT_BUFFER = set_buffer(interp_gate_out * o_content + (1 - interp_gate_out) * o_prev, OUT_BUFFER, gpu_ind)
 		
 	OUT_BUFFER[1] = copy.deepcopy(O_CONTENT[1])
-		
+	check_buffer(OUT_BUFFER)
+	
 	return OUT_BUFFER
 
-def interpolate_dinterp_gate_out(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def interpolate_dinterp_gate_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None],gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	assert additional_args == [None]
 	INTERP_GATE_OUT, O_CONTENT, O_PREV = args
 	
 	check_buffer(INTERP_GATE_OUT)
 	check_buffer(O_CONTENT)
 	check_buffer(O_PREV)
+	check_buffer(DERIV_ABOVE)
 	assert len(INTERP_GATE_OUT[1]) == len(O_CONTENT[1]) == len(O_PREV[1]) == 2
 	assert INTERP_GATE_OUT[1][0] == O_CONTENT[1][0] == O_PREV[1][0]
 	assert O_CONTENT[1][1] == O_PREV[1][1]
@@ -52,8 +56,10 @@ def interpolate_dinterp_gate_out(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	else:
 		OUT_BUFFER = init_buffer()
 	
+	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	
 	if GPU:
-		_ntm_module3.interpolate_dinterp_gate_out(O_CONTENT[0], O_CONTENT[1], O_PREV[0], OUT_BUFFER[0], gpu_ind)
+		_ntm_module3.interpolate_dinterp_gate_out(O_CONTENT[0], O_CONTENT[1], O_PREV[0], OUT_BUFFER_TEMP[0], gpu_ind)
 	else: 
 		############ CPU
 		interp_gate_out = return_buffer(INTERP_GATE_OUT,gpu_ind)
@@ -65,18 +71,25 @@ def interpolate_dinterp_gate_out(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		
 		temp2[range(temp2.shape[0]), :, range(temp2.shape[0])] = temp[:,:,np.newaxis]
 		
-		OUT_BUFFER = set_buffer(temp2, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER_TEMP = set_buffer(temp2, OUT_BUFFER_TEMP, gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((O_CONTENT[1], INTERP_GATE_OUT[1])))
+	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((O_CONTENT[1], INTERP_GATE_OUT[1])))
+	check_buffer(OUT_BUFFER_TEMP)
+	
+	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
+	free_buffer(OUT_BUFFER_TEMP)
+	
 	return OUT_BUFFER
 	
-def interpolate_do_content(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def interpolate_do_content(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	assert additional_args == [None]
 	INTERP_GATE_OUT, O_CONTENT, O_PREV = args
 	
 	check_buffer(INTERP_GATE_OUT)
 	check_buffer(O_CONTENT)
 	check_buffer(O_PREV)
+	check_buffer(DERIV_ABOVE)
 	assert len(INTERP_GATE_OUT[1]) == len(O_CONTENT[1]) == len(O_PREV[1]) == 2
 	assert INTERP_GATE_OUT[1][0] == O_CONTENT[1][0] == O_PREV[1][0]
 	assert O_CONTENT[1][1] == O_PREV[1][1]
@@ -86,8 +99,10 @@ def interpolate_do_content(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	else:
 		OUT_BUFFER = init_buffer()
 	
+	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	
 	if GPU:
-		_ntm_module3.interpolate_do_content(INTERP_GATE_OUT[0], O_PREV[1], OUT_BUFFER[0], gpu_ind)
+		_ntm_module3.interpolate_do_content(INTERP_GATE_OUT[0], O_PREV[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	else: 
 		############ CPU
 		interp_gate_out = return_buffer(INTERP_GATE_OUT,gpu_ind)
@@ -101,18 +116,25 @@ def interpolate_do_content(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		for i in range(temp2.shape[0]):
 			temp2[i,range(n),i,range(n)] = temp[i]
 				
-		OUT_BUFFER = set_buffer(temp2, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER_TEMP = set_buffer(temp2, OUT_BUFFER_TEMP, gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((O_CONTENT[1], O_CONTENT[1])))
+	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((O_CONTENT[1], O_CONTENT[1])))
+	check_buffer(OUT_BUFFER_TEMP)
+	
+	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
+	free_buffer(OUT_BUFFER_TEMP)
+	
 	return OUT_BUFFER
 	
-def interpolate_do_prev(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def interpolate_do_prev(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	assert additional_args == [None]
 	INTERP_GATE_OUT, O_CONTENT, O_PREV = args
 	
 	check_buffer(INTERP_GATE_OUT)
 	check_buffer(O_CONTENT)
 	check_buffer(O_PREV)
+	check_buffer(DERIV_ABOVE)
 	assert len(INTERP_GATE_OUT[1]) == len(O_CONTENT[1]) == len(O_PREV[1]) == 2
 	assert INTERP_GATE_OUT[1][0] == O_CONTENT[1][0] == O_PREV[1][0]
 	assert O_CONTENT[1][1] == O_PREV[1][1]
@@ -122,8 +144,10 @@ def interpolate_do_prev(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	else:
 		OUT_BUFFER = init_buffer()
 	
+	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	
 	if GPU:
-		_ntm_module3.interpolate_do_prev(INTERP_GATE_OUT[0], O_PREV[1], OUT_BUFFER[0], gpu_ind)
+		_ntm_module3.interpolate_do_prev(INTERP_GATE_OUT[0], O_PREV[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	else: 
 		############ CPU
 		interp_gate_out = return_buffer(INTERP_GATE_OUT,gpu_ind)
@@ -137,9 +161,14 @@ def interpolate_do_prev(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		for i in range(temp2.shape[0]):
 			temp2[i,range(n),i,range(n)] = temp[i]
 				
-		OUT_BUFFER = set_buffer(temp2, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER_TEMP = set_buffer(temp2, OUT_BUFFER_TEMP, gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((O_CONTENT[1], O_PREV[1])))
+	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((O_CONTENT[1], O_PREV[1])))
+	check_buffer(OUT_BUFFER_TEMP)
+	
+	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
+	free_buffer(OUT_BUFFER_TEMP)
+	
 	return OUT_BUFFER
 
 def add_interpolate_layer(LAYERS, name, source, init=0):
@@ -180,5 +209,7 @@ def add_interpolate_layer(LAYERS, name, source, init=0):
 		LAYERS[layer_ind]['in_source'] = source
 		LAYERS[layer_ind]['deriv_F'] = [interpolate_dinterp_gate_out, interpolate_do_content, interpolate_do_prev]
 		LAYERS[layer_ind]['in_prev'] = [False, False, arg2_prev]
+		LAYERS[layer_ind]['additional_forward_args'] = [None]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[None], [None], [None]]
 		
 		return layer_ind

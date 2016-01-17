@@ -121,7 +121,7 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	
 linear_F = dot
 
-def add_linear_F_layer(LAYERS, name, n_filters, source=None, squeeze=False, random_function=random_function, init=0):
+def add_linear_F_layer(LAYERS, name, n_filters, source=None, squeeze=True, random_function=random_function, init=0):
 	assert isinstance(name, str)
 	if init == 0:
 		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name

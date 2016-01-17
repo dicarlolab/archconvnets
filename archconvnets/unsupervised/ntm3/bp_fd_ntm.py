@@ -39,7 +39,7 @@ def f(y):
 	return z
 
 def g(y):
-	OUTPUT = None; LOCAL_DERIVS = None; WEIGHT_DERIVS = None
+	OUTPUT = None; WEIGHT_DERIVS = None
 	MEM_DERIVS = [None]*len(MEM_INDS)
 	OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
 	Wy = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
@@ -51,11 +51,10 @@ def g(y):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
 		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
-		LOCAL_DERIVS = local_derivs(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, LOCAL_DERIVS)
-		WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, WEIGHT_DERIVS)
+		WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)
 		
 		# update partials_prev
-		MEM_DERIVS = reverse_network(MEM_INDS, LAYERS, LOCAL_DERIVS, PARTIALS_PREV, MEM_DERIVS, keep_dims=True)
+		MEM_DERIVS = reverse_network(MEM_INDS, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, MEM_DERIVS, keep_dims=True)
 		PARTIALS_PREV = copy_partials(MEM_INDS, LAYERS, PARTIALS_PREV, MEM_DERIVS)
 		
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
@@ -64,7 +63,6 @@ def g(y):
 	
 	free_list_list(MEM_DERIVS)
 	free_partials(PARTIALS_PREV)
-	free_list(LOCAL_DERIVS)
 	free_list(OUTPUT)
 	free_list(WEIGHT_DERIVS)
 	free_list(OUTPUT_PREV)

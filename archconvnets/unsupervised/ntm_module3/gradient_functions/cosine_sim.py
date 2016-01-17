@@ -6,7 +6,7 @@ from archconvnets.unsupervised.ntm3.ntm_core import *
 
 # keys: N_CONTROLLERS, M_LENGTH
 # mem: N_MEM_SLOTS, M_LENGTH
-def cosine_sim(args, OUT_BUFFER=None, gpu_ind=0):
+def cosine_sim(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args
 	check_buffer(KEYS)
@@ -41,12 +41,13 @@ def cosine_sim(args, OUT_BUFFER=None, gpu_ind=0):
 	OUT_BUFFER[1] = (n_controllers, M)
 	return OUT_BUFFER
 
-def cosine_sim_dmem(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def cosine_sim_dmem(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args
 	check_buffer(KEYS)
 	check_buffer(MEM)
 	check_buffer(LAYER_OUT)
+	check_buffer(DERIV_ABOVE)
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
@@ -60,8 +61,10 @@ def cosine_sim_dmem(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	n_controllers, mem_length = KEYS[1][:2]
 	M = MEM[1][0]
 	
+	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	
 	if GPU:
-		_ntm_module3.cosine_sim_dmem(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER[0], gpu_ind)
+		_ntm_module3.cosine_sim_dmem(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER_TEMP[0], gpu_ind)
 	else:
 		########## CPU
 		keys = return_buffer(KEYS, gpu_ind)
@@ -86,20 +89,27 @@ def cosine_sim_dmem(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		keys_denom = keys[:,np.newaxis] * denom[:,:,np.newaxis]
 		
 		comb[:,range(mem.shape[0]),range(mem.shape[0])] = keys_denom - temp
-		OUT_BUFFER = set_buffer(comb, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER_TEMP = set_buffer(comb, OUT_BUFFER_TEMP, gpu_ind)
 	
 	if len(MEM[1]) == 2:
-		OUT_BUFFER[1] = (n_controllers, M, M, mem_length)
+		OUT_BUFFER_TEMP[1] = (n_controllers, M, M, mem_length)
 	else:
-		OUT_BUFFER[1] = (n_controllers, M, M, mem_length,1)
+		OUT_BUFFER_TEMP[1] = (n_controllers, M, M, mem_length,1)
+	
+	check_buffer(OUT_BUFFER_TEMP)
+	
+	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
+	free_buffer(OUT_BUFFER_TEMP)
+	
 	return OUT_BUFFER
 
-def cosine_sim_dkeys(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
+def cosine_sim_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args
 	check_buffer(KEYS)
 	check_buffer(MEM)
 	check_buffer(LAYER_OUT)
+	check_buffer(DERIV_ABOVE)
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
@@ -113,8 +123,10 @@ def cosine_sim_dkeys(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 	n_controllers, mem_length = KEYS[1][:2]
 	M = MEM[1][0]
 	
+	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	
 	if GPU:
-		_ntm_module3.cosine_sim_dkeys(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER[0], gpu_ind)
+		_ntm_module3.cosine_sim_dkeys(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER_TEMP[0], gpu_ind)
 	else:
 		######## CPU
 		keys = return_buffer(KEYS, gpu_ind)
@@ -139,12 +151,18 @@ def cosine_sim_dkeys(args, LAYER_OUT, OUT_BUFFER=None, gpu_ind=0):
 		mem_denom = mem[np.newaxis] * denom[:,:,np.newaxis]
 		
 		comb[range(n_controllers),:,range(n_controllers)] = mem_denom - temp
-		OUT_BUFFER = set_buffer(comb, OUT_BUFFER, gpu_ind)
+		OUT_BUFFER_TEMP = set_buffer(comb, OUT_BUFFER_TEMP, gpu_ind)
 		
 	if len(KEYS[1]) == 2:
-		OUT_BUFFER[1] = (n_controllers, M, n_controllers, mem_length)
+		OUT_BUFFER_TEMP[1] = (n_controllers, M, n_controllers, mem_length)
 	else:
-		OUT_BUFFER[1] = (n_controllers, M, n_controllers, mem_length, 1)
+		OUT_BUFFER_TEMP[1] = (n_controllers, M, n_controllers, mem_length, 1)
+	
+	check_buffer(OUT_BUFFER_TEMP)
+	
+	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
+	free_buffer(OUT_BUFFER_TEMP)
+	
 	return OUT_BUFFER
 
 # keys: N_CONTROLLERS, M_LENGTH
@@ -190,5 +208,7 @@ def add_cosine_sim_layer(LAYERS, name, source, mem_shape=None, init=0):
 		LAYERS[layer_ind]['in_source'] = in_source
 		LAYERS[layer_ind]['deriv_F'] = [cosine_sim_dkeys, cosine_sim_dmem]
 		LAYERS[layer_ind]['in_prev'] = [False, in_source_prev]
+		LAYERS[layer_ind]['additional_forward_args'] = [None]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[None], [None]]
 		
 		return layer_ind
