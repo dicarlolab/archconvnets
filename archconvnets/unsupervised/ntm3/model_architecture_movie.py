@@ -4,7 +4,7 @@ def init_model():
 	LAYERS = []
 
 	N_CONTROLLERS = 4
-	N_MEM_SLOTS = 4
+	N_MEM_SLOTS = 6
 	M_LENGTH = 4
 
 	mem_shape = (N_MEM_SLOTS, M_LENGTH)
@@ -18,8 +18,8 @@ def init_model():
 	U_F3 = 48
 	U_FL = 8
 	
-	A_F1 = 4
-	A_F2 = 32*32
+	A_F1 = 10
+	N_TARGET = 32*32
 	HEAD_INPUT = 'FL'
 
 	for init in [0,1]:
@@ -70,12 +70,16 @@ def init_model():
 		add_linear_F_bias_layer(LAYERS, 'READ_MEM', N_CONTROLLERS, 'R_F', 'MEM-', init=init)
 		
 		
-		## above
+		## above mem
 		add_relu_F_bias_layer(LAYERS, 'A_F1', A_F1, init=init)
-		add_linear_F_bias_layer(LAYERS, 'A_F2', A_F2, init=init)
-		add_sum_layer(LAYERS, 'SUM', init=init)
+		add_linear_F_bias_layer(LAYERS, 'MEM_STACK', N_TARGET, sum_all=True, init=init)
 		
-		add_add_layer(LAYERS, 'ERR', ['SUM', -1], scalar=-1, init=init)
+		### sum mem and conv stacks
+		add_relu_F_bias_layer(LAYERS, 'CONV3_STACK', N_TARGET, source='F3', init=init)
+		
+		add_add_layer(LAYERS, 'STACK_SUM', ['MEM_STACK', 'CONV3_STACK'], init=init)
+		
+		add_add_layer(LAYERS, 'ERR', ['STACK_SUM', -1], scalar=-1, init=init)
 		
 		#####
 		

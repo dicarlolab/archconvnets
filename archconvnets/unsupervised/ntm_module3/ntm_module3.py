@@ -217,9 +217,11 @@ def point_wise_div_sqrt(args, OUT_BUFFER=None, clip=10, gpu_ind=0):
 	OUT_BUFFER[1] = copy.deepcopy(B[1])
 	return OUT_BUFFER
 
-# additional_args: Squeeze output or not
-def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True], gpu_ind=0):
+# additional_args[0]: Squeeze output or not, 
+# additional_args[1] (sum_all): collapse x from [k,j] to [k*j,1] to give an output of [i,1] as opposed to [i,j]
+def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True, False], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	squeeze, sum_all = additional_args
 	BUFFER1, BUFFER2 = args
 	check_buffer(BUFFER1)
 	check_buffer(BUFFER2)
@@ -236,7 +238,7 @@ def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True], gpu_ind=0):
 	
 	# if source is a conv layer (4D input), sum across everything
 	BUFFER2_reshaped = copy.deepcopy(BUFFER2)
-	if len(BUFFER2[1]) == 4:
+	if len(BUFFER2[1]) == 4 or sum_all:
 		BUFFER2_reshaped[1] = (np.prod(BUFFER2[1]), 1)
 	
 	assert BUFFER1[1][-1] == BUFFER2_reshaped[1][0]
@@ -255,7 +257,7 @@ def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True], gpu_ind=0):
 		OUT_BUFFER = set_buffer(temp, OUT_BUFFER, gpu_ind)
 	
 	OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(BUFFER1[1][:len(BUFFER1[1])-1]), np.asarray(BUFFER2_reshaped[1][1])[np.newaxis])))	
-	if additional_args[0] and OUT_BUFFER[1][-1] == 1: # squeeze
+	if squeeze and OUT_BUFFER[1][-1] == 1: # squeeze
 		OUT_BUFFER[1] = OUT_BUFFER[1][:len(OUT_BUFFER[1])-1]
 	return OUT_BUFFER
 	

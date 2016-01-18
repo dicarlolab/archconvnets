@@ -2,9 +2,7 @@ import numpy as np
 import time
 import scipy.optimize
 from ntm_core import *
-#from model_architecture_movie import init_model
-from model_architecture_simple import init_model
-#from model_architecture_cp import init_model
+from model_architecture_movie import init_model
 
 free_all_buffers()
 N_FRAMES = 3
@@ -13,9 +11,9 @@ N_FRAMES = 3
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
 
 F1_IND = 0
-ERR_IND = find_layer(LAYERS, 'ERR')
-x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) #/ 10
-set_buffer(2, WEIGHTS[ERR_IND][1]) # target
+TARGET_IND = find_layer(LAYERS, 'ERR')
+x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) / 100
+target = random_function(np.concatenate(((N_FRAMES,), LAYERS[TARGET_IND]['in_shape'][1]))) / 100
 
 ################ which gradient to test
 gradient_layer = F1_IND
@@ -31,6 +29,7 @@ def f(y):
 	
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
+		set_buffer(target[frame], WEIGHTS[TARGET_IND][1]) # target
 
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
@@ -51,6 +50,7 @@ def g(y):
 	PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
+		set_buffer(target[frame], WEIGHTS[TARGET_IND][1]) # target
 		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)

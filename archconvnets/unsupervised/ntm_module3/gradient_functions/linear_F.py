@@ -10,6 +10,7 @@ def random_function(size):
 # additional_args = [True]: squeeze output last dimension
 def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	squeeze, sum_all = additional_args
 	F, X = args
 	check_buffer(F)
 	check_buffer(X)
@@ -23,7 +24,7 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	
 	# if source is a conv layer (4D input), sum across everything
 	X_reshaped = copy.deepcopy(X)
-	if len(X[1]) == 4:
+	if len(X[1]) == 4 or sum_all:
 		X_reshaped[1] = (np.prod(X[1]), 1)
 	
 	assert F[1][-1] == X_reshaped[1][0]
@@ -60,6 +61,7 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 # additional_args = [True]: squeeze output last dimension
 def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	squeeze, sum_all = additional_args
 	assert GPU
 	F, X = args
 	check_buffer(F)
@@ -74,7 +76,7 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	
 	# if source is a conv layer (4D input), sum across everything
 	X_reshaped = copy.deepcopy(X)
-	if len(X[1]) == 4:
+	if len(X[1]) == 4 or sum_all:
 		X_reshaped[1] = (np.prod(X[1]), 1)
 	
 	assert F[1][-1] == X_reshaped[1][0]
@@ -97,7 +99,7 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 
 linear_F = dot
 
-def add_linear_F_layer(LAYERS, name, n_filters, source=None, squeeze=True, random_function=random_function, init=0):
+def add_linear_F_layer(LAYERS, name, n_filters, source=None, sum_all=False, squeeze=True, random_function=random_function, init=0):
 	assert isinstance(name, str)
 	if init == 0:
 		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
@@ -130,7 +132,7 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, squeeze=True, rando
 		
 		# if source is a conv layer (4D input), sum across everything
 		assert len(in_shape[1]) == 4 or len(in_shape[1]) == 2
-		if len(in_shape[1]) == 4:
+		if len(in_shape[1]) == 4 or sum_all:
 			in_shape_reshaped = (np.prod(in_shape[1]), 1)
 		else:
 			in_shape_reshaped = copy.deepcopy(in_shape[1])
@@ -152,8 +154,8 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, squeeze=True, rando
 		LAYERS[layer_ind]['in_source'] = [random_function, in_source]
 		LAYERS[layer_ind]['deriv_F'] = [linear_F_dF, linear_F_dx]
 		LAYERS[layer_ind]['in_prev'] = [False, in_prev1]
-		LAYERS[layer_ind]['additional_forward_args'] = [squeeze]
-		LAYERS[layer_ind]['additional_deriv_args'] = [[squeeze], [squeeze]]
+		LAYERS[layer_ind]['additional_forward_args'] = [squeeze, sum_all]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[squeeze, sum_all], [squeeze, sum_all]]
 		
 		return layer_ind
 		
