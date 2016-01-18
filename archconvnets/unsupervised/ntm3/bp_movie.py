@@ -15,9 +15,9 @@ frame = 0; frame_local = 0
 err = 0
 
 EPOCH_LEN = 2000
-SAVE_FREQ = 250 # instantaneous checkpoint
+SAVE_FREQ = 50 # instantaneous checkpoint
 WRITE_FREQ = 50 # new checkpoint
-FRAME_LAG = SAVE_FREQ
+FRAME_LAG = 100 #SAVE_FREQ
 STOP_POINT = np.inf #SAVE_FREQ*15
 
 output_buffer = np.zeros(SAVE_FREQ,dtype='single')
@@ -39,9 +39,10 @@ MEM_DERIVS = [None]*len(MEM_INDS); WEIGHT_DERIVS_RMS = None
 OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
 PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 
+WEIGHTS_F1_INIT = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 
 ############# load images
-INPUT_SCALE = 1e-4
+INPUT_SCALE = 1e-5
 
 z = loadmat('/home/darren/test_clip.mat')
 imgs = z['imgs'] * INPUT_SCALE
@@ -96,8 +97,11 @@ while True:
 				'MEM', 'A_F1', 'MEM_STACK', 'CONV3_STACK', 'STACK_SUM'])
 		
 		#######
-		
-		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS})
+		WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
+		WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2')][0])
+		WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F3')][0])
+		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, \
+				'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3})
 		
 		t_start = time.time()
 		
