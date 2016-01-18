@@ -1,7 +1,25 @@
-__global__ void sum_points_kernel(float * points, float * out){
-	if(threadIdx.x == 0) out[0] = 0;
+__global__ void sum_points_kernel(float * points, float * out, int data_out_numel){
+	if(threadIdx.x == 0 && blockIdx.x == 0) out[0] = 0;
 	__syncthreads();
-	atomicAdd(&out[0], points[threadIdx.x]);
+	
+	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
+	
+	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
+	int n_additional_duplicates = data_out_numel % THREAD_CAPACITY;
+	
+	int n_duplicates = min_duplicates_per_thread;
+	if(ind < n_additional_duplicates) n_duplicates++;
+	
+	unsigned ind_g;
+	for(int dup = 0; dup < n_duplicates; dup++){
+		ind_g = dup*THREAD_CAPACITY + ind;
+		
+		#ifdef DEBUG
+		if(ind_g >= data_out_numel) assert(0); // out of bounds
+		#endif
+		
+		atomicAdd(&out[0], points[ind_g]);
+	}
 }
 
 static PyObject * sum_points(PyObject *self, PyObject *args){
@@ -37,7 +55,11 @@ static PyObject * sum_points(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	sum_points_kernel <<< 1, points_len >>> (gpu_buffers[gpu_ind][points_ind], gpu_buffers[gpu_ind][out_buffer_ind]);
+	// determine number of blocks
+	int n_blocks = (int)ceil((double)points_len/MAX_THREADS_PER_BLOCK);
+	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
+	
+	sum_points_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][points_ind], gpu_buffers[gpu_ind][out_buffer_ind], points_len);
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
