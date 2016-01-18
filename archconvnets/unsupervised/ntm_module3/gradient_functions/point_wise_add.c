@@ -1,23 +1,6 @@
-__global__ void point_wise_add_kernel(float * out, float * a, float * b, float scalar, float scalar0, int data_out_numel){
-	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
-	
-	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
-	int n_additional_duplicates = data_out_numel % THREAD_CAPACITY;
-	
-	int n_duplicates = min_duplicates_per_thread;
-	if(ind < n_additional_duplicates) n_duplicates++;
-	
-	unsigned ind_g;
-	for(int dup = 0; dup < n_duplicates; dup++){
-		ind_g = dup*THREAD_CAPACITY + ind;
-		
-		#ifdef DEBUG
-		if(ind_g >= data_out_numel) assert(0); // out of bounds
-		#endif
-		
-		out[ind_g] = a[ind_g] * scalar0 + b[ind_g] * scalar;
-	}
-}
+#define ADD_BLAS_SZ (buffer_sz[gpu_ind][a_ind]/(sizeof(DATA_TYPE)))
+
+// out_buffer = a * scalar0 + b * scalar
 
 static PyObject * point_wise_add(PyObject *self, PyObject *args){
 	cudaError_t err;
@@ -56,16 +39,20 @@ static PyObject * point_wise_add(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
+	// if A has not been initialized, simply copy B to out buffer
 	if(a_ind == out_buffer_ind && buffer_prev_init == 0){
 		cudaMemcpy(gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][b_ind], OUT_BUFFER_SZ, cudaMemcpyDeviceToDevice);
+	
+	// perform add:
 	}else{
-		// determine number of blocks
-		int n_blocks = (int)ceil((double)buffer_sz[gpu_ind][a_ind]/(sizeof(DATA_TYPE)*MAX_THREADS_PER_BLOCK));
-		if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
+		if(out_buffer_ind != a_ind)
+			cudaMemcpy(gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][a_ind], buffer_sz[gpu_ind][a_ind], cudaMemcpyDeviceToDevice);
+	
+	
+		if(scalar0 != 1)
+			cublasSscal(handle_blas, ADD_BLAS_SZ, &scalar0, gpu_buffers[gpu_ind][out_buffer_ind], 1);
 		
-		// run kernel
-		point_wise_add_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][a_ind], gpu_buffers[gpu_ind][b_ind], scalar, 
-			scalar0, buffer_sz[gpu_ind][a_ind]/(sizeof(DATA_TYPE)));
+		cublasSaxpy(handle_blas, ADD_BLAS_SZ, &scalar, gpu_buffers[gpu_ind][b_ind], 1, gpu_buffers[gpu_ind][out_buffer_ind], 1);
 	}
 	
 	#ifdef TIMING_DEBUG
