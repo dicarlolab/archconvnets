@@ -114,6 +114,9 @@ extern "C" void init_ntm_module3(){
 	
 	status = cudnnSetPoolingDescriptor(poolingDesc, CUDNN_POOLING_MAX, POOL_WINDOW_SZ, POOL_WINDOW_SZ, POOL_STRIDE, POOL_STRIDE); ERR_CHECK_R
 	
+	cublasStatus_t err_blas = cublasCreate(&handle_blas); ERR_CHECK_BLAS_R
+	
+	
 	/////////////////////////////////////////////////////////
 	for(int gpu_ind = 0; gpu_ind < N_GPUS; gpu_ind++){
 		for(int buffer_ind = 0; buffer_ind < N_BUFFERS; buffer_ind++){
