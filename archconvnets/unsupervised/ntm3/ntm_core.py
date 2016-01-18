@@ -369,6 +369,8 @@ def update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS, f
 		for arg in range(len(L['in_source'])):
 			# only update weight layers, not input layers
 			if hasattr(L['in_source'][arg], '__call__'):
+				assert WEIGHT_DERIVS[layer_ind][arg][1] is not None, 'layer %s (%i), arg %i has no gradient. is its output connected to the rest of the network?' % \
+					(LAYERS[layer_ind]['name'], layer_ind, arg)
 				
 				# deriv_sq = WEIGHT_DERIVS ** 2
 				deriv_sq = sq_points([WEIGHT_DERIVS[layer_ind][arg]], deriv_sq, deriv_computable=False)

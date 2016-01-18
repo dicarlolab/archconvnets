@@ -1,18 +1,31 @@
+# todo: R_GAMMA output values[?]; save script; correlation objective
 import numpy as np
 import time
 import scipy.optimize
 from ntm_core import *
 from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
-from model_architecture_movie import init_model
 
+no_mem = False
+
+if no_mem:
+	from model_architecture_movie_no_mem import init_model
+	INPUT_SCALE = 1e-5
+	EPS = -1e-5
+	save_name = 'ntm_movie_no_mem_%f' % (-EPS)
+else:
+	from model_architecture_movie import init_model
+	INPUT_SCALE = 1e-5
+	EPS = -1e-3
+	save_name = 'ntm_movie_%f' % (-EPS)
+
+	
 free_all_buffers()
 
+
 ################ init save vars
-EPS = -1e-3
-save_name = 'ntm_movie_%f' % (-EPS)
-frame = 0; frame_local = 0
-err = 0
+
+frame = 0; frame_local = 0; err = 0
 
 EPOCH_LEN = 2000
 SAVE_FREQ = 50 # instantaneous checkpoint
@@ -26,7 +39,7 @@ err_log = []; corr_log = []
 t_start = time.time()
 
 ################ init weights and inputs
-LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
+LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names = init_model()
 
 STACK_SUM_IND = find_layer(LAYERS, 'STACK_SUM')
 TARGET_IND = find_layer(LAYERS, 'ERR')
@@ -42,8 +55,6 @@ PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 WEIGHTS_F1_INIT = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 
 ############# load images
-INPUT_SCALE = 1e-5
-
 z = loadmat('/home/darren/test_clip.mat')
 imgs = z['imgs'] * INPUT_SCALE
 imgs -= imgs.mean(0)[np.newaxis] # subtract mean
@@ -92,9 +103,7 @@ while True:
 		corr_log.append(pearsonr(targets[frame_local+1], return_buffer(OUTPUT[STACK_SUM_IND]))[0])
 		err_log.append(err / SAVE_FREQ); err = 0
 		
-		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, \
-				['F1','F2','F3','', '_KEY', '_BETA', '_IN_GATE', '_SHIFT_PRE', '_GAMMA', '', 'ERASE', 'ADD', 'READ_MEM',\
-				'MEM', 'A_F1', 'MEM_STACK', 'CONV3_STACK', 'STACK_SUM'])
+		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, print_names)
 		
 		#######
 		WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
