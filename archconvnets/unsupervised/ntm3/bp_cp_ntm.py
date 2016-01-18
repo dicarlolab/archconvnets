@@ -10,7 +10,7 @@ free_all_buffers()
 
 ################ init save vars
 EPS = -1e-3
-save_name = 'ntm_reset_rand2_%f' % (-EPS)
+save_name = 'ntm_test_reset_partials_only2_%f' % (-EPS)
 TIME_LENGTH = 3
 elapsed_time = 1000
 frame = 0
@@ -59,11 +59,12 @@ while True:
 		training = 1 - training
 		elapsed_time = 0
 		if training == 1: # new training sequence
-			free_list(OUTPUT_PREV)
+			'''free_list(OUTPUT_PREV)
 			free_partials(PARTIALS_PREV)
-		
-			PREV_VALS = random_function_list(LAYERS, MEM_INDS)
+			
 			OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
+			PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)'''
+			free_partials(PARTIALS_PREV)
 			PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 			
 			target_seq = np.single(np.abs(np.random.normal(size=TIME_LENGTH)) + 2) #-.5
@@ -110,26 +111,9 @@ while True:
 		corr_log.append(pearsonr(target_buffer[training_flag_buffer == 0], output_buffer[training_flag_buffer == 0])[0])
 		err_log.append(err / SAVE_FREQ); err = 0
 		
-		print 'err: ', err_log[-1][0], 'frame: ', frame, 'corr: ', corr_log[-1], 'time: ', time.time() - t_start, save_name
-		
-		print_names = ['F1','F2','F3','', '_KEY', '_BETA', '_IN_GATE', '_SHIFT_PRE', '_GAMMA', '', 'ERASE', 'ADD', 'READ_MEM',\
-			'MEM', 'A_F1', 'A_F2']
-		
-		max_print_len = 0
-		for print_name in print_names:
-			if len(print_name) > max_print_len:
-				max_print_len = len(print_name)
-		
-		for print_name in print_names:
-			if len(print_name) != 0: # print layer
-				if print_name[0] != '_': # standard layer
-					print_layer(LAYERS, print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_len, EPS)
-				else: # read/write layers
-					print_layer(LAYERS, 'R'+print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_len, EPS)
-					print_layer(LAYERS, 'W'+print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_len, EPS)
-			else: # print blank
-				print
-		print '---------------------'
+		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, \
+				['F1','F2','F3','', '_KEY', '_BETA', '_IN_GATE', '_SHIFT_PRE', '_GAMMA', '', 'ERASE', 'ADD', 'READ_MEM',\
+				'MEM', 'A_F1', 'A_F2'])
 		
 		#######
 		

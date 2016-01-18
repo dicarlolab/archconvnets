@@ -1,6 +1,7 @@
 from gpu_flag import *
 import numpy as np
 import copy
+import time
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 
 def check_weights(WEIGHTS, LAYERS):
@@ -129,8 +130,8 @@ def build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS):
 	return args
 
 def forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV):
-	check_weights(WEIGHTS, LAYERS)
-	check_output_prev(OUTPUT_PREV, LAYERS)
+	#check_weights(WEIGHTS, LAYERS)
+	#check_output_prev(OUTPUT_PREV, LAYERS)
 	
 	OUTPUT = init_gpu_list(OUTPUT, LAYERS, args=False)
 	
@@ -241,11 +242,11 @@ def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
 			# have these inputs already been added?
 			t1 = np.asarray(PARTIALS[layer_orig]['in_source'])
 			t2 = np.asarray(PARTIALS[layer_orig]['in_arg'])
-			inds = np.nonzero((t1 == layer_cur) * (t2 == arg))[0]
-			assert len(inds) <= 1, 'partials have been added more than once'
+			partials_added = np.sum((t1 == layer_cur) * (t2 == arg)) #inds = np.nonzero((t1 == layer_cur) * (t2 == arg))[0]
+			assert partials_added <= 1, 'partials have been added more than once'
 			
 			# inputs have not been added, add them:
-			if len(inds) == 0:
+			if partials_added == 0:
 				PARTIALS[layer_orig]['in_source'].append(layer_cur)
 				PARTIALS[layer_orig]['in_arg'].append(arg)
 				OUT = init_buffer(np.zeros(np.concatenate((LAYERS[layer_orig]['out_shape'], LAYERS[layer_cur]['in_shape'][arg])), dtype='single'))
@@ -346,6 +347,7 @@ def init_output_prev(LAYERS, INDS, PREV_VALS):
 	for layer_ind in range(len(INDS)):
 		assert OUTPUT_PREV[INDS[layer_ind]] is None
 		OUTPUT_PREV[INDS[layer_ind]] = init_buffer(PREV_VALS[layer_ind])
+	
 	return OUTPUT_PREV
 
 
@@ -409,3 +411,23 @@ def print_layer(LAYERS, print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_le
 				' W: %.1e %.1e (%.1e)  B: %.1e %.1e (%.1e) -- %.1e %.1e' % (\
 			np.min(W), np.max(W), -EPS*np.median(np.abs(DW/W)), \
 			np.min(B), np.max(B), -EPS*np.median(np.abs(DB/B)), np.min(O), np.max(O))
+
+
+def print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, print_names):
+	print 'err: ', err_log[-1][0], 'frame: ', frame, 'corr: ', corr_log[-1], 'time: ', time.time() - t_start, save_name
+	
+	max_print_len = 0
+	for print_name in print_names:
+		if len(print_name) > max_print_len:
+			max_print_len = len(print_name)
+	
+	for print_name in print_names:
+		if len(print_name) != 0: # print layer
+			if print_name[0] != '_': # standard layer
+				print_layer(LAYERS, print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_len, EPS)
+			else: # read/write layers
+				print_layer(LAYERS, 'R'+print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_len, EPS)
+				print_layer(LAYERS, 'W'+print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_len, EPS)
+		else: # print blank
+			print
+	print '---------------------'

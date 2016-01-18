@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <cuda_runtime.h>
+#include <cublas_v2.h>
+
 #include "/home/darren/cudnn-6.5-linux-R1/cudnn.h"
 
 #define STATUSES {if(status == CUDNN_STATUS_NOT_INITIALIZED) printf("CUDNN_STATUS_NOT_INITIALIZED\n"); \
@@ -18,6 +22,8 @@
 	printf("%s line: %i\n", __FILE__, __LINE__);}
 #define ERR_CHECK {if (status != CUDNN_STATUS_SUCCESS){STATUSES;return NULL;}}
 #define ERR_CHECK_R {if (status != CUDNN_STATUS_SUCCESS){STATUSES;return;}}
+#define ERR_CHECK_BLAS {if (err_blas != CUBLAS_STATUS_SUCCESS){printf("blas err. %s line: %i\n",__FILE__,__LINE__); return NULL;}}
+#define ERR_CHECK_BLAS_R {if (err_blas != CUBLAS_STATUS_SUCCESS){printf("blas err. %s line: %i\n",__FILE__,__LINE__); return;}}
 #define MALLOC_ERR_CHECK {if (err != cudaSuccess){printf("malloc err line: %i\n",__LINE__); return NULL;}}
 
 
@@ -70,3 +76,5 @@ cudnnPoolingDescriptor_t poolingDesc;
 
 #define POOL_WINDOW_SZ 3
 #define POOL_STRIDE 2
+
+cublasHandle_t handle_blas;
