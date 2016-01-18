@@ -1,47 +1,16 @@
-#define DLDF(A, B, C, D) dldf[(A)*x_dim1*F_dim0*x_dim0 + (B)*F_dim0*x_dim0 + (C)*x_dim0 + D]
-#define X(A, B) x[(A)*x_dim1 + (B)]
-#define DLDF_NUMEL (F_dim0*x_dim1*F_dim0*x_dim0)
+#define DLDF_NUMEL (deriv_above_dim0*x_dim0)
 #define DLDF_SZ (DLDF_NUMEL*sizeof(DATA_TYPE))
 #define X_SZ buffer_sz[gpu_ind][x_ind]
 
-__global__ void linear_F_dF_kernel(float * x, float * dldf, int F_dim0, 
-		int x_dim0, int x_dim1, int data_out_numel){ 
-	int j, k;
-	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
-	
-	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
-	int n_additional_duplicates = data_out_numel % THREAD_CAPACITY;
-	
-	int n_duplicates = min_duplicates_per_thread;
-	if(ind < n_additional_duplicates) n_duplicates++;
-	
-	unsigned ind_g;
-	for(int dup = 0; dup < n_duplicates; dup++){
-		ind_g = dup*THREAD_CAPACITY + ind;
-	
-		j = ind_g / x_dim0;
-		k = ind_g % x_dim0;
-
-		for(int i = 0; i < F_dim0; i++){
-			for(int i_local = 0; i_local < F_dim0; i_local++){
-				if(i_local == i)
-					DLDF(i,j,i,k) = X(k,j);
-				else
-					DLDF(i,j,i_local,k) = 0;
-			}
-		}
-	}
-}
-
 static PyObject * linear_F_dF(PyObject *self, PyObject *args){
 	cudaError_t err;
-	PyTupleObject *x_shape, *F_shape;
-	int x_ind, out_buffer_ind, gpu_ind;
+	PyTupleObject *x_shape, *deriv_above_shape;
+	int x_ind, deriv_above_ind, out_buffer_ind, gpu_ind;
 	
-	if (!PyArg_ParseTuple(args, "iO!O!ii", &x_ind, &PyTuple_Type, &x_shape, &PyTuple_Type, &F_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!iO!ii", &x_ind, &PyTuple_Type, &x_shape, &deriv_above_ind, &PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &gpu_ind)) 
 		return NULL;
     
-	if(x_ind >= N_BUFFERS || x_ind < 0 || out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0){ 
+	if(x_ind >= N_BUFFERS || x_ind < 0 || deriv_above_ind >=N_BUFFERS || deriv_above_ind < 0 || out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0){ 
 		printf("buffer index incorrect, set_buffers().\n");
 		return NULL;
 	}
@@ -51,21 +20,16 @@ static PyObject * linear_F_dF(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(X_SZ == 0){
+	if(X_SZ == 0 || buffer_sz[gpu_ind][deriv_above_ind] == 0){
 		printf("buffer not initialized. use set_buffers()\n");
 		return NULL;
 	}
 	
 	// get sizes
-	long F_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)F_shape,0));
-	long F_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)F_shape,1));
+	long deriv_above_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)deriv_above_shape,0));
+	long deriv_above_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)deriv_above_shape,1));
 	long x_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)x_shape,0));
 	long x_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)x_shape,1));
-	
-	if(x_dim0*x_dim1*sizeof(DATA_TYPE) != X_SZ){
-		printf("specified input sizes do not equal to stored gpu buffer\n");
-		return NULL;
-	}
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DLDF_SZ); MALLOC_ERR_CHECK
@@ -78,12 +42,14 @@ static PyObject * linear_F_dF(PyObject *self, PyObject *args){
 	
 	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
-	// determine number of blocks
-	int n_blocks = (int)ceil((double)(x_dim1 * x_dim0)/MAX_THREADS_PER_BLOCK);
-	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
+	const float alpha = 1.0, beta = 0.0;
 	
-	linear_F_dF_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][x_ind], 
-		gpu_buffers[gpu_ind][out_buffer_ind], F_dim0, x_dim0, x_dim1, x_dim1 * x_dim0);
+	// dot(deriv_above, x.T)
+	
+	cublasStatus_t err_blas = cublasSgemm(handle_blas, CUBLAS_OP_T, CUBLAS_OP_N, x_dim0, deriv_above_dim0, deriv_above_dim1, &alpha,
+        gpu_buffers[gpu_ind][x_ind], x_dim1, gpu_buffers[gpu_ind][deriv_above_ind], deriv_above_dim1, &beta, GPU_BUFFER_OUT, x_dim0);
+	
+	ERR_CHECK_BLAS
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR

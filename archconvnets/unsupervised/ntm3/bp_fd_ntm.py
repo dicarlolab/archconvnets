@@ -2,8 +2,8 @@ import numpy as np
 import time
 import scipy.optimize
 from ntm_core import *
-#from model_architecture_movie import init_model
-from model_architecture_simple import init_model
+from model_architecture_movie import init_model
+#from model_architecture_simple import init_model
 
 free_all_buffers()
 N_FRAMES = 3
@@ -11,15 +11,13 @@ N_FRAMES = 3
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
 
-F1_LAYER_NAME = 'F1_lin'
-
-F1_IND = find_layer(LAYERS, F1_LAYER_NAME)
+F1_IND = 0
 ERR_IND = find_layer(LAYERS, 'ERR')
-x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) / 10
+x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) / 100
 set_buffer(2, WEIGHTS[ERR_IND][1]) # target
 
 ################ which gradient to test
-gradient_layer = find_layer(LAYERS, F1_LAYER_NAME)
+gradient_layer = F1_IND
 gradient_arg = 0
 
 def f(y):

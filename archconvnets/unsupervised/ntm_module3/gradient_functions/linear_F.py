@@ -49,13 +49,7 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 		temp[:,range(n),:,range(n)] = f
 		OUT_BUFFER_TEMP = set_buffer(temp, OUT_BUFFER_TEMP, gpu_ind)
 	
-	#### forward out shape:
-	forward_shape = tuple(np.concatenate((np.asarray(F[1][:len(F[1])-1]), np.asarray(X_reshaped[1][1])[np.newaxis])))	
-	if additional_args[0] and forward_shape[-1] == 1: # squeeze
-		forward_shape = forward_shape[:len(forward_shape)-1]
-	###
-	
-	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((forward_shape, np.asarray(X[1]))))
+	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((LAYER_OUT[1], np.asarray(X[1]))))
 	check_buffer(OUT_BUFFER_TEMP)
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
@@ -66,6 +60,7 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 # additional_args = [True]: squeeze output last dimension
 def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
 	assert isinstance(gpu_ind,int)
+	assert GPU
 	F, X = args
 	check_buffer(F)
 	check_buffer(X)
@@ -84,41 +79,22 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	
 	assert F[1][-1] == X_reshaped[1][0]
 	
-	# reshape buffer1 into two dimensions:
-	# (a,b,c,d,e) -> (a*b*c*d, e)
-	F_new_shape = copy.deepcopy(F)
-	F_new_shape[1] = (np.prod(F[1][:len(F[1])-1]), F[1][-1])
-	
-	F_dim0, F_dim1 = F_new_shape[1]
 	X_dim0, X_dim1 = X_reshaped[1]
 	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	# reshape deriv_above to 2 dims
+	DERIV_ABOVE_reshaped = copy.deepcopy(DERIV_ABOVE)
+	DERIV_ABOVE_reshaped[1] = (np.prod(DERIV_ABOVE[1][:len(DERIV_ABOVE[1])-1]), DERIV_ABOVE[1][-1])
 	
-	if GPU:
-		_ntm_module3.linear_F_dF(X_reshaped[0], X_reshaped[1], F_new_shape[1], OUT_BUFFER_TEMP[0], gpu_ind)
-	else:
-		############ CPU
-		f = return_buffer(F_new_shape, gpu_ind)
-		x = return_buffer(X_reshaped, gpu_ind)
-		n = f.shape[0]
-		temp = np.zeros((n, x.shape[1], n, f.shape[1]),dtype='single')
-		temp[range(n),:,range(n)] = x.T
-		OUT_BUFFER_TEMP = set_buffer(temp, OUT_BUFFER_TEMP, gpu_ind)
-		
-	#### forward out shape:
-	forward_shape = tuple(np.concatenate((np.asarray(F[1][:len(F[1])-1]), np.asarray(X_reshaped[1][1])[np.newaxis])))	
-	if additional_args[0] and forward_shape[-1] == 1: # squeeze
-		forward_shape = forward_shape[:len(forward_shape)-1]
-	###
+	# now: dot(deriv_above, x.T)
+	_ntm_module3.linear_F_dF(X_reshaped[0], X_reshaped[1], DERIV_ABOVE_reshaped[0], DERIV_ABOVE_reshaped[1], OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((forward_shape, np.asarray(F[1]))))
-	check_buffer(OUT_BUFFER_TEMP)
-	
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
+	# reshape back to original dimensions
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], F[1])))
+	check_buffer(OUT_BUFFER)
 	
 	return OUT_BUFFER
-	
+
 linear_F = dot
 
 def add_linear_F_layer(LAYERS, name, n_filters, source=None, squeeze=True, random_function=random_function, init=0):
