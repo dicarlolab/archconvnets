@@ -49,6 +49,8 @@
 #include "gradient_functions/conv_dfilter.c"
 #include "gradient_functions/max_pool.c"
 #include "gradient_functions/max_pool_dinput.c"
+#include "gradient_functions/pearson.c"
+#include "gradient_functions/pearson_dinput.c"
 
 static PyMethodDef _ntm_module3[] = {
 	{"sync", sync, METH_VARARGS},
@@ -100,6 +102,8 @@ static PyMethodDef _ntm_module3[] = {
 	{"conv_dfilter", conv_dfilter, METH_VARARGS},
 	{"max_pool", max_pool, METH_VARARGS},
 	{"max_pool_dinput", max_pool_dinput, METH_VARARGS},
+	{"pearson", pearson, METH_VARARGS},
+	{"pearson_dinput", pearson_dinput, METH_VARARGS},
 	{NULL, NULL}
 };
 

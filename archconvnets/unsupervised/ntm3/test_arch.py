@@ -2,29 +2,32 @@ from ntm_core import *
 
 LAYERS = []
 
-N_CONTROLLERS = 16
+N_CONTROLLERS = 4
 N_MEM_SLOTS = 6
-M_LENGTH = 8
+M_LENGTH = 4
 
 mem_shape = (N_MEM_SLOTS, M_LENGTH)
 
-U_F1_FILTER_SZ = 3
-U_F2_FILTER_SZ = 3
+U_F1_FILTER_SZ = 5
+U_F2_FILTER_SZ = 5
+U_F3_FILTER_SZ = 3
 
-U_F1 = 12
-U_F2 = 7
-U_F3 = 9
+U_F1 = 48
+U_F2 = 48
+U_F3 = 48
+U_FL = 8
 
-A_F1 = 4
-A_F2 = 7
-HEAD_INPUT = 'F3'
+A_F1 = 10
+N_TARGET = 32*32
+HEAD_INPUT = 'FL'
 
 for init in [0,1]:
 	# below
-	add_conv_layer(LAYERS, 'F1', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(1,2,12,12), init=init)
+	add_conv_layer(LAYERS, 'F1', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(1,3,32,32), init=init)
 	add_max_pool_layer(LAYERS, 'F1_MAX', init=init)
 	add_conv_layer(LAYERS, 'F2', U_F2, U_F2_FILTER_SZ, init=init)
 	add_max_pool_layer(LAYERS, 'F2_MAX', init=init)
+	add_conv_layer(LAYERS, 'F3', U_F3, U_F3_FILTER_SZ, init=init)
 	add_linear_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
 	
 	for RW in ['R', 'W']:
@@ -66,17 +69,16 @@ for init in [0,1]:
 	add_linear_F_bias_layer(LAYERS, 'READ_MEM', N_CONTROLLERS, 'R_F', 'MEM-', init=init)
 	
 	
-	## above
+	## above mem
 	add_relu_F_bias_layer(LAYERS, 'A_F1', A_F1, init=init)
-	add_linear_F_bias_layer(LAYERS, 'A_F2', A_F2, init=init)
-	add_sum_layer(LAYERS, 'SUM', init=init)
+	add_linear_F_bias_layer(LAYERS, 'MEM_STACK', N_TARGET, sum_all=True, init=init)
 	
-	add_add_layer(LAYERS, 'ERR', ['SUM', -1], scalar=-1, init=init)
+	### sum mem and conv stacks
+	add_relu_F_bias_layer(LAYERS, 'CONV3_STACK', N_TARGET, source='F3', init=init)
 	
-	#####
+	add_add_layer(LAYERS, 'STACK_SUM', ['MEM_STACK', 'CONV3_STACK'], init=init)
 	
-	add_sq_points_layer(LAYERS, 'SQ_ERR', init=init)
-	add_sum_layer(LAYERS, 'SUM_ERR', init=init)
+	add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM', -1], init=init)
 
 check_network(LAYERS)
 
@@ -84,5 +86,3 @@ check_network(LAYERS)
 WEIGHTS = init_weights(LAYERS)
 MEM_INDS = find_layer(LAYERS, ['MEM', 'R_F', 'W_F'])
 PREV_VALS = random_function_list(LAYERS, MEM_INDS)
-
-

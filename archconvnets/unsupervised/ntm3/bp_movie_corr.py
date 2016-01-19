@@ -11,13 +11,13 @@ no_mem = False
 if no_mem:
 	from model_architecture_movie_no_mem import init_model
 	INPUT_SCALE = 1e-5
-	EPS = -1e-5
-	save_name = 'ntm_movie_no_mem_%f' % (-EPS)
+	EPS = 1e-5
+	save_name = 'ntm_movie_corr_no_mem_%f' % (-EPS)
 else:
 	from model_architecture_movie import init_model
 	INPUT_SCALE = 1e-5
-	EPS = -1e-3
-	save_name = 'ntm_movie_%f' % (-EPS)
+	EPS = 1e-3
+	save_name = 'ntm_movie_corr_%f' % (-EPS)
 
 	
 free_all_buffers()
@@ -43,7 +43,7 @@ LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names = init_model()
 
 STACK_SUM_IND = find_layer(LAYERS, 'STACK_SUM')
 TARGET_IND = find_layer(LAYERS, 'ERR')
-OUT_IND = find_layer(LAYERS, 'SUM_ERR')
+OUT_IND = find_layer(LAYERS, 'ERR')
 F1_IND = 0
 
 OUTPUT = None; WEIGHT_DERIVS = None

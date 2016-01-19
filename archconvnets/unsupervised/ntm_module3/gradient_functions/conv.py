@@ -120,7 +120,7 @@ def conv_dfilter(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=
 # source = None: source is previous layer
 # source = -1: source is user-supplied
 # source = str: source is another layer
-def add_conv_layer(LAYERS, name, n_filters, filter_sz, source=None, imgs_shape=None, random_function=random_function, PAD=0, init=0):
+def add_conv_layer(LAYERS, name, n_filters, filter_sz, source=None, imgs_shape=None, random_function=random_normal_function, PAD=0, init=0):
 	assert isinstance(n_filters, int)
 	assert isinstance(filter_sz, int)
 	assert isinstance(name, str)

@@ -79,12 +79,7 @@ def init_model():
 		
 		add_add_layer(LAYERS, 'STACK_SUM', ['MEM_STACK', 'CONV3_STACK'], init=init)
 		
-		add_add_layer(LAYERS, 'ERR', ['STACK_SUM', -1], scalar=-1, init=init)
-		
-		#####
-		
-		add_sq_points_layer(LAYERS, 'SQ_ERR', init=init)
-		add_sum_layer(LAYERS, 'SUM_ERR', init=init)
+		add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM', -1], init=init)
 
 	check_network(LAYERS)
 	

@@ -6,6 +6,9 @@ from archconvnets.unsupervised.ntm3.ntm_core import *
 
 def random_function(size):
 	return np.asarray(np.random.random(size) - .5, dtype='single')
+	
+def random_normal_function(size):
+	return np.asarray(np.random.normal(loc=0, scale=.01, size=size), dtype='single')
 
 # additional_args = [True]: squeeze output last dimension
 def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
