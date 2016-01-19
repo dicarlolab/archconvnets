@@ -19,7 +19,7 @@ def init_model():
 	U_FL = 8
 	
 	A_F1 = 10
-	N_TARGET = 32*32
+	N_TARGET = 32*32*3
 	HEAD_INPUT = 'FL'
 
 	for init in [0,1]:
@@ -75,9 +75,13 @@ def init_model():
 		add_linear_F_bias_layer(LAYERS, 'MEM_STACK', N_TARGET, sum_all=True, init=init)
 		
 		### sum mem and conv stacks
-		add_linear_F_bias_layer(LAYERS, 'CONV3_STACK', N_TARGET, source='F3', init=init)
+		add_linear_F_bias_layer(LAYERS, 'STACK_SUM_C1', N_TARGET, source='F1', init=init)
+		add_linear_F_bias_layer(LAYERS, 'STACK_SUM_M1', N_TARGET, source='F1_MAX', init=init)
+		add_linear_F_bias_layer(LAYERS, 'STACK_SUM_F3', N_TARGET, source='F3', init=init)
 		
-		add_add_layer(LAYERS, 'STACK_SUM', ['MEM_STACK', 'CONV3_STACK'], init=init)
+		add_add_layer(LAYERS, 'STACK_SUM0', ['STACK_SUM_C1', 'STACK_SUM_M1'], init=init)
+		add_add_layer(LAYERS, 'STACK_SUM1', ['STACK_SUM0', 'STACK_SUM_F3'], init=init)
+		add_add_layer(LAYERS, 'STACK_SUM', ['STACK_SUM1', 'MEM_STACK'], init=init)
 		
 		add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM', -1], init=init)
 
@@ -89,7 +93,7 @@ def init_model():
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
 	print_names = ['F1','F2','F3','', '_KEY', '_BETA', '_IN_GATE', '_SHIFT_PRE', '_GAMMA', '', 'ERASE', 'ADD', 'READ_MEM',\
-				'MEM', 'A_F1', 'MEM_STACK', 'CONV3_STACK', 'STACK_SUM']
+				'MEM', 'A_F1', 'MEM_STACK', 'STACK_SUM_C1', 'STACK_SUM_M1', 'STACK_SUM_F3', 'STACK_SUM']
 	
 	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names
 

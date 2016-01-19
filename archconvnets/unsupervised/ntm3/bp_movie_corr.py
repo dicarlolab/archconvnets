@@ -7,17 +7,19 @@ from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
 
 no_mem = True
+no_mem = False
+T_AHEAD = 2
 
 if no_mem:
 	from architectures.model_architecture_movie_no_mem import init_model
 	INPUT_SCALE = 1e-5
-	EPS = 1e-3
-	save_name = 'ntm_movie_corr_no_mem_%f' % (-EPS)
+	EPS = 5e-4
+	save_name = 'ntm_movie_corr_no_mem_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
 else:
 	from architectures.model_architecture_movie import init_model
 	INPUT_SCALE = 1e-5
-	EPS = 1e-3
-	save_name = 'ntm_movie_corr_%f' % (-EPS)
+	EPS = 5e-4
+	save_name = 'ntm_movie_corr_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
 
 	
 free_all_buffers()
@@ -60,7 +62,7 @@ imgs = z['imgs'] * INPUT_SCALE
 imgs -= imgs.mean(0)[np.newaxis] # subtract mean
 
 inputs = np.single(np.ascontiguousarray(imgs[:,np.newaxis])) # (n_imgs, 1, 3,32,32)
-targets = imgs.mean(1).reshape((imgs.shape[0],32*32,1)) # mean across channels
+targets = imgs.reshape((imgs.shape[0],3*32*32,1))
 
 #####################
 while True:
@@ -76,7 +78,7 @@ while True:
 	
 	###### forward
 	set_buffer(inputs[frame_local], WEIGHTS[F1_IND][1])  # inputs
-	set_buffer(targets[frame_local+1], WEIGHTS[TARGET_IND][1]) # target
+	set_buffer(targets[frame_local+T_AHEAD], WEIGHTS[TARGET_IND][1]) # target
 	
 	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 	
@@ -100,7 +102,7 @@ while True:
 		
 	# print
 	if frame % SAVE_FREQ == 0 and frame != 0:
-		corr_log.append(pearsonr(targets[frame_local+1], return_buffer(OUTPUT[STACK_SUM_IND]))[0])
+		corr_log.append(pearsonr(targets[frame_local+T_AHEAD], return_buffer(OUTPUT[STACK_SUM_IND]))[0])
 		err_log.append(err / SAVE_FREQ); err = 0
 		
 		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, print_names)
