@@ -9,12 +9,12 @@ from scipy.stats import zscore, pearsonr
 no_mem = False
 
 if no_mem:
-	from model_architecture_movie_no_mem import init_model
+	from architectures.model_architecture_movie_no_mem import init_model
 	INPUT_SCALE = 1e-5
 	EPS = -1e-5
 	save_name = 'ntm_movie_no_mem_%f' % (-EPS)
 else:
-	from model_architecture_movie import init_model
+	from architectures.model_architecture_movie import init_model
 	INPUT_SCALE = 1e-5
 	EPS = -1e-3
 	save_name = 'ntm_movie_%f' % (-EPS)

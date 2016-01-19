@@ -75,7 +75,7 @@ def init_model():
 		add_linear_F_bias_layer(LAYERS, 'MEM_STACK', N_TARGET, sum_all=True, init=init)
 		
 		### sum mem and conv stacks
-		add_relu_F_bias_layer(LAYERS, 'CONV3_STACK', N_TARGET, source='F3', init=init)
+		add_linear_F_bias_layer(LAYERS, 'CONV3_STACK', N_TARGET, source='F3', init=init)
 		
 		add_add_layer(LAYERS, 'STACK_SUM', ['MEM_STACK', 'CONV3_STACK'], init=init)
 		
