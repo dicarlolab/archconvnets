@@ -5,21 +5,22 @@ import scipy.optimize
 from ntm_core import *
 from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
+from elastic_world import generate_imgs
 
 no_mem = True
-#no_mem = False
-T_AHEAD = 1
+no_mem = False
+T_AHEAD = 2
 
 if no_mem:
 	from architectures.model_architecture_movie_no_mem import init_model
 	INPUT_SCALE = 1e-5
 	EPS = 5e-4
-	save_name = 'ntm_movie_corr_no_mem_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
+	save_name = 'ntm_physics_no_mem_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
 else:
-	from architectures.model_architecture_movie import init_model
+	from architectures.model_architecture_movie_mem_read_only import init_model
 	INPUT_SCALE = 1e-5
 	EPS = 5e-4
-	save_name = 'ntm_movie_corr_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
+	save_name = 'ntm_physics_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
 
 	
 free_all_buffers()
@@ -29,7 +30,7 @@ free_all_buffers()
 
 frame = 0; frame_local = 0; err = 0
 
-EPOCH_LEN = 2000
+EPOCH_LEN = 6*6
 SAVE_FREQ = 50 # instantaneous checkpoint
 WRITE_FREQ = 50 # new checkpoint
 FRAME_LAG = 100 #SAVE_FREQ
@@ -56,18 +57,14 @@ PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 
 WEIGHTS_F1_INIT = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 
-############# load images
-z = loadmat('/home/darren/test_clip.mat')
-imgs = z['imgs'] * INPUT_SCALE
-imgs -= imgs.mean(0)[np.newaxis] # subtract mean
-
-inputs = np.single(np.ascontiguousarray(imgs[:,np.newaxis])) # (n_imgs, 1, 3,32,32)
-targets = imgs.reshape((imgs.shape[0],3*32*32,1))
-
 #####################
 while True:
-	# show the movie again
+	# end of movie:
 	if (frame % EPOCH_LEN) == 0:
+		#### new movie
+		inputs, targets = generate_imgs(EPOCH_LEN, T_AHEAD)
+		
+		#### reset state
 		free_list(OUTPUT_PREV)
 		free_partials(PARTIALS_PREV)
 		
@@ -112,7 +109,7 @@ while True:
 		WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2')][0])
 		WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F3')][0])
 		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, \
-				'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3})
+				'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3, 'EPOCH_LEN': EPOCH_LEN})
 		
 		t_start = time.time()
 		
