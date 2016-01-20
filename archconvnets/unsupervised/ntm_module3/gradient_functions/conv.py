@@ -3,9 +3,13 @@ import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
+import time
+
+t_main = [0,0,0]
 
 # additional_args= [PAD]
 def conv(args, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	F, IMGS = args
 	check_buffer(F)
@@ -28,10 +32,11 @@ def conv(args, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
 	else:
 		####### CPU
 		assert False, 'cpu conv not supported'
-		
+	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def conv_ddata(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	F, IMGS = args
 	check_buffer(F)
@@ -70,10 +75,11 @@ def conv_ddata(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0
 	
 	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dims_not_summed], IMGS[1])))
 	check_buffer(OUT_BUFFER)
-	
+	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	
 def conv_dfilter(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	F, IMGS = args
 	check_buffer(F)
@@ -113,7 +119,7 @@ def conv_dfilter(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=
 	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dims_not_summed], F[1])))
 	
 	check_buffer(OUT_BUFFER)
-	
+	t_main[2] += time.time() - t
 	return OUT_BUFFER
 	
 

@@ -3,10 +3,14 @@ import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
+import time
+
+t_main = [0,0]
 
 # c = a + scalar*b
 # unlike point_wise_add, this defaults to storing the output in a new buffer instead of overwriting the first argument
 def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=0):
+	t = time.time()
 	assert len(additional_args) == 1
 	assert isinstance(gpu_ind,int)
 	scalar = additional_args[0]
@@ -29,9 +33,11 @@ def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=0):
 		OUT_BUFFER = set_buffer(A_local + B_local*scalar, OUT_BUFFER, gpu_ind)
 		
 	OUT_BUFFER[1] = copy.deepcopy(B[1])
+	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def add_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[1], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert len(additional_args) == 1
 	scalar = additional_args[0]
@@ -63,7 +69,7 @@ def add_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	
 	

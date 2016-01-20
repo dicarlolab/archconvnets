@@ -3,9 +3,13 @@ import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
+import time
+
+t_main = [0,0]
 
 # c = a*b     a and b must be of the same dimensionality
 def mult_points(args, OUT_BUFFER=None, additional_args=[], gpu_ind=0):
+	t = time.time()
 	assert len(additional_args) == 0
 	assert isinstance(gpu_ind,int)
 	A, B = args
@@ -26,11 +30,13 @@ def mult_points(args, OUT_BUFFER=None, additional_args=[], gpu_ind=0):
 		OUT_BUFFER = set_buffer(A_local*B_local, OUT_BUFFER, gpu_ind)
 		
 	OUT_BUFFER[1] = copy.deepcopy(B[1])
+	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 # additional_args == 0: deriv. wrt A
 # additional_args == 1: deriv. wrt B
 def mult_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert len(additional_args) == 1
 	assert additional_args[0] == 0 or additional_args[0] == 1
@@ -69,7 +75,7 @@ def mult_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	
 # c = a*b

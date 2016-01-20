@@ -3,8 +3,12 @@ import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
+import time
+
+t_main = [0,0]
 
 def max_pool(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert additional_args == [None]
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
@@ -24,7 +28,7 @@ def max_pool(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	else:
 		####### CPU
 		assert False, 'cpu max_pool not supported'
-		
+	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 # srcData = LAYER_OUT
@@ -73,7 +77,7 @@ def max_pool_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_ar
 	
 	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dims_not_summed], DESTDATA[1])))
 	check_buffer(OUT_BUFFER)
-	
+	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
 

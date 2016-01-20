@@ -3,6 +3,9 @@ import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
+import time
+
+t_main = [0,0,0]
 
 def random_function(size):
 	return np.asarray(np.random.random(size) - .5, dtype='single')
@@ -12,6 +15,7 @@ def random_normal_function(size):
 
 # additional_args = [True]: squeeze output last dimension
 def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	squeeze, sum_all = additional_args
 	F, X = args
@@ -58,11 +62,12 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
 # additional_args = [True]: squeeze output last dimension
 def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	squeeze, sum_all = additional_args
 	assert GPU
@@ -97,7 +102,7 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
 	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], F[1])))
 	check_buffer(OUT_BUFFER)
-	
+	t_main[2] += time.time() - t
 	return OUT_BUFFER
 
 linear_F = dot

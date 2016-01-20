@@ -3,11 +3,15 @@ import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
+import time
+
+t_main = [0,0,0]
 
 ############# sharpen across mem_slots separately for each controller
 # w: [dim1, dim0]
 # gamma: [dim1, 1]
 def sharpen(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	W, GAMMA = args
@@ -34,10 +38,11 @@ def sharpen(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 		OUT_BUFFER = set_buffer(wg / wg.sum(1)[:,np.newaxis], OUT_BUFFER, gpu_ind)
 		
 	OUT_BUFFER[1] = copy.deepcopy(W[1])
-		
+	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def sharpen_dgamma(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	W, GAMMA = args
@@ -79,10 +84,11 @@ def sharpen_dgamma(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_arg
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	
 def sharpen_dw(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	W, GAMMA = args
@@ -130,7 +136,7 @@ def sharpen_dw(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[N
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[2] += time.time() - t
 	return OUT_BUFFER
 
 def add_sharpen_layer(LAYERS, name, source, init=0):

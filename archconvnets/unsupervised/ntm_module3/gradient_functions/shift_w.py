@@ -3,11 +3,15 @@ import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
+import time
+
+t_main = [0,0,0]
 
 ##########
 N_SHIFTS = 3
 
 def shift_w(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, mem_length]
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
@@ -37,9 +41,11 @@ def shift_w(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 		OUT_BUFFER = set_buffer(w_tilde, OUT_BUFFER, gpu_ind) # [n_controllers, m_length]
 		
 	OUT_BUFFER[1] = copy.deepcopy(W_INTERP[1])
+	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def shift_w_dshift_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	SHIFT_OUT, W_INTERP = args
@@ -74,10 +80,11 @@ def shift_w_dshift_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
 def shift_w_dw_interp(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	SHIFT_OUT, W_INTERP = args
@@ -114,7 +121,7 @@ def shift_w_dw_interp(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[2] += time.time() - t
 	return OUT_BUFFER
 
 def add_shift_w_layer(LAYERS, name, source, init=0):

@@ -9,18 +9,18 @@ from elastic_world import generate_latents
 
 no_mem = True
 no_mem = False
-T_AHEAD = 2
+T_AHEAD = 24*2
 
 if no_mem:
-	from architectures.model_architecture_movie_no_mem_read_only import init_model
+	from architectures.movie_phys_latent_no_mem import init_model
 	INPUT_SCALE = 1e-5
 	EPS = -5e-4
-	save_name = 'ntm_physics_corr_no_mem_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
+	save_name = 'ntm_physics_sig2_no_mem_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
 else:
 	from architectures.movie_phys_latent import init_model
 	INPUT_SCALE = 1e-5
 	EPS = -5e-4
-	save_name = 'ntm_physics_corr_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
+	save_name = 'ntm_physics_sig2_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
 
 	
 free_all_buffers()
@@ -55,7 +55,7 @@ MEM_DERIVS = [None]*len(MEM_INDS); WEIGHT_DERIVS_RMS = None
 OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
 PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 
-WEIGHTS_F1_INIT = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
+WEIGHTS_F1_INIT = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1_lin')][0])
 
 #####################
 while True:
@@ -106,9 +106,9 @@ while True:
 		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, print_names)
 		
 		#######
-		WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
-		WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2')][0])
-		WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'FL')][0])
+		WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1_lin')][0])
+		WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2_lin')][0])
+		WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'FL_lin')][0])
 		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, \
 				'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3, 'EPOCH_LEN': EPOCH_LEN})
 		

@@ -3,10 +3,14 @@ import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
+import time
+
+t_main = [0,0,0,0]
 
 # print interp_gate_out.shape, o_content.shape, o_prev.shape
 # (16, 1) (16, 6) (16, 6)
 def interpolate(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	INTERP_GATE_OUT, O_CONTENT, O_PREV = args
@@ -35,10 +39,11 @@ def interpolate(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 		
 	OUT_BUFFER[1] = copy.deepcopy(O_CONTENT[1])
 	check_buffer(OUT_BUFFER)
-	
+	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def interpolate_dinterp_gate_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None],gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	INTERP_GATE_OUT, O_CONTENT, O_PREV = args
@@ -78,10 +83,11 @@ def interpolate_dinterp_gate_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, 
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	
 def interpolate_do_content(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	INTERP_GATE_OUT, O_CONTENT, O_PREV = args
@@ -123,10 +129,11 @@ def interpolate_do_content(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additi
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[2] += time.time() - t
 	return OUT_BUFFER
 	
 def interpolate_do_prev(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	INTERP_GATE_OUT, O_CONTENT, O_PREV = args
@@ -168,7 +175,7 @@ def interpolate_do_prev(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additiona
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[3] += time.time() - t
 	return OUT_BUFFER
 
 def add_interpolate_layer(LAYERS, name, source, init=0):

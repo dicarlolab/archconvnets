@@ -3,8 +3,12 @@ import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
+import time
+
+t_main = [0,0]
 
 def pearson(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert GPU
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
@@ -21,11 +25,12 @@ def pearson(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	
 	OUT_BUFFER[1] = (1,)
 	check_buffer(OUT_BUFFER)
-	
+	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 # wrt additional_args[0] (either 0 for w1 or 1 for w2)
 def pearson_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
+	t = time.time()
 	assert GPU
 	assert isinstance(gpu_ind,int)
 	assert len(additional_args) == 1
@@ -56,7 +61,7 @@ def pearson_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_arg
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
 def add_pearson_layer(LAYERS, name, source, init=0):

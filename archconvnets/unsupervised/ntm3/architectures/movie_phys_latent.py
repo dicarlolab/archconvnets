@@ -3,30 +3,26 @@ from ntm_core import *
 def init_model():
 	LAYERS = []
 
-	N_CONTROLLERS = 4
+	N_CONTROLLERS = 16
 	N_MEM_SLOTS = 6
-	M_LENGTH = 4
+	M_LENGTH = 8
 
 	mem_shape = (N_MEM_SLOTS, M_LENGTH)
-	
-	U_F1_FILTER_SZ = 5
-	U_F2_FILTER_SZ = 5
-	U_F3_FILTER_SZ = 3
 	
 	U_F1 = 48
 	U_F2 = 48
 	U_F3 = 48
-	U_FL = 8
+	U_FL = 48
 	
-	A_F1 = 10
+	A_F1 = 48
 	N_TARGET = 4
 	HEAD_INPUT = 'FL'
 
 	for init in [0,1]:
 		# below
-		add_linear_F_bias_layer(LAYERS, 'F1', U_F1, (N_TARGET, 1), init=init)
-		add_linear_F_bias_layer(LAYERS, 'F2', U_F2, init=init)
-		add_linear_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'F1', U_F1, (N_TARGET, 1), init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'F2', U_F2, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
 		
 		for RW in ['R', 'W']:
 			# content
@@ -68,16 +64,16 @@ def init_model():
 		
 		
 		## above
-		add_relu_F_bias_layer(LAYERS, 'A_F1', A_F1, init=init)
-		add_linear_F_bias_layer(LAYERS, 'A_F2', N_TARGET, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'A_F1', A_F1, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'A_F2', N_TARGET, init=init)
 		
 		
-		add_pearson_layer(LAYERS, 'ERR', ['A_F2', -1], init=init)
+		#add_pearson_layer(LAYERS, 'ERR', ['A_F2', -1], init=init)
 		
-		'''#####
+		#####
 		add_add_layer(LAYERS, 'ERR', ['A_F2', -1], scalar=-1, init=init)
 		add_sq_points_layer(LAYERS, 'SQ_ERR', init=init)
-		add_sum_layer(LAYERS, 'SUM_ERR', init=init)'''
+		add_sum_layer(LAYERS, 'SUM_ERR', init=init)
 		
 
 	check_network(LAYERS)

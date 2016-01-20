@@ -3,10 +3,14 @@ import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
+import time
+
+t_main = [0,0,0]
 
 # keys: N_CONTROLLERS, M_LENGTH
 # mem: N_MEM_SLOTS, M_LENGTH
 def cosine_sim(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args
 	check_buffer(KEYS)
@@ -39,9 +43,11 @@ def cosine_sim(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 		OUT_BUFFER = set_buffer(numer/denom, OUT_BUFFER, gpu_ind)
 	
 	OUT_BUFFER[1] = (n_controllers, M)
+	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def cosine_sim_dmem(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args
 	check_buffer(KEYS)
@@ -100,10 +106,11 @@ def cosine_sim_dmem(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_ar
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
 def cosine_sim_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args
 	check_buffer(KEYS)
@@ -162,7 +169,7 @@ def cosine_sim_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_a
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[2] += time.time() - t
 	return OUT_BUFFER
 
 # keys: N_CONTROLLERS, M_LENGTH

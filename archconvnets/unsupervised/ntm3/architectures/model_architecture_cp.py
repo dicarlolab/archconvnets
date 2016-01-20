@@ -81,5 +81,8 @@ def init_model():
 	MEM_INDS = find_layer(LAYERS, ['MEM', 'R_F', 'W_F'])
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
-	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS
+	print_names = ['F1','F2','F3','', '_KEY', '_BETA', '_IN_GATE', '_SHIFT_PRE', '_GAMMA', '', 'ERASE', 'ADD', 'READ_MEM',\
+				'MEM', 'A_F1', 'A_F2']
+	
+	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names
 

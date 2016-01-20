@@ -4,13 +4,22 @@ import scipy.optimize
 from ntm_core import *
 from scipy.io import savemat
 from scipy.stats import zscore, pearsonr
-from model_architecture_cp import init_model
+
+no_mem = True
+#no_mem = False
+
+EPS = -1e-3
+
+if no_mem:
+	from architectures.model_architecture_cp_no_mem import init_model
+	save_name = 'ntm_no_mem_%f' % (-EPS)
+else:
+	from architectures.model_architecture_cp import init_model
+	save_name = 'ntm_%f' % (-EPS)
 
 free_all_buffers()
 
 ################ init save vars
-EPS = -1e-3
-save_name = 'ntm_working_%f' % (-EPS)
 TIME_LENGTH = 3
 elapsed_time = 1000
 frame = 0
@@ -38,7 +47,7 @@ err_log = []; corr_log = []
 t_start = time.time()
 
 ################ init weights and inputs
-LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
+LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names = init_model()
 
 ERR_IND = find_layer(LAYERS, 'ERR')
 OUT_IND = find_layer(LAYERS, 'SUM')
@@ -111,9 +120,7 @@ while True:
 		corr_log.append(pearsonr(target_buffer[training_flag_buffer == 0], output_buffer[training_flag_buffer == 0])[0])
 		err_log.append(err / SAVE_FREQ); err = 0
 		
-		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, \
-				['F1','F2','F3','', '_KEY', '_BETA', '_IN_GATE', '_SHIFT_PRE', '_GAMMA', '', 'ERASE', 'ADD', 'READ_MEM',\
-				'MEM', 'A_F1', 'A_F2'])
+		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, print_names)
 		
 		#######
 		

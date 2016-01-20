@@ -3,10 +3,14 @@ import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
+import time
+
+t_main = [0,0,0]
 
 ##########
 # focus keys, scalar beta_out (one for each controller) multiplied with each of its keys
 def focus_keys(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	KEYS, BETA_OUT = args
@@ -29,9 +33,11 @@ def focus_keys(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 		OUT_BUFFER = set_buffer(keys * beta_out, OUT_BUFFER, gpu_ind) # [n_controllers, m_length]
 		
 	OUT_BUFFER[1] = copy.deepcopy(KEYS[1])
+	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def focus_key_dbeta_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	KEYS, BETA_OUT = args
@@ -64,10 +70,11 @@ def focus_key_dbeta_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additiona
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
 def focus_key_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	KEYS, BETA_OUT = args
@@ -101,7 +108,7 @@ def focus_key_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_ar
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[2] += time.time() - t
 	return OUT_BUFFER
 
 def add_focus_keys_layer(LAYERS, name, source, init=0):

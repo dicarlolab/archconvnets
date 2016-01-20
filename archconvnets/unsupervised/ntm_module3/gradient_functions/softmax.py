@@ -3,8 +3,12 @@ import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
+import time
+
+t_main = [0,0,0]
 
 def softmax(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	assert len(args) == 1
@@ -28,10 +32,11 @@ def softmax(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 		exp_layer_in = np.exp(layer_in)
 		OUT_BUFFER = set_buffer(exp_layer_in/np.sum(exp_layer_in,1)[:,np.newaxis], OUT_BUFFER, gpu_ind)
 	OUT_BUFFER[1] = copy.deepcopy(LAYER_IN_R[1])
-		
+	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def softmax_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
 	assert len(args) == 1
@@ -79,7 +84,7 @@ def softmax_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
-	
+	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
 	
