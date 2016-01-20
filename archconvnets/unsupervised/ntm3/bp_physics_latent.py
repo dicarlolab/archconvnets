@@ -5,22 +5,22 @@ import scipy.optimize
 from ntm_core import *
 from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
-from elastic_world import generate_imgs
+from elastic_world import generate_latents
 
 no_mem = True
-#no_mem = False
+no_mem = False
 T_AHEAD = 2
 
 if no_mem:
 	from architectures.model_architecture_movie_no_mem_read_only import init_model
 	INPUT_SCALE = 1e-5
-	EPS = 5e-4
-	save_name = 'ntm_physics_no_mem_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
+	EPS = -5e-4
+	save_name = 'ntm_physics_corr_no_mem_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
 else:
-	from architectures.model_architecture_movie_mem_read_only import init_model
+	from architectures.movie_phys_latent import init_model
 	INPUT_SCALE = 1e-5
-	EPS = 5e-4
-	save_name = 'ntm_physics_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
+	EPS = -5e-4
+	save_name = 'ntm_physics_corr_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
 
 	
 free_all_buffers()
@@ -28,7 +28,7 @@ free_all_buffers()
 
 ################ init save vars
 
-frame = 0; frame_local = 0; err = 0
+frame = 0; frame_local = 0; err = 0; corr = 0
 
 EPOCH_LEN = 6*6
 SAVE_FREQ = 50 # instantaneous checkpoint
@@ -44,7 +44,7 @@ t_start = time.time()
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names = init_model()
 
-STACK_SUM_IND = find_layer(LAYERS, 'ERR')
+STACK_SUM_IND = find_layer(LAYERS, 'A_F2')
 TARGET_IND = find_layer(LAYERS, 'ERR')
 OUT_IND = find_layer(LAYERS, 'ERR')
 F1_IND = 0
@@ -62,7 +62,7 @@ while True:
 	# end of movie:
 	if (frame % EPOCH_LEN) == 0:
 		#### new movie
-		inputs, targets = generate_imgs(EPOCH_LEN, T_AHEAD)
+		inputs, targets = generate_latents(EPOCH_LEN, T_AHEAD)
 		
 		#### reset state
 		free_list(OUTPUT_PREV)
@@ -81,6 +81,7 @@ while True:
 	
 	current_err = return_buffer(OUTPUT[-1])
 	err += current_err;  output_buffer[frame % SAVE_FREQ]
+	corr += pearsonr(targets[frame_local+T_AHEAD], return_buffer(OUTPUT[STACK_SUM_IND]))[0]
 
 	
 	###### reverse
@@ -99,16 +100,16 @@ while True:
 		
 	# print
 	if frame % SAVE_FREQ == 0 and frame != 0:
-		#corr_log.append(pearsonr(targets[frame_local+T_AHEAD], return_buffer(OUTPUT[STACK_SUM_IND]))[0])
+		corr_log.append(corr / SAVE_FREQ); corr = 0
 		err_log.append(err / SAVE_FREQ); err = 0
 		
-		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, err_log, t_start, save_name, print_names)
+		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, print_names)
 		
 		#######
 		WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 		WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2')][0])
-		WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F3')][0])
-		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'err_log': err_log, 'corr_log': err_log, 'EPS': EPS, \
+		WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'FL')][0])
+		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, \
 				'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3, 'EPOCH_LEN': EPOCH_LEN})
 		
 		t_start = time.time()

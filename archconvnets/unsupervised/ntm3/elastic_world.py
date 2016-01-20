@@ -91,3 +91,18 @@ def generate_imgs(EPOCH_LEN=32, T_AHEAD=2):
     inputs = inputs.reshape((n_imgs, 1, 3, 32, 32))
     
     return inputs, targets
+	
+def generate_latents(EPOCH_LEN=32, T_AHEAD=2):
+	n_imgs = EPOCH_LEN + T_AHEAD
+
+	x, v, m, x_sz, im_sz = init_state()
+
+	inputs = np.zeros(np.concatenate(((n_imgs,), x.shape)), dtype='single')
+
+	for frame in range(n_imgs):
+		inputs[frame] = copy.deepcopy(x)
+		x, v = update_state(x, v, m, x_sz)
+
+	inputs = inputs.reshape((n_imgs, np.prod(x.shape), 1))
+
+	return inputs, inputs
