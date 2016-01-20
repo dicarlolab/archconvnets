@@ -1,3 +1,5 @@
+N_FRAMES_PRED = 15
+
 from ntm_core import *
 
 def init_model():
@@ -16,12 +18,14 @@ def init_model():
 	
 	A_F0 = 48
 	A_F1 = 48
-	N_TARGET = 4
+	
+	N_IN = 4
+	N_TARGET = N_IN*N_FRAMES_PRED
 	HEAD_INPUT = 'FL'
 
 	for init in [0,1]:
 		# below
-		add_sigmoid_F_bias_layer(LAYERS, 'F1', U_F1, (N_TARGET, 1), init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'F1', U_F1, (N_IN, 1), init=init)
 		add_sigmoid_F_bias_layer(LAYERS, 'F2', U_F2, init=init)
 		add_sigmoid_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
 		
@@ -64,16 +68,23 @@ def init_model():
 		add_linear_F_bias_layer(LAYERS, 'READ_MEM', N_CONTROLLERS, 'R_F', 'MEM-', init=init)
 		
 		
-		## above
-		add_sigmoid_F_bias_layer(LAYERS, 'A_F0', A_F0, init=init)
+		## above mem
+		add_sigmoid_F_bias_layer(LAYERS, 'A_F0M', A_F0, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'A_F1M', A_F1, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'A_F2M', N_TARGET, init=init)
+		
+		## above inputs
+		add_sigmoid_F_bias_layer(LAYERS, 'A_F0', A_F0, source=HEAD_INPUT, init=init)
 		add_sigmoid_F_bias_layer(LAYERS, 'A_F1', A_F1, init=init)
 		add_sigmoid_F_bias_layer(LAYERS, 'A_F2', N_TARGET, init=init)
 		
+		add_add_layer(LAYERS, 'STACK_SUM', ['A_F2', 'A_F2M'], init=init)
 		
-		#add_pearson_layer(LAYERS, 'ERR', ['A_F2', -1], init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM2', N_TARGET, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM3', N_TARGET, init=init)
 		
 		#####
-		add_add_layer(LAYERS, 'ERR', ['A_F2', -1], scalar=-1, init=init)
+		add_add_layer(LAYERS, 'ERR', ['STACK_SUM3', -1], scalar=-1, init=init)
 		add_sq_points_layer(LAYERS, 'SQ_ERR', init=init)
 		add_sum_layer(LAYERS, 'SUM_ERR', init=init)
 		
@@ -86,7 +97,7 @@ def init_model():
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
 	print_names = ['F1','F2','FL','', '_KEY', '_BETA', '_IN_GATE', '_SHIFT_PRE', '_GAMMA', '', 'ERASE', 'ADD', 'READ_MEM',\
-				'MEM', 'A_F0', 'A_F1', 'A_F2', 'ERR']
+				'MEM', 'A_F0M', 'A_F1M', 'A_F2M', '','A_F0', 'A_F1', 'A_F2','','STACK_SUM','STACK_SUM2','STACK_SUM3']
 	
 	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names
 

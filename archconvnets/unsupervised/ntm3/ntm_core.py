@@ -141,7 +141,10 @@ def forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV):
 
 		args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
 		
-		L['forward_F'](args, OUTPUT[layer_ind], additional_args=L['additional_forward_args'])
+		try:
+			L['forward_F'](args, OUTPUT[layer_ind], additional_args=L['additional_forward_args'])
+		except:
+			assert False, '%s forward() failed' % L['name']
 		
 	return OUTPUT
 	
@@ -416,7 +419,7 @@ def print_layer(LAYERS, print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_le
 
 
 def print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, print_names):
-	print 'err: ', err_log[-1][0], 'frame: ', frame, 'corr: ', corr_log[-1], 'time: ', time.time() - t_start, save_name
+	print 'err: ', err_log[-1][0], 'frame: ', frame, 'corr: ', corr_log[-1], 'time: ', time.time() - t_start, 'GPU:', GPU_IND, save_name
 	
 	max_print_len = 0
 	for print_name in print_names:

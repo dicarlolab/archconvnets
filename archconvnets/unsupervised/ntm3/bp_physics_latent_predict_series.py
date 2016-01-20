@@ -9,18 +9,17 @@ from elastic_world import generate_latents
 
 no_mem = True
 no_mem = False
-T_AHEAD = 1
 
 if no_mem:
-	from architectures.movie_phys_latent_no_mem import init_model
+	from architectures.movie_phys_latent_predict_series_no_mem import *
 	INPUT_SCALE = 1e-5
 	EPS = -5e-4
-	save_name = 'ntm_physics_sig2_no_mem_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
+	save_name = 'ntm_physics_series__no_mem_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
 else:
-	from architectures.movie_phys_latent import init_model
+	from architectures.movie_phys_latent_predict_series import *
 	INPUT_SCALE = 1e-5
 	EPS = -5e-4
-	save_name = 'ntm_physics_sig2_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
+	save_name = 'ntm_physics_series_top_layers_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
 
 	
 free_all_buffers()
@@ -62,7 +61,7 @@ while True:
 	# end of movie:
 	if (frame % EPOCH_LEN) == 0:
 		#### new movie
-		inputs, targets = generate_latents(EPOCH_LEN, T_AHEAD)
+		inputs, targets = generate_latents(EPOCH_LEN, N_FRAMES_PRED)
 		
 		#### reset state
 		free_list(OUTPUT_PREV)
@@ -74,14 +73,16 @@ while True:
 		frame_local = 0
 	
 	###### forward
+	frame_target = targets[frame_local+1:frame_local+1+N_FRAMES_PRED].ravel()[:,np.newaxis]
+	
 	set_buffer(inputs[frame_local], WEIGHTS[F1_IND][1])  # inputs
-	set_buffer(targets[frame_local+T_AHEAD], WEIGHTS[TARGET_IND][1]) # target
+	set_buffer(frame_target, WEIGHTS[TARGET_IND][1]) # target
 	
 	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 	
 	current_err = return_buffer(OUTPUT[-1])
 	err += current_err;  output_buffer[frame % SAVE_FREQ]
-	corr += pearsonr(targets[frame_local+T_AHEAD], return_buffer(OUTPUT[STACK_SUM_IND]))[0]
+	corr += pearsonr(frame_target.ravel(), return_buffer(OUTPUT[STACK_SUM_IND]).ravel())[0]
 
 	
 	###### reverse
