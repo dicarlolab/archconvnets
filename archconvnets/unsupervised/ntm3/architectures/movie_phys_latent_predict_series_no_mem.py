@@ -1,6 +1,7 @@
-N_FRAMES_PRED = 15
-
 from ntm_core import *
+
+N_FRAMES_PRED = 15
+N_IN = 4
 
 def init_model():
 	LAYERS = []
@@ -29,15 +30,16 @@ def init_model():
 		add_sigmoid_F_bias_layer(LAYERS, 'F2', U_F2, init=init)
 		add_sigmoid_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
 		
-		## above
-		add_sigmoid_F_bias_layer(LAYERS, 'A_F0', A_F0, init=init)
+		## above inputs
+		add_sigmoid_F_bias_layer(LAYERS, 'A_F0', A_F0, source=HEAD_INPUT, init=init)
 		add_sigmoid_F_bias_layer(LAYERS, 'A_F1', A_F1, init=init)
 		add_sigmoid_F_bias_layer(LAYERS, 'A_F2', N_TARGET, init=init)
 		
-		#add_pearson_layer(LAYERS, 'ERR', ['A_F2', -1], init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM2', N_TARGET, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM3', N_TARGET, init=init)
 		
 		#####
-		add_add_layer(LAYERS, 'ERR', ['A_F2', -1], scalar=-1, init=init)
+		add_add_layer(LAYERS, 'ERR', ['STACK_SUM3', -1], scalar=-1, init=init)
 		add_sq_points_layer(LAYERS, 'SQ_ERR', init=init)
 		add_sum_layer(LAYERS, 'SUM_ERR', init=init)
 		
@@ -49,7 +51,7 @@ def init_model():
 	MEM_INDS = []
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
-	print_names = ['F1','F2','FL','', 'A_F0', 'A_F1', 'A_F2', 'ERR']
+	print_names = ['F1','F2','FL','', 'A_F0', 'A_F1', 'A_F2','STACK_SUM2', 'STACK_SUM3', 'ERR']
 	
 	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names
 

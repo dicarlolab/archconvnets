@@ -1,6 +1,7 @@
-N_FRAMES_PRED = 15
-
 from ntm_core import *
+
+N_FRAMES_PRED = 15
+N_IN = 4
 
 def init_model():
 	LAYERS = []
@@ -19,7 +20,6 @@ def init_model():
 	A_F0 = 48
 	A_F1 = 48
 	
-	N_IN = 4
 	N_TARGET = N_IN*N_FRAMES_PRED
 	HEAD_INPUT = 'FL'
 

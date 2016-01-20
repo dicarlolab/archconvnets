@@ -14,12 +14,12 @@ if no_mem:
 	from architectures.movie_phys_latent_predict_series_no_mem import *
 	INPUT_SCALE = 1e-5
 	EPS = -5e-4
-	save_name = 'ntm_physics_series__no_mem_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
+	save_name = 'ntm_physics_series_top_layers_no_mem_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
 else:
 	from architectures.movie_phys_latent_predict_series import *
 	INPUT_SCALE = 1e-5
 	EPS = -5e-4
-	save_name = 'ntm_physics_series_top_layers_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
+	save_name = 'ntm_physics_series_top_layers2_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
 
 	
 free_all_buffers()
@@ -35,7 +35,8 @@ WRITE_FREQ = 50 # new checkpoint
 FRAME_LAG = 100 #SAVE_FREQ
 STOP_POINT = np.inf #SAVE_FREQ*15
 
-output_buffer = np.zeros(SAVE_FREQ,dtype='single')
+target_buffer = np.zeros((SAVE_FREQ, N_FRAMES_PRED*N_IN),dtype='single')
+output_buffer = np.zeros((SAVE_FREQ, N_FRAMES_PRED*N_IN),dtype='single')
 err_log = []; corr_log = []
 
 t_start = time.time()
@@ -43,7 +44,7 @@ t_start = time.time()
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names = init_model()
 
-STACK_SUM_IND = find_layer(LAYERS, 'A_F2')
+STACK_SUM_IND = find_layer(LAYERS, 'STACK_SUM3')
 TARGET_IND = find_layer(LAYERS, 'ERR')
 OUT_IND = find_layer(LAYERS, 'ERR')
 F1_IND = 0
@@ -80,10 +81,14 @@ while True:
 	
 	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 	
+	time_series_prediction = return_buffer(OUTPUT[STACK_SUM_IND]).ravel()
+	
 	current_err = return_buffer(OUTPUT[-1])
-	err += current_err;  output_buffer[frame % SAVE_FREQ]
-	corr += pearsonr(frame_target.ravel(), return_buffer(OUTPUT[STACK_SUM_IND]).ravel())[0]
+	err += current_err;
+	corr += pearsonr(frame_target.ravel(), time_series_prediction)[0]
 
+	output_buffer[frame % SAVE_FREQ] = copy.deepcopy(time_series_prediction)
+	target_buffer[frame % SAVE_FREQ] = copy.deepcopy(frame_target.ravel())
 	
 	###### reverse
 	WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)
@@ -110,7 +115,8 @@ while True:
 		WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1_lin')][0])
 		WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2_lin')][0])
 		WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'FL_lin')][0])
-		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, \
+		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, \
+				'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, \
 				'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3, 'EPOCH_LEN': EPOCH_LEN})
 		
 		t_start = time.time()
