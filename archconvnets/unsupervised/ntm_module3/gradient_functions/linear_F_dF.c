@@ -31,6 +31,8 @@ static PyObject * linear_F_dF(PyObject *self, PyObject *args){
 	long x_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)x_shape,0));
 	long x_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)x_shape,1));
 	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DLDF_SZ); MALLOC_ERR_CHECK
 		
@@ -40,13 +42,11 @@ static PyObject * linear_F_dF(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
-	
 	const float alpha = 1.0, beta = 0.0;
 	
 	// dot(deriv_above, x.T)
 	
-	cublasStatus_t err_blas = cublasSgemm(handle_blas, CUBLAS_OP_T, CUBLAS_OP_N, x_dim0, deriv_above_dim0, deriv_above_dim1, &alpha,
+	cublasStatus_t err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_T, CUBLAS_OP_N, x_dim0, deriv_above_dim0, deriv_above_dim1, &alpha,
         gpu_buffers[gpu_ind][x_ind], x_dim1, gpu_buffers[gpu_ind][deriv_above_ind], deriv_above_dim1, &beta, GPU_BUFFER_OUT, x_dim0);
 	
 	ERR_CHECK_BLAS

@@ -57,9 +57,6 @@
 
 #define DATA_TYPE_SZ sizeof(float)
 
-cudnnHandle_t handle;
-cudnnDataType_t dataType = CUDNN_DATA_FLOAT;
-
 float *gpu_buffers[N_GPUS][N_BUFFERS];
 unsigned long buffer_sz[N_GPUS][N_BUFFERS];
 
@@ -73,8 +70,10 @@ cudnnTensor4dDescriptor_t srcDiffDesc[N_GPUS][N_BUFFERS];
 cudnnTensor4dDescriptor_t destDiffDesc[N_GPUS][N_BUFFERS];
 
 cudnnPoolingDescriptor_t poolingDesc;
+cudnnDataType_t dataType = CUDNN_DATA_FLOAT;
 
 #define POOL_WINDOW_SZ 3
 #define POOL_STRIDE 2
 
-cublasHandle_t handle_blas;
+cudnnHandle_t handle[N_GPUS];
+cublasHandle_t handle_blas[N_GPUS];

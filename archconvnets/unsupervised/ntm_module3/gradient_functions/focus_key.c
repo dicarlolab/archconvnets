@@ -37,6 +37,8 @@ static PyObject * focus_key(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, FOCUS_SZ); MALLOC_ERR_CHECK
 		
@@ -45,8 +47,6 @@ static PyObject * focus_key(PyObject *self, PyObject *args){
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
-	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	focus_key_kernel <<< 1, n_controllers * mem_length >>> (gpu_buffers[gpu_ind][keys_ind], gpu_buffers[gpu_ind][beta_out_ind],
 		gpu_buffers[gpu_ind][out_buffer_ind], n_controllers, mem_length);

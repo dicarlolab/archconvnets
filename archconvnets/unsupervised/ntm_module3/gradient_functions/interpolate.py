@@ -9,7 +9,7 @@ t_main = [0,0,0,0]
 
 # print interp_gate_out.shape, o_content.shape, o_prev.shape
 # (16, 1) (16, 6) (16, 6)
-def interpolate(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def interpolate(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
@@ -42,7 +42,7 @@ def interpolate(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
-def interpolate_dinterp_gate_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None],gpu_ind=0):
+def interpolate_dinterp_gate_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None],gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
@@ -86,7 +86,7 @@ def interpolate_dinterp_gate_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, 
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	
-def interpolate_do_content(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def interpolate_do_content(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
@@ -132,7 +132,7 @@ def interpolate_do_content(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additi
 	t_main[2] += time.time() - t
 	return OUT_BUFFER
 	
-def interpolate_do_prev(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def interpolate_do_prev(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]

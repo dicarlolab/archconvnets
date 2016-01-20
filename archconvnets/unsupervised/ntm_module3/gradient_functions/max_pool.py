@@ -7,7 +7,7 @@ import time
 
 t_main = [0,0]
 
-def max_pool(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def max_pool(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert additional_args == [None]
 	assert isinstance(gpu_ind,int)
@@ -33,7 +33,8 @@ def max_pool(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 
 # srcData = LAYER_OUT
 # destData = args[0]
-def max_pool_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def max_pool_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
+	t = time.time()
 	assert additional_args == [None]
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1

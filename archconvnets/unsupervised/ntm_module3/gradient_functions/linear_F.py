@@ -14,7 +14,7 @@ def random_normal_function(size):
 	return np.asarray(np.random.normal(loc=0, scale=.01, size=size), dtype='single')
 
 # additional_args = [True]: squeeze output last dimension
-def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
+def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	squeeze, sum_all = additional_args
@@ -66,7 +66,7 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	return OUT_BUFFER
 
 # additional_args = [True]: squeeze output last dimension
-def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=0):
+def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	squeeze, sum_all = additional_args

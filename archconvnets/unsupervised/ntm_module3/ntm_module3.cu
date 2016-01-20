@@ -111,18 +111,20 @@ extern "C" void init_ntm_module3(){
 	(void) Py_InitModule("_ntm_module3", _ntm_module3);
 	import_array();
 	
+	cudaError_t err;
 	cudnnStatus_t status;
-	status = cudnnCreate(&handle);  ERR_CHECK_R
+	cublasStatus_t err_blas;
 	
 	status = cudnnCreatePoolingDescriptor(&poolingDesc);  ERR_CHECK_R
-	
 	status = cudnnSetPoolingDescriptor(poolingDesc, CUDNN_POOLING_MAX, POOL_WINDOW_SZ, POOL_WINDOW_SZ, POOL_STRIDE, POOL_STRIDE); ERR_CHECK_R
-	
-	cublasStatus_t err_blas = cublasCreate(&handle_blas); ERR_CHECK_BLAS_R
-	
 	
 	/////////////////////////////////////////////////////////
 	for(int gpu_ind = 0; gpu_ind < N_GPUS; gpu_ind++){
+		cudaSetDevice(gpu_ind); CHECK_CUDA_ERR_R
+		
+		status = cudnnCreate(&handle[gpu_ind]);  ERR_CHECK_R
+		err_blas = cublasCreate(&handle_blas[gpu_ind]); ERR_CHECK_BLAS_R
+		
 		for(int buffer_ind = 0; buffer_ind < N_BUFFERS; buffer_ind++){
 			GPU_BUFFER = NULL;
 			BUFFER_SZ = 0;
@@ -140,6 +142,6 @@ extern "C" void init_ntm_module3(){
 			status = cudnnCreateTensor4dDescriptor(&destDiffDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
 		}
 	}
-    
-	return;
+	
+    cudaSetDevice(0); CHECK_CUDA_ERR_R
 } 

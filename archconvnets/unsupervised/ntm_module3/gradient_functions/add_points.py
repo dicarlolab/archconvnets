@@ -9,7 +9,7 @@ t_main = [0,0]
 
 # c = a + scalar*b
 # unlike point_wise_add, this defaults to storing the output in a new buffer instead of overwriting the first argument
-def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=0):
+def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=GPU_IND):
 	t = time.time()
 	assert len(additional_args) == 1
 	assert isinstance(gpu_ind,int)
@@ -36,7 +36,7 @@ def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=0):
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
-def add_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[1], gpu_ind=0):
+def add_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[1], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert len(additional_args) == 1

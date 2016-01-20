@@ -22,6 +22,8 @@ static PyObject * point_wise_add(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, buffer_sz[gpu_ind][b_ind]); MALLOC_ERR_CHECK
 		
@@ -37,8 +39,6 @@ static PyObject * point_wise_add(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
-	
 	// if A has not been initialized, simply copy B to out buffer
 	if(a_ind == out_buffer_ind && buffer_prev_init == 0){
 		cudaMemcpy(gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][b_ind], OUT_BUFFER_SZ, cudaMemcpyDeviceToDevice);
@@ -50,9 +50,9 @@ static PyObject * point_wise_add(PyObject *self, PyObject *args){
 	
 	
 		if(scalar0 != 1)
-			cublasSscal(handle_blas, ADD_BLAS_SZ, &scalar0, gpu_buffers[gpu_ind][out_buffer_ind], 1);
+			cublasSscal(handle_blas[gpu_ind], ADD_BLAS_SZ, &scalar0, gpu_buffers[gpu_ind][out_buffer_ind], 1);
 		
-		cublasSaxpy(handle_blas, ADD_BLAS_SZ, &scalar, gpu_buffers[gpu_ind][b_ind], 1, gpu_buffers[gpu_ind][out_buffer_ind], 1);
+		cublasSaxpy(handle_blas[gpu_ind], ADD_BLAS_SZ, &scalar, gpu_buffers[gpu_ind][b_ind], 1, gpu_buffers[gpu_ind][out_buffer_ind], 1);
 	}
 	
 	#ifdef TIMING_DEBUG

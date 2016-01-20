@@ -10,7 +10,7 @@ t_main = [0,0]
 def random_function_1(size):
 	return np.asarray(np.random.random(size) +1, dtype='single')
 
-def sigmoid(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def sigmoid(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert additional_args == [None]
 	assert isinstance(gpu_ind,int)
@@ -34,7 +34,7 @@ def sigmoid(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
-def sigmoid_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def sigmoid_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert additional_args == [None]
 	assert isinstance(gpu_ind,int)

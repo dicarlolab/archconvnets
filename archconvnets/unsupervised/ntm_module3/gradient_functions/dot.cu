@@ -58,6 +58,8 @@ static PyObject *dot(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DATA_OUT_SZ); MALLOC_ERR_CHECK
 		
@@ -67,11 +69,9 @@ static PyObject *dot(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
-	
 	const float alpha = 1.0, beta = 0.0;
 	
-	cublasStatus_t err_blas = cublasSgemm(handle_blas, CUBLAS_OP_N, CUBLAS_OP_N, buffer2_dim2, buffer1_dim1, buffer1_dim2, &alpha,
+	cublasStatus_t err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, buffer2_dim2, buffer1_dim1, buffer1_dim2, &alpha,
                            GPU_BUFFER2, buffer2_dim2, GPU_BUFFER1, buffer1_dim2, &beta, GPU_BUFFER_OUT, buffer2_dim2);
 	
 	ERR_CHECK_BLAS

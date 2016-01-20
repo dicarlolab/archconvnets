@@ -57,6 +57,8 @@ static PyObject * add_points_dinput(PyObject *self, PyObject *args){
 	long a_dim0 = PyLong_AsLong(PyTuple_GetItem(a_shape,0));
 	long a_dim1 = PyLong_AsLong(PyTuple_GetItem(a_shape,1));
 	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, ADD_POINTS_DINPUT_SZ); MALLOC_ERR_CHECK
 		
@@ -65,8 +67,6 @@ static PyObject * add_points_dinput(PyObject *self, PyObject *args){
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
-	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	// determine number of blocks
 	int n_blocks = (int)ceil((double)ADD_POINTS_DINPUT_NUMEL/MAX_THREADS_PER_BLOCK);

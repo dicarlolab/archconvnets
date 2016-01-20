@@ -10,7 +10,7 @@ t_main = [0,0,0]
 ############# sharpen across mem_slots separately for each controller
 # w: [dim1, dim0]
 # gamma: [dim1, 1]
-def sharpen(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def sharpen(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
@@ -41,7 +41,7 @@ def sharpen(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
-def sharpen_dgamma(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def sharpen_dgamma(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
@@ -87,7 +87,7 @@ def sharpen_dgamma(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_arg
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	
-def sharpen_dw(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def sharpen_dw(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]

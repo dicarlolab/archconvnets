@@ -7,7 +7,7 @@ import time
 
 t_main = [0,0]
 
-def pearson(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def pearson(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert GPU
 	assert isinstance(gpu_ind,int)
@@ -29,7 +29,7 @@ def pearson(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	return OUT_BUFFER
 
 # wrt additional_args[0] (either 0 for w1 or 1 for w2)
-def pearson_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
+def pearson_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=GPU_IND):
 	t = time.time()
 	assert GPU
 	assert isinstance(gpu_ind,int)

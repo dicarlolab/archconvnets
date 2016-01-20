@@ -47,6 +47,8 @@ static PyObject *sq_points_dinput(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, SQ_OUT_SZ); MALLOC_ERR_CHECK
 
@@ -55,8 +57,6 @@ static PyObject *sq_points_dinput(PyObject *self, PyObject *args){
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
-
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 
 	sq_points_dinput_kernel <<< dim0, dim1*dim1 >>> (gpu_buffers[gpu_ind][input_ind], GPU_BUFFER_OUT, dim0, dim1);
 	

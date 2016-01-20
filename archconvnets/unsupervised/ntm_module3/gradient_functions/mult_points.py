@@ -8,7 +8,7 @@ import time
 t_main = [0,0]
 
 # c = a*b     a and b must be of the same dimensionality
-def mult_points(args, OUT_BUFFER=None, additional_args=[], gpu_ind=0):
+def mult_points(args, OUT_BUFFER=None, additional_args=[], gpu_ind=GPU_IND):
 	t = time.time()
 	assert len(additional_args) == 0
 	assert isinstance(gpu_ind,int)
@@ -35,7 +35,7 @@ def mult_points(args, OUT_BUFFER=None, additional_args=[], gpu_ind=0):
 
 # additional_args == 0: deriv. wrt A
 # additional_args == 1: deriv. wrt B
-def mult_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
+def mult_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert len(additional_args) == 1

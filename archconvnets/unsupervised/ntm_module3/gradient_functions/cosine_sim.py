@@ -9,7 +9,7 @@ t_main = [0,0,0]
 
 # keys: N_CONTROLLERS, M_LENGTH
 # mem: N_MEM_SLOTS, M_LENGTH
-def cosine_sim(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def cosine_sim(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args
@@ -46,7 +46,7 @@ def cosine_sim(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
-def cosine_sim_dmem(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def cosine_sim_dmem(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args
@@ -109,7 +109,7 @@ def cosine_sim_dmem(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_ar
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
-def cosine_sim_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def cosine_sim_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	KEYS, MEM = args

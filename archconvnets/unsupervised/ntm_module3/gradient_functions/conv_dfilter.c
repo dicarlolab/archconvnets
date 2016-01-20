@@ -75,7 +75,7 @@ static PyObject * conv_dfilter(PyObject *self, PyObject *args){
 		out_offset = output_ind * (intended_buffer_sz / (DATA_TYPE_SZ*n_output));
 		deriv_above_offset = output_ind * (n_imgs_out*n_filters_out*conv_out_sz_x*conv_out_sz_x);
 		
-		status = cudnnConvolutionBackwardFilter(handle, srcDesc[gpu_ind][imgs_ind], gpu_buffers[gpu_ind][imgs_ind], destDesc[gpu_ind][deriv_above_ind], gpu_buffers[gpu_ind][deriv_above_ind] + deriv_above_offset, convDesc[gpu_ind][out_buffer_ind], 
+		status = cudnnConvolutionBackwardFilter(handle[gpu_ind], srcDesc[gpu_ind][imgs_ind], gpu_buffers[gpu_ind][imgs_ind], destDesc[gpu_ind][deriv_above_ind], gpu_buffers[gpu_ind][deriv_above_ind] + deriv_above_offset, convDesc[gpu_ind][out_buffer_ind], 
 			gradDesc_filter[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][out_buffer_ind] + out_offset, CUDNN_RESULT_NO_ACCUMULATE);  ERR_CHECK
 	}
 	

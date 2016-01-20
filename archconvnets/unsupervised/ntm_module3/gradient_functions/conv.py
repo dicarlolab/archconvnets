@@ -8,7 +8,7 @@ import time
 t_main = [0,0,0]
 
 # additional_args= [PAD]
-def conv(args, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
+def conv(args, OUT_BUFFER=None, additional_args=[0], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	F, IMGS = args
@@ -35,7 +35,7 @@ def conv(args, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
-def conv_ddata(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
+def conv_ddata(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	F, IMGS = args
@@ -78,7 +78,7 @@ def conv_ddata(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	
-def conv_dfilter(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=0):
+def conv_dfilter(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	F, IMGS = args

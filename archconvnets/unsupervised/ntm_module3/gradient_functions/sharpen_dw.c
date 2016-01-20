@@ -75,6 +75,7 @@ static PyObject *sharpen_dw(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DSDW_SZ); MALLOC_ERR_CHECK
@@ -84,9 +85,7 @@ static PyObject *sharpen_dw(PyObject *self, PyObject *args){
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
-	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
-	
+
 	sharpen_dw_kernel <<< dim0, dim1*dim1, sizeof(float)*(dim1 + 1) >>> (gpu_buffers[gpu_ind][w_ind], gpu_buffers[gpu_ind][gamma_ind], 
 		gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
 	

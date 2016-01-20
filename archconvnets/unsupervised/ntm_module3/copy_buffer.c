@@ -15,6 +15,8 @@ static PyObject * copy_buffer(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, buffer_sz[gpu_ind][b_ind]); MALLOC_ERR_CHECK
 		
@@ -24,8 +26,6 @@ static PyObject * copy_buffer(PyObject *self, PyObject *args){
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
-	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	cudaMemcpy(gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][b_ind], OUT_BUFFER_SZ, cudaMemcpyDeviceToDevice);
 	

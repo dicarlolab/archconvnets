@@ -10,7 +10,7 @@ t_main = [0,0,0]
 ##########
 N_SHIFTS = 3
 
-def shift_w(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def shift_w(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, mem_length]
 	assert isinstance(gpu_ind,int)
@@ -44,7 +44,7 @@ def shift_w(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
-def shift_w_dshift_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def shift_w_dshift_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
@@ -83,7 +83,7 @@ def shift_w_dshift_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
-def shift_w_dw_interp(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def shift_w_dw_interp(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]

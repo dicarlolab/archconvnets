@@ -15,11 +15,11 @@ if GPU == False:
 def return_cpu(buffer_ind):
 	return CPU_BUFFER[0][buffer_ind]
 	
-def sync(gpu_ind=0):
+def sync(gpu_ind=GPU_IND):
 	assert isinstance(gpu_ind,int)
 	return _ntm_module3.sync(gpu_ind)
 
-def return_buffer_sz(buffer_ind, gpu_ind=0):
+def return_buffer_sz(buffer_ind, gpu_ind=GPU_IND):
 	assert isinstance(gpu_ind,int)
 	assert isinstance(buffer_ind,int)
 	if GPU:
@@ -30,7 +30,7 @@ def return_buffer_sz(buffer_ind, gpu_ind=0):
 		else:
 			return np.prod(CPU_BUFFER[gpu_ind][buffer_ind].shape)
 
-def check_buffer(BUFFER, gpu_ind=0):
+def check_buffer(BUFFER, gpu_ind=GPU_IND):
 	assert len(BUFFER) == 2
 	assert isinstance(BUFFER[0], int)
 	assert BUFFER[0] >= 0
@@ -41,7 +41,7 @@ def check_buffer(BUFFER, gpu_ind=0):
 	else:
 		assert return_buffer_sz(BUFFER[0], gpu_ind) == 0, '%i' % return_buffer_sz(BUFFER[0], gpu_ind)
 
-def free_buffer(BUFFER, gpu_ind=0):
+def free_buffer(BUFFER, gpu_ind=GPU_IND):
 	assert isinstance(gpu_ind,int)
 	check_buffer(BUFFER)
 	n_vars_allocated[gpu_ind, BUFFER[0]] = False
@@ -51,7 +51,7 @@ def free_buffer(BUFFER, gpu_ind=0):
 		CPU_BUFFER[gpu_ind][BUFFER[0]] = None
 	BUFFER = None
 
-def zero_buffer(BUFFER, gpu_ind=0):
+def zero_buffer(BUFFER, gpu_ind=GPU_IND):
 	assert isinstance(gpu_ind,int)
 	check_buffer(BUFFER)
 	if GPU:
@@ -60,7 +60,7 @@ def zero_buffer(BUFFER, gpu_ind=0):
 		if CPU_BUFFER[gpu_ind][BUFFER[0]] is not None:
 			CPU_BUFFER[gpu_ind][BUFFER[0]] = np.zeros_like(CPU_BUFFER[gpu_ind][BUFFER[0]])
 	
-def return_n_allocated(gpu_ind=0):
+def return_n_allocated(gpu_ind=GPU_IND):
 	return n_vars_allocated[gpu_ind].sum()
 
 def free_all_buffers():
@@ -74,30 +74,30 @@ def free_all_buffers():
 				CPU_BUFFER[gpu_ind] = [None]*N_BUFFERS
 		n_vars_allocated[gpu_ind] = False
 
-def free_list(LIST):
+def free_list(LIST, gpu_ind=GPU_IND):
 	for layer_ind in range(len(LIST)):
 		if LIST[layer_ind] is not None:
 			# list of list, ex. partials
 			if isinstance(LIST[layer_ind][0], list):
 				for arg in range(len(LIST[layer_ind])):
-					free_buffer(LIST[layer_ind][arg])
+					free_buffer(LIST[layer_ind][arg], gpu_ind)
 			# outputs
 			else:
-				free_buffer(LIST[layer_ind])
+				free_buffer(LIST[layer_ind], gpu_ind)
 
-def zero_list(LIST):
+def zero_list(LIST, gpu_ind=GPU_IND):
 	for layer_ind in range(len(LIST)):
 		if LIST[layer_ind] is not None:
 			# list of list, ex. partials
 			if isinstance(LIST[layer_ind][0], list):
 				for arg in range(len(LIST[layer_ind])):
-					zero_buffer(LIST[layer_ind][arg])
+					zero_buffer(LIST[layer_ind][arg], gpu_ind)
 			# outputs
 			else:
-				zero_buffer(LIST[layer_ind])
+				zero_buffer(LIST[layer_ind], gpu_ind)
 				
 				
-def set_buffer(DATA, DATA_G, gpu_ind=0, warn=True):
+def set_buffer(DATA, DATA_G, gpu_ind=GPU_IND, warn=True):
 	if isinstance(DATA, int) or isinstance(DATA, np.single):
 		DATA = np.asarray(DATA,dtype='float32')[np.newaxis]
 	assert DATA.dtype == np.dtype('float32'), DATA.dtype
@@ -111,7 +111,7 @@ def set_buffer(DATA, DATA_G, gpu_ind=0, warn=True):
 	DATA_G[1] = DATA.shape
 	return DATA_G
 
-def init_buffer(DATA=None, gpu_ind=0, warn=True):
+def init_buffer(DATA=None, gpu_ind=GPU_IND, warn=True):
 	assert isinstance(gpu_ind,int)
 	z = np.nonzero(1-n_vars_allocated[gpu_ind])[0]
 	assert len(z) != 0, 'no memory slots left'
@@ -125,7 +125,7 @@ def init_buffer(DATA=None, gpu_ind=0, warn=True):
 	return DATA_G
 
 # copy B to A
-def copy_buffer(B, A=None, gpu_ind=0):
+def copy_buffer(B, A=None, gpu_ind=GPU_IND):
 	assert isinstance(gpu_ind,int)
 	check_buffer(B)
 	if A is None:
@@ -138,7 +138,7 @@ def copy_buffer(B, A=None, gpu_ind=0):
 	A[1] = copy.deepcopy(B[1])
 	return A
 
-def copy_list(LIST_B, LIST_A=None, gpu_ind=0):
+def copy_list(LIST_B, LIST_A=None, gpu_ind=GPU_IND):
 	assert isinstance(gpu_ind,int)
 	if LIST_A is None:
 		LIST_A = [None]*len(LIST_B)
@@ -149,7 +149,7 @@ def copy_list(LIST_B, LIST_A=None, gpu_ind=0):
 		LIST_A[i] = copy_buffer(LIST_B[i], LIST_A[i], gpu_ind)
 	return LIST_A
 	
-def return_buffer(BUFFER, warn=1, gpu_ind=0):
+def return_buffer(BUFFER, warn=1, gpu_ind=GPU_IND):
 	assert isinstance(gpu_ind,int)
 	check_buffer(BUFFER)
 	
@@ -164,7 +164,7 @@ def return_buffer(BUFFER, warn=1, gpu_ind=0):
 
 # out_buffer = a * scalar0 + b * scalar
 # when OUT_BUFFER=None, store results in "a"
-def point_wise_add(args, OUT_BUFFER=None, scalar=1, scalar0=1, gpu_ind=0):
+def point_wise_add(args, OUT_BUFFER=None, scalar=1, scalar0=1, gpu_ind=GPU_IND):
 	assert isinstance(gpu_ind,int)
 	
 	A, B = args
@@ -190,7 +190,7 @@ def point_wise_add(args, OUT_BUFFER=None, scalar=1, scalar0=1, gpu_ind=0):
 
 # out_buffer = a / sqrt(b)
 # when OUT_BUFFER=None, store results in "a"
-def point_wise_div_sqrt(args, OUT_BUFFER=None, clip=10, gpu_ind=0):
+def point_wise_div_sqrt(args, OUT_BUFFER=None, clip=10, gpu_ind=GPU_IND):
 	assert isinstance(gpu_ind,int)
 	
 	A, B = args
@@ -219,7 +219,7 @@ def point_wise_div_sqrt(args, OUT_BUFFER=None, clip=10, gpu_ind=0):
 
 # additional_args[0]: Squeeze output or not, 
 # additional_args[1] (sum_all): collapse x from [k,j] to [k*j,1] to give an output of [i,1] as opposed to [i,j]
-def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True, False], gpu_ind=0):
+def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True, False], gpu_ind=GPU_IND):
 	assert isinstance(gpu_ind,int)
 	squeeze, sum_all = additional_args
 	BUFFER1, BUFFER2 = args
@@ -261,11 +261,11 @@ def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True, False], gpu_i
 		OUT_BUFFER[1] = OUT_BUFFER[1][:len(OUT_BUFFER[1])-1]
 	return OUT_BUFFER
 	
-def zero_buffer_list(WEIGHTS):
+def zero_buffer_list(WEIGHTS, gpu_ind=GPU_IND):
 	for layer_ind in range(len(WEIGHTS)):
 		for arg in range(len(WEIGHTS[layer_ind])):
 			if WEIGHTS[layer_ind][arg] is not None:
-				zero_buffer(WEIGHTS[layer_ind][arg])
+				zero_buffer(WEIGHTS[layer_ind][arg], gpu_ind)
 
 
 def squeeze_dim1(BUFFER, keep_dims):
@@ -273,9 +273,9 @@ def squeeze_dim1(BUFFER, keep_dims):
 		assert BUFFER[1][0] == 1
 		BUFFER[1] = tuple(BUFFER[1][1:])
 
-def free_list_list(LIST):
+def free_list_list(LIST, gpu_ind=GPU_IND):
 	for i in range(len(LIST)):
-		free_list(LIST[i])
+		free_list(LIST[i], gpu_ind)
 
 from gradient_functions.cosine_sim import *
 from gradient_functions.linear_F import *

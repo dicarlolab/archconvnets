@@ -51,7 +51,7 @@ static PyObject *max_pool(PyObject *self, PyObject *args){
 	//--------------------------------------
 	// Pooling
 	//--------------------------------------
-	status = cudnnPoolingForward(handle, poolingDesc, srcDesc[gpu_ind][imgs_ind], gpu_buffers[gpu_ind][imgs_ind], destDesc[gpu_ind][out_buffer_ind], GPU_BUFFER_OUT);  ERR_CHECK
+	status = cudnnPoolingForward(handle[gpu_ind], poolingDesc, srcDesc[gpu_ind][imgs_ind], gpu_buffers[gpu_ind][imgs_ind], destDesc[gpu_ind][out_buffer_ind], GPU_BUFFER_OUT);  ERR_CHECK
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR

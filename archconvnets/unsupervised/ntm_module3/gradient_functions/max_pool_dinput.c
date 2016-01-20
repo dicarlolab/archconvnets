@@ -65,7 +65,7 @@ static PyObject *max_pool_dinput(PyObject *self, PyObject *args){
 		out_offset = output_ind * (intended_buffer_sz / (DATA_TYPE_SZ*n_output));
 		deriv_above_offset = output_ind * (n_imgs*n_channels*out_sz*out_sz);
 		
-		status = cudnnPoolingBackward(handle, poolingDesc, srcDesc[gpu_ind][max_out_ind], gpu_buffers[gpu_ind][max_out_ind], srcDiffDesc[gpu_ind][deriv_above_ind], 
+		status = cudnnPoolingBackward(handle[gpu_ind], poolingDesc, srcDesc[gpu_ind][max_out_ind], gpu_buffers[gpu_ind][max_out_ind], srcDiffDesc[gpu_ind][deriv_above_ind], 
 			gpu_buffers[gpu_ind][deriv_above_ind] + deriv_above_offset, destDesc[gpu_ind][imgs_ind], gpu_buffers[gpu_ind][imgs_ind],
 			destDiffDesc[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][out_buffer_ind] + out_offset);  ERR_CHECK
 	}

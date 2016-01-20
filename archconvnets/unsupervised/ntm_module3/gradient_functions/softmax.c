@@ -49,6 +49,8 @@ static PyObject *softmax(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, buffer_sz[gpu_ind][layer_in_ind]); MALLOC_ERR_CHECK
 		
@@ -57,8 +59,6 @@ static PyObject *softmax(PyObject *self, PyObject *args){
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
-	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	softmax_kernel <<< dim0, dim1, sizeof(float) >>> (gpu_buffers[gpu_ind][layer_in_ind], gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
 	

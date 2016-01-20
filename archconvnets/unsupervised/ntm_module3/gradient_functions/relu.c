@@ -48,6 +48,8 @@ static PyObject *relu(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, buffer_sz[gpu_ind][layer_in_ind]); MALLOC_ERR_CHECK
 		
@@ -56,8 +58,6 @@ static PyObject *relu(PyObject *self, PyObject *args){
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
-	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	// determine number of blocks
 	int n_blocks = (int)ceil((double)SIGMOID_NUMEL/MAX_THREADS_PER_BLOCK);

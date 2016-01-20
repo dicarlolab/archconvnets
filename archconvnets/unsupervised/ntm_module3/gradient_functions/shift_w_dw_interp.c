@@ -47,6 +47,8 @@ static PyObject * shift_w_dw_interp(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DSHDW_SZ); MALLOC_ERR_CHECK
 		
@@ -55,8 +57,6 @@ static PyObject * shift_w_dw_interp(PyObject *self, PyObject *args){
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
-	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 
 	cudaMemset(gpu_buffers[gpu_ind][out_buffer_ind], 0, OUT_BUFFER_SZ); CHECK_CUDA_ERR
 	

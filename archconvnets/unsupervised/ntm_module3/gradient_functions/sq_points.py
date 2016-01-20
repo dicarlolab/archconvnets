@@ -8,7 +8,7 @@ import time
 t_main = [0,0]
 
 # deriv_computable: require dimensions be <= 2, required for sq_points_dinput to work correctly
-def sq_points(args, OUT_BUFFER=None, additional_args=[None], deriv_computable=True, gpu_ind=0):
+def sq_points(args, OUT_BUFFER=None, additional_args=[None], deriv_computable=True, gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
@@ -33,7 +33,7 @@ def sq_points(args, OUT_BUFFER=None, additional_args=[None], deriv_computable=Tr
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
-def sq_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=0):
+def sq_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
 	assert additional_args == [None]
