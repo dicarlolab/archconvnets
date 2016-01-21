@@ -17,6 +17,7 @@ def random_normal_function(size):
 def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
+	assert GPU
 	squeeze, sum_all = additional_args
 	F, X = args
 	check_buffer(F)
@@ -38,30 +39,22 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	
 	# reshape buffer1 into two dimensions:
 	# (a,b,c,d,e) -> (a*b*c*d, e)
-	F_new_shape = copy.deepcopy(F)
-	F_new_shape[1] = (np.prod(F[1][:len(F[1])-1]), F[1][-1])
+	F_reshaped = copy.deepcopy(F)
+	F_reshaped[1] = (np.prod(F[1][:len(F[1])-1]), F[1][-1])
 	
-	F_dim0, F_dim1 = F_new_shape[1]
-	X_dim0, X_dim1 = X_reshaped[1]
+	# reshape deriv_above to 3 dims, first of which we batch over
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	DERIV_ABOVE_reshaped = copy.deepcopy(DERIV_ABOVE)
+	DERIV_ABOVE_reshaped[1] = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]), DERIV_ABOVE[1][-2], DERIV_ABOVE[1][-1])
 	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	#assert DERIV_ABOVE_reshaped[1][1] == F_reshaped[1][0]
+	#assert DERIV_ABOVE_reshaped[1][2] == X_reshaped[1][1]
 	
-	if GPU:
-		_ntm_module3.linear_F_dx(F_new_shape[0], X_reshaped[1], F_new_shape[1], OUT_BUFFER_TEMP[0], gpu_ind)
-	else: 
-		############ CPU
-		f = return_buffer(F_new_shape, gpu_ind)
-		x = return_buffer(X_reshaped, gpu_ind)
-		n = x.shape[1]
-		temp = np.zeros((f.shape[0], n, x.shape[0], n),dtype='single')
-		temp[:,range(n),:,range(n)] = f
-		OUT_BUFFER_TEMP = set_buffer(temp, OUT_BUFFER_TEMP, gpu_ind)
+	# so we have deriv_above (3d: i,j,k) and x (2d: k,l), compute batched dot product (i,j,l)
+	_ntm_module3.linear_F_dx(F_reshaped[0], F_reshaped[1], X_reshaped[1], DERIV_ABOVE_reshaped[0], DERIV_ABOVE_reshaped[1], OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((LAYER_OUT[1], np.asarray(X[1]))))
-	check_buffer(OUT_BUFFER_TEMP)
+	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], X[1])))
 	
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
@@ -102,6 +95,7 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
 	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], F[1])))
 	check_buffer(OUT_BUFFER)
+	
 	t_main[2] += time.time() - t
 	return OUT_BUFFER
 
