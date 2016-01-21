@@ -36,6 +36,8 @@ def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=GPU_IND):
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
+# c = a + scalar*b
+# additional_args[0] denotes the scalar (when equal to 1, the deriv wrt to a is taken [and b if scalar=1])
 def add_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[1], gpu_ind=GPU_IND):
 	t = time.time()
 	assert isinstance(gpu_ind,int)
@@ -53,22 +55,16 @@ def add_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
 	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
-	
 	if GPU:
-		_ntm_module3.add_points_dinput((np.prod(A[1]), 1), OUT_BUFFER_TEMP[0], np.single(scalar), gpu_ind)
+		_ntm_module3.add_points_dinput((np.prod(A[1]), 1), OUT_BUFFER[0], DERIV_ABOVE[0], np.single(scalar), gpu_ind)
 	else:
 		######### CPU
-		out = np.zeros(np.concatenate((args[0][1], args[0][1])), dtype='single')
-		for i in range(out.shape[0]):
-			out[i,range(out.shape[1]),i,range(out.shape[1])] = scalar
-		OUT_BUFFER_TEMP = set_buffer(out, OUT_BUFFER_TEMP, gpu_ind)
+		OUT_BUFFER = set_buffer(return_buffer(deriv_above)*scalar, OUT_BUFFER, gpu_ind)
 	
-	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((A[1], A[1])))
-	check_buffer(OUT_BUFFER_TEMP)
+	# reshape back to original dimensions
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], A[1])))
 	
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	

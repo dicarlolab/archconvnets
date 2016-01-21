@@ -37,4 +37,41 @@ for frame in range(N_FRAMES):
 	
 	OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
 	
+import archconvnets.unsupervised.ntm_module3.gradient_functions.cosine_sim as cosine_sim_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.linear_F as linear_F_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.add_points as add_points_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.sum_points as sum_points_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.focus_key as focus_key_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.sigmoid as sigmoid_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.sharpen as sharpen_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.relu as relu_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.shift_w as shift_w_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.interpolate as interpolate_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.softmax as softmax_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.sq_points as sq_points_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.dotT as dotT_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.mult_points as mult_points_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.conv as conv_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.max_pool as max_pool_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.pearson as pearson_module
 
+
+print 'point_wise_add', t_add
+print 'dot', t_dot
+print 'cosine_sim', cosine_sim_module.t_main
+print 'linear_F', linear_F_module.t_main
+print 'add_points', add_points_module.t_main
+print 'sum_points', sum_points_module.t_main
+print 'focus_key', focus_key_module.t_main
+print 'sigmoid', sigmoid_module.t_main
+print 'sharpen', sharpen_module.t_main
+print 'relu', relu_module.t_main
+print 'shift_w', shift_w_module.t_main
+print 'interpolate', interpolate_module.t_main
+print 'softmax', softmax_module.t_main
+print 'sq_points', sq_points_module.t_main
+print 'dotT', dotT_module.t_main
+print 'mult_points', mult_points_module.t_main
+print 'conv', conv_module.t_main
+print 'max_pool', max_pool_module.t_main
+print 'pearson', pearson_module.t_main

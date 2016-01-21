@@ -164,7 +164,9 @@ def return_buffer(BUFFER, warn=1, gpu_ind=GPU_IND):
 
 # out_buffer = a * scalar0 + b * scalar
 # when OUT_BUFFER=None, store results in "a"
+t_add = [0]
 def point_wise_add(args, OUT_BUFFER=None, scalar=1, scalar0=1, gpu_ind=GPU_IND):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	
 	A, B = args
@@ -186,6 +188,7 @@ def point_wise_add(args, OUT_BUFFER=None, scalar=1, scalar0=1, gpu_ind=GPU_IND):
 		OUT_BUFFER = set_buffer(A_local*scalar0 + B_local*scalar, OUT_BUFFER, gpu_ind)
 		
 	OUT_BUFFER[1] = copy.deepcopy(B[1])
+	t_add[0] = time.time() - t
 	return OUT_BUFFER
 
 # out_buffer = a / sqrt(b)
@@ -219,7 +222,9 @@ def point_wise_div_sqrt(args, OUT_BUFFER=None, clip=10, gpu_ind=GPU_IND):
 
 # additional_args[0]: Squeeze output or not, 
 # additional_args[1] (sum_all): collapse x from [k,j] to [k*j,1] to give an output of [i,1] as opposed to [i,j]
+t_dot = [0]
 def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True, False], gpu_ind=GPU_IND):
+	t = time.time()
 	assert isinstance(gpu_ind,int)
 	squeeze, sum_all = additional_args
 	BUFFER1, BUFFER2 = args
@@ -259,6 +264,7 @@ def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True, False], gpu_i
 	OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(BUFFER1[1][:len(BUFFER1[1])-1]), np.asarray(BUFFER2_reshaped[1][1])[np.newaxis])))	
 	if squeeze and OUT_BUFFER[1][-1] == 1: # squeeze
 		OUT_BUFFER[1] = OUT_BUFFER[1][:len(OUT_BUFFER[1])-1]
+	t_dot[0] += time.time() - t
 	return OUT_BUFFER
 	
 def zero_buffer_list(WEIGHTS, gpu_ind=GPU_IND):
