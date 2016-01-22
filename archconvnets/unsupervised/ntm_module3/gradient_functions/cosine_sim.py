@@ -11,164 +11,110 @@ t_main = [0,0,0]
 # mem: N_MEM_SLOTS, M_LENGTH
 def cosine_sim(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
+	
 	KEYS, MEM = args
-	check_buffer(KEYS)
-	check_buffer(MEM)
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
-	assert (len(MEM[1]) == 2) or ((len(MEM[1]) == 3) and (MEM[1][2] == 1))
-	assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
-	assert KEYS[0] != MEM[0]
-	assert OUT_BUFFER[0] != KEYS[0]
-	assert OUT_BUFFER[0] != MEM[0]
-	assert KEYS[1][1] == MEM[1][1]
-
-	n_controllers, mem_length = KEYS[1][:2]
-	M = MEM[1][0]
 	
-	if GPU:
-		_ntm_module3.cosine_sim(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER[0], gpu_ind)
-	else:
-		######## CPU
-		keys = return_buffer(KEYS, gpu_ind)
-		mem = return_buffer(MEM, gpu_ind)
-		if len(KEYS[1]) == 3:
-			keys = keys[:,:,0]
-		if len(MEM[1]) == 3:
-			mem = mem[:,:,0]
-		numer = np.dot(keys, mem.T)
-		denom = np.einsum(np.sqrt(np.sum(keys**2,1)), [0], np.sqrt(np.sum(mem**2,1)), [1], [0,1])
-		OUT_BUFFER = set_buffer(numer/denom, OUT_BUFFER, gpu_ind)
+	_ntm_module3.cosine_sim(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = (n_controllers, M)
+	OUT_BUFFER[1] = (KEYS[1][0], MEM[1][0])
+	
+	if DEBUG:
+		check_buffer(KEYS)
+		check_buffer(MEM)
+		assert isinstance(gpu_ind,int)
+		check_buffer(OUT_BUFFER)
+		assert (len(MEM[1]) == 2) or ((len(MEM[1]) == 3) and (MEM[1][2] == 1))
+		assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
+		assert KEYS[0] != MEM[0]
+		assert OUT_BUFFER[0] != KEYS[0]
+		assert OUT_BUFFER[0] != MEM[0]
+		assert KEYS[1][1] == MEM[1][1]
+	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def cosine_sim_dmem(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
+	
 	KEYS, MEM = args
-	check_buffer(KEYS)
-	check_buffer(MEM)
-	check_buffer(LAYER_OUT)
-	check_buffer(DERIV_ABOVE)
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
-	assert (len(MEM[1]) == 2) or ((len(MEM[1]) == 3) and (MEM[1][2] == 1))
-	assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
-	assert KEYS[0] != MEM[0]
-	assert OUT_BUFFER[0] != KEYS[0]
-	assert OUT_BUFFER[0] != MEM[0]
-	assert KEYS[1][1] == MEM[1][1]
-
+	
 	n_controllers, mem_length = KEYS[1][:2]
 	M = MEM[1][0]
 	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
-	if GPU:
-		_ntm_module3.cosine_sim_dmem(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER_TEMP[0], gpu_ind)
-	else:
-		########## CPU
-		keys = return_buffer(KEYS, gpu_ind)
-		mem = return_buffer(MEM, gpu_ind)
-		if len(KEYS[1]) == 3:
-			keys = keys[:,:,0]
-		if len(MEM[1]) == 3:
-			mem = mem[:,:,0]
-		comb = np.zeros((n_controllers, mem.shape[0], mem.shape[0], mem.shape[1]),dtype='single')
-
-		keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
-		mem_sq_sum = np.sqrt(np.sum(mem**2, 1))
-
-		denom = np.einsum(keys_sq_sum, [0], mem_sq_sum, [1], [0,1])
-		numer = np.dot(keys, mem.T)
-
-		numer = numer / denom**2
-		denom = 1 / denom # = denom/denom**2
-
-		mem = mem / mem_sq_sum[:,np.newaxis]
-		temp = np.einsum(mem, [0,2], numer*keys_sq_sum[:,np.newaxis], [1,0], [1,0,2])
-		keys_denom = keys[:,np.newaxis] * denom[:,:,np.newaxis]
-		
-		comb[:,range(mem.shape[0]),range(mem.shape[0])] = keys_denom - temp
-		OUT_BUFFER_TEMP = set_buffer(comb, OUT_BUFFER_TEMP, gpu_ind)
+	_ntm_module3.cosine_sim_dmem(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER_TEMP[0], gpu_ind)
 	
 	if len(MEM[1]) == 2:
 		OUT_BUFFER_TEMP[1] = (n_controllers, M, M, mem_length)
 	else:
 		OUT_BUFFER_TEMP[1] = (n_controllers, M, M, mem_length,1)
-	
-	check_buffer(OUT_BUFFER_TEMP)
-	
+		
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		check_buffer(OUT_BUFFER_TEMP)
+		assert isinstance(gpu_ind,int)
+		check_buffer(KEYS)
+		check_buffer(MEM)
+		check_buffer(LAYER_OUT)
+		check_buffer(DERIV_ABOVE)
+		check_buffer(OUT_BUFFER)
+		assert (len(MEM[1]) == 2) or ((len(MEM[1]) == 3) and (MEM[1][2] == 1))
+		assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
+		assert KEYS[0] != MEM[0]
+		assert OUT_BUFFER[0] != KEYS[0]
+		assert OUT_BUFFER[0] != MEM[0]
+		assert KEYS[1][1] == MEM[1][1]
+	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
 def cosine_sim_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
+	
 	KEYS, MEM = args
-	check_buffer(KEYS)
-	check_buffer(MEM)
-	check_buffer(LAYER_OUT)
-	check_buffer(DERIV_ABOVE)
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
-	assert (len(MEM[1]) == 2) or ((len(MEM[1]) == 3) and (MEM[1][2] == 1))
-	assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
-	assert KEYS[0] != MEM[0]
-	assert OUT_BUFFER[0] != KEYS[0]
-	assert OUT_BUFFER[0] != MEM[0]
-	assert KEYS[1][1] == MEM[1][1]
-
+	
 	n_controllers, mem_length = KEYS[1][:2]
 	M = MEM[1][0]
 	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
-	if GPU:
-		_ntm_module3.cosine_sim_dkeys(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER_TEMP[0], gpu_ind)
-	else:
-		######## CPU
-		keys = return_buffer(KEYS, gpu_ind)
-		mem = return_buffer(MEM, gpu_ind)
-		if len(KEYS[1]) == 3:
-			keys = keys[:,:,0]
-		if len(MEM[1]) == 3:
-			mem = mem[:,:,0]
-		comb = np.zeros((n_controllers, mem.shape[0], n_controllers, keys.shape[1]),dtype='single')
-		
-		keys_sq_sum = np.sqrt(np.sum(keys**2, 1))
-		mem_sq_sum = np.sqrt(np.sum(mem**2, 1))
-		
-		denom = np.einsum(keys_sq_sum, [0], mem_sq_sum, [1], [0,1])
-		numer = np.dot(keys, mem.T)
-		
-		numer = numer / denom**2
-		denom = 1 / denom # = denom/denom**2
-		
-		keys = keys / keys_sq_sum[:,np.newaxis]
-		temp = np.einsum(keys, [1,2], numer*mem_sq_sum[np.newaxis], [1,0], [1,0,2])
-		mem_denom = mem[np.newaxis] * denom[:,:,np.newaxis]
-		
-		comb[range(n_controllers),:,range(n_controllers)] = mem_denom - temp
-		OUT_BUFFER_TEMP = set_buffer(comb, OUT_BUFFER_TEMP, gpu_ind)
+	_ntm_module3.cosine_sim_dkeys(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER_TEMP[0], gpu_ind)
 		
 	if len(KEYS[1]) == 2:
 		OUT_BUFFER_TEMP[1] = (n_controllers, M, n_controllers, mem_length)
 	else:
 		OUT_BUFFER_TEMP[1] = (n_controllers, M, n_controllers, mem_length, 1)
-	
-	check_buffer(OUT_BUFFER_TEMP)
-	
+		
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		check_buffer(OUT_BUFFER_TEMP)
+		assert isinstance(gpu_ind,int)
+		check_buffer(OUT_BUFFER)
+		check_buffer(KEYS)
+		check_buffer(MEM)
+		check_buffer(LAYER_OUT)
+		check_buffer(DERIV_ABOVE)
+		assert (len(MEM[1]) == 2) or ((len(MEM[1]) == 3) and (MEM[1][2] == 1))
+		assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
+		assert KEYS[0] != MEM[0]
+		assert OUT_BUFFER[0] != KEYS[0]
+		assert OUT_BUFFER[0] != MEM[0]
+		assert KEYS[1][1] == MEM[1][1]
+	
 	t_main[2] += time.time() - t
 	return OUT_BUFFER
 

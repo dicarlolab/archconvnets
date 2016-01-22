@@ -9,39 +9,33 @@ t_main = [0,0]
 
 def sum_points(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert additional_args == [None]
-	assert isinstance(gpu_ind,int)
-	assert len(args) == 1
+	
 	POINTS = args[0]
-	check_buffer(POINTS)
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
 	
-	if GPU:
-		_ntm_module3.sum_points(POINTS[0], np.prod(POINTS[1]), OUT_BUFFER[0], gpu_ind)
-	else:
-		######## CPU
-		OUT_BUFFER = set_buffer(return_buffer(POINTS,gpu_ind).sum(), OUT_BUFFER, gpu_ind)
-		
+	_ntm_module3.sum_points(POINTS[0], np.prod(POINTS[1]), OUT_BUFFER[0], gpu_ind)
+	
 	OUT_BUFFER[1] = (1,)
+	
+	if DEBUG:
+		assert additional_args == [None]
+		assert isinstance(gpu_ind,int)
+		assert len(args) == 1
+		check_buffer(POINTS)
+		check_buffer(OUT_BUFFER)
+	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def sum_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert additional_args == [None]
-	assert len(args) == 1
-	assert isinstance(gpu_ind,int)
-	assert len(args) == 1
+	
 	POINTS = args[0]
-	check_buffer(POINTS)
-	check_buffer(LAYER_OUT)
-	check_buffer(DERIV_ABOVE)
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
 	
 	points = return_buffer(POINTS)
 	deriv_above = return_buffer(DERIV_ABOVE)
@@ -60,6 +54,17 @@ def sum_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	output = np.einsum(deriv_above, range(deriv_above.ndim), np.ones_like(points), deriv_above.ndim + np.arange(points.ndim), dims_keep)
 	
 	OUT_BUFFER = set_buffer(output, OUT_BUFFER)
+	
+	if DEBUG:
+		assert additional_args == [None]
+		assert len(args) == 1
+		assert isinstance(gpu_ind,int)
+		assert len(args) == 1
+		check_buffer(POINTS)
+		check_buffer(LAYER_OUT)
+		check_buffer(DERIV_ABOVE)
+		check_buffer(OUT_BUFFER)
+	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	

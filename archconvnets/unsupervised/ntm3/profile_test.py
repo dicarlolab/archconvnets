@@ -3,14 +3,14 @@ import time
 import scipy.optimize
 from ntm_core import *
 #from architectures.model_architecture_movie_no_mem import init_model
-#from architectures.model_architecture_movie import init_model
+from architectures.model_architecture_movie import init_model
 #from architectures.model_architecture_simple import init_model
 #from architectures.model_architecture_cp import init_model
 #from architectures.movie_phys_latent import init_model
-from architectures.movie_phys_latent_predict_series import init_model
+#from architectures.movie_phys_latent_predict_series import init_model
 
 free_all_buffers()
-N_FRAMES = 100
+N_FRAMES = 10
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]

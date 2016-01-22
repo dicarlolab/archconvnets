@@ -11,103 +11,89 @@ t_main = [0,0,0]
 # focus keys, scalar beta_out (one for each controller) multiplied with each of its keys
 def focus_keys(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
+	
 	KEYS, BETA_OUT = args
-	check_buffer(KEYS)
-	check_buffer(BETA_OUT)
-	assert KEYS[1][0] == BETA_OUT[1][0]
-	assert len(KEYS[1]) == len(BETA_OUT[1]) == 2
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
 	
-	if GPU:
-		_ntm_module3.focus_key(KEYS[0], KEYS[1], BETA_OUT[0], OUT_BUFFER[0], gpu_ind)
-	else:
-		######## CPU
-		keys = return_buffer(KEYS,gpu_ind)
-		beta_out = return_buffer(BETA_OUT,gpu_ind)
-		# keys: [n_controllers, m_length], beta_out: [n_controllers, 1]
-		
-		OUT_BUFFER = set_buffer(keys * beta_out, OUT_BUFFER, gpu_ind) # [n_controllers, m_length]
-		
-	OUT_BUFFER[1] = copy.deepcopy(KEYS[1])
+	_ntm_module3.focus_key(KEYS[0], KEYS[1], BETA_OUT[0], OUT_BUFFER[0], gpu_ind)
+	
+	OUT_BUFFER[1] = KEYS[1]
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(OUT_BUFFER)
+		check_buffer(KEYS)
+		check_buffer(BETA_OUT)
+		assert KEYS[1][0] == BETA_OUT[1][0]
+		assert len(KEYS[1]) == len(BETA_OUT[1]) == 2
+	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def focus_key_dbeta_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
+	
 	KEYS, BETA_OUT = args
-	check_buffer(KEYS)
-	check_buffer(BETA_OUT)
-	check_buffer(DERIV_ABOVE)
-	assert KEYS[1][0] == BETA_OUT[1][0]
-	assert len(KEYS[1]) == len(BETA_OUT[1]) == 2
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
+	
 	n_controllers, m_length = KEYS[1]
 	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
-	if GPU:
-		_ntm_module3.focus_key_dbeta_out(KEYS[0], KEYS[1], OUT_BUFFER_TEMP[0], gpu_ind)
-	else:
-		######## CPU
-		keys = return_buffer(KEYS,gpu_ind)
-		beta_out = return_buffer(BETA_OUT,gpu_ind)
-		# beta_out: [n_controllers, 1]
-		
-		g = np.zeros((n_controllers, m_length, n_controllers, 1),dtype='single')
-		g[range(n_controllers),:,range(n_controllers),0] = keys
-		OUT_BUFFER_TEMP = set_buffer(g, OUT_BUFFER_TEMP, gpu_ind)
-		
+	_ntm_module3.focus_key_dbeta_out(KEYS[0], KEYS[1], OUT_BUFFER_TEMP[0], gpu_ind)
+	
 	OUT_BUFFER_TEMP[1] = (n_controllers, m_length, n_controllers, 1)
-	check_buffer(OUT_BUFFER_TEMP)
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(KEYS)
+		check_buffer(BETA_OUT)
+		check_buffer(DERIV_ABOVE)
+		assert KEYS[1][0] == BETA_OUT[1][0]
+		assert len(KEYS[1]) == len(BETA_OUT[1]) == 2
+		check_buffer(OUT_BUFFER)
+	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
 def focus_key_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
+	
 	KEYS, BETA_OUT = args
-	check_buffer(KEYS)
-	check_buffer(BETA_OUT)
-	check_buffer(DERIV_ABOVE)
-	assert KEYS[1][0] == BETA_OUT[1][0]
-	assert len(KEYS[1]) == len(BETA_OUT[1]) == 2
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
+	
 	n_controllers, m_length = KEYS[1]
 	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
-	if GPU:
-		_ntm_module3.focus_key_dkeys(BETA_OUT[0], KEYS[1], OUT_BUFFER_TEMP[0], gpu_ind)
-	else:
-		######## CPU
-		keys = return_buffer(KEYS,gpu_ind)
-		beta_out = return_buffer(BETA_OUT,gpu_ind)
-		# beta_out: [n_controllers, 1]
-		
-		g = np.zeros((n_controllers, m_length, n_controllers, m_length),dtype='single')
-		for j in range(m_length):
-			g[range(n_controllers),j,range(n_controllers),j] = np.squeeze(beta_out)
-		OUT_BUFFER_TEMP = set_buffer(g, OUT_BUFFER_TEMP, gpu_ind)
+	_ntm_module3.focus_key_dkeys(BETA_OUT[0], KEYS[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	
 	OUT_BUFFER_TEMP[1] = (n_controllers, m_length, n_controllers, m_length)
-	check_buffer(OUT_BUFFER_TEMP)
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(KEYS)
+		check_buffer(BETA_OUT)
+		check_buffer(DERIV_ABOVE)
+		assert KEYS[1][0] == BETA_OUT[1][0]
+		assert len(KEYS[1]) == len(BETA_OUT[1]) == 2
+		check_buffer(OUT_BUFFER)
+	
 	t_main[2] += time.time() - t
 	return OUT_BUFFER
 

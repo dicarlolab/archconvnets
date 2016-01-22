@@ -14,15 +14,12 @@ def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=GPU_IND):
 	
 	A, B = args
 	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-		OUT_BUFFER[1] = copy.deepcopy(A[1])
-	else:
+	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
-	_ntm_module3.point_wise_add(A[0], B[0], additional_args[0], np.single(1), OUT_BUFFER[0], gpu_ind)
+	_ntm_module3.point_wise_add(A[0], B[0], additional_args[0], 1., OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = copy.deepcopy(B[1])
+	OUT_BUFFER[1] = B[1]
 	
 	if DEBUG:
 		check_buffer(A)
