@@ -11,12 +11,8 @@ t_main = [0,0]
 # unlike point_wise_add, this defaults to storing the output in a new buffer instead of overwriting the first argument
 def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=GPU_IND):
 	t = time.time()
-	assert len(additional_args) == 1
-	assert isinstance(gpu_ind,int)
-	scalar = additional_args[0]
+	
 	A, B = args
-	check_buffer(A)
-	check_buffer(B)
 	
 	if OUT_BUFFER != None:
 		check_buffer(OUT_BUFFER)
@@ -24,15 +20,16 @@ def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=GPU_IND):
 	else:
 		OUT_BUFFER = init_buffer()
 	
-	if GPU:
-		_ntm_module3.point_wise_add(A[0], B[0], np.single(scalar), np.single(1), OUT_BUFFER[0], gpu_ind)
-	else:
-		####### CPU
-		A_local = return_buffer(A,gpu_ind)
-		B_local = return_buffer(B,gpu_ind)
-		OUT_BUFFER = set_buffer(A_local + B_local*scalar, OUT_BUFFER, gpu_ind)
-		
+	_ntm_module3.point_wise_add(A[0], B[0], additional_args[0], np.single(1), OUT_BUFFER[0], gpu_ind)
+	
 	OUT_BUFFER[1] = copy.deepcopy(B[1])
+	
+	if DEBUG:
+		check_buffer(A)
+		check_buffer(B)
+		assert len(additional_args) == 1
+		assert isinstance(gpu_ind,int)
+	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
@@ -40,31 +37,29 @@ def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=GPU_IND):
 # additional_args[0] denotes the scalar (when equal to 1, the deriv wrt to a is taken [and b if scalar=1])
 def add_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[1], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert len(additional_args) == 1
-	scalar = additional_args[0]
+	
 	A, B = args
-	check_buffer(A)
-	check_buffer(B)
-	check_buffer(LAYER_OUT)
-	check_buffer(DERIV_ABOVE)
-	assert A[1] == B[1]
-	#assert len(A[1]) == 2 or len(A[1]) == 4
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
 	
-	if GPU:
-		_ntm_module3.add_points_dinput((np.prod(A[1]), 1), OUT_BUFFER[0], DERIV_ABOVE[0], np.single(scalar), gpu_ind)
-	else:
-		######### CPU
-		OUT_BUFFER = set_buffer(return_buffer(deriv_above)*scalar, OUT_BUFFER, gpu_ind)
+	_ntm_module3.add_points_dinput((np.prod(A[1]), 1), OUT_BUFFER[0], DERIV_ABOVE[0], additional_args[0], gpu_ind)
 	
 	# reshape back to original dimensions
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
 	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], A[1])))
 	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert len(additional_args) == 1
+		check_buffer(A)
+		check_buffer(B)
+		check_buffer(LAYER_OUT)
+		check_buffer(DERIV_ABOVE)
+		assert A[1] == B[1]
+		#assert len(A[1]) == 2 or len(A[1]) == 4
+		check_buffer(OUT_BUFFER)
+		
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	

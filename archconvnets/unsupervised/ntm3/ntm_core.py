@@ -88,27 +88,18 @@ def init_weights(LAYERS):
 def mult_partials(A, B, B_out_shape, OUT=None):
 	A_ndim = len(A[1]) - len(B_out_shape)
 	B_ndim = len(B[1]) - len(B_out_shape)
-	assert A_ndim > 0
-	assert B_ndim > 0
-	assert np.sum(np.asarray(A[1][A_ndim:]) == np.asarray(B[1][:len(B_out_shape)])) == len(B_out_shape)
+	
+	if DEBUG:
+		assert A_ndim > 0
+		assert B_ndim > 0
+		assert np.sum(np.asarray(A[1][A_ndim:]) == np.asarray(B[1][:len(B_out_shape)])) == len(B_out_shape)
 	
 	A_dim0 = np.prod(A[1][:A_ndim])
 	B_dim1 = np.prod(B[1][len(B_out_shape):])
 	collapsed = np.prod(B_out_shape)
 
-	A_shape = (A_dim0, collapsed)
-	B_shape = (collapsed, B_dim1)
-	
-	out_shape = np.concatenate((A[1][:A_ndim], B[1][len(B_out_shape):]))
-	
-	Ar = copy.deepcopy(A)
-	Br = copy.deepcopy(B)
-	
-	Ar[1] = A_shape
-	Br[1] = B_shape
-	
-	OUT = dot([Ar, Br], OUT)
-	OUT[1] = tuple(out_shape)
+	OUT = dot([[A[0], (A_dim0, collapsed)], [B[0], (collapsed, B_dim1)]], OUT)
+	OUT[1] = tuple(np.concatenate((A[1][:A_ndim], B[1][len(B_out_shape):])))
 	return OUT
 	
 def build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS):
@@ -141,10 +132,7 @@ def forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV):
 
 		args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
 		
-		try:
-			L['forward_F'](args, OUTPUT[layer_ind], additional_args=L['additional_forward_args'])
-		except:
-			assert False, '%s forward() failed' % L['name']
+		L['forward_F'](args, OUTPUT[layer_ind], additional_args=L['additional_forward_args'])
 		
 	return OUTPUT
 	
@@ -246,7 +234,8 @@ def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
 			t1 = np.asarray(PARTIALS[layer_orig]['in_source'])
 			t2 = np.asarray(PARTIALS[layer_orig]['in_arg'])
 			partials_added = np.sum((t1 == layer_cur) * (t2 == arg)) #inds = np.nonzero((t1 == layer_cur) * (t2 == arg))[0]
-			assert partials_added <= 1, 'partials have been added more than once'
+			
+			#assert partials_added <= 1, 'partials have been added more than once'
 			
 			# inputs have not been added, add them:
 			if partials_added == 0:
@@ -292,7 +281,8 @@ def copy_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS, MEM_WEIGH
 			t1 = np.asarray(PARTIALS[layer_orig]['in_source'])
 			t2 = np.asarray(PARTIALS[layer_orig]['in_arg'])
 			inds = np.nonzero((t1 == layer_cur) * (t2 == arg))[0]
-			assert len(inds) == 1, 'partials have not been added to partials list %i' % len(inds)
+			
+			#assert len(inds) == 1, 'partials have not been added to partials list %i' % len(inds)
 			
 			# copy partials to mem_weight_derivs
 			# note: there is redundant copying happening if a layer contributes to multiple
@@ -309,7 +299,7 @@ def copy_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS, MEM_WEIGH
 # copy MEM_DERIVS (list of partials starting at memory layer LAYER_IND[i]):
 # into PARTIALS_PREV at the memory layer entry LAYER_IND[i] in PARTIALS_PREV
 def copy_partials(LAYER_IND, LAYERS, PARTIALS_PREV, MEM_DERIVS):
-	assert len(LAYER_IND) == len(MEM_DERIVS)
+	#assert len(LAYER_IND) == len(MEM_DERIVS)
 	for i in range(len(LAYER_IND)):
 		layer_ind = LAYER_IND[i]
 		L = LAYERS[layer_ind]
@@ -348,7 +338,7 @@ def random_function_list(LAYERS, INDS):
 def init_output_prev(LAYERS, INDS, PREV_VALS):
 	OUTPUT_PREV = [None]*len(LAYERS)
 	for layer_ind in range(len(INDS)):
-		assert OUTPUT_PREV[INDS[layer_ind]] is None
+		#assert OUTPUT_PREV[INDS[layer_ind]] is None
 		OUTPUT_PREV[INDS[layer_ind]] = init_buffer(PREV_VALS[layer_ind])
 	
 	return OUTPUT_PREV

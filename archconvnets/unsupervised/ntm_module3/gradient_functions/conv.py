@@ -10,115 +10,106 @@ t_main = [0,0,0]
 # additional_args= [PAD]
 def conv(args, OUT_BUFFER=None, additional_args=[0], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	F, IMGS = args
-	check_buffer(F)
-	check_buffer(IMGS)
-	n_filters, n_channels, filter_sz, filter_sz2  = F[1]
-	n_imgs, n_channels2, img_sz, img_sz2 = IMGS[1]
-	PAD = additional_args[0]
-	assert isinstance(PAD,int)
-	assert PAD >= 0
-	assert n_channels == n_channels2 and img_sz == img_sz2 and filter_sz == filter_sz2
-	assert IMGS[1][0] == 1
 	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-	else:
+	F, IMGS = args
+	PAD = additional_args[0]
+	
+	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
-	if GPU:
-		OUT_BUFFER[1] = _ntm_module3.conv(F[0], F[1], IMGS[0], IMGS[1], PAD, OUT_BUFFER[0], gpu_ind)
-	else:
-		####### CPU
-		assert False, 'cpu conv not supported'
+	OUT_BUFFER[1] = _ntm_module3.conv(F[0], F[1], IMGS[0], IMGS[1], PAD, OUT_BUFFER[0], gpu_ind)
+	
+	if DEBUG:
+		assert isinstance(PAD,int)
+		assert PAD >= 0
+		n_filters, n_channels, filter_sz, filter_sz2  = F[1]
+		n_imgs, n_channels2, img_sz, img_sz2 = IMGS[1]
+		assert n_channels == n_channels2 and img_sz == img_sz2 and filter_sz == filter_sz2
+		assert IMGS[1][0] == 1
+		assert isinstance(gpu_ind,int)
+		check_buffer(F)
+		check_buffer(IMGS)
+	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def conv_ddata(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
+	
 	F, IMGS = args
-	check_buffer(F)
-	check_buffer(IMGS)
-	check_buffer(DERIV_ABOVE)
-	n_filters, n_channels, filter_sz, filter_sz2  = F[1]
-	n_imgs, n_channels2, img_sz, img_sz2 = IMGS[1]
+	
 	PAD = additional_args[0]
-	assert isinstance(PAD,int)
-	assert PAD >= 0
-	assert n_channels == n_channels2 and img_sz == img_sz2 and filter_sz == filter_sz2
-	assert IMGS[1][0] == LAYER_OUT[1][0]
-	assert F[1][0] == LAYER_OUT[1][1]
-	assert LAYER_OUT[1][0] == IMGS[1][0] == 1
 	
 	# collapse dims that should not be summed over
 	# ex. DERIV_ABOVE = (a,b,c,d,e,f)
 	# ex. LAYER_OUT = (d,e,f)
 	# -> DERIV_ABOVE = (a*b*c, d,e,f)
-	DERIV_ABOVE_reshaped = copy.deepcopy(DERIV_ABOVE)
 	n_dims_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped[1] = tuple(np.concatenate((np.prod(DERIV_ABOVE_reshaped[1][:n_dims_not_summed])[np.newaxis], LAYER_OUT[1][1:])))
-	assert DERIV_ABOVE[1][n_dims_not_summed:] == LAYER_OUT[1]
-	check_buffer(DERIV_ABOVE_reshaped)
+	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dims_not_summed])[np.newaxis], LAYER_OUT[1][1:])))
 	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-	else:
+	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
-	if GPU:
-		OUT_BUFFER[1] = _ntm_module3.conv_ddata(F[0], F[1], IMGS[0], IMGS[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped[1], PAD, OUT_BUFFER[0], gpu_ind)
-	else:
-		####### CPU
-		assert False, 'cpu conv not supported'
+	OUT_BUFFER[1] = _ntm_module3.conv_ddata(F[0], F[1], IMGS[0], IMGS[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, PAD, OUT_BUFFER[0], gpu_ind)
 	
 	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dims_not_summed], IMGS[1])))
-	check_buffer(OUT_BUFFER)
+	
+	if DEBUG:
+		assert DERIV_ABOVE[1][n_dims_not_summed:] == LAYER_OUT[1]
+		assert isinstance(gpu_ind,int)
+		check_buffer(F)
+		check_buffer(IMGS)
+		check_buffer(DERIV_ABOVE)
+		n_filters, n_channels, filter_sz, filter_sz2  = F[1]
+		n_imgs, n_channels2, img_sz, img_sz2 = IMGS[1]
+		assert isinstance(PAD,int)
+		assert PAD >= 0
+		assert n_channels == n_channels2 and img_sz == img_sz2 and filter_sz == filter_sz2
+		assert IMGS[1][0] == LAYER_OUT[1][0]
+		assert F[1][0] == LAYER_OUT[1][1]
+		assert LAYER_OUT[1][0] == IMGS[1][0] == 1
+		check_buffer(OUT_BUFFER)
+		
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	
 def conv_dfilter(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
+	
 	F, IMGS = args
-	check_buffer(F)
-	check_buffer(IMGS)
-	check_buffer(DERIV_ABOVE)
-	n_filters, n_channels, filter_sz, filter_sz2  = F[1]
-	n_imgs, n_channels2, img_sz, img_sz2 = IMGS[1]
+	
 	PAD = additional_args[0]
-	assert isinstance(PAD,int)
-	assert PAD >= 0
-	assert n_channels == n_channels2 and img_sz == img_sz2 and filter_sz == filter_sz2
-	assert IMGS[1][0] == LAYER_OUT[1][0]
-	assert F[1][0] == LAYER_OUT[1][1]
-	assert LAYER_OUT[1][0] == IMGS[1][0] == 1
 	
 	# collapse dims that should not be summed over
 	# ex. DERIV_ABOVE = (a,b,c,d,e,f)
 	# ex. LAYER_OUT = (d,e,f)
 	# -> DERIV_ABOVE = (a*b*c, d,e,f)
-	DERIV_ABOVE_reshaped = copy.deepcopy(DERIV_ABOVE)
 	n_dims_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped[1] = tuple(np.concatenate((np.prod(DERIV_ABOVE_reshaped[1][:n_dims_not_summed])[np.newaxis], LAYER_OUT[1][1:])))
-	assert DERIV_ABOVE[1][n_dims_not_summed:] == LAYER_OUT[1]
-	check_buffer(DERIV_ABOVE_reshaped)
+	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dims_not_summed])[np.newaxis], LAYER_OUT[1][1:])))
 	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-	else:
+	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
-	if GPU:
-		OUT_BUFFER[1] = _ntm_module3.conv_dfilter(F[0], F[1], IMGS[0], IMGS[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped[1], PAD, OUT_BUFFER[0], gpu_ind)
-	else:
-		####### CPU
-		assert False, 'cpu conv not supported'
+	OUT_BUFFER[1] = _ntm_module3.conv_dfilter(F[0], F[1], IMGS[0], IMGS[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, PAD, OUT_BUFFER[0], gpu_ind)
 	
 	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dims_not_summed], F[1])))
 	
-	check_buffer(OUT_BUFFER)
+	if DEBUG:
+		check_buffer(F)
+		check_buffer(IMGS)
+		check_buffer(DERIV_ABOVE)
+		n_filters, n_channels, filter_sz, filter_sz2  = F[1]
+		n_imgs, n_channels2, img_sz, img_sz2 = IMGS[1]
+		assert isinstance(gpu_ind,int)
+		check_buffer(OUT_BUFFER)
+		assert DERIV_ABOVE[1][n_dims_not_summed:] == LAYER_OUT[1]
+		assert isinstance(PAD,int)
+		assert PAD >= 0
+		assert n_channels == n_channels2 and img_sz == img_sz2 and filter_sz == filter_sz2
+		assert IMGS[1][0] == LAYER_OUT[1][0]
+		assert F[1][0] == LAYER_OUT[1][1]
+		assert LAYER_OUT[1][0] == IMGS[1][0] == 1
+	
 	t_main[2] += time.time() - t
 	return OUT_BUFFER
 	

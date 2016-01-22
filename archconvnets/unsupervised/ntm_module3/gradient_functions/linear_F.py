@@ -16,44 +16,41 @@ def random_normal_function(size):
 # additional_args = [True]: squeeze output last dimension
 def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert GPU
+	
 	squeeze, sum_all = additional_args
 	F, X = args
-	check_buffer(F)
-	check_buffer(X)
-	check_buffer(LAYER_OUT)
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
-	check_buffer(DERIV_ABOVE)
-	assert len(F[1]) >= 2
-	assert len(X[1]) == 2 or len(X[1]) == 4
 	
 	# if source is a conv layer (4D input), sum across everything
-	X_reshaped = copy.deepcopy(X)
 	if len(X[1]) == 4 or sum_all:
-		X_reshaped[1] = (np.prod(X[1]), 1)
-	
-	assert F[1][-1] == X_reshaped[1][0]
+		X_reshaped = (np.prod(X[1]), 1)
+	else:
+		X_reshaped = X[1]
 	
 	# reshape buffer1 into two dimensions:
 	# (a,b,c,d,e) -> (a*b*c*d, e)
-	F_reshaped = copy.deepcopy(F)
-	F_reshaped[1] = (np.prod(F[1][:len(F[1])-1]), F[1][-1])
+	F_reshaped = (np.prod(F[1][:len(F[1])-1]), F[1][-1])
 	
 	# reshape deriv_above to 3 dims, first of which we batch over
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = copy.deepcopy(DERIV_ABOVE)
-	DERIV_ABOVE_reshaped[1] = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]), DERIV_ABOVE[1][-2], DERIV_ABOVE[1][-1])
-	
-	#assert DERIV_ABOVE_reshaped[1][1] == F_reshaped[1][0]
-	#assert DERIV_ABOVE_reshaped[1][2] == X_reshaped[1][1]
+	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]), DERIV_ABOVE[1][-2], DERIV_ABOVE[1][-1])
 	
 	# so we have deriv_above (3d: i,j,k) and x (2d: k,l), compute batched dot product (i,j,l)
-	_ntm_module3.linear_F_dx(F_reshaped[0], F_reshaped[1], X_reshaped[1], DERIV_ABOVE_reshaped[0], DERIV_ABOVE_reshaped[1], OUT_BUFFER[0], gpu_ind)
+	_ntm_module3.linear_F_dx(F[0], F_reshaped, X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
 	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], X[1])))
+	
+	if DEBUG:
+		check_buffer(F)
+		check_buffer(X)
+		check_buffer(LAYER_OUT)
+		check_buffer(OUT_BUFFER)
+		check_buffer(DERIV_ABOVE)
+		assert len(F[1]) >= 2
+		assert len(X[1]) == 2 or len(X[1]) == 4
+		assert F[1][-1] == X_reshaped
 	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
@@ -61,40 +58,42 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 # additional_args = [True]: squeeze output last dimension
 def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
+	
 	squeeze, sum_all = additional_args
-	assert GPU
+	
 	F, X = args
-	check_buffer(F)
-	check_buffer(X)
-	check_buffer(LAYER_OUT)
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
-	check_buffer(DERIV_ABOVE)
-	assert len(F[1]) >= 2
-	assert len(X[1]) == 2 or len(X[1]) == 4
+	
 	
 	# if source is a conv layer (4D input), sum across everything
-	X_reshaped = copy.deepcopy(X)
 	if len(X[1]) == 4 or sum_all:
-		X_reshaped[1] = (np.prod(X[1]), 1)
-	
-	assert F[1][-1] == X_reshaped[1][0]
-	
-	X_dim0, X_dim1 = X_reshaped[1]
+		X_reshaped = (np.prod(X[1]), 1)
+	else:
+		X_reshaped = X[1]
 	
 	# reshape deriv_above to 2 dims
-	DERIV_ABOVE_reshaped = copy.deepcopy(DERIV_ABOVE)
-	DERIV_ABOVE_reshaped[1] = (np.prod(DERIV_ABOVE[1][:len(DERIV_ABOVE[1])-1]), DERIV_ABOVE[1][-1])
+	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:len(DERIV_ABOVE[1])-1]), DERIV_ABOVE[1][-1])
 	
 	# now: dot(deriv_above, x.T)
-	_ntm_module3.linear_F_dF(X_reshaped[0], X_reshaped[1], DERIV_ABOVE_reshaped[0], DERIV_ABOVE_reshaped[1], OUT_BUFFER[0], gpu_ind)
+	_ntm_module3.linear_F_dF(X[0], X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
 	# reshape back to original dimensions
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
 	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], F[1])))
-	check_buffer(OUT_BUFFER)
+	
+	if DEBUG:
+		check_buffer(OUT_BUFFER)
+		check_buffer(F)
+		check_buffer(X)
+		check_buffer(LAYER_OUT)
+		check_buffer(OUT_BUFFER)
+		check_buffer(DERIV_ABOVE)
+		assert len(F[1]) >= 2
+		assert len(X[1]) == 2 or len(X[1]) == 4
+		assert F[1][-1] == X_reshaped[1][0]
+		
 	
 	t_main[2] += time.time() - t
 	return OUT_BUFFER

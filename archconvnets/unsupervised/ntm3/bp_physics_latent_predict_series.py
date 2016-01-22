@@ -19,7 +19,7 @@ else:
 	from architectures.movie_phys_latent_predict_series import *
 	INPUT_SCALE = 1e-5
 	EPS = -5e-4
-	save_name = 'ntm_physics_series_top_layers3_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
+	save_name = 'ntm_physics_series_sm_mem_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
 
 	
 free_all_buffers()
