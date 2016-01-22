@@ -31,6 +31,7 @@ def sigmoid(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 		layer_in = return_buffer(LAYER_IN,gpu_ind)
 		OUT_BUFFER = set_buffer(1/(1+np.exp(-layer_in)), OUT_BUFFER, gpu_ind)
 	OUT_BUFFER[1] = copy.deepcopy(LAYER_IN[1][:2])
+	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
@@ -39,6 +40,7 @@ def sigmoid_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	assert additional_args == [None]
 	assert isinstance(gpu_ind,int)
 	assert len(args) == 1
+	assert GPU
 	check_buffer(args[0])
 	LAYER_IN = args[0]
 	assert (len(LAYER_IN[1]) == 2) or ((len(LAYER_IN[1]) == 3) and (LAYER_IN[1][2] == 1))
@@ -46,32 +48,20 @@ def sigmoid_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	check_buffer(OUT_BUFFER)
-	dim1, dim2 = LAYER_OUT[1]
 	check_buffer(DERIV_ABOVE)
 	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	assert LAYER_IN[1][:2] == LAYER_OUT[1]
 	
-	if GPU:
-		_ntm_module3.sigmoid_dlayer_in(LAYER_OUT[0], LAYER_OUT[1], OUT_BUFFER_TEMP[0], gpu_ind)
-	else: 
-		############ CPU
-		layer_out = return_buffer(LAYER_OUT, gpu_ind)
-		d = layer_out * (1-layer_out)
-		t = np.zeros(np.concatenate((layer_out.shape, layer_out.shape)),dtype='single')
-		for i in range(layer_out.shape[0]):
-			for j in range(layer_out.shape[1]):
-				t[i,j,i,j] = d[i,j]
-		OUT_BUFFER_TEMP = set_buffer(t, OUT_BUFFER_TEMP, gpu_ind)
+	# reshape deriv_above to 2 dims
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	DERIV_ABOVE_reshaped = copy.deepcopy(DERIV_ABOVE)
+	DERIV_ABOVE_reshaped[1] = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]), np.prod(DERIV_ABOVE[1][n_dim_not_summed:]))
 	
-	if len(LAYER_IN[1]) == 3:
-		OUT_BUFFER_TEMP[1] = (dim1,dim2,dim1,dim2,1)
-	else:
-		OUT_BUFFER_TEMP[1] = (dim1,dim2,dim1,dim2)
+	_ntm_module3.sigmoid_dlayer_in(LAYER_OUT[0], DERIV_ABOVE[0], DERIV_ABOVE_reshaped[1], OUT_BUFFER[0], gpu_ind)
 	
-	check_buffer(OUT_BUFFER_TEMP)
+	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], LAYER_IN[1])))
+	check_buffer(OUT_BUFFER)
 	
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 

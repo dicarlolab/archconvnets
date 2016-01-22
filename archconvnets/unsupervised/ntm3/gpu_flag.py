@@ -1,4 +1,3 @@
-GPU = False
 GPU = True
 
-GPU_IND = 2
+GPU_IND = 3

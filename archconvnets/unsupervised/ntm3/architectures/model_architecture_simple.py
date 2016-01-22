@@ -19,8 +19,8 @@ def init_model():
 
 	for init in [0,1]:
 		# below
-		add_linear_F_bias_layer(LAYERS, 'F1', U_F1, (2, 3), init=init)
-		add_linear_F_bias_layer(LAYERS, 'F2', U_F2, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'F1', U_F1, (2, 3), init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'F2', U_F2, init=init)
 		add_linear_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
 		
 		add_add_layer(LAYERS, 'MEM', [HEAD_INPUT, 'MEM-'], init=init)

@@ -10,7 +10,7 @@ from ntm_core import *
 from architectures.movie_phys_latent_predict_series import init_model
 
 free_all_buffers()
-N_FRAMES = 50
+N_FRAMES = 100
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
