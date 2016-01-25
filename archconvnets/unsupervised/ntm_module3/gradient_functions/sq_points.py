@@ -37,7 +37,7 @@ def sq_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_a
 	LAYER_IN = args[0]
 	
 	if len(LAYER_IN[1]) == 1:
-		LAYER_IN_R = (LAYER_IN[0],1)
+		LAYER_IN_R = (LAYER_IN[1],1)
 	else:
 		LAYER_IN_R = LAYER_IN[1]
 		

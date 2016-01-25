@@ -208,7 +208,7 @@ def zero_buffer_list(WEIGHTS, gpu_ind=GPU_IND):
 
 def squeeze_dim1(BUFFER, keep_dims):
 	if keep_dims == False: # squeeze
-		assert BUFFER[1][0] == 1
+		#assert BUFFER[1][0] == 1
 		BUFFER[1] = tuple(BUFFER[1][1:])
 
 def free_list_list(LIST, gpu_ind=GPU_IND):

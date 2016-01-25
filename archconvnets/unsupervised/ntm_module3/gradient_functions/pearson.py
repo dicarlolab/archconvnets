@@ -9,46 +9,40 @@ t_main = [0,0]
 
 def pearson(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert GPU
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
+
 	W1, W2 = args
-	check_buffer(W1)
-	check_buffer(W2)
-	assert np.prod(W1[1]) == np.prod(W2[1])
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
-		
+	
 	_ntm_module3.pearson(W1[0], W2[0], OUT_BUFFER[0], gpu_ind)
 	
 	OUT_BUFFER[1] = (1,)
-	check_buffer(OUT_BUFFER)
+	
+	if DEBUG:
+		assert GPU
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(W1)
+		check_buffer(W2)
+		assert np.prod(W1[1]) == np.prod(W2[1])
+		check_buffer(OUT_BUFFER)
+		check_buffer(OUT_BUFFER)
+	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 # wrt additional_args[0] (either 0 for w1 or 1 for w2)
 def pearson_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0], gpu_ind=GPU_IND):
 	t = time.time()
-	assert GPU
-	assert isinstance(gpu_ind,int)
-	assert len(additional_args) == 1
+	
 	deriv_wrt = additional_args[0]
-	assert deriv_wrt == 0 or deriv_wrt == 1
+	
 	W1, W2 = args
-	check_buffer(W1)
-	check_buffer(W2)
-	check_buffer(DERIV_ABOVE)
-	check_buffer(LAYER_OUT)
-	assert np.prod(W1[1]) == np.prod(W2[1])
-	assert np.prod(LAYER_OUT[1]) == 1
-	assert DERIV_ABOVE[1][-1] == 1
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
-		
+	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
 	if deriv_wrt == 0:
@@ -57,10 +51,24 @@ def pearson_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_arg
 		_ntm_module3.pearson_dinput(W1[0], W2[0], OUT_BUFFER_TEMP[0], gpu_ind)
 	
 	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((LAYER_OUT[1], W2[1])))
-	check_buffer(OUT_BUFFER_TEMP)
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		assert GPU
+		assert isinstance(gpu_ind,int)
+		assert len(additional_args) == 1
+		assert deriv_wrt == 0 or deriv_wrt == 1
+		check_buffer(OUT_BUFFER)
+		check_buffer(W1)
+		check_buffer(W2)
+		check_buffer(DERIV_ABOVE)
+		check_buffer(LAYER_OUT)
+		assert np.prod(W1[1]) == np.prod(W2[1])
+		assert np.prod(LAYER_OUT[1]) == 1
+		assert DERIV_ABOVE[1][-1] == 1
+	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 

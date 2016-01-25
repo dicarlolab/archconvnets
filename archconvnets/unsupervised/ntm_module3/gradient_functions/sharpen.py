@@ -12,130 +12,82 @@ t_main = [0,0,0]
 # gamma: [dim1, 1]
 def sharpen(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
-	W, GAMMA = args
-	check_buffer(W)
-	check_buffer(GAMMA)
-	assert len(GAMMA[1]) == len(W[1]) == 2
-	assert GAMMA[1][0] == W[1][0]
 	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-	else:
+	W, GAMMA = args
+	
+	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
-	if GPU:
-		_ntm_module3.sharpen(W[0], W[1], GAMMA[0], OUT_BUFFER[0], gpu_ind)
-	else:
-		####### CPU
-		w = return_buffer(W,gpu_ind)
-		gamma = return_buffer(GAMMA,gpu_ind)
-		
-		assert np.min(w) >= 0
-		
-		wg = w ** gamma
-		OUT_BUFFER = set_buffer(wg / wg.sum(1)[:,np.newaxis], OUT_BUFFER, gpu_ind)
-		
-	OUT_BUFFER[1] = copy.deepcopy(W[1])
+	_ntm_module3.sharpen(W[0], W[1], GAMMA[0], OUT_BUFFER[0], gpu_ind)
+	
+	OUT_BUFFER[1] = W[1]
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(W)
+		check_buffer(GAMMA)
+		assert len(GAMMA[1]) == len(W[1]) == 2
+		assert GAMMA[1][0] == W[1][0]
+	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def sharpen_dgamma(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
-	W, GAMMA = args
-	check_buffer(W)
-	check_buffer(GAMMA)
-	check_buffer(DERIV_ABOVE)
-	assert len(GAMMA[1]) == len(W[1]) == 2
-	assert GAMMA[1][0] == W[1][0]
 	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-	else:
+	W, GAMMA = args
+	
+	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
-	if GPU:
-		_ntm_module3.sharpen_dgamma(W[0], W[1], GAMMA[0], GAMMA[1], OUT_BUFFER_TEMP[0], gpu_ind)
-	else: 
-		############ CPU
-		w = return_buffer(W,gpu_ind)
-		gamma = return_buffer(GAMMA,gpu_ind)
-		
-		n = w.shape[0]
-		g = np.zeros(np.concatenate((w.shape, gamma.shape)),dtype='single')
-		
-		wg = w ** gamma
-		ln_w_wg = np.log(w)*wg
-		wg_sum = wg.sum(1)[:,np.newaxis]
-		ln_w_wg_sum = ln_w_wg.sum(1)[:,np.newaxis]
-		
-		t = (ln_w_wg * wg_sum - wg * ln_w_wg_sum) / (wg_sum ** 2)
-		
-		g[range(n),:,range(n)] = t[:,:,np.newaxis]
-		OUT_BUFFER_TEMP = set_buffer(g, OUT_BUFFER_TEMP, gpu_ind)
+	_ntm_module3.sharpen_dgamma(W[0], W[1], GAMMA[0], GAMMA[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	
 	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((W[1], GAMMA[1])))
-	check_buffer(OUT_BUFFER_TEMP)
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(W)
+		check_buffer(GAMMA)
+		check_buffer(DERIV_ABOVE)
+		assert len(GAMMA[1]) == len(W[1]) == 2
+		assert GAMMA[1][0] == W[1][0]
+	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	
 def sharpen_dw(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
-	W, GAMMA = args
-	check_buffer(W)
-	check_buffer(GAMMA)
-	check_buffer(DERIV_ABOVE)
-	assert len(GAMMA[1]) == len(W[1]) == 2
-	assert GAMMA[1][0] == W[1][0]
 	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-	else:
+	W, GAMMA = args
+	
+	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
-	if GPU:
-		_ntm_module3.sharpen_dw(W[0], W[1], GAMMA[0], GAMMA[1], OUT_BUFFER_TEMP[0], gpu_ind)
-	else: 
-		############ CPU
-		w = return_buffer(W,gpu_ind)
-		gamma = return_buffer(GAMMA,gpu_ind)
-		
-		n = w.shape[0]
-		g = np.zeros(np.concatenate((w.shape, w.shape)),dtype='single')
-		
-		wg = w ** gamma
-		wg_sum = wg.sum(1)[:,np.newaxis]
-		wg_sum2 = wg_sum ** 2
-		g_wgm1 = gamma * (w ** (gamma-1))
-		
-		t = (g_wgm1 / wg_sum2) * (wg_sum - wg)
-		
-		for i in range(w.shape[0]):
-			g[i,:,i,:] = t[i]
-		
-		for j in range(w.shape[1]):
-			for b in range(w.shape[1]):
-				if b != j:
-					g[range(n),j,range(n),b] = -g_wgm1[:,b] * wg[:,j] / np.squeeze(wg_sum2)
-		OUT_BUFFER_TEMP = set_buffer(g, OUT_BUFFER_TEMP, gpu_ind)
+	_ntm_module3.sharpen_dw(W[0], W[1], GAMMA[0], GAMMA[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	
 	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((W[1], W[1])))
-	check_buffer(OUT_BUFFER_TEMP)
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(W)
+		check_buffer(GAMMA)
+		check_buffer(DERIV_ABOVE)
+		assert len(GAMMA[1]) == len(W[1]) == 2
+		assert GAMMA[1][0] == W[1][0]
+	
 	t_main[2] += time.time() - t
 	return OUT_BUFFER
 

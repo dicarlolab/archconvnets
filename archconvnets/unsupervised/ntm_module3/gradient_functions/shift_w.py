@@ -13,114 +13,95 @@ N_SHIFTS = 3
 def shift_w(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, mem_length]
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
+	
 	SHIFT_OUT, W_INTERP = args
-	check_buffer(SHIFT_OUT)
-	check_buffer(W_INTERP)
-	assert SHIFT_OUT[1][0] == W_INTERP[1][0]
-	assert len(SHIFT_OUT[1]) == len(W_INTERP[1]) == 2
-	assert SHIFT_OUT[1][1] == 3 # 3 shifts
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
 	
-	if GPU:
-		_ntm_module3.shift_w(SHIFT_OUT[0], W_INTERP[0], W_INTERP[1], OUT_BUFFER[0], gpu_ind)
-	else:
-		######## CPU
-		shift_out = return_buffer(SHIFT_OUT,gpu_ind)
-		w_interp = return_buffer(W_INTERP,gpu_ind)
-		
-		w_tilde = np.zeros_like(w_interp)
-		n_mem_slots = w_interp.shape[1]
-		
-		for loc in range(n_mem_slots):
-			w_tilde[:,loc] = shift_out[:,0]*w_interp[:,loc-1] + shift_out[:,1]*w_interp[:,loc] + \
-					shift_out[:,2]*w_interp[:,(loc+1)%n_mem_slots]
-		OUT_BUFFER = set_buffer(w_tilde, OUT_BUFFER, gpu_ind) # [n_controllers, m_length]
-		
-	OUT_BUFFER[1] = copy.deepcopy(W_INTERP[1])
+	
+	_ntm_module3.shift_w(SHIFT_OUT[0], W_INTERP[0], W_INTERP[1], OUT_BUFFER[0], gpu_ind)
+	
+	OUT_BUFFER[1] = W_INTERP[1]
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(OUT_BUFFER)
+		check_buffer(SHIFT_OUT)
+		check_buffer(W_INTERP)
+		assert SHIFT_OUT[1][0] == W_INTERP[1][0]
+		assert len(SHIFT_OUT[1]) == len(W_INTERP[1]) == 2
+		assert SHIFT_OUT[1][1] == 3 # 3 shifts
+	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def shift_w_dshift_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
+	
 	SHIFT_OUT, W_INTERP = args
-	check_buffer(SHIFT_OUT)
-	check_buffer(W_INTERP)
-	assert SHIFT_OUT[1][0] == W_INTERP[1][0]
-	assert len(SHIFT_OUT[1]) == len(W_INTERP[1]) == 2
-	assert SHIFT_OUT[1][1] == 3 # 3 shifts
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
-	check_buffer(DERIV_ABOVE)
 	
 	C, M = W_INTERP[1]
 	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
-	if GPU:
-		_ntm_module3.shift_w_dshift_out(W_INTERP[0], W_INTERP[1], OUT_BUFFER_TEMP[0], gpu_ind)
-	else:
-		######## CPU
-		w_interp = return_buffer(W_INTERP, gpu_ind)
+	_ntm_module3.shift_w_dshift_out(W_INTERP[0], W_INTERP[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	
-		temp = np.zeros((C, M, C, n_shifts),dtype='single')
-		for m in range(M):
-			for H in [-1,0,1]:
-				temp[range(C),m,range(C),H+1] = w_interp[:, (m+H)%M]
-		OUT_BUFFER_TEMP = set_buffer(temp, OUT_BUFFER_TEMP, gpu_ind)
-		
 	OUT_BUFFER_TEMP[1] = (C, M, C, N_SHIFTS)
-	check_buffer(OUT_BUFFER_TEMP)
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(SHIFT_OUT)
+		check_buffer(W_INTERP)
+		assert SHIFT_OUT[1][0] == W_INTERP[1][0]
+		assert len(SHIFT_OUT[1]) == len(W_INTERP[1]) == 2
+		assert SHIFT_OUT[1][1] == 3 # 3 shifts
+		check_buffer(OUT_BUFFER)
+		check_buffer(DERIV_ABOVE)
+		check_buffer(OUT_BUFFER_TEMP)
+	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
 def shift_w_dw_interp(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
+	
 	SHIFT_OUT, W_INTERP = args
-	check_buffer(SHIFT_OUT)
-	check_buffer(W_INTERP)
-	assert SHIFT_OUT[1][0] == W_INTERP[1][0]
-	assert len(SHIFT_OUT[1]) == len(W_INTERP[1]) == 2
-	assert SHIFT_OUT[1][1] == 3 # 3 shifts
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
-	check_buffer(DERIV_ABOVE)
 	
 	C, M = W_INTERP[1]
 	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
-	if GPU:
-		_ntm_module3.shift_w_dw_interp(SHIFT_OUT[0], W_INTERP[1], OUT_BUFFER_TEMP[0], gpu_ind)
-	else:
-		######## CPU
-		shift_out = return_buffer(SHIFT_OUT, gpu_ind)
-	
-		temp = np.zeros((C, M, C, M),dtype='single')
-	
-		for loc in range(M):
-			temp[range(C),loc,range(C),loc-1] = shift_out[:,0]
-			temp[range(C),loc,range(C),loc] = shift_out[:,1]
-			temp[range(C),loc,range(C),(loc+1)%M] = shift_out[:,2]
-		OUT_BUFFER_TEMP = set_buffer(temp, OUT_BUFFER_TEMP, gpu_ind)
+	_ntm_module3.shift_w_dw_interp(SHIFT_OUT[0], W_INTERP[1], OUT_BUFFER_TEMP[0], gpu_ind)
 		
 	OUT_BUFFER_TEMP[1] = (C, M, C, M)
 	check_buffer(OUT_BUFFER_TEMP)
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(SHIFT_OUT)
+		check_buffer(W_INTERP)
+		assert SHIFT_OUT[1][0] == W_INTERP[1][0]
+		assert len(SHIFT_OUT[1]) == len(W_INTERP[1]) == 2
+		assert SHIFT_OUT[1][1] == 3 # 3 shifts
+		check_buffer(OUT_BUFFER)
+		check_buffer(DERIV_ABOVE)
+	
 	t_main[2] += time.time() - t
 	return OUT_BUFFER
 

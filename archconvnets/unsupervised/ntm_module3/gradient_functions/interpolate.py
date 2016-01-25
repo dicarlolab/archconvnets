@@ -11,170 +11,120 @@ t_main = [0,0,0,0]
 # (16, 1) (16, 6) (16, 6)
 def interpolate(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
+	
 	INTERP_GATE_OUT, O_CONTENT, O_PREV = args
 	
-	check_buffer(INTERP_GATE_OUT)
-	check_buffer(O_CONTENT)
-	check_buffer(O_PREV)
-	assert len(INTERP_GATE_OUT[1]) == len(O_CONTENT[1]) == len(O_PREV[1]) == 2
-	assert INTERP_GATE_OUT[1][0] == O_CONTENT[1][0] == O_PREV[1][0]
-	assert O_CONTENT[1][1] == O_PREV[1][1]
-	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-	else:
+	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
-	if GPU:
-		_ntm_module3.interpolate(INTERP_GATE_OUT[0], O_CONTENT[0], O_PREV[0], O_CONTENT[1], OUT_BUFFER[0], gpu_ind)
-	else:
-		####### CPU
-		interp_gate_out = return_buffer(INTERP_GATE_OUT,gpu_ind)
-		o_content = return_buffer(O_CONTENT,gpu_ind)
-		o_prev = return_buffer(O_PREV,gpu_ind)
-		
-		OUT_BUFFER = set_buffer(interp_gate_out * o_content + (1 - interp_gate_out) * o_prev, OUT_BUFFER, gpu_ind)
-		
-	OUT_BUFFER[1] = copy.deepcopy(O_CONTENT[1])
-	check_buffer(OUT_BUFFER)
+	_ntm_module3.interpolate(INTERP_GATE_OUT[0], O_CONTENT[0], O_PREV[0], O_CONTENT[1], OUT_BUFFER[0], gpu_ind)
+	
+	OUT_BUFFER[1] = O_CONTENT[1]
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(OUT_BUFFER)
+		check_buffer(INTERP_GATE_OUT)
+		check_buffer(O_CONTENT)
+		check_buffer(O_PREV)
+		assert len(INTERP_GATE_OUT[1]) == len(O_CONTENT[1]) == len(O_PREV[1]) == 2
+		assert INTERP_GATE_OUT[1][0] == O_CONTENT[1][0] == O_PREV[1][0]
+		assert O_CONTENT[1][1] == O_PREV[1][1]
+	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def interpolate_dinterp_gate_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None],gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
+	
 	INTERP_GATE_OUT, O_CONTENT, O_PREV = args
 	
-	check_buffer(INTERP_GATE_OUT)
-	check_buffer(O_CONTENT)
-	check_buffer(O_PREV)
-	check_buffer(DERIV_ABOVE)
-	assert len(INTERP_GATE_OUT[1]) == len(O_CONTENT[1]) == len(O_PREV[1]) == 2
-	assert INTERP_GATE_OUT[1][0] == O_CONTENT[1][0] == O_PREV[1][0]
-	assert O_CONTENT[1][1] == O_PREV[1][1]
-	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-	else:
+	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
-	if GPU:
-		_ntm_module3.interpolate_dinterp_gate_out(O_CONTENT[0], O_CONTENT[1], O_PREV[0], OUT_BUFFER_TEMP[0], gpu_ind)
-	else: 
-		############ CPU
-		interp_gate_out = return_buffer(INTERP_GATE_OUT,gpu_ind)
-		o_content = return_buffer(O_CONTENT,gpu_ind)
-		o_prev = return_buffer(O_PREV,gpu_ind)
-		
-		temp = o_content - o_prev
-		temp2 = np.zeros((temp.shape[0], temp.shape[1], interp_gate_out.shape[0], 1),dtype='single')
-		
-		temp2[range(temp2.shape[0]), :, range(temp2.shape[0])] = temp[:,:,np.newaxis]
-		
-		OUT_BUFFER_TEMP = set_buffer(temp2, OUT_BUFFER_TEMP, gpu_ind)
+	_ntm_module3.interpolate_dinterp_gate_out(O_CONTENT[0], O_CONTENT[1], O_PREV[0], OUT_BUFFER_TEMP[0], gpu_ind)
 	
 	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((O_CONTENT[1], INTERP_GATE_OUT[1])))
-	check_buffer(OUT_BUFFER_TEMP)
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(INTERP_GATE_OUT)
+		check_buffer(O_CONTENT)
+		check_buffer(O_PREV)
+		check_buffer(DERIV_ABOVE)
+		assert len(INTERP_GATE_OUT[1]) == len(O_CONTENT[1]) == len(O_PREV[1]) == 2
+		assert INTERP_GATE_OUT[1][0] == O_CONTENT[1][0] == O_PREV[1][0]
+		assert O_CONTENT[1][1] == O_PREV[1][1]
+	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 	
 def interpolate_do_content(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
+	
 	INTERP_GATE_OUT, O_CONTENT, O_PREV = args
 	
-	check_buffer(INTERP_GATE_OUT)
-	check_buffer(O_CONTENT)
-	check_buffer(O_PREV)
-	check_buffer(DERIV_ABOVE)
-	assert len(INTERP_GATE_OUT[1]) == len(O_CONTENT[1]) == len(O_PREV[1]) == 2
-	assert INTERP_GATE_OUT[1][0] == O_CONTENT[1][0] == O_PREV[1][0]
-	assert O_CONTENT[1][1] == O_PREV[1][1]
-	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-	else:
+	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
-	if GPU:
-		_ntm_module3.interpolate_do_content(INTERP_GATE_OUT[0], O_PREV[1], OUT_BUFFER_TEMP[0], gpu_ind)
-	else: 
-		############ CPU
-		interp_gate_out = return_buffer(INTERP_GATE_OUT,gpu_ind)
-		o_content = return_buffer(O_CONTENT,gpu_ind)
-		o_prev = return_buffer(O_PREV,gpu_ind)
-		
-		temp = interp_gate_out
-		n = o_content.shape[1]
-		temp2 = np.zeros((o_content.shape[0], n, o_content.shape[0], n),dtype='single')
-		
-		for i in range(temp2.shape[0]):
-			temp2[i,range(n),i,range(n)] = temp[i]
-				
-		OUT_BUFFER_TEMP = set_buffer(temp2, OUT_BUFFER_TEMP, gpu_ind)
+	_ntm_module3.interpolate_do_content(INTERP_GATE_OUT[0], O_PREV[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	
 	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((O_CONTENT[1], O_CONTENT[1])))
-	check_buffer(OUT_BUFFER_TEMP)
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		check_buffer(INTERP_GATE_OUT)
+		check_buffer(O_CONTENT)
+		check_buffer(O_PREV)
+		check_buffer(DERIV_ABOVE)
+		assert len(INTERP_GATE_OUT[1]) == len(O_CONTENT[1]) == len(O_PREV[1]) == 2
+		assert INTERP_GATE_OUT[1][0] == O_CONTENT[1][0] == O_PREV[1][0]
+		assert O_CONTENT[1][1] == O_PREV[1][1]
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		
 	t_main[2] += time.time() - t
 	return OUT_BUFFER
 	
 def interpolate_do_prev(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
+	
 	INTERP_GATE_OUT, O_CONTENT, O_PREV = args
 	
-	check_buffer(INTERP_GATE_OUT)
-	check_buffer(O_CONTENT)
-	check_buffer(O_PREV)
-	check_buffer(DERIV_ABOVE)
-	assert len(INTERP_GATE_OUT[1]) == len(O_CONTENT[1]) == len(O_PREV[1]) == 2
-	assert INTERP_GATE_OUT[1][0] == O_CONTENT[1][0] == O_PREV[1][0]
-	assert O_CONTENT[1][1] == O_PREV[1][1]
-	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-	else:
+	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
-	if GPU:
-		_ntm_module3.interpolate_do_prev(INTERP_GATE_OUT[0], O_PREV[1], OUT_BUFFER_TEMP[0], gpu_ind)
-	else: 
-		############ CPU
-		interp_gate_out = return_buffer(INTERP_GATE_OUT,gpu_ind)
-		o_content = return_buffer(O_CONTENT,gpu_ind)
-		o_prev = return_buffer(O_PREV,gpu_ind)
-		
-		temp = 1 - interp_gate_out
-		n = o_prev.shape[1]
-		temp2 = np.zeros((o_prev.shape[0], n, o_prev.shape[0], n),dtype='single')
-		
-		for i in range(temp2.shape[0]):
-			temp2[i,range(n),i,range(n)] = temp[i]
-				
-		OUT_BUFFER_TEMP = set_buffer(temp2, OUT_BUFFER_TEMP, gpu_ind)
+	_ntm_module3.interpolate_do_prev(INTERP_GATE_OUT[0], O_PREV[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	
 	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((O_CONTENT[1], O_PREV[1])))
-	check_buffer(OUT_BUFFER_TEMP)
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		check_buffer(INTERP_GATE_OUT)
+		check_buffer(O_CONTENT)
+		check_buffer(O_PREV)
+		check_buffer(DERIV_ABOVE)
+		assert len(INTERP_GATE_OUT[1]) == len(O_CONTENT[1]) == len(O_PREV[1]) == 2
+		assert INTERP_GATE_OUT[1][0] == O_CONTENT[1][0] == O_PREV[1][0]
+		assert O_CONTENT[1][1] == O_PREV[1][1]
+	
 	t_main[3] += time.time() - t
 	return OUT_BUFFER
 

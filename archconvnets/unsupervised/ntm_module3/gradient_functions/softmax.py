@@ -9,81 +9,58 @@ t_main = [0,0,0]
 
 def softmax(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
-	assert len(args) == 1
+	
 	LAYER_IN = args[0]
-	check_buffer(LAYER_IN)
-	assert (len(LAYER_IN[1]) == 2) or ((len(LAYER_IN[1]) == 3) and (LAYER_IN[1][2] == 1))
 	
-	LAYER_IN_R = copy.deepcopy(LAYER_IN)
-	LAYER_IN_R[1] = LAYER_IN_R[1][:2]
+	LAYER_IN_R = LAYER_IN[1][:2]
 	
-	if OUT_BUFFER != None:
-		check_buffer(OUT_BUFFER)
-	else:
+	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
-	if GPU:
-		_ntm_module3.softmax(LAYER_IN_R[0], LAYER_IN_R[1], OUT_BUFFER[0], gpu_ind)
-	else:
-		####### CPU
-		layer_in = return_buffer(LAYER_IN_R,gpu_ind)
-		exp_layer_in = np.exp(layer_in)
-		OUT_BUFFER = set_buffer(exp_layer_in/np.sum(exp_layer_in,1)[:,np.newaxis], OUT_BUFFER, gpu_ind)
-	OUT_BUFFER[1] = copy.deepcopy(LAYER_IN_R[1])
+	_ntm_module3.softmax(LAYER_IN[0], LAYER_IN_R, OUT_BUFFER[0], gpu_ind)
+	
+	OUT_BUFFER[1] = LAYER_IN_R
+	
+	if DEBUG:
+		check_buffer(LAYER_IN)
+		assert (len(LAYER_IN[1]) == 2) or ((len(LAYER_IN[1]) == 3) and (LAYER_IN[1][2] == 1))
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		assert len(args) == 1
+	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
 def softmax_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
-	assert isinstance(gpu_ind,int)
-	assert additional_args == [None]
-	assert len(args) == 1
-	check_buffer(args[0])
-	check_buffer(DERIV_ABOVE)
-	assert (len(args[0][1]) == 2) or ((len(args[0][1]) == 3) and (args[0][1][2] == 1))
 	
-	check_buffer(LAYER_OUT)
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
+	
 	dim1, dim2 = LAYER_OUT[1]
 	
 	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
 	
-	if GPU:
-		_ntm_module3.softmax_dlayer_in(LAYER_OUT[0], LAYER_OUT[1], OUT_BUFFER_TEMP[0], gpu_ind)
-	else: 
-		############ CPU
-		layer_out = return_buffer(LAYER_OUT, gpu_ind)
+	_ntm_module3.softmax_dlayer_in(LAYER_OUT[0], LAYER_OUT[1], OUT_BUFFER_TEMP[0], gpu_ind)
 		
-		g = np.zeros((layer_out.shape[0], layer_out.shape[1], layer_out.shape[0], layer_out.shape[1]),dtype='single')
-	
-		# dsoftmax[:,i]/dlayer_in[:,j] when i = j:
-		temp = (layer_out * (1 - layer_out))
-		for i in range(g.shape[0]):
-			for j in range(g.shape[1]):
-				g[i,j,i,j] = temp[i,j]
-		
-		# i != j
-		for i in range(g.shape[0]):
-			for j in range(g.shape[1]):
-				for k in range(g.shape[1]):
-					if j != k:
-						g[i,j,i,k] -= layer_out[i,j]*layer_out[i,k]
-		
-		OUT_BUFFER_TEMP = set_buffer(g, OUT_BUFFER_TEMP, gpu_ind)
-	
 	if len(args[0][1]) == 2:
 		OUT_BUFFER_TEMP[1] = (dim1,dim2,dim1,dim2)
 	else:
 		OUT_BUFFER_TEMP[1] = (dim1,dim2,dim1,dim2,1)
 	
-	check_buffer(OUT_BUFFER_TEMP)
-	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
+	
+	if DEBUG:
+		check_buffer(OUT_BUFFER)
+		assert isinstance(gpu_ind,int)
+		assert additional_args == [None]
+		assert len(args) == 1
+		check_buffer(args[0])
+		check_buffer(DERIV_ABOVE)
+		assert (len(args[0][1]) == 2) or ((len(args[0][1]) == 3) and (args[0][1][2] == 1))
+		check_buffer(LAYER_OUT)
+	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 
