@@ -20,7 +20,7 @@ def init_model():
 
 	################ init weights and inputs
 	WEIGHTS = init_weights(LAYERS)
-	MEM_INDS = find_layer(LAYERS, [])
+	MEM_INDS = find_layer(LAYERS, ['STACK_SUM'])
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 
 	print_names = ['F1','F1m', 'STACK_SUM']

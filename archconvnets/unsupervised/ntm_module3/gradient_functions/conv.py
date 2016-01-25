@@ -13,7 +13,6 @@ def conv(args, OUT_BUFFER=None, additional_args=[0], gpu_ind=GPU_IND):
 	
 	F, IMGS = args
 	PAD = additional_args[0]
-	print PAD
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
