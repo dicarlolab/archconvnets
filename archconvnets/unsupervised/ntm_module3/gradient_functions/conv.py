@@ -13,6 +13,7 @@ def conv(args, OUT_BUFFER=None, additional_args=[0], gpu_ind=GPU_IND):
 	
 	F, IMGS = args
 	PAD = additional_args[0]
+	print PAD
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
@@ -134,6 +135,7 @@ def add_conv_layer(LAYERS, name, n_filters, filter_sz, source=None, imgs_shape=N
 		
 		in_shape = [None]*2
 		source_meta = [None]*2
+		in_prev = [False, False]
 		
 		source_meta[0] = random_function
 		
@@ -146,9 +148,16 @@ def add_conv_layer(LAYERS, name, n_filters, filter_sz, source=None, imgs_shape=N
 			assert len(imgs_shape) == 4
 			assert imgs_shape[0] == 1
 		elif isinstance(source,str):
-			source[1] = find_layer(LAYERS, source[1])
-			assert source[1] is not None, 'could not find source conv inputs'
-			in_shape[1] = LAYERS[source[1]]['out_shape']
+			source_meta[1] = find_layer(LAYERS, source)
+			assert source_meta[1] is not None, 'could not find source conv inputs'
+			
+			if source[-1] == '-':
+				in_shape[1] = imgs_shape
+				assert len(imgs_shape) == 4
+				assert imgs_shape[0] == 1
+				in_prev[1] = True
+			else:	
+				in_shape[1] = LAYERS[source_meta[1]]['out_shape']
 
 		n_channels = in_shape[1][1]
 		in_shape[0] = (n_filters, n_channels, filter_sz, filter_sz)
@@ -157,7 +166,7 @@ def add_conv_layer(LAYERS, name, n_filters, filter_sz, source=None, imgs_shape=N
 		F_temp = init_buffer(np.zeros(in_shape[0], dtype='single'))
 		IMGS_temp = init_buffer(np.zeros(in_shape[1], dtype='single'))
 		
-		O = conv((F_temp, IMGS_temp))
+		O = conv((F_temp, IMGS_temp), additional_args=[PAD])
 		out_shape = copy.deepcopy(O[1])
 		
 		free_buffer(O)
@@ -169,7 +178,7 @@ def add_conv_layer(LAYERS, name, n_filters, filter_sz, source=None, imgs_shape=N
 		LAYERS[layer_ind]['in_shape'] = in_shape
 		LAYERS[layer_ind]['in_source'] = source_meta
 		LAYERS[layer_ind]['deriv_F'] = [conv_dfilter, conv_ddata]
-		LAYERS[layer_ind]['in_prev'] = [False, False]
+		LAYERS[layer_ind]['in_prev'] = in_prev
 		LAYERS[layer_ind]['additional_forward_args'] = [PAD]
 		LAYERS[layer_ind]['additional_deriv_args'] = [[PAD], [PAD]]
 		

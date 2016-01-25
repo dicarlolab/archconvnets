@@ -38,6 +38,8 @@ def sq_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_a
 	
 	if len(LAYER_IN[1]) == 1:
 		LAYER_IN_R = (LAYER_IN[1],1)
+	elif len(LAYER_IN[1]) == 4:
+		LAYER_IN_R = (np.prod(LAYER_IN[1]),1)
 	else:
 		LAYER_IN_R = LAYER_IN[1]
 		
@@ -50,10 +52,7 @@ def sq_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_a
 	
 	_ntm_module3.sq_points_dinput(LAYER_IN[0], LAYER_IN_R, OUT_BUFFER_TEMP[0], gpu_ind)
 	
-	if len(LAYER_IN[1]) == 1:
-		OUT_BUFFER_TEMP[1] = (dim1,dim1)
-	else:
-		OUT_BUFFER_TEMP[1] = (dim1,dim2,dim1,dim2)
+	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((LAYER_IN[1], LAYER_IN[1])))
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)
