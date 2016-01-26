@@ -17,11 +17,10 @@ static PyObject *free_buffer(PyObject *self, PyObject *args){
 	}
 	
 	if(BUFFER_SZ != 0){
-		//printf("buffer %i freed, %li\n", buffer_ind, BUFFER_SZ);
-		cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+		//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 		err = cudaFree((void**) GPU_BUFFER); CHECK_CUDA_ERR
 		BUFFER_SZ = 0;
-		cudaSetDevice(0); CHECK_CUDA_ERR
+		//cudaSetDevice(0); CHECK_CUDA_ERR
 	}/*else{
 		printf("buffer %i not freed\n", buffer_ind);
 	}*/

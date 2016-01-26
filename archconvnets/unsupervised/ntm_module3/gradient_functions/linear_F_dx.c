@@ -30,7 +30,7 @@ static PyObject * linear_F_dx(PyObject *self, PyObject *args){
 	long deriv_above_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)deriv_above_shape,1));
 	long deriv_above_dim2 = PyLong_AsLong(PyTuple_GetItem((PyObject *)deriv_above_shape,2));
 	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DLDX_SZ); MALLOC_ERR_CHECK
@@ -87,7 +87,7 @@ static PyObject * linear_F_dx(PyObject *self, PyObject *args){
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
 	
-	cudaSetDevice(0); CHECK_CUDA_ERR
+	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	///////////////////////////////////////////// possible race condition if sync isn't present
 	free(F_pointers);

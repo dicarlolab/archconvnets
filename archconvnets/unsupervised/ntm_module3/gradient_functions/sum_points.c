@@ -44,7 +44,7 @@ static PyObject * sum_points(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
@@ -65,7 +65,7 @@ static PyObject * sum_points(PyObject *self, PyObject *args){
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
 	
-	cudaSetDevice(0); CHECK_CUDA_ERR
+	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

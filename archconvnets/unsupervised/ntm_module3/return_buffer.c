@@ -17,7 +17,7 @@ static PyObject *return_buffer(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-    cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+    //cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(BUFFER_SZ == 0){
 		if(warn == 1)
@@ -36,7 +36,7 @@ static PyObject *return_buffer(PyObject *self, PyObject *args){
 	
 	err = cudaMemcpy(data, GPU_BUFFER, BUFFER_SZ, cudaMemcpyDeviceToHost);  MALLOC_ERR_CHECK
 	
-	cudaSetDevice(0); CHECK_CUDA_ERR
+	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	return PyArray_Return(numpy_buffer_temp);
 }

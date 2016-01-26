@@ -27,7 +27,7 @@ static PyObject * conv_dfilter(PyObject *self, PyObject *args){
 	long n_filters = PyLong_AsLong(PyTuple_GetItem(filters_shape,0));
 	long filter_sz = PyLong_AsLong(PyTuple_GetItem(filters_shape,2));
 	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	int n_imgs_out;
 	int n_filters_out;
@@ -83,7 +83,7 @@ static PyObject * conv_dfilter(PyObject *self, PyObject *args){
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
 	
-	cudaSetDevice(0); CHECK_CUDA_ERR
+	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

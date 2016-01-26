@@ -29,6 +29,9 @@ def check_buffer(BUFFER, gpu_ind=GPU_IND):
 		assert return_buffer_sz(BUFFER[0], gpu_ind) == 0, '%i' % return_buffer_sz(BUFFER[0], gpu_ind)'''
 	return
 
+def set_device(gpu_ind=GPU_IND):
+	_ntm_module3.set_device(gpu_ind)
+
 def free_buffer(BUFFER, gpu_ind=GPU_IND):
 	#check_buffer(BUFFER)
 	n_vars_allocated[gpu_ind, BUFFER[0]] = False
@@ -214,6 +217,8 @@ def squeeze_dim1(BUFFER, keep_dims):
 def free_list_list(LIST, gpu_ind=GPU_IND):
 	for i in range(len(LIST)):
 		free_list(LIST[i], gpu_ind)
+
+set_device(GPU_IND)
 
 from gradient_functions.cosine_sim import *
 from gradient_functions.linear_F import *

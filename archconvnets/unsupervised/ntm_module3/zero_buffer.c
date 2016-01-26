@@ -15,13 +15,13 @@ static PyObject *zero_buffer(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-    cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+    //cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(BUFFER_SZ != 0){
 		err = cudaMemset(GPU_BUFFER, 0, BUFFER_SZ);  MALLOC_ERR_CHECK
 	}
 	
-	cudaSetDevice(0); CHECK_CUDA_ERR
+	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

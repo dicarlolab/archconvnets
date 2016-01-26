@@ -20,7 +20,7 @@ static PyObject *max_pool_dinput(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	// get sizes
 	long n_output = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
@@ -74,7 +74,7 @@ static PyObject *max_pool_dinput(PyObject *self, PyObject *args){
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
 	
-	cudaSetDevice(0); CHECK_CUDA_ERR
+	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

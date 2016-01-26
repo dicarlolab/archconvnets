@@ -83,7 +83,7 @@ static PyObject * pearson(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
@@ -113,7 +113,7 @@ static PyObject * pearson(PyObject *self, PyObject *args){
 	cudaFree((void**) w_mean); CHECK_CUDA_ERR
 	cudaFree((void**) BCD); CHECK_CUDA_ERR
 	
-	cudaSetDevice(0); CHECK_CUDA_ERR
+	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;
