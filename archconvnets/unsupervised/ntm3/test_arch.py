@@ -8,6 +8,10 @@ U_F1 = 3
 
 for init in [0,1]:
 	add_conv_layer(LAYERS, 'F1', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(1,3,6,6), init=init, PAD=1)
+	
+	add_bias_layer(LAYERS, 'F1_b', init=init)
+	add_sigmoid_layer(LAYERS, 'F1s', init=init)
+	
 	add_conv_layer(LAYERS, 'F1m', U_F1, U_F1_FILTER_SZ, source = 'STACK_SUM-', imgs_shape=(1,3,6,6), init=init, PAD=1)
 	
 	add_add_layer(LAYERS, 'STACK_SUM', ['F1','F1m'], init=init)

@@ -11,7 +11,7 @@ free_all_buffers()
 N_FRAMES = 3
 
 ################ init weights and inputs
-LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
+LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names = init_model()
 
 F1_IND = 0
 #ERR_IND = find_layer(LAYERS, 'ERR')
@@ -74,7 +74,7 @@ def g(y):
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e5#6
+eps = np.sqrt(np.finfo(np.float).eps)*1e3#6
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

@@ -20,14 +20,13 @@ def sigmoid(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	
 	_ntm_module3.sigmoid(LAYER_IN[0], OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = copy.deepcopy(LAYER_IN[1][:2])
+	OUT_BUFFER[1] = LAYER_IN[1][:2]
 	
 	if DEBUG:
 		assert additional_args == [None]
 		assert isinstance(gpu_ind,int)
 		assert len(args) == 1
 		check_buffer(LAYER_IN)
-		assert (len(LAYER_IN[1]) == 2) or ((len(LAYER_IN[1]) == 3) and (LAYER_IN[1][2] == 1))
 	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
@@ -54,7 +53,6 @@ def sigmoid_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 		assert isinstance(gpu_ind,int)
 		assert len(args) == 1
 		assert GPU
-		assert (len(LAYER_IN[1]) == 2) or ((len(LAYER_IN[1]) == 3) and (LAYER_IN[1][2] == 1))
 		assert LAYER_IN[1][:2] == LAYER_OUT[1]
 		check_buffer(LAYER_OUT)
 		check_buffer(args[0])
@@ -93,8 +91,6 @@ def add_sigmoid_layer(LAYERS, name, source=None, init=0):
 			in_source = -1
 		else:
 			assert False, 'unknown source input'
-		
-		assert (len(in_shape[0]) == 2) or ((len(in_shape[0]) == 3) and (in_shape[0][2] == 1))
 		
 		LAYERS[layer_ind]['forward_F'] = sigmoid
 		LAYERS[layer_ind]['out_shape'] = in_shape[0][:2]
