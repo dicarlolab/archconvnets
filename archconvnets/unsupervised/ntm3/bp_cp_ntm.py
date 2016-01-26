@@ -6,7 +6,7 @@ from scipy.io import savemat
 from scipy.stats import zscore, pearsonr
 
 no_mem = True
-#no_mem = False
+no_mem = False
 
 EPS = -1e-3
 

@@ -74,7 +74,10 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 		X_reshaped = X[1]
 	
 	# reshape deriv_above to 2 dims
-	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:len(DERIV_ABOVE[1])-1]), DERIV_ABOVE[1][-1])
+	if squeeze:
+		DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1]), 1)
+	else:
+		DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:len(DERIV_ABOVE[1])-1]), DERIV_ABOVE[1][-1])
 	
 	# now: dot(deriv_above, x.T)
 	_ntm_module3.linear_F_dF(X[0], X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)

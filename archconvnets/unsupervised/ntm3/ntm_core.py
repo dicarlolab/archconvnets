@@ -2,6 +2,7 @@ from gpu_flag import *
 import numpy as np
 import copy
 import time
+from scipy.io import savemat
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 
 def check_weights(WEIGHTS, LAYERS):
@@ -426,3 +427,11 @@ def print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, cor
 		else: # print blank
 			print
 	print '---------------------'
+
+def save_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, output_buffer, target_buffer, EPS, err_log, corr_log, EPOCH_LEN):
+	WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1_lin')][0])
+	WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2_lin')][0])
+	WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'FL_lin')][0])
+	savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, \
+			'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, \
+			'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3, 'EPOCH_LEN': EPOCH_LEN})

@@ -43,7 +43,7 @@ static PyObject *sq_points_dinput(PyObject *self, PyObject *args){
 	long dim1 = PyLong_AsLong(PyTuple_GetItem(input_shape,1));
 
 	if(dim0*dim1*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][input_ind]){
-		printf("specified input sizes do not equal stored gpu buffer.\n");
+		printf("specified input sizes do not equal stored gpu buffer. %li, %li\n", dim0*dim1*sizeof(DATA_TYPE), buffer_sz[gpu_ind][input_ind]);
 		return NULL;
 	}
 	

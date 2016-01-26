@@ -34,6 +34,8 @@ def add_linear_F_bias_layer(LAYERS, name, n_filters, source=None, sum_all=False,
 	add_bias_layer(LAYERS, name, random_function, init)
 	
 def add_sigmoid_F_bias_layer(LAYERS, name, n_filters, source=None, sum_all=False, squeeze=False, random_function=random_function, init=0):
+	if isinstance(n_filters,int) == False:
+		squeeze = True
 	add_linear_F_layer(LAYERS, name+'_lin', n_filters, source, sum_all, squeeze, random_function, init)
 	add_bias_layer(LAYERS, name+'_b', random_function, init)
 	add_sigmoid_layer(LAYERS, name, init=init)

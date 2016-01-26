@@ -20,7 +20,7 @@ def sigmoid(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	
 	_ntm_module3.sigmoid(LAYER_IN[0], OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = LAYER_IN[1][:2]
+	OUT_BUFFER[1] = LAYER_IN[1]
 	
 	if DEBUG:
 		assert additional_args == [None]
@@ -93,7 +93,7 @@ def add_sigmoid_layer(LAYERS, name, source=None, init=0):
 			assert False, 'unknown source input'
 		
 		LAYERS[layer_ind]['forward_F'] = sigmoid
-		LAYERS[layer_ind]['out_shape'] = in_shape[0][:2]
+		LAYERS[layer_ind]['out_shape'] = in_shape[0]
 		LAYERS[layer_ind]['in_shape'] = in_shape
 		LAYERS[layer_ind]['in_source'] = [in_source]
 		LAYERS[layer_ind]['deriv_F'] = [sigmoid_dlayer_in]

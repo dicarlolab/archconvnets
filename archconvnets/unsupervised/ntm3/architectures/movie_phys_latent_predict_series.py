@@ -1,7 +1,7 @@
 from ntm_core import *
 
-N_FRAMES_PRED = 15
-N_IN = 4
+N_FRAMES_PRED = 1
+N_IN = 2
 
 def init_model():
 	LAYERS = []
@@ -53,7 +53,7 @@ def init_model():
 		
 		##### write
 		# erase/add output
-		add_sigmoid_F_bias_layer(LAYERS, 'ERASE', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'ERASE', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init, squeeze=True)
 		add_sigmoid_F_bias_layer(LAYERS, 'ADD', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)
 		
 		add_dotT_layer(LAYERS, 'ERASE_HEAD', ['W_F', 'ERASE'], init=init)
@@ -84,6 +84,8 @@ def init_model():
 		add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM3', N_TARGET, init=init)
 		
 		#####
+		#add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM3', -1], init=init)
+		
 		add_add_layer(LAYERS, 'ERR', ['STACK_SUM3', -1], scalar=-1, init=init)
 		add_sq_points_layer(LAYERS, 'SQ_ERR', init=init)
 		add_sum_layer(LAYERS, 'SUM_ERR', init=init)
