@@ -7,20 +7,20 @@ from ntm_core import *
 #from architectures.model_architecture_simple import init_model
 #from architectures.model_architecture_cp import init_model
 #from architectures.movie_phys_latent import init_model
-#from architectures.movie_phys_latent_predict_series import init_model
-from architectures.highway import init_model
+from architectures.movie_phys_latent_predict_series import init_model
+#from architectures.highway import init_model
 
 free_all_buffers()
-N_FRAMES = 10
+N_FRAMES = 50*2
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
 
 F1_IND = 0
-#TARGET_IND = find_layer(LAYERS, 'ERR')
+TARGET_IND = find_layer(LAYERS, 'ERR')
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) / 10
-#target = random_function(np.concatenate(((N_FRAMES,), LAYERS[TARGET_IND]['in_shape'][1]))) / 10
-#set_buffer(target[0], WEIGHTS[TARGET_IND][1]) # target
+target = random_function(np.concatenate(((N_FRAMES,), LAYERS[TARGET_IND]['in_shape'][1]))) / 10
+set_buffer(target[0], WEIGHTS[TARGET_IND][1]) # target
 
 OUTPUT = None; WEIGHT_DERIVS = None
 MEM_DERIVS = [None]*len(MEM_INDS)

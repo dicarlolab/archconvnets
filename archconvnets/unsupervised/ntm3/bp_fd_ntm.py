@@ -3,20 +3,20 @@ import time
 import scipy.optimize
 from ntm_core import *
 #from model_architecture_movie import init_model
-#from architectures.model_architecture_simple import init_model
-#from model_architecture_cp import init_model
-from architectures.highway import init_model
+from architectures.model_architecture_simple import init_model
+#from architectures.model_architecture_cp import init_model
+#from architectures.highway import init_model
 
 free_all_buffers()
 N_FRAMES = 3
 
 ################ init weights and inputs
-LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names = init_model()
+LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
 
 F1_IND = 0
-#ERR_IND = find_layer(LAYERS, 'ERR')
+ERR_IND = find_layer(LAYERS, 'ERR')
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) #/ 10
-#set_buffer(2, WEIGHTS[ERR_IND][1]) # target
+set_buffer(2, WEIGHTS[ERR_IND][1]) # target
 
 ################ which gradient to test
 gradient_layer = F1_IND
@@ -74,7 +74,7 @@ def g(y):
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e3#6
+eps = np.sqrt(np.finfo(np.float).eps)*1e6
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

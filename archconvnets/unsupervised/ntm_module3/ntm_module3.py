@@ -135,13 +135,13 @@ def point_wise_add(args, OUT_BUFFER=None, scalar=1, scalar0=1, gpu_ind=GPU_IND):
 	
 	if OUT_BUFFER != None:
 		check_buffer(OUT_BUFFER)
-		OUT_BUFFER[1] = copy.deepcopy(A[1])
+		OUT_BUFFER[1] = A[1]
 	else:
-		OUT_BUFFER = copy.deepcopy(A)
+		OUT_BUFFER = A
 	
 	_ntm_module3.point_wise_add(A[0], B[0], np.single(scalar), np.single(scalar0), OUT_BUFFER[0], gpu_ind)
 
-	OUT_BUFFER[1] = copy.deepcopy(B[1])
+	OUT_BUFFER[1] = B[1]
 	t_add[0] = time.time() - t
 	return OUT_BUFFER
 
@@ -152,13 +152,13 @@ def point_wise_div_sqrt(args, OUT_BUFFER=None, clip=10, gpu_ind=GPU_IND):
 	
 	if OUT_BUFFER != None:
 		check_buffer(OUT_BUFFER)
-		OUT_BUFFER[1] = copy.deepcopy(A[1])
+		OUT_BUFFER[1] = A[1]
 	else:
-		OUT_BUFFER = copy.deepcopy(A)
+		OUT_BUFFER = A
 	
 	_ntm_module3.point_wise_div_sqrt(A[0], B[0], OUT_BUFFER[0], np.single(clip), gpu_ind)
 	
-	OUT_BUFFER[1] = copy.deepcopy(B[1])
+	OUT_BUFFER[1] = B[1]
 	return OUT_BUFFER
 
 # additional_args[0]: Squeeze output or not, 
@@ -176,9 +176,10 @@ def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True, False], gpu_i
 	
 	
 	# if source is a conv layer (4D input), sum across everything
-	BUFFER2_reshaped = copy.deepcopy(BUFFER2)
 	if len(BUFFER2[1]) == 4 or sum_all:
-		BUFFER2_reshaped[1] = (np.prod(BUFFER2[1]), 1)
+		BUFFER2_reshaped = (np.prod(BUFFER2[1]), 1)
+	else:
+		BUFFER2_reshaped = BUFFER2[1]
 	
 	if DEBUG:
 		assert len(BUFFER1[1]) >= 2
@@ -186,16 +187,15 @@ def dot(args, OUT_BUFFER=None, increment=0, additional_args=[True, False], gpu_i
 		assert OUT_BUFFER[0] != BUFFER1[0]
 		assert OUT_BUFFER[0] != BUFFER2[0]
 		assert (OUT_BUFFER[1] is not None) or increment == 0
-		assert BUFFER1[1][-1] == BUFFER2_reshaped[1][0]
+		assert BUFFER1[1][-1] == BUFFER2_reshaped[0]
 	
 	# reshape buffer1 into two dimensions:
 	# (a,b,c,d,e) -> (a*b*c*d, e)
 	BUFFER1_new_shape = (np.prod(BUFFER1[1][:len(BUFFER1[1])-1]), BUFFER1[1][-1])
 	
-	_ntm_module3.dot(BUFFER1[0], BUFFER1_new_shape, BUFFER2[0], BUFFER2_reshaped[1], OUT_BUFFER[0], increment, gpu_ind)
+	_ntm_module3.dot(BUFFER1[0], BUFFER1_new_shape, BUFFER2[0], BUFFER2_reshaped, OUT_BUFFER[0], increment, gpu_ind)
 	
-	
-	OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(BUFFER1[1][:len(BUFFER1[1])-1]), np.asarray(BUFFER2_reshaped[1][1])[np.newaxis])))	
+	OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(BUFFER1[1][:len(BUFFER1[1])-1]), np.asarray(BUFFER2_reshaped[1])[np.newaxis])))	
 	if squeeze and OUT_BUFFER[1][-1] == 1: # squeeze
 		OUT_BUFFER[1] = OUT_BUFFER[1][:len(OUT_BUFFER[1])-1]
 	
