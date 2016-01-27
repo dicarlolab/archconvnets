@@ -8,18 +8,18 @@ from scipy.stats import zscore, pearsonr
 from center_world import generate_latents
 
 no_mem = True
-no_mem = False
+#no_mem = False
 
 if no_mem:
 	from architectures.movie_phys_latent_predict_series_no_mem import *
 	INPUT_SCALE = 1e-5
 	EPS = -1e-3
-	save_name = 'ntm_physics_center_no_mem_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
+	save_name = 'ntm_physics_center_epoch8_no_mem_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
 else:
 	from architectures.movie_phys_latent_predict_series import *
 	INPUT_SCALE = 1e-5
 	EPS = -1e-3
-	save_name = 'ntm_physics_center_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
+	save_name = 'ntm_physics_center_epoch8_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
 
 	
 free_all_buffers()
@@ -29,7 +29,7 @@ free_all_buffers()
 
 frame = 0; frame_local = 0; err = 0; corr = 0
 
-EPOCH_LEN = 4
+EPOCH_LEN = 8
 SAVE_FREQ = 250 # instantaneous checkpoint
 WRITE_FREQ = 50 # new checkpoint
 FRAME_LAG = 100 #SAVE_FREQ
