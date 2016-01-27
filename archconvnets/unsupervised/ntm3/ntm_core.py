@@ -439,7 +439,7 @@ def save_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, output_buffer, targe
 def save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, output_buffer, target_buffer, EPS, err_log, corr_log, EPOCH_LEN):
 	WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 	WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2')][0])
-	WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'FL_lin')][0])
+	WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F3')][0])
 	savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, \
 			'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, \
 			'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3, 'EPOCH_LEN': EPOCH_LEN})

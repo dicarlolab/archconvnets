@@ -5,22 +5,22 @@ import scipy.optimize
 from ntm_core import *
 from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
-from center_world import generate_latents
 
-no_mem = True
-no_mem = False
+N_CTT = 3 # number of frames to use with Conv. Through Time model (CTT)
+model_selection = 1
 
-if no_mem:
+EPS = 1e-3
+
+if model_selection == 0:
 	from architectures.model_architecture_movie32_no_mem import *
-	INPUT_SCALE = 1e-5
-	EPS = 1e-3
 	save_name = 'ntm_movie_syntehtic_no_mem_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
-else:
+elif model_selection == 1:
 	from architectures.model_architecture_movie32 import *
-	INPUT_SCALE = 1e-5
-	EPS = 1e-3
+	EPS = 5e-4
 	save_name = 'ntm_movie_synthetic_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
-
+elif model_selection == 2:
+	from architectures.model_architecture_movie32_ctt import *
+	save_name = 'ntm_movie_synthetic_ctt_%f_n_pred_%i' % (-EPS, N_FRAMES_PRED)
 	
 free_all_buffers()
 
@@ -29,7 +29,7 @@ free_all_buffers()
 
 frame = 0; frame_local = 0; err = 0; corr = 0; movie_ind = 0
 
-N_MOVIES = 427
+N_MOVIES = 2616
 
 EPOCH_LEN = 10
 SAVE_FREQ = 50 #250 # instantaneous checkpoint
@@ -65,7 +65,7 @@ while True:
 	if (frame % (1 + EPOCH_LEN)) == 0:
 		#### new movie
 		movie_name = '/home/darren/rotating_objs32/imgs' + str(movie_ind % N_MOVIES) + '.mat'
-		targets = inputs = loadmat(movie_name)['imgs']
+		targets = inputs = loadmat(movie_name)['imgs'] - .5
 		
 		#### reset state
 		free_list(OUTPUT_PREV)
@@ -80,14 +80,21 @@ while True:
 	###### forward
 	frame_target = targets[frame_local:frame_local+N_FRAMES_PRED].ravel()[:,np.newaxis]
 	
-	set_buffer(inputs[frame_local], WEIGHTS[F1_IND][1])  # inputs
+	if model_selection == 2: # conv through time
+		if (frame_local-N_CTT) >= 0:
+			set_buffer(inputs[frame_local-N_CTT:frame_local].reshape((1,N_CTT*3, IM_SZ, IM_SZ)), WEIGHTS[F1_IND][1])  # inputs
+		else:
+			temp = np.tile(inputs[frame_local], (N_CTT,1,1,1)).reshape((1,N_CTT*3, IM_SZ, IM_SZ))
+			set_buffer(temp, WEIGHTS[F1_IND][1])  # inputs
+	else:
+		set_buffer(inputs[frame_local], WEIGHTS[F1_IND][1])  # inputs
 	set_buffer(frame_target, WEIGHTS[TARGET_IND][1]) # target
 	
 	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 	
 	time_series_prediction = return_buffer(OUTPUT[STACK_SUM_IND]).ravel()
-	
 	current_err = return_buffer(OUTPUT[-1])
+	
 	err += current_err;
 	corr += pearsonr(frame_target.ravel(), time_series_prediction)[0]
 

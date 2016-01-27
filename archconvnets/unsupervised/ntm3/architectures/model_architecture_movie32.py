@@ -1,7 +1,8 @@
 from ntm_core import *
 
 N_FRAMES_PRED = 1
-N_IN = 32*32*3
+IM_SZ = 32
+N_IN = IM_SZ*IM_SZ*3
 
 def init_model():
 	LAYERS = []
@@ -29,11 +30,11 @@ def init_model():
 
 	for init in [0,1]:
 		# below
-		add_conv_layer(LAYERS, 'F1', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(1,3,32,32), init=init)
+		add_conv_layer(LAYERS, 'F1', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(1,3,IM_SZ,IM_SZ), PAD=2, init=init)
 		add_max_pool_layer(LAYERS, 'F1_MAX', init=init)
-		add_conv_layer(LAYERS, 'F2', U_F2, U_F2_FILTER_SZ, init=init)
+		add_conv_layer(LAYERS, 'F2', U_F2, U_F2_FILTER_SZ, PAD=2, init=init)
 		add_max_pool_layer(LAYERS, 'F2_MAX', init=init)
-		add_conv_layer(LAYERS, 'F3', U_F3, U_F3_FILTER_SZ, init=init)
+		add_conv_layer(LAYERS, 'F3', U_F3, U_F3_FILTER_SZ, PAD=2, init=init)
 		add_max_pool_layer(LAYERS, 'F3_MAX', init=init)
 		add_linear_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
 		
@@ -82,7 +83,7 @@ def init_model():
 		add_sigmoid_F_bias_layer(LAYERS, 'A_F2M', N_TARGET, init=init)
 		
 		## above inputs (Max3)
-		add_sigmoid_F_bias_layer(LAYERS, 'M3_F0', A_F0, source=HEAD_INPUT, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'M3_F0', A_F0, source='F3_MAX', init=init)
 		add_sigmoid_F_bias_layer(LAYERS, 'M3_F1', A_F1, init=init)
 		add_sigmoid_F_bias_layer(LAYERS, 'M3_F2', N_TARGET, init=init)
 		
