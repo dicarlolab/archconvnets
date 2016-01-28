@@ -1,7 +1,4 @@
 __global__ void sum_points_kernel(float * points, float * out, int data_out_numel){
-	if(threadIdx.x == 0 && blockIdx.x == 0) out[0] = 0;
-	__syncthreads();
-	
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
 	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
@@ -54,6 +51,8 @@ static PyObject * sum_points(PyObject *self, PyObject *args){
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
+	
+	err = cudaMemset(gpu_buffers[gpu_ind][out_buffer_ind], 0, sizeof(DATA_TYPE));  MALLOC_ERR_CHECK
 	
 	// determine number of blocks
 	int n_blocks = (int)ceil((double)points_len/MAX_THREADS_PER_BLOCK);

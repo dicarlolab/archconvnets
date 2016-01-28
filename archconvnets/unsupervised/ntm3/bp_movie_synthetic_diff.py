@@ -13,13 +13,13 @@ N_CTT = 3 # number of frames to use with Conv. Through Time model (CTT)
 TIME_STEPS_PER_MOVIE = 50 # measure of how slow movement is (higher = slower)
 N_MOVIES = 2755
 
-EPS = 5e-4
+EPS = 1e-3
 
 if model_selection == 0:
 	from architectures.model_architecture_movie32_no_mem import *
 	save_name = 'synthetic_diff_no_mem_%f_n_future_%i_%it' % (-EPS, N_FUTURE, TIME_STEPS_PER_MOVIE)
 elif model_selection == 1:
-	EPS = 1e-4
+	#EPS = 1e-4
 	from architectures.model_architecture_movie32 import *
 	save_name = 'synthetic_diff_%f_n_future_%i_%it' % (-EPS, N_FUTURE, TIME_STEPS_PER_MOVIE)
 elif model_selection == 2:
