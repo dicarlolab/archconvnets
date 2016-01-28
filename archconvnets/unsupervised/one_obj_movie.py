@@ -49,7 +49,10 @@ MOVIE_OBJS = OrderedDict([('animal', ['weimaraner','lo_poly_animal_ELE_AS1','lo_
   ('tables', ['antique_furniture_item_18', 'office_equipment_73_4', 'antique_furniture_item_48', 'MB30922'])
 ])
 cat_list = ['animal', 'boats','cars','chairs','faces','fruits','planes','tables']
-MOVIE_BACKGROUNDS = [gmi.BACKGROUNDS[0], gmi.BACKGROUNDS[10], gmi.BACKGROUNDS[50], gmi.BACKGROUNDS[100], gmi.BACKGROUNDS[120]]
+#MOVIE_BACKGROUNDS = [gmi.BACKGROUNDS[0], gmi.BACKGROUNDS[10], gmi.BACKGROUNDS[50], gmi.BACKGROUNDS[100], gmi.BACKGROUNDS[120]]
+MOVIE_BACKGROUNDS = []
+for i in gmi.BACKGROUNDS:
+	MOVIE_BACKGROUNDS.append(i)
 
 
 get_image_id = gd.get_image_id
@@ -218,7 +221,7 @@ def get_two_movie_obj_latents(tdict, models, categories):
             
     return latents
 
-IM_SZ = 64
+IM_SZ = 32 #64
 preproc = {'dtype':'float32', 'size':(IM_SZ, IM_SZ, 3), 'normalize':False, 'mode':'RGB'}
 class MovieDataset(gd.GenerativeBase):
     check_penetration = False
@@ -262,7 +265,7 @@ class MovieDataset(gd.GenerativeBase):
         meta = meta.addcols([n_objs], names = ['n_objects'])
         return meta 
 
-n_frames = 10
+n_frames = 25
 n_frames_stagger = 1
 
 templates_g = [
@@ -330,21 +333,21 @@ templates_g = [
                ]
                
 
-scales = np.ones((8,4))
+scales = np.ones((8,4))*2
 seed_offset = 666
 
 # rsync -avz rotating_objs 18.93.13.151:/home/darren
-N_MOVIES = 4
 if __name__ == '__main__':
-	n_t = n_frames + n_frames_stagger
+	n_t = 10 + n_frames_stagger
+	pad = (n_frames - n_t)/2
 
 	#imgs = np.zeros((11*N_MOVIES, IM_SZ, IM_SZ, 3),dtype='single')
 	
 	#for i in range(N_MOVIES):
-	i = 0
+	i = 2319
 	while True:
 		t_start = time.time()
-		os.system('rm .skdata/genthor/cache/one_obj_32movie_73_rep* -r')
+		os.system('rm .skdata/genthor/cache/one_obj_32movie_1a* -r')
 		
 		cat_i = np.random.randint(8)
 		cat_j = np.random.randint(8)
@@ -352,7 +355,7 @@ if __name__ == '__main__':
 		obj_i = np.random.randint(4)
 		obj_j = np.random.randint(4)
 		
-		class one_obj_32movie_73_rep(MovieDataset):
+		class one_obj_32movie_1a(MovieDataset):
 			models = [MOVIE_OBJS[cat_list[cat_i]][obj_i], MOVIE_OBJS[cat_list[cat_j]][obj_j]]
 			model_categories = dict_inverse(MOVIE_OBJS)
 			model_categories = {models[0]: model_categories[models[0]], models[1]: model_categories[models[1]]}
@@ -362,8 +365,11 @@ if __name__ == '__main__':
 			templates[0]['seed'] = 1034423424 + np.random.randint(10344234244)
 
 		
-		dataset = one_obj_32movie_73_rep()
-		imgs = copy.deepcopy(dataset.get_images(preproc)[:n_t][::-1])
-		savemat('rotating_objs/imgs' + str(i) + '.mat',{'imgs':imgs})
-		i+=1
-		print "%i elapsed time %f" % (i, time.time()-t_start)
+		dataset = one_obj_32movie_1a()
+		try:
+			imgs = copy.deepcopy(dataset.get_images(preproc)[pad:pad+n_t][::-1]).transpose((0,3,1,2))[:,np.newaxis]
+			savemat('rotating_objs32_25t/imgs' + str(i) + '.mat',{'imgs':imgs})
+			i+=1
+			print "%i elapsed time %f" % (i, time.time()-t_start)
+		except:
+			print 'failed'

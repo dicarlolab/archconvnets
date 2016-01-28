@@ -23,8 +23,8 @@ def init_model():
 	U_F3 = 48
 	U_FL = 8
 	
-	A_F0 = 48
-	A_F1 = 48
+	A_F0 = 1024
+	A_F1 = 1024
 	
 	N_TARGET = N_IN*N_FRAMES_PRED
 	HEAD_INPUT = 'FL'
@@ -57,7 +57,7 @@ def init_model():
 		add_add_layer(LAYERS, 'STACK_SUM3', ['STACK_SUM2', 'M2_F2'], init=init)
 		
 		add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM4', N_TARGET, init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM5', N_TARGET, init=init)
+		add_linear_F_bias_layer(LAYERS, 'STACK_SUM5', N_TARGET, init=init)
 		
 		add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM5', -1], init=init)
 

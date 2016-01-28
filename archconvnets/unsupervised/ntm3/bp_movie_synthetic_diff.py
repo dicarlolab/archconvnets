@@ -6,22 +6,24 @@ from ntm_core import *
 from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
 
+model_selection = 2
+
 N_FUTURE = 1 # how far into the future to predict
 N_CTT = 3 # number of frames to use with Conv. Through Time model (CTT)
-model_selection = 2
+TIME_STEPS_PER_MOVIE = 50 # measure of how slow movement is (higher = slower)
+N_MOVIES = 2755
 
 EPS = 5e-4
 
 if model_selection == 0:
 	from architectures.model_architecture_movie32_no_mem import *
-	save_name = 'ntm_movie_syntehtic_no_mem_%f_n_future_%i' % (-EPS, N_FUTURE)
+	save_name = 'synthetic_diff_no_mem_%f_n_future_%i_%it' % (-EPS, N_FUTURE, TIME_STEPS_PER_MOVIE)
 elif model_selection == 1:
 	from architectures.model_architecture_movie32 import *
-	EPS = 5e-4
-	save_name = 'ntm_movie_synthetic_%f_n_future_%i' % (-EPS, N_FUTURE)
+	save_name = 'synthetic_diff_%f_n_future_%i_%it' % (-EPS, N_FUTURE, TIME_STEPS_PER_MOVIE)
 elif model_selection == 2:
 	from architectures.model_architecture_movie32_ctt import *
-	save_name = 'ntm_movie_synthetic_ctt_%f_n_future_%i' % (-EPS, N_FUTURE)
+	save_name = 'synthetic_diff_ctt_%f_n_future_%i_%it' % (-EPS, N_FUTURE, TIME_STEPS_PER_MOVIE)
 	
 free_all_buffers()
 
@@ -29,8 +31,6 @@ free_all_buffers()
 ################ init save vars
 
 frame = 0; frame_local = 0; err = 0; corr = 0; movie_ind = 0
-
-N_MOVIES = 3185
 
 EPOCH_LEN = 11 # length of movie
 SAVE_FREQ = 50 #250 # instantaneous checkpoint
@@ -65,7 +65,8 @@ while True:
 	# end of movie:
 	if ((frame_local + N_FUTURE) >= EPOCH_LEN) or frame == 0:
 		#### new movie
-		movie_name = '/home/darren/rotating_objs32/imgs' + str(movie_ind % N_MOVIES) + '.mat'
+		#movie_name = '/home/darren/rotating_objs32/imgs' + str(movie_ind % N_MOVIES) + '.mat'
+		movie_name = '/home/darren/rotating_objs32_' + str(TIME_STEPS_PER_MOVIE) + 't/imgs' + str(movie_ind % N_MOVIES)  + '.mat'
 		inputs = loadmat(movie_name)['imgs'] - .5
 		
 		#### reset state
@@ -79,7 +80,7 @@ while True:
 		movie_ind += 1
 	
 	###### forward
-	frame_target = inputs[frame_local+N_FUTURE:frame_local+N_FUTURE+N_FRAMES_PRED].ravel()[:,np.newaxis]
+	frame_target = (inputs[frame_local] - inputs[frame_local+N_FUTURE:frame_local+N_FUTURE+N_FRAMES_PRED]).ravel()[:,np.newaxis]
 	
 	if model_selection == 2: # conv through time
 		if (frame_local-N_CTT) >= 0:
