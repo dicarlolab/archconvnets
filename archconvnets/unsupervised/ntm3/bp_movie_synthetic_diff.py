@@ -19,6 +19,7 @@ if model_selection == 0:
 	from architectures.model_architecture_movie32_no_mem import *
 	save_name = 'synthetic_diff_no_mem_%f_n_future_%i_%it' % (-EPS, N_FUTURE, TIME_STEPS_PER_MOVIE)
 elif model_selection == 1:
+	EPS = 1e-4
 	from architectures.model_architecture_movie32 import *
 	save_name = 'synthetic_diff_%f_n_future_%i_%it' % (-EPS, N_FUTURE, TIME_STEPS_PER_MOVIE)
 elif model_selection == 2:
@@ -96,17 +97,17 @@ while True:
 	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 	
 	time_series_prediction = return_buffer(OUTPUT[STACK_SUM_IND]).ravel()
-	current_err = return_buffer(OUTPUT[-1])
+	current_err = return_buffer(OUTPUT[TARGET_IND])
 	
 	err += current_err;
-	corr += pearsonr(frame_target.ravel(), time_series_prediction)[0]
+	corr += pearsonr(frame_target.ravel(), time_series_prediction.ravel())[0]
 
 	output_buffer[frame % SAVE_FREQ] = copy.deepcopy(time_series_prediction)
 	target_buffer[frame % SAVE_FREQ] = copy.deepcopy(frame_target.ravel())
 	
 	###### reverse
 	WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)
-		
+	
 	# update partials_prev
 	MEM_DERIVS = reverse_network(MEM_INDS, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, MEM_DERIVS, keep_dims=True)
 	PARTIALS_PREV = copy_partials(MEM_INDS, LAYERS, PARTIALS_PREV, MEM_DERIVS)

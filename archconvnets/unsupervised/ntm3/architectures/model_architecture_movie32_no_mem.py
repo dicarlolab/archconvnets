@@ -67,7 +67,7 @@ def init_model():
 	MEM_INDS = []
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
-	print_names = ['F1','F2','F3','C1_F0','C1_F2','M3_F0', 'M3_F2','STACK_SUM2','STACK_SUM5']
+	print_names = ['F1','F2','F3']#,'C1_F0','C1_F2','M3_F0', 'M3_F2','STACK_SUM2','STACK_SUM5']
 	
 	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names
 

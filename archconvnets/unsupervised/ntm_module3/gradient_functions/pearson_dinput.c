@@ -7,8 +7,8 @@ __global__ void pearson_dinput_kernel(float * out, float * w1, float * w2, float
 	}
 	__syncthreads();
 	
-	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
-	int n_additional_duplicates = data_out_numel % THREAD_CAPACITY;
+	int min_duplicates_per_thread = (int)floor((double)data_out_numel / MAX_THREADS_PER_BLOCK);
+	int n_additional_duplicates = data_out_numel % MAX_THREADS_PER_BLOCK;
 	
 	int n_duplicates = min_duplicates_per_thread;
 	if(ind < n_additional_duplicates) n_duplicates++;
@@ -16,24 +16,21 @@ __global__ void pearson_dinput_kernel(float * out, float * w1, float * w2, float
 	///////////////////// compute mean
 	unsigned ind_g;
 	for(int dup = 0; dup < n_duplicates; dup++){
-		ind_g = dup*THREAD_CAPACITY + ind;
+		ind_g = dup + ind*min_duplicates_per_thread;
 		
 		#ifdef DEBUG
 		if(ind_g >= data_out_numel) assert(0); // out of bounds
 		#endif
 		
-		atomicAdd(&w_mean[0], w1[ind_g]);
-		atomicAdd(&w_mean[1], w2[ind_g]);
+		atomicAdd(&w_mean[0], w1[ind_g]/data_out_numel);
+		atomicAdd(&w_mean[1], w2[ind_g]/data_out_numel);
 	}
-	if(ind == 0){
-		w_mean[0] /= data_out_numel;
-		w_mean[1] /= data_out_numel;
-	}
+
 	__syncthreads();
 	
 	float w1_no_mean, w2_no_mean;
 	for(int dup = 0; dup < n_duplicates; dup++){
-		ind_g = dup*THREAD_CAPACITY + ind;
+		ind_g = dup + ind*min_duplicates_per_thread;
 		
 		w1_no_mean = w1[ind_g] - w_mean[0];
 		w2_no_mean = w2[ind_g] - w_mean[1];
@@ -45,7 +42,7 @@ __global__ void pearson_dinput_kernel(float * out, float * w1, float * w2, float
 	__syncthreads();
 	
 	for(int dup = 0; dup < n_duplicates; dup++){
-		ind_g = dup*THREAD_CAPACITY + ind;
+		ind_g = dup + ind*min_duplicates_per_thread;
 		
 		out[ind_g] = ((w1[ind_g] - w_mean[0]) - (BCD[0]/BCD[2])*(w2[ind_g] - w_mean[1]))/sqrt(BCD[1]*BCD[2]);
 	}
@@ -99,12 +96,8 @@ static PyObject * pearson_dinput(PyObject *self, PyObject *args){
 	err = cudaMalloc((void**)&w_mean, 2*sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
 	err = cudaMalloc((void**)&BCD, 3*sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
 	
-	// determine number of blocks
-	int n_blocks = (int)ceil((double)(buffer_sz[gpu_ind][w1_ind]/sizeof(DATA_TYPE))/MAX_THREADS_PER_BLOCK);
-	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
-	
 	// run kernel
-	pearson_dinput_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][w1_ind],
+	pearson_dinput_kernel <<< 1, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][w1_ind],
 		gpu_buffers[gpu_ind][w2_ind], w_mean, BCD, buffer_sz[gpu_ind][w1_ind]/sizeof(DATA_TYPE));
 	
 	#ifdef TIMING_DEBUG

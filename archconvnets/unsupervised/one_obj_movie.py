@@ -265,7 +265,7 @@ class MovieDataset(gd.GenerativeBase):
         meta = meta.addcols([n_objs], names = ['n_objects'])
         return meta 
 
-n_frames = 25
+n_frames = 50
 n_frames_stagger = 1
 
 templates_g = [
@@ -344,31 +344,28 @@ if __name__ == '__main__':
 	#imgs = np.zeros((11*N_MOVIES, IM_SZ, IM_SZ, 3),dtype='single')
 	
 	#for i in range(N_MOVIES):
-	i = 2319
+	i = 0
 	while True:
 		t_start = time.time()
 		os.system('rm .skdata/genthor/cache/one_obj_32movie_1a* -r')
 		
 		cat_i = np.random.randint(8)
-		cat_j = np.random.randint(8)
-		
 		obj_i = np.random.randint(4)
-		obj_j = np.random.randint(4)
 		
 		class one_obj_32movie_1a(MovieDataset):
-			models = [MOVIE_OBJS[cat_list[cat_i]][obj_i], MOVIE_OBJS[cat_list[cat_j]][obj_j]]
+			models = [MOVIE_OBJS[cat_list[cat_i]][obj_i], MOVIE_OBJS[cat_list[cat_i]][obj_i]]
 			model_categories = dict_inverse(MOVIE_OBJS)
 			model_categories = {models[0]: model_categories[models[0]], models[1]: model_categories[models[1]]}
 			templates = copy.deepcopy(templates_g)
 			templates[0]['template']['front_s'] = scales[cat_i,obj_i]
-			templates[0]['template']['back_s'] = scales[cat_j,obj_j]
+			templates[0]['template']['back_s'] = scales[cat_i,obj_i]
 			templates[0]['seed'] = 1034423424 + np.random.randint(10344234244)
 
 		
 		dataset = one_obj_32movie_1a()
 		try:
 			imgs = copy.deepcopy(dataset.get_images(preproc)[pad:pad+n_t][::-1]).transpose((0,3,1,2))[:,np.newaxis]
-			savemat('rotating_objs32_25t/imgs' + str(i) + '.mat',{'imgs':imgs})
+			savemat('rotating_objs32_50t/imgs' + str(i) + '.mat',{'imgs':imgs,'cat':cat_i, 'obj': obj_i})
 			i+=1
 			print "%i elapsed time %f" % (i, time.time()-t_start)
 		except:
