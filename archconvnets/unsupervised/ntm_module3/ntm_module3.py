@@ -79,11 +79,10 @@ def set_buffer(DATA, DATA_G, gpu_ind=GPU_IND, warn=True):
 	if isinstance(DATA, int) or isinstance(DATA, np.single):
 		DATA = np.asarray(DATA,dtype='float32')[np.newaxis]
 	
-	if DEBUG:
-		assert DATA.dtype == np.dtype('float32'), DATA.dtype
-		if not DATA.flags.contiguous and warn:
-			print 'warning: input to init_buffer not C-contiguous'
-			DATA = np.ascontiguousarray(DATA)
+	assert DATA.dtype == np.dtype('float32'), DATA.dtype
+	if not DATA.flags.contiguous and warn:
+		assert False, 'warning: input to init_buffer not C-contiguous'
+		DATA = np.ascontiguousarray(DATA)
 	
 	_ntm_module3.set_buffer(DATA, DATA_G[0], gpu_ind)
 	

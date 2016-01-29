@@ -38,6 +38,24 @@ def init_model():
 		add_max_pool_layer(LAYERS, 'F3_MAX', init=init)
 		add_linear_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
 		
+		## cifar
+		add_linear_F_bias_layer(LAYERS, 'CIFAR', 10, source='F3_MAX', init=init)
+		add_add_layer(LAYERS, 'CIFAR_DIFF', ['CIFAR', -1], init=init)
+		add_sq_points_layer(LAYERS, 'CIFAR_SQ', init=init)
+		add_sum_layer(LAYERS, 'CIFAR_ERR', init=init)
+		
+		## synthetic categorization
+		add_linear_F_bias_layer(LAYERS, 'SYN_CAT', 8, source='F3_MAX', init=init)
+		add_add_layer(LAYERS, 'SYN_CAT_DIFF', ['SYN_CAT', -1], init=init)
+		add_sq_points_layer(LAYERS, 'SYN_CAT_SQ', init=init)
+		add_sum_layer(LAYERS, 'SYN_CAT_ERR', init=init)
+		
+		## synthetic identification
+		add_linear_F_bias_layer(LAYERS, 'SYN_OBJ', 32, source='F3_MAX', init=init)
+		add_add_layer(LAYERS, 'SYN_OBJ_DIFF', ['SYN_OBJ', -1], init=init)
+		add_sq_points_layer(LAYERS, 'SYN_OBJ_SQ', init=init)
+		add_sum_layer(LAYERS, 'SYN_OBJ_ERR', init=init)
+		
 		for RW in ['R', 'W']:
 			# content
 			add_linear_F_bias_layer(LAYERS, RW+'_KEY', (N_CONTROLLERS, M_LENGTH), HEAD_INPUT, init=init)

@@ -132,7 +132,6 @@ def forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV):
 		N_ARGS = len(L['in_shape'])
 
 		args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
-		
 		L['forward_F'](args, OUTPUT[layer_ind], additional_args=L['additional_forward_args'])
 		
 	return OUTPUT
@@ -157,23 +156,26 @@ def init_gpu_list(LIST, LAYERS, args=True):
 
 
 # apply chain-rule down the network
-def reverse_network(layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims=False): # multiply all partials together
+def reverse_network(layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims=False, abort_layer=None): # multiply all partials together
+	if abort_layer is not None:
+		abort_layer = find_layer(LAYERS, abort_layer)
+	
 	# compute partials starting from single layer
 	if isinstance(layer_ind,int):
 		WEIGHT_DERIVS = init_gpu_list(WEIGHT_DERIVS, LAYERS)
 		zero_buffer_list(WEIGHT_DERIVS)
 
-		WEIGHT_DERIVS = reverse_network_recur(None, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims)
+		WEIGHT_DERIVS = reverse_network_recur(None, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, abort_layer)
 	# compute partials from multiple layers, store result in a list
 	else:
 		for i in range(len(layer_ind)):
 			WEIGHT_DERIVS[i] = init_gpu_list(WEIGHT_DERIVS[i], LAYERS)
 			zero_buffer_list(WEIGHT_DERIVS[i])
 
-			WEIGHT_DERIVS[i] = reverse_network_recur(None, layer_ind[i], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS[i], keep_dims)
+			WEIGHT_DERIVS[i] = reverse_network_recur(None, layer_ind[i], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS[i], keep_dims, abort_layer)
 	return WEIGHT_DERIVS
 
-def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims): # multiply all partials together
+def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, abort_layer): # multiply all partials together
 	L = LAYERS[layer_ind]
 	N_ARGS = len(L['in_shape'])
 	deriv_above_created = False
@@ -208,8 +210,9 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 					free_buffer(deriv_temp)
 					
 			# another layer (At this time step, go back to earlier layers)
-			else: 
-				reverse_network_recur(deriv_above_new, src, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims)
+			# [do not go back if this is the abort_layer where we stop backpropping]
+			elif src != abort_layer:
+				reverse_network_recur(deriv_above_new, src, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, abort_layer)
 		
 		# input is not a layer, end here
 		else:
@@ -363,25 +366,27 @@ def update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS, f
 		for arg in range(len(L['in_source'])):
 			# only update weight layers, not input layers
 			if hasattr(L['in_source'][arg], '__call__'):
-				assert WEIGHT_DERIVS[layer_ind][arg][1] is not None, 'layer %s (%i), arg %i has no gradient. is its output connected to the rest of the network?' % \
-					(LAYERS[layer_ind]['name'], layer_ind, arg)
+				#assert WEIGHT_DERIVS[layer_ind][arg][1] is not None, 'layer %s (%i), arg %i has no gradient. is its output connected to the rest of the network?' % \
+				#	(LAYERS[layer_ind]['name'], layer_ind, arg)
 				
-				# deriv_sq = WEIGHT_DERIVS ** 2
-				deriv_sq = sq_points([WEIGHT_DERIVS[layer_ind][arg]], deriv_sq, deriv_computable=False)
-				
-				if WEIGHT_DERIVS_RMS[layer_ind][arg][1] is None: # init WEIGHT_DERIVS_RMS, todo: cleanup this
-					copy_buffer(WEIGHT_DERIVS[layer_ind][arg], WEIGHT_DERIVS_RMS[layer_ind][arg])
-					zero_buffer(WEIGHT_DERIVS_RMS[layer_ind][arg])
-				
-				# WEIGHT_DERIVS_RMS = 0.9*WEIGHT_DERIVS_RMS + 0.1*WEIGHT_DERIVS**2
-				point_wise_add((WEIGHT_DERIVS_RMS[layer_ind][arg], deriv_sq), scalar0=.9, scalar=.1)
-				deriv_sq = free_buffer(deriv_sq)
-				
-				# WEIGHT_DERIVS /= sqrt(WEIGHT_DERIVS_RMS
-				point_wise_div_sqrt((WEIGHT_DERIVS[layer_ind][arg], WEIGHT_DERIVS_RMS[layer_ind][arg]), clip=10)
-				
-				if frame > FRAME_LAG:
-					point_wise_add((WEIGHTS[layer_ind][arg], WEIGHT_DERIVS[layer_ind][arg]), scalar=EPS)
+				if WEIGHT_DERIVS[layer_ind][arg][1] is not None: # if there was a deriv computed
+					
+					# deriv_sq = WEIGHT_DERIVS ** 2
+					deriv_sq = sq_points([WEIGHT_DERIVS[layer_ind][arg]], deriv_sq, deriv_computable=False)
+					
+					if WEIGHT_DERIVS_RMS[layer_ind][arg][1] is None: # init WEIGHT_DERIVS_RMS, todo: cleanup this
+						copy_buffer(WEIGHT_DERIVS[layer_ind][arg], WEIGHT_DERIVS_RMS[layer_ind][arg])
+						zero_buffer(WEIGHT_DERIVS_RMS[layer_ind][arg])
+					
+					# WEIGHT_DERIVS_RMS = 0.9*WEIGHT_DERIVS_RMS + 0.1*WEIGHT_DERIVS**2
+					point_wise_add((WEIGHT_DERIVS_RMS[layer_ind][arg], deriv_sq), scalar0=.9, scalar=.1)
+					deriv_sq = free_buffer(deriv_sq)
+					
+					# WEIGHT_DERIVS /= sqrt(WEIGHT_DERIVS_RMS
+					point_wise_div_sqrt((WEIGHT_DERIVS[layer_ind][arg], WEIGHT_DERIVS_RMS[layer_ind][arg]), clip=10)
+					
+					if frame > FRAME_LAG:
+						point_wise_add((WEIGHTS[layer_ind][arg], WEIGHT_DERIVS[layer_ind][arg]), scalar=EPS)
 				
 	return WEIGHT_DERIVS_RMS
 
@@ -409,8 +414,9 @@ def print_layer(LAYERS, print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_le
 			np.min(B), np.max(B), -EPS*np.median(np.abs(DB/B)), np.min(O), np.max(O))
 
 
-def print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, print_names):
-	print 'err: ', err_log[-1][0], 'frame: ', frame, 'corr: ', corr_log[-1], 'time: ', time.time() - t_start, 'GPU:', GPU_IND, save_name
+def print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, cifar_err_log, cifar_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, t_start, save_name, print_names):
+	print 'err: ', err_log[-1][0], 'frame: ', frame, 'cifar_err: ', cifar_err_log[-1][0], 'cifar_class: ', cifar_class_log[-1][0], 'time: ', time.time() - t_start, 'GPU:', GPU_IND, save_name
+	print 'obj_err: ', obj_err_log[-1][0], 'obj_class: ', obj_class_log[-1][0], 'cat_err: ', cat_err_log[-1][0], 'cat_class: ', cat_class_log[-1][0]
 	
 	max_print_len = 0
 	for print_name in print_names:
@@ -436,10 +442,11 @@ def save_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, output_buffer, targe
 			'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, \
 			'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3, 'EPOCH_LEN': EPOCH_LEN})
 
-def save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, output_buffer, target_buffer, EPS, err_log, corr_log, EPOCH_LEN):
+def save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, output_buffer, target_buffer, EPS, err_log, corr_log, cifar_err_log, cifar_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, EPOCH_LEN):
 	WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 	WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2')][0])
 	WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F3')][0])
 	savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, \
-			'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, \
+			'err_log': err_log, 'corr_log': corr_log, 'cifar_err_log': cifar_err_log, 'cifar_class_log': cifar_class_log, 'EPS': EPS, \
+			'cat_err_log': cat_err_log, 'cat_class_log': cat_class_log, 'obj_err_log': obj_err_log, 'obj_class_log': obj_class_log,\
 			'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3, 'EPOCH_LEN': EPOCH_LEN})
