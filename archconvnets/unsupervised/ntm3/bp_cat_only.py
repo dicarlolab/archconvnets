@@ -10,7 +10,7 @@ N_MOVIES = 6372
 BATCH_SZ = 50
 EPS = 1e-1
 
-train_filters_on = 2
+train_filters_on = 3
 
 abort_cifar = abort_cat = abort_obj = 'F3_MAX'
 if train_filters_on == 0:
@@ -19,9 +19,11 @@ if train_filters_on == 0:
 elif train_filters_on == 1:
 	save_name = 'cat'
 	abort_cat = None
-else:
+elif train_filters_on == 2:
 	save_name = 'obj'
 	abort_obj = None
+else:
+	save_name = 'rand'
  
 save_name += '_%f' % (-EPS)
 
