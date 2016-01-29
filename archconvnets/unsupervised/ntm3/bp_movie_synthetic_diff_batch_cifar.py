@@ -13,12 +13,12 @@ N_FUTURE = 1 # how far into the future to predict
 N_CTT = 3 # number of frames to use with Conv. Through Time model (CTT)
 TIME_STEPS_PER_MOVIE = 50 # measure of how slow movement is (higher = slower)
 N_MOVIES = 4681
-BATCH_SZ = 128
+BATCH_SZ = 100
 
-EPS = 1e-2
+EPS = 1e-1 / BATCH_SZ
 
 from architectures.model_architecture_movie32_ctt import *
-save_name = 'synthetic2_ctt_%f_n_future_%i_%it_batched' % (-EPS, N_FUTURE, TIME_STEPS_PER_MOVIE)
+save_name = 'synthetic_ctt_%f_n_future_%i_%it_batched_cifar' % (-EPS, N_FUTURE, TIME_STEPS_PER_MOVIE)
 	
 if DIFF:
 	save_name += '_diff'
@@ -34,8 +34,8 @@ cifar_err = 0; cifar_class = 0
 cat_err = 0; cat_class = 0; obj_err = 0; obj_class = 0
 
 EPOCH_LEN = 11 # length of movie
-SAVE_FREQ = 4*BATCH_SZ #50 #250 # instantaneous checkpoint
-WRITE_FREQ = 4*BATCH_SZ # new checkpoint
+SAVE_FREQ = 100*BATCH_SZ #50 #250 # instantaneous checkpoint
+WRITE_FREQ = 100*BATCH_SZ # new checkpoint
 FRAME_LAG = 100 #SAVE_FREQ
 STOP_POINT = np.inf #SAVE_FREQ*15
 
@@ -87,7 +87,7 @@ for batch in range(2,6):
 	z2['data'] = np.concatenate((z2['data'], y['data']), axis=1)
 	z2['labels'] = np.concatenate((z2['labels'], y['labels']))
 		
-x = z2['data']/(z2['data'].max()) - .5
+x = np.single(z2['data'])/(z2['data'].max()) - .5
 cifar_imgs = np.ascontiguousarray(np.single(x.reshape((3, 32, 32, N_IMGS_CIFAR))).transpose((3,0,1,2))[:,np.newaxis])
 
 labels_cifar = np.asarray(z2['labels'])
@@ -97,7 +97,7 @@ Y_cifar = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categorie
 
 set_buffer(Y_cifar[0], WEIGHTS[CIFAR_DIFF_IND][1]) # cifar target
 
-def train_cifar(cifar_err, cifar_class, OUTPUT_CIFAR, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR):
+def train_cifar(cifar_err, cifar_class, WEIGHTS, OUTPUT_CIFAR, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR):
 	cifar_frame = frame % N_IMGS_CIFAR
 	
 	temp = np.tile(cifar_imgs[cifar_frame], (N_CTT,1,1,1)).reshape((1,N_CTT*3, IM_SZ, IM_SZ))
@@ -110,13 +110,14 @@ def train_cifar(cifar_err, cifar_class, OUTPUT_CIFAR, WEIGHT_DERIVS_CIFAR, WEIGH
 	cifar_err += return_buffer(OUTPUT[CIFAR_OUT_IND])
 	cifar_class += np.argmax(Y_cifar[cifar_frame]) == np.argmax(cifar_pred)
 	
-	WEIGHT_DERIVS_CIFAR = reverse_network(CIFAR_OUT_IND, LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CIFAR, abort_layer='F3_MAX',reset_derivs=False)
+	WEIGHT_DERIVS_CIFAR = reverse_network(CIFAR_OUT_IND, LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CIFAR, reset_derivs=False)
 	
-	if frame % BATCH_SZ == 0:
-		WEIGHT_DERIVS_RMS_CIFAR = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR, -EPS, frame, FRAME_LAG)
+	if frame % BATCH_SZ == 0 and frame != 0:
+		#WEIGHT_DERIVS_RMS_CIFAR = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR, -EPS, frame, FRAME_LAG)
+		WEIGHTS = update_weights(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, -EPS)
 		zero_buffer_list(WEIGHT_DERIVS_CIFAR)
 	
-	return cifar_err, cifar_class, OUTPUT_CIFAR, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR
+	return cifar_err, cifar_class, WEIGHTS, OUTPUT_CIFAR, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR
 
 def train_synth(obj_err, cat_err, obj_class, cat_class, OUTPUT, WEIGHT_DERIVS_OBJ, WEIGHT_DERIVS_CAT, WEIGHT_DERIVS_RMS_OBJ, WEIGHT_DERIVS_RMS_CAT):
 	obj_pred = return_buffer(OUTPUT[SYN_OBJ_PRED_IND])
@@ -131,7 +132,7 @@ def train_synth(obj_err, cat_err, obj_class, cat_class, OUTPUT, WEIGHT_DERIVS_OB
 	WEIGHT_DERIVS_OBJ = reverse_network(SYN_OBJ_OUT_IND, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_OBJ, abort_layer='F3_MAX',reset_derivs=False)
 	WEIGHT_DERIVS_CAT = reverse_network(SYN_CAT_OUT_IND, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CAT, abort_layer='F3_MAX',reset_derivs=False)
 	
-	if frame % BATCH_SZ == 0:
+	if frame % BATCH_SZ == 0 and frame != 0:
 		WEIGHT_DERIVS_RMS_OBJ = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_OBJ, WEIGHT_DERIVS_RMS_OBJ, -EPS, frame, FRAME_LAG)
 		WEIGHT_DERIVS_RMS_CAT = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CAT, WEIGHT_DERIVS_RMS_CAT, -EPS, frame, FRAME_LAG)
 		zero_buffer_list(WEIGHT_DERIVS_OBJ)
@@ -176,16 +177,8 @@ while True:
 	output_buffer[frame % SAVE_FREQ] = copy.deepcopy(time_series_prediction)
 	target_buffer[frame % SAVE_FREQ] = copy.deepcopy(frame_target.ravel())
 	
-	###### reverse
-	WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, reset_derivs=False)
-	
-	# take step
-	if frame % BATCH_SZ == 0:
-		WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS, frame, FRAME_LAG)
-		zero_buffer_list(WEIGHT_DERIVS)
-	
 	####### cat gradient step
-	cifar_err, cifar_class, OUTPUT_CIFAR, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR = train_cifar(cifar_err, cifar_class, OUTPUT_CIFAR, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR)
+	cifar_err, cifar_class, WEIGHTS, OUTPUT_CIFAR, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR = train_cifar(cifar_err, cifar_class, WEIGHTS, OUTPUT_CIFAR, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR)
 	obj_err, cat_err, obj_class, cat_class, WEIGHT_DERIVS_OBJ, WEIGHT_DERIVS_CAT, WEIGHT_DERIVS_RMS_OBJ, WEIGHT_DERIVS_RMS_CAT = train_synth(obj_err, cat_err, obj_class, cat_class, OUTPUT, WEIGHT_DERIVS_OBJ, WEIGHT_DERIVS_CAT, WEIGHT_DERIVS_RMS_OBJ, WEIGHT_DERIVS_RMS_CAT)
 	
 	# print/save

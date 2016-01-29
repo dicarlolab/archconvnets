@@ -1,5 +1,5 @@
 __global__ void pearson_dinput_kernel(float * out, float * w1, float * w2, float * w_mean, float * BCD, int data_out_numel){
-	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
+	int ind = threadIdx.x;
 	
 	if(ind == 0){
 		w_mean[0] = 0; w_mean[1] = 0;
@@ -16,7 +16,7 @@ __global__ void pearson_dinput_kernel(float * out, float * w1, float * w2, float
 	///////////////////// compute mean
 	unsigned ind_g;
 	for(int dup = 0; dup < n_duplicates; dup++){
-		ind_g = dup + ind*min_duplicates_per_thread;
+		ind_g = dup + ind*(1+min_duplicates_per_thread);
 		
 		#ifdef DEBUG
 		if(ind_g >= data_out_numel) assert(0); // out of bounds
@@ -30,7 +30,7 @@ __global__ void pearson_dinput_kernel(float * out, float * w1, float * w2, float
 	
 	float w1_no_mean, w2_no_mean;
 	for(int dup = 0; dup < n_duplicates; dup++){
-		ind_g = dup + ind*min_duplicates_per_thread;
+		ind_g = dup + ind*(1+min_duplicates_per_thread);
 		
 		w1_no_mean = w1[ind_g] - w_mean[0];
 		w2_no_mean = w2[ind_g] - w_mean[1];
@@ -42,7 +42,7 @@ __global__ void pearson_dinput_kernel(float * out, float * w1, float * w2, float
 	__syncthreads();
 	
 	for(int dup = 0; dup < n_duplicates; dup++){
-		ind_g = dup + ind*min_duplicates_per_thread;
+		ind_g = dup + ind*(1+min_duplicates_per_thread);
 		
 		out[ind_g] = ((w1[ind_g] - w_mean[0]) - (BCD[0]/BCD[2])*(w2[ind_g] - w_mean[1]))/sqrt(BCD[1]*BCD[2]);
 	}

@@ -23,8 +23,8 @@ def init_model():
 	U_F3 = 48
 	U_FL = 8
 	
-	A_F0 = 1024
-	A_F1 = 1024
+	A_F0 = 512
+	A_F1 = 512
 	
 	N_TARGET = N_IN*N_FRAMES_PRED
 	HEAD_INPUT = 'FL'
@@ -40,9 +40,10 @@ def init_model():
 		
 		## cifar
 		add_linear_F_bias_layer(LAYERS, 'CIFAR', 10, source='F3_MAX', init=init)
-		add_add_layer(LAYERS, 'CIFAR_DIFF', ['CIFAR', -1], init=init)
-		add_sq_points_layer(LAYERS, 'CIFAR_SQ', init=init)
-		add_sum_layer(LAYERS, 'CIFAR_ERR', init=init)
+		add_pearson_layer(LAYERS, 'CIFAR_ERR', ['CIFAR', -1], init=init)
+		#add_add_layer(LAYERS, 'CIFAR_DIFF', ['CIFAR', -1], init=init)
+		#add_sq_points_layer(LAYERS, 'CIFAR_SQ', init=init)
+		#add_sum_layer(LAYERS, 'CIFAR_ERR', init=init)
 		
 		## synthetic categorization
 		add_linear_F_bias_layer(LAYERS, 'SYN_CAT', 8, source='F3_MAX', init=init)

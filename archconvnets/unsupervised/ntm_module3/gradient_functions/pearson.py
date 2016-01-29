@@ -5,6 +5,8 @@ from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
 import time
 
+from scipy.stats import pearsonr
+
 t_main = [0,0]
 
 def pearson(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):

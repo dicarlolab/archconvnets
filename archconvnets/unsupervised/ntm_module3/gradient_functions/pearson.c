@@ -16,7 +16,7 @@ __global__ void pearson_kernel(float * out, float * w1, float * w2, float * w_me
 	///////////////////// compute mean
 	unsigned ind_g;
 	for(int dup = 0; dup < n_duplicates; dup++){
-		ind_g = dup + ind*min_duplicates_per_thread;
+		ind_g = dup + ind*(1+min_duplicates_per_thread);
 		
 		#ifdef DEBUG
 		if(ind_g >= data_out_numel) assert(0); // out of bounds
@@ -30,7 +30,7 @@ __global__ void pearson_kernel(float * out, float * w1, float * w2, float * w_me
 	
 	float w1_no_mean, w2_no_mean;
 	for(int dup = 0; dup < n_duplicates; dup++){
-		ind_g = dup + ind*min_duplicates_per_thread;
+		ind_g = dup + ind*(1+min_duplicates_per_thread);
 		
 		w1_no_mean = w1[ind_g] - w_mean[0];
 		w2_no_mean = w2[ind_g] - w_mean[1];
