@@ -8,7 +8,7 @@ from scipy.stats import zscore, pearsonr
 
 N_FUTURE = 1 # how far into the future to predict
 N_CTT = 3 # number of frames to use with Conv. Through Time model (CTT)
-model_selection = 2
+model_selection = 1
 
 EPS = 5e-4
 

@@ -6,15 +6,15 @@ from ntm_core import *
 from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
 
-model_selection = 1
+model_selection = 2
 
 DIFF = False
 DIFF = True
 
-N_FUTURE = 1 # how far into the future to predict
+N_FUTURE = 3 # how far into the future to predict
 N_CTT = 3 # number of frames to use with Conv. Through Time model (CTT)
 TIME_STEPS_PER_MOVIE = 50 # measure of how slow movement is (higher = slower)
-N_MOVIES = 128 #2531
+N_MOVIES = 739 #2531
 
 EPS = 1e-3
 
@@ -26,7 +26,7 @@ elif model_selection == 1:
 	save_name = 'synthetic_ntm_%f_n_future_%i_%it' % (-EPS, N_FUTURE, TIME_STEPS_PER_MOVIE)
 elif model_selection == 2:
 	from architectures.model_architecture_movie32_ctt import *
-	save_name = 'synthetic_ctt_%f_n_future_%i_%it' % (-EPS, N_FUTURE, TIME_STEPS_PER_MOVIE)
+	save_name = 'synthetic2_ctt_%f_n_future_%i_%it' % (-EPS, N_FUTURE, TIME_STEPS_PER_MOVIE)
 	
 if DIFF:
 	save_name += '_diff'

@@ -156,21 +156,23 @@ def init_gpu_list(LIST, LAYERS, args=True):
 
 
 # apply chain-rule down the network
-def reverse_network(layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims=False, abort_layer=None): # multiply all partials together
+def reverse_network(layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims=False, reset_derivs=True, abort_layer=None): # multiply all partials together
 	if abort_layer is not None:
 		abort_layer = find_layer(LAYERS, abort_layer)
 	
 	# compute partials starting from single layer
 	if isinstance(layer_ind,int):
 		WEIGHT_DERIVS = init_gpu_list(WEIGHT_DERIVS, LAYERS)
-		zero_buffer_list(WEIGHT_DERIVS)
+		if reset_derivs:
+			zero_buffer_list(WEIGHT_DERIVS)
 
 		WEIGHT_DERIVS = reverse_network_recur(None, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, abort_layer)
 	# compute partials from multiple layers, store result in a list
 	else:
 		for i in range(len(layer_ind)):
 			WEIGHT_DERIVS[i] = init_gpu_list(WEIGHT_DERIVS[i], LAYERS)
-			zero_buffer_list(WEIGHT_DERIVS[i])
+			if reset_derivs:
+				zero_buffer_list(WEIGHT_DERIVS[i])
 
 			WEIGHT_DERIVS[i] = reverse_network_recur(None, layer_ind[i], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS[i], keep_dims, abort_layer)
 	return WEIGHT_DERIVS
@@ -353,7 +355,7 @@ def update_weights(LAYERS, WEIGHTS, WEIGHT_DERIVS, EPS):
 		L = LAYERS[layer_ind]
 		for arg in range(len(L['in_source'])):
 			# only update weight layers, not input layers
-			if hasattr(L['in_source'][arg], '__call__'):
+			if hasattr(L['in_source'][arg], '__call__') and WEIGHT_DERIVS[layer_ind][arg][1] is not None: # if there was a deriv computed:
 				point_wise_add((WEIGHTS[layer_ind][arg], WEIGHT_DERIVS[layer_ind][arg]), scalar=EPS)
 	return WEIGHTS
 	
