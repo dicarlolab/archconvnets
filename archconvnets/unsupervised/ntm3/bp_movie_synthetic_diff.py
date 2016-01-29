@@ -8,13 +8,15 @@ from scipy.stats import zscore, pearsonr
 
 model_selection = 1
 
-DIFF = False#True
+DIFF = False
+DIFF = True
+
 N_FUTURE = 1 # how far into the future to predict
 N_CTT = 3 # number of frames to use with Conv. Through Time model (CTT)
 TIME_STEPS_PER_MOVIE = 50 # measure of how slow movement is (higher = slower)
-N_MOVIES = 2531
+N_MOVIES = 128 #2531
 
-EPS = 1e-4
+EPS = 1e-3
 
 if model_selection == 0:
 	from architectures.model_architecture_movie32_no_mem import *
@@ -28,9 +30,10 @@ elif model_selection == 2:
 	
 if DIFF:
 	save_name += '_diff'
-	
-free_all_buffers()
 
+save_name += '_constback'
+
+free_all_buffers()
 
 ################ init save vars
 
@@ -149,7 +152,8 @@ while True:
 	# end of movie:
 	if ((frame_local + N_FUTURE) >= EPOCH_LEN) or frame == 0:
 		#### new movie
-		movie_name = '/home/darren/rotating_objs32_' + str(TIME_STEPS_PER_MOVIE) + 't/imgs' + str(movie_ind % N_MOVIES)  + '.mat'
+		movie_name = '/home/darren/rotating_objs32_constback_' + str(TIME_STEPS_PER_MOVIE) + 't/imgs' + str(movie_ind % N_MOVIES)  + '.mat'
+		#movie_name = '/home/darren/rotating_objs32_' + str(TIME_STEPS_PER_MOVIE) + 't/imgs' + str(movie_ind % N_MOVIES)  + '.mat'
 		z = loadmat(movie_name)
 		
 		cat = z['cat'][0][0]; obj = z['obj'][0][0]
