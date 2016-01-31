@@ -346,7 +346,7 @@ while True:
 	################
 	
 	# print/save
-	if frame % SAVE_FREQ == 0 and frame != 0:
+	if frame % SAVE_FREQ == 0 and frame != 0 and frame > MEM_SZ:
 		r_log.append([r_total]); r_total = 0
 		corr_log.append(err / SAVE_FREQ)
 		err_log.append(err / SAVE_FREQ); err = 0
