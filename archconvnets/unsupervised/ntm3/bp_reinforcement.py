@@ -8,10 +8,10 @@ from architectures.reinforcement import *
 from worlds.panda_world import *
 
 EPS = 1e-1
-EPS_GREED_FINAL_TIME = 4*5000000
+EPS_GREED_FINAL_TIME = 4*500000#0
 
 DIV_R = True
-DIV_R = False
+#DIV_R = False
 
 save_name = 'reinforcement_%f_EPS_%i_FIN_TIME' % (EPS, EPS_GREED_FINAL_TIME)
 
@@ -326,7 +326,7 @@ while True:
 		
 		########### backprop
 		if DIV_R:
-			WEIGHT_DERIVS = reverse_network(GAME_OUT_IND[action_input[trans]], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, scalar=1/(r_output[trans] + .1), reset_derivs=False)
+			WEIGHT_DERIVS = reverse_network(GAME_OUT_IND[action_input[trans]], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, scalar=1/(np.abs(r_output[trans]) + .1), reset_derivs=False)
 		else:
 			WEIGHT_DERIVS = reverse_network(GAME_OUT_IND[action_input[trans]], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, scalar=1., reset_derivs=False)
 		
