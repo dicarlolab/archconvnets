@@ -80,7 +80,9 @@ def init_pos_vars():
 
 
 ############################################ render
-def render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, filename='tmp2.png'):	
+def render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, filename='tmp2'):
+	filename = 'frame_' + filename + '.png'
+	
 	app.camera.setPos(x,y,h)
 	app.camera.setHpr(direction,0,0)
 	

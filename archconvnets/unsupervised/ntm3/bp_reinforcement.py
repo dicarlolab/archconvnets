@@ -10,7 +10,13 @@ from worlds.panda_world import *
 EPS = 1e-1
 EPS_GREED_FINAL_TIME = 4*5000000
 
+DIV_R = True
+DIV_R = False
+
 save_name = 'reinforcement_%f_EPS_%i_FIN_TIME' % (EPS, EPS_GREED_FINAL_TIME)
+
+if DIV_R:
+	save_name += '_DIVR'
 
 free_all_buffers()
 
@@ -223,7 +229,7 @@ while True:
 		if action >= 3: # increase likelihood of movement
 			action = 0
 	else:
-		img = np.single(render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions)) / 255
+		img = np.single(render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, save_name)) / 255
 		network_outputs_computed = True
 		
 		# forward pass
@@ -294,7 +300,7 @@ while True:
 		# (only compute if we have not already computed the output for this version of the network)
 		if y_network_ver[trans] != (network_updates % NETWORK_UPDATE):
 			img_prev = np.single(render(x_output[trans],y_output[trans], direction_output[trans], panda, kid, kid_coords_output[trans], \
-				panda_coords_output[trans], kid_directions_output[trans], panda_directions_output[trans])) / 255
+				panda_coords_output[trans], kid_directions_output[trans], panda_directions_output[trans], save_name)) / 255
 			
 			set_buffer(img_prev - .5, WEIGHTS_PREV[F1_IND][1])  # inputs
 			
@@ -309,7 +315,7 @@ while True:
 			
 		# forward pass current network
 		img_cur = np.single(render(x_input[trans],y_input[trans], direction_input[trans], panda, kid, kid_coords_input[trans], \
-			panda_coords_input[trans], kid_directions_input[trans], panda_directions_input[trans])) / 255
+			panda_coords_input[trans], kid_directions_input[trans], panda_directions_input[trans], save_name)) / 255
 		
 		set_buffer(img_cur - .5, WEIGHTS[F1_IND][1])  # inputs
 		set_buffer(y_outputs[trans].reshape((1,1)), WEIGHTS[GAME_DIFF_IND[action_input[trans]]][1]) # target
@@ -319,7 +325,11 @@ while True:
 		err += return_buffer(OUTPUT[GAME_OUT_IND[action_input[trans]]])
 		
 		########### backprop
-		WEIGHT_DERIVS = reverse_network(GAME_OUT_IND[action_input[trans]], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, reset_derivs=False)
+		if DIV_R:
+			WEIGHT_DERIVS = reverse_network(GAME_OUT_IND[action_input[trans]], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, scalar=1/(r_output[trans] + .1), reset_derivs=False)
+		else:
+			WEIGHT_DERIVS = reverse_network(GAME_OUT_IND[action_input[trans]], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, scalar=1., reset_derivs=False)
+		
 		if frame % GAME_TRAIN_FRAC == 0:
 			WEIGHT_DERIVS_OBJ = reverse_network(SYN_OBJ_OUT_IND, LAYERS, WEIGHTS, OUTPUT_MOVIE, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_OBJ, abort_layer='F3_MAX', reset_derivs=False)
 			WEIGHT_DERIVS_CAT = reverse_network(SYN_CAT_OUT_IND, LAYERS, WEIGHTS, OUTPUT_MOVIE, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CAT, abort_layer='F3_MAX', reset_derivs=False)
@@ -363,7 +373,7 @@ while True:
 		WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2')][0])
 		WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F3')][0])
 		
-		img = render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions)
+		img = render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, save_name)
 		
 		savemat('/home/darren/' + save_name, {'r_total_plot': r_log, 'step': frame, 'img': img, 'err_plot': err_log, \
 			'panda_coords_recent': panda_coords_recent, 'kid_coords_recent': kid_coords_recent, \

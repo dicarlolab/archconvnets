@@ -156,7 +156,7 @@ def init_gpu_list(LIST, LAYERS, args=True):
 
 
 # apply chain-rule down the network
-def reverse_network(layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims=False, reset_derivs=True, abort_layer=None): # multiply all partials together
+def reverse_network(layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims=False, scalar=1, reset_derivs=True, abort_layer=None): # multiply all partials together
 	if abort_layer is not None:
 		abort_layer = find_layer(LAYERS, abort_layer)
 	
@@ -166,7 +166,7 @@ def reverse_network(layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, W
 		if reset_derivs:
 			zero_buffer_list(WEIGHT_DERIVS)
 
-		WEIGHT_DERIVS = reverse_network_recur(None, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, abort_layer)
+		WEIGHT_DERIVS = reverse_network_recur(None, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, scalar, abort_layer)
 	# compute partials from multiple layers, store result in a list
 	else:
 		for i in range(len(layer_ind)):
@@ -174,10 +174,10 @@ def reverse_network(layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, W
 			if reset_derivs:
 				zero_buffer_list(WEIGHT_DERIVS[i])
 
-			WEIGHT_DERIVS[i] = reverse_network_recur(None, layer_ind[i], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS[i], keep_dims, abort_layer)
+			WEIGHT_DERIVS[i] = reverse_network_recur(None, layer_ind[i], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS[i], keep_dims, scalar, abort_layer)
 	return WEIGHT_DERIVS
 
-def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, abort_layer): # multiply all partials together
+def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, scalar, abort_layer): # multiply all partials together
 	L = LAYERS[layer_ind]
 	N_ARGS = len(L['in_shape'])
 	deriv_above_created = False
@@ -206,7 +206,7 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 					p_partial = P['partial'][arg2]
 					
 					deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[src]['out_shape'])
-					WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp))
+					WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp), scalar=scalar)
 					
 					squeeze_dim1(WEIGHT_DERIVS[p_layer_ind][p_arg], keep_dims)
 					free_buffer(deriv_temp)
@@ -214,11 +214,11 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 			# another layer (At this time step, go back to earlier layers)
 			# [do not go back if this is the abort_layer where we stop backpropping]
 			elif src != abort_layer:
-				reverse_network_recur(deriv_above_new, src, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, abort_layer)
+				reverse_network_recur(deriv_above_new, src, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, scalar, abort_layer)
 		
 		# input is not a layer, end here
 		else:
-			WEIGHT_DERIVS[layer_ind][arg] = point_wise_add((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new))
+			WEIGHT_DERIVS[layer_ind][arg] = point_wise_add((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new), scalar=scalar)
 			squeeze_dim1(WEIGHT_DERIVS[layer_ind][arg], keep_dims)
 			
 		free_buffer(deriv_above_new)
