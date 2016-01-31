@@ -6,14 +6,14 @@ from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
 from architectures.ctt_frame_pred import *
 
-N_MOVIES = 6372
+N_MOVIES = 12340 #6372
 BATCH_SZ = 50
 EPS = 1e-1
 
-#DIFF = True
-DIFF = False
+DIFF = True
+#DIFF = False
 
-save_name = 'frame_pred_%f' % (-EPS)
+save_name = 'frame_pred_%f_%i' % (-EPS, N_MOVIES)
 
 if DIFF:
 	save_name += '_diff'
