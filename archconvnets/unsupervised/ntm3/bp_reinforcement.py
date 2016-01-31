@@ -37,6 +37,7 @@ frame = 0; err = 0;  r_total = 0
 cifar_err = 0; cifar_class = 0
 cat_err = 0; cat_class = 0; obj_err = 0; obj_class = 0
 network_updates = 0
+scale_factor = 1 # used for dynamically rescaling gradients
 
 r_log = []; err_log = []; corr_log = []; cifar_err_log = []; cifar_class_log = []
 cat_err_log = []; cat_class_log = []; obj_err_log = []; obj_class_log = []
@@ -322,14 +323,13 @@ while True:
 		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		
-		err += return_buffer(OUTPUT[GAME_OUT_IND[action_input[trans]]])
+		if DIV_R:
+			scale_factor = 1/(np.abs(r_output[trans]) + .1)
+		
+		err += return_buffer(OUTPUT[GAME_OUT_IND[action_input[trans]]]) * scale_factor
 		
 		########### backprop
-		if DIV_R:
-			WEIGHT_DERIVS = reverse_network(GAME_OUT_IND[action_input[trans]], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, scalar=1/(np.abs(r_output[trans]) + .1), reset_derivs=False)
-		else:
-			WEIGHT_DERIVS = reverse_network(GAME_OUT_IND[action_input[trans]], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, scalar=1., reset_derivs=False)
-		
+		WEIGHT_DERIVS = reverse_network(GAME_OUT_IND[action_input[trans]], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, scalar=scale_factor, reset_derivs=False)
 		if frame % GAME_TRAIN_FRAC == 0:
 			WEIGHT_DERIVS_OBJ = reverse_network(SYN_OBJ_OUT_IND, LAYERS, WEIGHTS, OUTPUT_MOVIE, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_OBJ, abort_layer='F3_MAX', reset_derivs=False)
 			WEIGHT_DERIVS_CAT = reverse_network(SYN_CAT_OUT_IND, LAYERS, WEIGHTS, OUTPUT_MOVIE, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CAT, abort_layer='F3_MAX', reset_derivs=False)
