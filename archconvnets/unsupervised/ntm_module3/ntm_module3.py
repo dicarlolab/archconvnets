@@ -105,6 +105,7 @@ def init_buffer(DATA=None, gpu_ind=GPU_IND, warn=True):
 def copy_buffer(B, A=None, gpu_ind=GPU_IND):
 	if A is None:
 		A = init_buffer()
+	
 	_ntm_module3.copy_buffer(B[0], A[0], gpu_ind)
 
 	A[1] = copy.deepcopy(B[1])
@@ -117,8 +118,17 @@ def copy_list(LIST_B, LIST_A=None, gpu_ind=GPU_IND):
 	assert len(LIST_A) == len(LIST_B)
 	
 	for i in range(len(LIST_B)):
-		LIST_A[i] = copy_buffer(LIST_B[i], LIST_A[i], gpu_ind)
+		if LIST_B[i] is not None:
+			LIST_A[i] = copy_buffer(LIST_B[i], LIST_A[i], gpu_ind)
 	return LIST_A
+
+def copy_weights(WEIGHTS_B, WEIGHTS_A=None):
+	if WEIGHTS_A is None:
+		WEIGHTS_A = [None]*len(WEIGHTS_B)
+	
+	for layer_ind in range(len(WEIGHTS_B)):
+		WEIGHTS_A[layer_ind] = copy_list(WEIGHTS_B[layer_ind], WEIGHTS_A[layer_ind])
+	return WEIGHTS_A
 	
 def return_buffer(BUFFER, warn=1, gpu_ind=GPU_IND):
 	return _ntm_module3.return_buffer(BUFFER[0], warn, gpu_ind).reshape(BUFFER[1])

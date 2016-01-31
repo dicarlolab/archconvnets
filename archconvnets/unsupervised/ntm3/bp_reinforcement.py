@@ -7,37 +7,39 @@ from scipy.stats import zscore, pearsonr
 from architectures.reinforcement import *
 from worlds.panda_world import *
 
-N_MOVIES = 6372
-BATCH_SZ = 32
 EPS = 1e-1
-MEM_SZ = 1000000
-EPS_GREED_FINAL = .1
-EPS_GREED_FINAL_TIME = 4*5000000
-GAMMA = 0.99
-BATCH_SZ = 32
-NETWORK_UPDATE = 10000
 
 save_name = 'reinforcement_%f' % (-EPS)
 
 free_all_buffers()
 
 ################ init save vars
-
-frame = 0; err = 0; 
-cifar_err = 0; cifar_class = 0
-cat_err = 0; cat_class = 0; obj_err = 0; obj_class = 0
-
+N_MOVIES = 6372
+BATCH_SZ = 32
+MEM_SZ = 1000#000
+EPS_GREED_FINAL = .1
+EPS_GREED_FINAL_TIME = 4*5000000
+GAMMA = 0.99
+BATCH_SZ = 32
+NETWORK_UPDATE = 10000
 EPOCH_LEN = 11 # length of movie
 SAVE_FREQ = 25*BATCH_SZ #50 #250 # instantaneous checkpoint
 FRAME_LAG = 100 #SAVE_FREQ
+GAME_TRAIN_FRAC = 3 # train on the game X times more than categorization (speed reasons)
 
-err_log = []; corr_log = []; cifar_err_log = []; cifar_class_log = []
+frame = 0; err = 0;  r_total = 0
+cifar_err = 0; cifar_class = 0
+cat_err = 0; cat_class = 0; obj_err = 0; obj_class = 0
+network_updates = 0
+
+r_log = []; err_log = []; corr_log = []; cifar_err_log = []; cifar_class_log = []
 cat_err_log = []; cat_class_log = []; obj_err_log = []; obj_class_log = []
 
 t_start = time.time()
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names = init_model()
+WEIGHTS_PREV = copy_weights(WEIGHTS)
 
 CIFAR_PRED_IND = find_layer(LAYERS, 'CIFAR')
 SYN_OBJ_PRED_IND = find_layer(LAYERS, 'SYN_OBJ')
@@ -55,12 +57,13 @@ GAME_PRED_IND = [None]*N_C; GAME_DIFF_IND = [None]*N_C; GAME_OUT_IND = [None]*N_
 for action in range(N_C):
 	GAME_PRED_IND[action] = find_layer(LAYERS, 'GAME_PRED_'+str(action))
 	GAME_DIFF_IND[action] = find_layer(LAYERS, 'SUM_'+str(action))
-	GAME_OUT_IND[action] = find_layer(LAYERS, 'ERR_'+str(action))
+	GAME_OUT_IND[action] = find_layer(LAYERS, 'SUM_ERR_'+str(action))
 
 F1_IND = 0
 
 MEM_DERIVS = [None]*len(MEM_INDS)
 
+OUTPUT_PREV_NETWORK = None
 OUTPUT = None; WEIGHT_DERIVS = None; WEIGHT_DERIVS_RMS = None
 OUTPUT_CIFAR = None; WEIGHT_DERIVS_CIFAR = None; WEIGHT_DERIVS_RMS_CIFAR = None
 OUTPUT_MOVIE = None; WEIGHT_DERIVS_OBJ = None; WEIGHT_DERIVS_RMS_OBJ = None
@@ -72,6 +75,9 @@ PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 WEIGHTS_F1_INIT = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 
 # set null targets for game action output predictions
+set_buffer(np.zeros((8,1), dtype='single'), WEIGHTS_PREV[SYN_CAT_DIFF_IND][1])
+set_buffer(np.zeros((32,1), dtype='single'), WEIGHTS_PREV[SYN_OBJ_DIFF_IND][1])
+set_buffer(np.zeros((10,1), dtype='single'), WEIGHTS_PREV[CIFAR_DIFF_IND][1])
 for action in range(N_C):
 	set_buffer(np.zeros((1,1),dtype='single'), WEIGHTS[GAME_DIFF_IND[action]][1])
 	set_buffer(np.zeros((1,1),dtype='single'), WEIGHTS_PREV[GAME_DIFF_IND[action]][1])
@@ -96,47 +102,47 @@ Y_cifar = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categorie
 set_buffer(Y_cifar[0], WEIGHTS[CIFAR_DIFF_IND][1]) # cifar target
 
 ################## buffers for game replay
-panda_coords_input = np.zeros((MEM_SZ, N_PANDAS, 2))
-kid_coords_input = np.zeros((MEM_SZ, N_KIDS, 2))
+panda_coords_input = np.zeros((MEM_SZ, N_PANDAS, 2), dtype='single')
+kid_coords_input = np.zeros((MEM_SZ, N_KIDS, 2), dtype='single')
 
-panda_directions_input = np.zeros((MEM_SZ, N_PANDAS))
-kid_directions_input = np.zeros((MEM_SZ, N_KIDS))
+panda_directions_input = np.zeros((MEM_SZ, N_PANDAS), dtype='single')
+kid_directions_input = np.zeros((MEM_SZ, N_KIDS), dtype='single')
 
-x_input = np.zeros(MEM_SZ)
-y_input = np.zeros(MEM_SZ)
-direction_input = np.zeros(MEM_SZ)
+x_input = np.zeros(MEM_SZ, dtype='single')
+y_input = np.zeros(MEM_SZ, dtype='single')
+direction_input = np.zeros(MEM_SZ, dtype='single')
 
 action_input = np.zeros(MEM_SZ, dtype='int')
 
 ##
-panda_coords_output = np.zeros((MEM_SZ, N_PANDAS, 2))
-kid_coords_output = np.zeros((MEM_SZ, N_KIDS, 2))
+panda_coords_output = np.zeros((MEM_SZ, N_PANDAS, 2), dtype='single')
+kid_coords_output = np.zeros((MEM_SZ, N_KIDS, 2), dtype='single')
 
-panda_directions_output = np.zeros((MEM_SZ, N_PANDAS))
-kid_directions_output = np.zeros((MEM_SZ, N_KIDS))
+panda_directions_output = np.zeros((MEM_SZ, N_PANDAS), dtype='single')
+kid_directions_output = np.zeros((MEM_SZ, N_KIDS), dtype='single')
 
-x_output = np.zeros(MEM_SZ)
-y_output = np.zeros(MEM_SZ)
-direction_output = np.zeros(MEM_SZ)
-
-##
-r_output = np.zeros(MEM_SZ)
-y_outputs = np.zeros(MEM_SZ)
-y_network_ver = -np.ones(MEM_SZ)
+x_output = np.zeros(MEM_SZ, dtype='single')
+y_output = np.zeros(MEM_SZ, dtype='single')
+direction_output = np.zeros(MEM_SZ, dtype='single')
 
 ##
-panda_coords_recent = np.zeros((SAVE_FREQ, N_PANDAS, 2))
-kid_coords_recent = np.zeros((SAVE_FREQ, N_KIDS, 2))
+r_output = np.zeros(MEM_SZ, dtype='single')
+y_outputs = np.zeros(MEM_SZ, dtype='single')
+y_network_ver = -np.ones(MEM_SZ, dtype='single')
 
-panda_directions_recent = np.zeros((SAVE_FREQ, N_PANDAS))
-kid_directions_recent = np.zeros((SAVE_FREQ, N_KIDS))
+##
+panda_coords_recent = np.zeros((SAVE_FREQ, N_PANDAS, 2), dtype='single')
+kid_coords_recent = np.zeros((SAVE_FREQ, N_KIDS, 2), dtype='single')
 
-x_recent = np.zeros(SAVE_FREQ)
-y_recent = np.zeros(SAVE_FREQ)
-direction_recent = np.zeros(SAVE_FREQ)
+panda_directions_recent = np.zeros((SAVE_FREQ, N_PANDAS), dtype='single')
+kid_directions_recent = np.zeros((SAVE_FREQ, N_KIDS), dtype='single')
+
+x_recent = np.zeros(SAVE_FREQ, dtype='single')
+y_recent = np.zeros(SAVE_FREQ, dtype='single')
+direction_recent = np.zeros(SAVE_FREQ, dtype='single')
 
 action_recent = np.zeros(SAVE_FREQ, dtype='int')
-r_recent = np.zeros(SAVE_FREQ)
+r_recent = np.zeros(SAVE_FREQ, dtype='single')
 
 pred = np.zeros(N_C, dtype='single')
 pred_prev = np.zeros(N_C, dtype='single')
@@ -147,50 +153,51 @@ x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions = ini
 
 #####################
 while True:
-	mem_loc  = frame % MEM_SZ
+	mem_loc = frame % MEM_SZ
 	movie_frame = np.random.randint(EPOCH_LEN - N_CTT) + N_CTT # movies
 	cifar_frame = frame % N_IMGS_CIFAR
 	
-	###############
-	# classification training
-	
-	# load movie
-	movie_name = '/home/darren/rotating_objs32_constback_50t/imgs' + str(np.random.randint(N_MOVIES))  + '.mat'
-	z = loadmat(movie_name)
-	
-	cat = z['cat'][0][0]; obj = z['obj'][0][0]
-	inputs = np.ascontiguousarray(np.single(z['imgs'] - .5))
-	
-	cat_target = np.zeros((8,1), dtype='single'); cat_target[cat] = 1
-	obj_target = np.zeros((32,1), dtype='single'); obj_target[obj] = 1
-	
-	# load targets
-	set_buffer(cat_target, WEIGHTS[SYN_CAT_DIFF_IND][1])
-	set_buffer(obj_target, WEIGHTS[SYN_OBJ_DIFF_IND][1])
-	set_buffer(Y_cifar[cifar_frame], WEIGHTS[CIFAR_DIFF_IND][1]) # cifar target
-	
-	# forward cifar
-	temp = np.tile(cifar_imgs[cifar_frame], (N_CTT,1,1,1)).reshape((1,N_CTT*3, IM_SZ, IM_SZ))
-	set_buffer(temp, WEIGHTS[F1_IND][1])  # cifar input
-	OUTPUT_CIFAR = forward_network(LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV)
-	
-	# forward movie
-	set_buffer(inputs[movie_frame-N_CTT:movie_frame].reshape((1,N_CTT*3, IM_SZ, IM_SZ)), WEIGHTS[F1_IND][1])  # inputs
-	OUTPUT_MOVIE = forward_network(LAYERS, WEIGHTS, OUTPUT_MOVIE, OUTPUT_PREV)
-	
-	# save classification predictions/errors
-	cifar_pred = return_buffer(OUTPUT_CIFAR[CIFAR_PRED_IND])
-	obj_pred = return_buffer(OUTPUT_MOVIE[SYN_OBJ_PRED_IND])
-	cat_pred = return_buffer(OUTPUT_MOVIE[SYN_CAT_PRED_IND])
-	
-	obj_err += return_buffer(OUTPUT_MOVIE[SYN_OBJ_OUT_IND])
-	cat_err += return_buffer(OUTPUT_MOVIE[SYN_CAT_OUT_IND])
-	cifar_err += return_buffer(OUTPUT_CIFAR[CIFAR_OUT_IND])
-	
-	obj_class += obj == np.argmax(obj_pred)
-	cat_class += cat == np.argmax(cat_pred)
-	cifar_class += np.argmax(Y_cifar[cifar_frame]) == np.argmax(cifar_pred)
-	
+	if frame >= MEM_SZ and frame % GAME_TRAIN_FRAC == 0:
+		###############
+		# classification training
+		
+		# load movie
+		movie_name = '/home/darren/rotating_objs32_constback_50t/imgs' + str(np.random.randint(N_MOVIES))  + '.mat'
+		z = loadmat(movie_name)
+		
+		cat = z['cat'][0][0]; obj = z['obj'][0][0]
+		inputs = np.ascontiguousarray(np.single(z['imgs'] - .5))
+		
+		cat_target = np.zeros((8,1), dtype='single'); cat_target[cat] = 1
+		obj_target = np.zeros((32,1), dtype='single'); obj_target[obj] = 1
+		
+		# load targets
+		set_buffer(cat_target, WEIGHTS[SYN_CAT_DIFF_IND][1])
+		set_buffer(obj_target, WEIGHTS[SYN_OBJ_DIFF_IND][1])
+		set_buffer(Y_cifar[cifar_frame], WEIGHTS[CIFAR_DIFF_IND][1])
+		
+		# forward cifar
+		temp = np.tile(cifar_imgs[cifar_frame], (N_CTT,1,1,1)).reshape((1,N_CTT*3, IM_SZ, IM_SZ))
+		set_buffer(temp, WEIGHTS[F1_IND][1])  # cifar input
+		OUTPUT_CIFAR = forward_network(LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV)
+		
+		# forward movie
+		set_buffer(inputs[movie_frame-N_CTT:movie_frame].reshape((1,N_CTT*3, IM_SZ, IM_SZ)), WEIGHTS[F1_IND][1])  # inputs
+		OUTPUT_MOVIE = forward_network(LAYERS, WEIGHTS, OUTPUT_MOVIE, OUTPUT_PREV)
+		
+		# save classification predictions/errors
+		cifar_pred = return_buffer(OUTPUT_CIFAR[CIFAR_PRED_IND])
+		obj_pred = return_buffer(OUTPUT_MOVIE[SYN_OBJ_PRED_IND])
+		cat_pred = return_buffer(OUTPUT_MOVIE[SYN_CAT_PRED_IND])
+		
+		obj_err += return_buffer(OUTPUT_MOVIE[SYN_OBJ_OUT_IND])
+		cat_err += return_buffer(OUTPUT_MOVIE[SYN_CAT_OUT_IND])
+		cifar_err += return_buffer(OUTPUT_CIFAR[CIFAR_OUT_IND])
+		
+		obj_class += obj == np.argmax(obj_pred)
+		cat_class += cat == np.argmax(cat_pred)
+		cifar_class += np.argmax(Y_cifar[cifar_frame]) == np.argmax(cifar_pred)
+		
 	###########
 	# game
 	
@@ -257,7 +264,7 @@ while True:
 		y_network_ver[mem_loc] = -1
 	
 	# debug/for visualizations
-	save_loc = step % SAVE_FREQ
+	save_loc = frame % SAVE_FREQ
 	
 	panda_coords_recent[save_loc] = copy.deepcopy(panda_coords)
 	kid_coords_recent[save_loc] = copy.deepcopy(kid_coords)
@@ -272,12 +279,12 @@ while True:
 	action_recent[save_loc] = action
 	r_recent[save_loc] = r
 
-	if step == MEM_SZ:
+	if frame == MEM_SZ:
 		print 'beginning gradient computations'
 	
 	######################################
 	# update gradient?
-	if step >= MEM_SZ:
+	if frame >= MEM_SZ:
 		trans = np.random.randint(MEM_SZ)
 
 		# forward pass prev network
@@ -302,17 +309,15 @@ while True:
 			panda_coords_input[trans], kid_directions_input[trans], panda_directions_input[trans])) / 255
 		
 		set_buffer(img_cur - .5, WEIGHTS[F1_IND][1])  # inputs
-		set_buffer(y_outputs[trans], WEIGHTS[GAME_PRED_IND[action_input[trans]]][1]) # target
+		set_buffer(y_outputs[trans].reshape((1,1)), WEIGHTS[GAME_DIFF_IND[action_input[trans]]][1]) # target
 		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
-		for action in range(N_C):
-			pred[action] = return_buffer(OUTPUT[GAME_PRED_IND[action]])
 		
 		########### backprop
-		WEIGHT_DERIVS = reverse_network(action_input[trans], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, reset_derivs=False)
-		WEIGHT_DERIVS_OBJ = reverse_network(SYN_OBJ_OUT_IND, LAYERS, WEIGHTS, OUTPUT_MOVIE, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_OBJ, abort_layer=abort_obj, reset_derivs=False)
-		WEIGHT_DERIVS_CAT = reverse_network(SYN_CAT_OUT_IND, LAYERS, WEIGHTS, OUTPUT_MOVIE, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CAT, abort_layer=abort_cat, reset_derivs=False)
-		WEIGHT_DERIVS_CIFAR = reverse_network(CIFAR_OUT_IND, LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CIFAR, abort_layer=abort_cifar, reset_derivs=False)
+		WEIGHT_DERIVS = reverse_network(GAME_OUT_IND[action_input[trans]], LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, reset_derivs=False)
+		WEIGHT_DERIVS_OBJ = reverse_network(SYN_OBJ_OUT_IND, LAYERS, WEIGHTS, OUTPUT_MOVIE, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_OBJ, abort_layer='F3_MAX', reset_derivs=False)
+		WEIGHT_DERIVS_CAT = reverse_network(SYN_CAT_OUT_IND, LAYERS, WEIGHTS, OUTPUT_MOVIE, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CAT, abort_layer='F3_MAX', reset_derivs=False)
+		WEIGHT_DERIVS_CIFAR = reverse_network(CIFAR_OUT_IND, LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CIFAR, abort_layer='F3_MAX', reset_derivs=False)
 		
 		#### update filter weights
 		if(frame - MEM_SZ) % BATCH_SZ == 0 and frame != MEM_SZ:
@@ -330,17 +335,14 @@ while True:
 			
 			if network_updates % NETWORK_UPDATE == 0:
 				print 'updating network'
-				FL_prev = copy.deepcopy(FL)
-				set_buffer(F1, F1_IND, filter_flag=1, gpu=GPU_PREV)
-				set_buffer(F2, F2_IND, filter_flag=1, gpu=GPU_PREV)
-				set_buffer(F3, F3_IND, filter_flag=1, gpu=GPU_PREV)
-				set_buffer(FL, FL_IND, filter_flag=1, gpu=GPU_PREV)
+				WEIGHTS_PREV = copy_weights(WEIGHTS, WEIGHTS_PREV)
 	
 	################
 	
 	# print/save
 	if frame % SAVE_FREQ == 0 and frame != 0:
-		corr_log.append([corr / SAVE_FREQ]); corr = 0
+		r_log.append([r_total]); r_total = 0
+		corr_log.append([err / SAVE_FREQ])
 		err_log.append([err / SAVE_FREQ]); err = 0
 		cifar_err_log.append(cifar_err / SAVE_FREQ); cifar_err = 0;
 		cifar_class_log.append([np.single(cifar_class) / SAVE_FREQ]); cifar_class = 0;
@@ -349,8 +351,8 @@ while True:
 		obj_err_log.append(obj_err / SAVE_FREQ); obj_err = 0;
 		obj_class_log.append([np.single(obj_class) / SAVE_FREQ]); obj_class = 0;
 		
-		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, OUTPUT_CIFAR, EPS, err_log, frame, corr_log, cifar_err_log, cifar_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, t_start, save_name, print_names)
-		save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, [], [], EPS, err_log, corr_log, cifar_err_log, cifar_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, EPOCH_LEN, N_MOVIES)
+		print_reinforcement_state(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, OUTPUT_CIFAR, EPS, CHANCE_RAND, err_log, frame, r_log, cifar_err_log, cifar_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, t_start, save_name, print_names)
+		#save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, [], [], EPS, err_log, corr_log, cifar_err_log, cifar_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, EPOCH_LEN, N_MOVIES)
 		
 		t_start = time.time()
 		
