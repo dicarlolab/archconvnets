@@ -8,7 +8,7 @@ from architectures.reinforcement import *
 from worlds.panda_world import *
 
 EPS = 1e-2
-EPS_GREED_FINAL_TIME = 4*500000#0
+EPS_GREED_FINAL_TIME = 2*4*500000#0
 
 DIV_R = True
 #DIV_R = False
@@ -23,7 +23,7 @@ free_all_buffers()
 ################ init save vars
 N_MOVIES = 6372
 BATCH_SZ = 32
-MEM_SZ = 1000000
+MEM_SZ = 1000#000
 EPS_GREED_FINAL = .1
 GAMMA = 0.99
 BATCH_SZ = 32

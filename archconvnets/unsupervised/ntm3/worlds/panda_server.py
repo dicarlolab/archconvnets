@@ -71,13 +71,22 @@ counter = 0
 while True:
 	listener = Listener(address, authkey='secret password')
 	conn = listener.accept()
-	x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename = conn.recv()
-	conn.send(render(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename))
+	while True:
+		try:
+			x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename = conn.recv()
+			conn.send(render(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename))
+		except:
+			break
+			
+		if counter >= N_RESET:
+			break
+			
 	conn.close()
 	listener.close()
 	counter += 1
-	if counter == N_RESET:
+	if counter >= N_RESET:
 		break
+	
 print 'restarting'
 os.spawnl(os.P_NOWAIT, '/usr/bin/python', 'python', '/home/darren/archconvnets/archconvnets/unsupervised/ntm3/worlds/panda_server.py')
 
