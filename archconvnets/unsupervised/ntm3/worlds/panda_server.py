@@ -13,7 +13,7 @@ import PIL.Image
 from multiprocessing.connection import Listener
 import os
 
-N_RESET = 50
+N_RESET = 10000
 IMG_SZ = 32
 N_KIDS = 6
 N_PANDAS = 6
