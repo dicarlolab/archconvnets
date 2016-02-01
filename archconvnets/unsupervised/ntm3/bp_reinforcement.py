@@ -23,7 +23,7 @@ free_all_buffers()
 ################ init save vars
 N_MOVIES = 6372
 BATCH_SZ = 32
-MEM_SZ = 1000#000
+MEM_SZ = 1000000
 EPS_GREED_FINAL = .1
 GAMMA = 0.99
 BATCH_SZ = 32

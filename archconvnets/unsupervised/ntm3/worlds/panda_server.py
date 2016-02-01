@@ -86,7 +86,8 @@ while True:
 	counter += 1
 	if counter >= N_RESET:
 		break
-	
+
+
 print 'restarting'
 os.spawnl(os.P_NOWAIT, '/usr/bin/python', 'python', '/home/darren/archconvnets/archconvnets/unsupervised/ntm3/worlds/panda_server.py')
 

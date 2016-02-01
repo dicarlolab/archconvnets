@@ -70,11 +70,11 @@ def render(x,y, direction, kid_coords, panda_coords, kid_directions, panda_direc
 		except:
 			print 'establishing new connection'
 			try:
-				address = ('localhost', 6000)
+				conn[0].close()
 				conn[0] = Client(address, authkey='secret password')
 			except:
 				print 'failed to connect'
-				time.sleep(2)
+			time.sleep(1)
 		if success:
 			break
 	return msg
