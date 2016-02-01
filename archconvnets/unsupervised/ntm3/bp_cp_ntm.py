@@ -9,13 +9,14 @@ no_mem = True
 no_mem = False
 
 EPS = -1e-3
+BATCH_SZ = 32
 
 if no_mem:
 	from architectures.model_architecture_cp_no_mem import init_model
 	save_name = 'ntm_no_mem_%f' % (-EPS)
 else:
 	from architectures.model_architecture_cp import init_model
-	save_name = 'ntm_%f' % (-EPS)
+	save_name = 'ntm_no_reset_%f' % (-EPS)
 
 free_all_buffers()
 
@@ -68,11 +69,12 @@ while True:
 		training = 1 - training
 		elapsed_time = 0
 		if training == 1: # new training sequence
-			free_list(OUTPUT_PREV)
-			free_partials(PARTIALS_PREV)
+			#free_list(OUTPUT_PREV)
+			#free_partials(PARTIALS_PREV)
 			
-			OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
-			PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
+			#OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
+			#PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
+			
 			#free_partials(PARTIALS_PREV)
 			#PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 			
@@ -101,8 +103,8 @@ while True:
 	output_buffer[frame % SAVE_FREQ] =  return_buffer(OUTPUT[OUT_IND])
 	
 	###### reverse
-	WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)
-		
+	WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, reset_derivs=False)
+	
 	# update partials_prev
 	MEM_DERIVS = reverse_network(MEM_INDS, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, MEM_DERIVS, keep_dims=True)
 	PARTIALS_PREV = copy_partials(MEM_INDS, LAYERS, PARTIALS_PREV, MEM_DERIVS)
@@ -110,9 +112,10 @@ while True:
 	OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
 	
 	# take step
-	if frame < STOP_POINT and frame > SAVE_FREQ:
-		#update_weights(LAYERS, WEIGHTS, WEIGHT_DERIVS, EPS)
-		WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS, frame, FRAME_LAG)
+	if frame < STOP_POINT and frame > SAVE_FREQ and frame % BATCH_SZ == 0 and frame != 0:
+		WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS/BATCH_SZ, frame, FRAME_LAG)
+		
+		zero_buffer_list(WEIGHT_DERIVS)
 		
 		
 	# print
@@ -120,7 +123,8 @@ while True:
 		corr_log.append(pearsonr(target_buffer[training_flag_buffer == 0], output_buffer[training_flag_buffer == 0])[0])
 		err_log.append(err / SAVE_FREQ); err = 0
 		
-		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, print_names)
+		#print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, print_names)
+		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, [[0]], [[0]], [[0]], [[0]], [[0]], [[0]], t_start, save_name, print_names)
 		
 		#######
 		

@@ -7,7 +7,7 @@ from scipy.stats import zscore, pearsonr
 from architectures.reinforcement import *
 from worlds.panda_world import *
 
-EPS = 1e-1
+EPS = 1e-2
 EPS_GREED_FINAL_TIME = 4*500000#0
 
 DIV_R = True
@@ -230,7 +230,7 @@ while True:
 		if action >= 3: # increase likelihood of movement
 			action = 0
 	else:
-		img = np.single(render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, save_name)) / 255
+		img = np.single(render(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, save_name)) / 255
 		network_outputs_computed = True
 		
 		# forward pass
@@ -300,7 +300,7 @@ while True:
 		# forward pass prev network
 		# (only compute if we have not already computed the output for this version of the network)
 		if y_network_ver[trans] != (network_updates % NETWORK_UPDATE):
-			img_prev = np.single(render(x_output[trans],y_output[trans], direction_output[trans], panda, kid, kid_coords_output[trans], \
+			img_prev = np.single(render(x_output[trans],y_output[trans], direction_output[trans], kid_coords_output[trans], \
 				panda_coords_output[trans], kid_directions_output[trans], panda_directions_output[trans], save_name)) / 255
 			
 			set_buffer(img_prev - .5, WEIGHTS_PREV[F1_IND][1])  # inputs
@@ -315,7 +315,7 @@ while True:
 			y_network_ver[trans] = network_updates % NETWORK_UPDATE
 			
 		# forward pass current network
-		img_cur = np.single(render(x_input[trans],y_input[trans], direction_input[trans], panda, kid, kid_coords_input[trans], \
+		img_cur = np.single(render(x_input[trans],y_input[trans], direction_input[trans], kid_coords_input[trans], \
 			panda_coords_input[trans], kid_directions_input[trans], panda_directions_input[trans], save_name)) / 255
 		
 		set_buffer(img_cur - .5, WEIGHTS[F1_IND][1])  # inputs
@@ -373,7 +373,7 @@ while True:
 		WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2')][0])
 		WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F3')][0])
 		
-		img = render(x,y, direction, panda, kid, kid_coords, panda_coords, kid_directions, panda_directions, save_name)
+		img = render(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, save_name)
 		
 		savemat('/home/darren/' + save_name, {'r_total_plot': r_log, 'step': frame, 'img': img, 'err_plot': err_log, \
 			'panda_coords_recent': panda_coords_recent, 'kid_coords_recent': kid_coords_recent, \
