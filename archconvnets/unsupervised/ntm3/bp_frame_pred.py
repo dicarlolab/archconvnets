@@ -6,9 +6,9 @@ from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
 from architectures.ctt_frame_pred import *
 
-N_MOVIES = 12340 #6372
+N_MOVIES = 17750 #12340 #6372
 BATCH_SZ = 50
-EPS = 1e-1
+EPS = 1e-3
 
 DIFF = True
 #DIFF = False

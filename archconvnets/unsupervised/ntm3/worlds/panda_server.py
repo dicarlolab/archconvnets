@@ -79,4 +79,5 @@ while True:
 	if counter == N_RESET:
 		break
 print 'restarting'
-os.system('python /home/darren/archconvnets/archconvnets/unsupervised/ntm3/worlds/panda_server.py')
+os.spawnl(os.P_NOWAIT, '/usr/bin/python', 'python', '/home/darren/archconvnets/archconvnets/unsupervised/ntm3/worlds/panda_server.py')
+
