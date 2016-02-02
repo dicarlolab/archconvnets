@@ -2,7 +2,6 @@ import numpy as np
 import archconvnets.unsupervised.ntm_module3._ntm_module3 as _ntm_module3
 from archconvnets.unsupervised.ntm_module3.ntm_module3 import *
 from archconvnets.unsupervised.ntm3.gpu_flag import *
-from archconvnets.unsupervised.ntm3.ntm_core import *
 import time
 
 t_main = [0,0,0]

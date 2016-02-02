@@ -48,7 +48,6 @@ for f in range(N_KIDS):
 
 ############################################ render
 def render(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename):
-	filename = 'frame_' + filename + '.png'
 	
 	app.camera.setPos(x,y,h)
 	app.camera.setHpr(direction,0,0)

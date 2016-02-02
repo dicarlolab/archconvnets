@@ -227,6 +227,40 @@ def free_list_list(LIST, gpu_ind=GPU_IND):
 	for i in range(len(LIST)):
 		free_list(LIST[i], gpu_ind)
 
+def find_layer(LAYERS, name):
+         if isinstance(name, str):
+                 if name[-1] == '-':
+                         name = name[:len(name)-1]
+                 for layer_ind in range(len(LAYERS)):
+                         if LAYERS[layer_ind]['name'] == name:
+                                 return layer_ind
+         else:
+                 INDS = [None]*len(name)
+                 for i in range(len(name)):
+                         for layer_ind in range(len(LAYERS)):
+                                 if LAYERS[layer_ind]['name'] == name[i]:
+                                         INDS[i] = layer_ind
+                 return INDS
+         return None
+
+def mult_partials(A, B, B_out_shape, OUT=None):
+         A_ndim = len(A[1]) - len(B_out_shape)
+         B_ndim = len(B[1]) - len(B_out_shape)
+
+         if DEBUG:
+                 assert A_ndim > 0
+                 assert B_ndim > 0
+                 assert np.sum(np.asarray(A[1][A_ndim:]) == np.asarray(B[1][:len(B_out_shape)])) == len(B_out_shape)
+
+         A_dim0 = np.prod(A[1][:A_ndim])
+         B_dim1 = np.prod(B[1][len(B_out_shape):])
+         collapsed = np.prod(B_out_shape)
+
+         OUT = dot([[A[0], (A_dim0, collapsed)], [B[0], (collapsed, B_dim1)]], OUT)
+         OUT[1] = tuple(np.concatenate((A[1][:A_ndim], B[1][len(B_out_shape):])))
+         return OUT
+
+
 set_device(GPU_IND)
 
 from gradient_functions.cosine_sim import *

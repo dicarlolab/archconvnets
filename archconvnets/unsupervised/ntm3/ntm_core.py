@@ -86,22 +86,6 @@ def init_weights(LAYERS):
 				
 	return WEIGHTS
 
-def mult_partials(A, B, B_out_shape, OUT=None):
-	A_ndim = len(A[1]) - len(B_out_shape)
-	B_ndim = len(B[1]) - len(B_out_shape)
-	
-	if DEBUG:
-		assert A_ndim > 0
-		assert B_ndim > 0
-		assert np.sum(np.asarray(A[1][A_ndim:]) == np.asarray(B[1][:len(B_out_shape)])) == len(B_out_shape)
-	
-	A_dim0 = np.prod(A[1][:A_ndim])
-	B_dim1 = np.prod(B[1][len(B_out_shape):])
-	collapsed = np.prod(B_out_shape)
-
-	OUT = dot([[A[0], (A_dim0, collapsed)], [B[0], (collapsed, B_dim1)]], OUT)
-	OUT[1] = tuple(np.concatenate((A[1][:A_ndim], B[1][len(B_out_shape):])))
-	return OUT
 	
 def build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS):
 	N_ARGS = len(L['in_shape'])
