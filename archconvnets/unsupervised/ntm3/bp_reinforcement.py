@@ -21,7 +21,7 @@ if DIV_R:
 free_all_buffers()
 
 ################ init save vars
-N_MOVIES = 6372
+N_MOVIES = 23658
 BATCH_SZ = 32
 MEM_SZ = 1000000
 EPS_GREED_FINAL = .1

@@ -1,3 +1,4 @@
+from archconvnets.unsupervised.ntm3.ntm_core import *
 import time
 import numpy as np
 from scipy.io import savemat, loadmat
@@ -58,14 +59,22 @@ def init_pos_vars():
 
 
 ############################################ render
-address = ('localhost', 6000)
+address = ('localhost', PANDA_PORT)
 conn = [Client(address, authkey='secret password')]
 def render(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename='tmp2'):
 	success = False
 	while True:
 		try:
-			conn[0].send([x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename])
+			filename_store = 'frame_' + filename + '.png'
+			conn[0].send([x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename_store])
 			msg = conn[0].recv()
+			
+			if msg != 'success':
+				print 'didnt receive successful message'
+				lkjsdlkfj = alskdjf
+			else:
+				return np.ascontiguousarray(np.asarray(PIL.Image.open(filename_store))[:,:,:3].transpose((2,0,1))[np.newaxis])
+
 			success = True
 		except:
 			print 'establishing new connection'
@@ -77,7 +86,6 @@ def render(x,y, direction, kid_coords, panda_coords, kid_directions, panda_direc
 			time.sleep(1)
 		if success:
 			break
-	return msg
 
 ########################################## movement
 def move(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions):

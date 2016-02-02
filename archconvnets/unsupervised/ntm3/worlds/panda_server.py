@@ -1,3 +1,4 @@
+from archconvnets.unsupervised.ntm3.ntm_core import *
 import time
 import numpy as np
 from scipy.io import savemat, loadmat
@@ -63,9 +64,8 @@ def render(x,y, direction, kid_coords, panda_coords, kid_directions, panda_direc
 	base.graphicsEngine.render_frame()
 	base.screenshot(namePrefix=filename,defaultFilename = 0,source=app.win)
 	
-	return np.ascontiguousarray(np.asarray(PIL.Image.open(filename))[:,:,:3].transpose((2,0,1))[np.newaxis])
 
-address = ('localhost', 6000)
+address = ('localhost', PANDA_PORT)
 counter = 0
 
 while True:
@@ -74,10 +74,12 @@ while True:
 	while True:
 		try:
 			x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename = conn.recv()
-			conn.send(render(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename))
+			render(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename)
+			conn.send('success')
 		except:
 			break
-			
+		
+		counter += 1
 		if counter >= N_RESET:
 			break
 			
