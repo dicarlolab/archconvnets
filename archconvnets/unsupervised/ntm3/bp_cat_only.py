@@ -10,7 +10,7 @@ N_MOVIES = 6372
 BATCH_SZ = 50
 EPS = 1e-1
 
-train_filters_on = 3
+train_filters_on = 0
 
 abort_cifar = abort_cat = abort_obj = 'F3_MAX'
 if train_filters_on == 0:

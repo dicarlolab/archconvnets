@@ -29,7 +29,7 @@ def relu(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
-'''def relu_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
+def relu_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 
 	LAYER_IN = args[0]
@@ -37,11 +37,10 @@ def relu(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	dim1, dim2 = LAYER_IN[1]
-	
 	_ntm_module3.relu_dlayer_in(LAYER_IN[0], DERIV_ABOVE[0], OUT_BUFFER[0], 0, gpu_ind)
 	
-	OUT_BUFFER[1] = (DERIV_ABOVE[...],dim1,dim2)
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], LAYER_IN[1])))
 	
 	if DEBUG:
 		check_buffer(LAYER_IN)
@@ -51,45 +50,6 @@ def relu(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 		assert isinstance(gpu_ind,int)
 		assert len(args) == 1
 	
-	t_main[1] += time.time() - t
-	return OUT_BUFFER'''
-def relu_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
-	t = time.time()
-	assert additional_args == [None]
-	assert isinstance(gpu_ind,int)
-	assert len(args) == 1
-	LAYER_IN = args[0]
-	check_buffer(LAYER_IN)
-	check_buffer(LAYER_OUT)
-	check_buffer(DERIV_ABOVE)
-	
-	if OUT_BUFFER is None:
-		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	check_buffer(OUT_BUFFER)
-	dim1, dim2 = LAYER_IN[1]
-	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
-	
-	if GPU:
-		_ntm_module3.relu_dlayer_in(LAYER_IN[0], LAYER_IN[1], OUT_BUFFER_TEMP[0], 0, gpu_ind)
-	else: 
-		############ CPU
-		layer_in = return_buffer(LAYER_IN, gpu_ind)
-		thresh = 0
-		temp = np.ones_like(layer_in)
-		temp[layer_in <= thresh] = 0
-		
-		temp2 = np.zeros(np.concatenate((layer_in.shape, layer_in.shape)),dtype='single')
-		for i in range(layer_in.shape[0]):
-			for j in range(layer_in.shape[1]):
-				temp2[i,j,i,j] = temp[i,j]
-		OUT_BUFFER_TEMP = set_buffer(temp2, OUT_BUFFER_TEMP, gpu_ind)
-	
-	OUT_BUFFER_TEMP[1] = (dim1,dim2,dim1,dim2)
-	check_buffer(OUT_BUFFER_TEMP)
-	
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 

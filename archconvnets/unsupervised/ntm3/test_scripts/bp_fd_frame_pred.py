@@ -7,7 +7,7 @@ from ntm_core import *
 #from architectures.model_architecture_simple import init_model
 #from architectures.model_architecture_cp import init_model
 #from architectures.highway import init_model
-from architectures.ctt_frame_pred_test import *
+from archconvnets.unsupervised.ntm3.architectures.ctt_frame_pred_test import *
 
 free_all_buffers()
 N_MOVIES = 22872 #17750 #12340 #6372

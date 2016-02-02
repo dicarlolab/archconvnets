@@ -18,6 +18,7 @@ def init_model():
 	for init in [0,1]:
 		# below
 		add_conv_layer(LAYERS, 'F1', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(1,N_CTT*3,IM_SZ,IM_SZ), PAD=2, init=init)
+		add_relu_layer(LAYERS, 'F1_relu', init=init)
 		add_max_pool_layer(LAYERS, 'F1_MAX', init=init)
 		add_conv_layer(LAYERS, 'F2', U_F2, U_F2_FILTER_SZ, PAD=2, init=init)
 		add_max_pool_layer(LAYERS, 'F2_MAX', init=init)

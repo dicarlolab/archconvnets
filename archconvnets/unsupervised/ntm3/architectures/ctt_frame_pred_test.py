@@ -29,9 +29,6 @@ def init_model():
 		
 		add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM5', -1], init=init)
 		
-		#add_add_layer(LAYERS, 'ERR', ['STACK_SUM5', -1], scalar=-1, init=init)
-		#add_sq_points_layer(LAYERS, 'SQ_ERR', init=init)
-		#add_sum_layer(LAYERS, 'SUM_ERR', init=init)
 		
 	check_network(LAYERS)
 	
