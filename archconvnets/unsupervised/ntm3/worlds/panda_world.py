@@ -58,19 +58,23 @@ def init_pos_vars():
 
 
 ############################################ render
+address = ('localhost', 6000)
+conn = [Client(address, authkey='secret password')]
 def render(x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename='tmp2'):
-	address = ('localhost', 6000)
 	success = False
 	while True:
 		try:
-			conn = Client(address, authkey='secret password')
-			conn.send([x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename])
-			msg = conn.recv()
-			conn.close()
+			conn[0].send([x,y, direction, kid_coords, panda_coords, kid_directions, panda_directions, filename])
+			msg = conn[0].recv()
 			success = True
 		except:
-			print 'failed to connect'
-			time.sleep(2)
+			print 'establishing new connection'
+			try:
+				conn[0].close()
+				conn[0] = Client(address, authkey='secret password')
+			except:
+				print 'failed to connect'
+			time.sleep(1)
 		if success:
 			break
 	return msg

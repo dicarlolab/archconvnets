@@ -8,7 +8,7 @@ from architectures.reinforcement import *
 from worlds.panda_world import *
 
 EPS = 1e-2
-EPS_GREED_FINAL_TIME = 4*500000#0
+EPS_GREED_FINAL_TIME = 2*4*500000#0
 
 DIV_R = True
 #DIV_R = False
