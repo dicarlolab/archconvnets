@@ -3,24 +3,15 @@
 #define BUFFER_SZ1 buffer_sz[gpu_ind][buffer_ind1]
 #define BUFFER_SZ2 buffer_sz[gpu_ind][buffer_ind2]
 
-#define DATA_OUT(A, B) data_out[(A)*buffer2_dim2 + (B)]
-#define DATA_OUT_IND(A, B) ((A)*buffer2_dim2 + (B))
-#define DATA1(A, B) data1[(A)*buffer1_dim2 + (B)]
-#define DATA1_IND(A, B) ((A)*buffer1_dim2 + (B))
-#define DATA2(A, B) data2[(A)*buffer2_dim2 + (B)]
-#define DATA2_IND(A, B) ((A)*buffer2_dim2 + (B))
-
-#define DATA_OUT_SZ (buffer1_dim1*buffer2_dim2*sizeof(DATA_TYPE))
-#define DATA_OUT_NUMEL (buffer1_dim1*buffer2_dim2)
-
+#define DATA_OUT_SZ (n_batches*buffer1_dim1*buffer2_dim2*sizeof(DATA_TYPE))
 
 static PyObject *dot(PyObject *self, PyObject *args){
 	cudaError_t err;
-	int gpu_ind, buffer_ind1, buffer_ind2, out_buffer_ind, increment;
+	int gpu_ind, buffer_ind1, buffer_ind2, out_buffer_ind, n_batches;
 	PyObject *buffer_shape1, *buffer_shape2;
 	
 	if (!PyArg_ParseTuple(args, "iO!iO!iii", &buffer_ind1, &PyTuple_Type, &buffer_shape1, &buffer_ind2, 
-			&PyTuple_Type, &buffer_shape2, &out_buffer_ind, &increment, &gpu_ind)) 
+			&PyTuple_Type, &buffer_shape2, &out_buffer_ind, &n_batches, &gpu_ind)) 
 		return NULL;
         
 	if(buffer_ind1 >= N_BUFFERS || buffer_ind1 < 0 || 
@@ -30,13 +21,13 @@ static PyObject *dot(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(gpu_ind >= N_GPUS || gpu_ind < 0){
-		printf("gpu index incorrect, set_buffers().\n");
+	if(n_batches <= 0){
+		printf("invalid number of batches %i\n", n_batches);
 		return NULL;
 	}
 	
-	if(increment != 0 && increment != 1){
-		printf("increment value not set to zero or one\n");
+	if(gpu_ind >= N_GPUS || gpu_ind < 0){
+		printf("gpu index incorrect, set_buffers().\n");
 		return NULL;
 	}
 	
@@ -52,7 +43,7 @@ static PyObject *dot(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(buffer1_dim1*buffer1_dim2*sizeof(DATA_TYPE) != BUFFER_SZ1 || buffer2_dim1*buffer2_dim2*sizeof(DATA_TYPE) != BUFFER_SZ2){
+	if(buffer1_dim1*buffer1_dim2*sizeof(DATA_TYPE) != BUFFER_SZ1 || n_batches*buffer2_dim1*buffer2_dim2*sizeof(DATA_TYPE) != BUFFER_SZ2){
 		printf("specified input sizes do not equal to stored gpu buffer. dot()\n");
 		printf("%li %li %li %li", buffer1_dim1*buffer1_dim2*sizeof(DATA_TYPE), BUFFER_SZ1, buffer2_dim1*buffer2_dim2*sizeof(DATA_TYPE), BUFFER_SZ2);
 		return NULL;
@@ -71,8 +62,62 @@ static PyObject *dot(PyObject *self, PyObject *args){
 	
 	const float alpha = 1.0, beta = 0.0;
 	
-	cublasStatus_t err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, buffer2_dim2, buffer1_dim1, buffer1_dim2, &alpha,
+	cublasStatus_t err_blas;
+	
+	if(n_batches == 1){
+		err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, buffer2_dim2, buffer1_dim1, buffer1_dim2, &alpha,
                            GPU_BUFFER2, buffer2_dim2, GPU_BUFFER1, buffer1_dim2, &beta, GPU_BUFFER_OUT, buffer2_dim2);
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	}else{
+		printf("n_batches %i\n", n_batches);
+		
+		/// non-batched version:
+		/*for(int batch = 0; batch < n_batches; batch++){
+			err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, buffer2_dim2, buffer1_dim1, buffer1_dim2, &alpha,
+									 GPU_BUFFER2 + batch*buffer2_dim1*buffer2_dim2, buffer2_dim2, GPU_BUFFER1, buffer1_dim2, &beta, GPU_BUFFER_OUT + batch*buffer1_dim1*buffer2_dim2, buffer2_dim2);
+			ERR_CHECK_BLAS
+		}*/
+		
+		
+		////////////////////////////////////////////////////////
+		// setup batch pointers on CPU, then copy to GPU
+		float ** buffer1_pointers = (float **) malloc(n_batches * sizeof(float *));
+		float ** buffer2_pointers = (float **) malloc(n_batches * sizeof(float *));
+		float ** out_pointers = (float **) malloc(n_batches * sizeof(float *));	
+		
+		if(buffer1_pointers == NULL || buffer2_pointers == NULL || out_pointers == NULL){
+			printf("malloc err line: %i, %s\n",__LINE__,__FILE__);
+			return NULL;
+		}
+		
+		float ** buffer1_pointers_gpu, ** buffer2_pointers_gpu, **out_pointers_gpu;
+		
+		err = cudaMalloc((void**) &buffer1_pointers_gpu, n_batches*sizeof(float*)); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &buffer2_pointers_gpu, n_batches*sizeof(float*)); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &out_pointers_gpu, n_batches*sizeof(float*)); MALLOC_ERR_CHECK
+		
+		for(int batch = 0; batch < n_batches; batch++){
+			buffer1_pointers[batch] = GPU_BUFFER1;
+			buffer2_pointers[batch] = GPU_BUFFER2 + batch*buffer2_dim1*buffer2_dim2;
+			out_pointers[batch] = GPU_BUFFER_OUT + batch*buffer1_dim1*buffer2_dim2;
+		}
+		
+		cudaMemcpy(buffer1_pointers_gpu, buffer1_pointers, n_batches * sizeof(float *), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
+		cudaMemcpy(buffer2_pointers_gpu, buffer2_pointers, n_batches * sizeof(float *), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
+		cudaMemcpy(out_pointers_gpu, out_pointers, n_batches * sizeof(float *), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
+		
+		err_blas = cublasSgemmBatched(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, buffer2_dim2, buffer1_dim1, buffer1_dim2, &alpha,
+									 (const float**) buffer2_pointers_gpu, buffer2_dim2, (const float**) buffer1_pointers_gpu, buffer1_dim2, &beta, out_pointers_gpu, buffer2_dim2, n_batches);
+		
+		///////////////////////////////////////////// possible race condition if sync isn't present
+		cudaFree(buffer1_pointers_gpu);
+		cudaFree(buffer2_pointers_gpu);
+		cudaFree(out_pointers_gpu);
+		
+		free(buffer1_pointers);
+		free(buffer2_pointers);
+		free(out_pointers);
+	}
 	
 	ERR_CHECK_BLAS
 	

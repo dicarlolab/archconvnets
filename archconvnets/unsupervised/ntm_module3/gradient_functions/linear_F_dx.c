@@ -90,13 +90,13 @@ static PyObject * linear_F_dx(PyObject *self, PyObject *args){
 	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	///////////////////////////////////////////// possible race condition if sync isn't present
-	free(F_pointers);
-	free(deriv_above_pointers);
-	free(out_pointers);
-	
 	cudaFree(F_pointers_gpu);
 	cudaFree(deriv_above_pointers_gpu);
 	cudaFree(out_pointers_gpu);
+	
+	free(F_pointers);
+	free(deriv_above_pointers);
+	free(out_pointers);
 	
 	Py_INCREF(Py_None);
 	return Py_None;

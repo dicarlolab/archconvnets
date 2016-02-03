@@ -4,11 +4,11 @@ import scipy.optimize
 from ntm_core import *
 from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
-from architectures.ctt_categorization_only import *
+from architectures.ctt_categorization_only_sq import *
 
 N_MOVIES = 23658
 BATCH_SZ = 50
-EPS = 1e-2
+EPS = 1e-1
 
 train_filters_on = 0
 
@@ -25,7 +25,7 @@ elif train_filters_on == 2:
 else:
 	save_name = 'rand'
  
-save_name += 'relu_nrms_%f' % (-EPS)
+save_name += 'relu_sq_%f' % (-EPS)
 
 free_all_buffers()
 
@@ -57,7 +57,7 @@ CIFAR_DIFF_IND = find_layer(LAYERS, 'CIFAR_ERR') # cifar target
 SYN_CAT_DIFF_IND = find_layer(LAYERS, 'SYN_CAT_ERR')
 SYN_OBJ_DIFF_IND = find_layer(LAYERS, 'SYN_OBJ_ERR')
 
-CIFAR_OUT_IND = find_layer(LAYERS, 'CIFAR_ERR') # cifar error
+CIFAR_OUT_IND = find_layer(LAYERS, 'CIFAR_SQ_ERR') # cifar error
 SYN_OBJ_OUT_IND = find_layer(LAYERS, 'SYN_OBJ_ERR')
 SYN_CAT_OUT_IND = find_layer(LAYERS, 'SYN_CAT_ERR')
 
@@ -145,8 +145,7 @@ while True:
 	if frame % BATCH_SZ == 0 and frame != 0:
 		WEIGHT_DERIVS_RMS_OBJ = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_OBJ, WEIGHT_DERIVS_RMS_OBJ, EPS / BATCH_SZ, frame, FRAME_LAG)
 		WEIGHT_DERIVS_RMS_CAT = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CAT, WEIGHT_DERIVS_RMS_CAT, EPS / BATCH_SZ, frame, FRAME_LAG)
-		#WEIGHT_DERIVS_RMS_CIFAR = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR, EPS / BATCH_SZ, frame, FRAME_LAG)
-		WEIGHTS = update_weights(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, EPS / BATCH_SZ)
+		WEIGHT_DERIVS_RMS_CIFAR = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR, -EPS / BATCH_SZ, frame, FRAME_LAG)
 		
 		zero_buffer_list(WEIGHT_DERIVS_CIFAR)
 		zero_buffer_list(WEIGHT_DERIVS_OBJ)

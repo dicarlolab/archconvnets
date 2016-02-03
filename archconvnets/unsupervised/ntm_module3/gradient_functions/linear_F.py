@@ -16,7 +16,7 @@ def random_normal_function(size):
 def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=GPU_IND):
 	t = time.time()
 	
-	squeeze, sum_all = additional_args
+	squeeze, sum_all, batch_imgs = additional_args
 	F, X = args
 	
 	if OUT_BUFFER is None:
@@ -58,7 +58,7 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=GPU_IND):
 	t = time.time()
 	
-	squeeze, sum_all = additional_args
+	squeeze, sum_all, batch_imgs = additional_args
 	
 	F, X = args
 	
@@ -102,7 +102,7 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 
 linear_F = dot
 
-def add_linear_F_layer(LAYERS, name, n_filters, source=None, sum_all=False, squeeze=True, random_function=random_function, init=0):
+def add_linear_F_layer(LAYERS, name, n_filters, source=None, sum_all=False, squeeze=True, batch_imgs=False, random_function=random_function, init=0):
 	assert isinstance(name, str)
 	if init == 0:
 		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name
@@ -157,8 +157,8 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, sum_all=False, sque
 		LAYERS[layer_ind]['in_source'] = [random_function, in_source]
 		LAYERS[layer_ind]['deriv_F'] = [linear_F_dF, linear_F_dx]
 		LAYERS[layer_ind]['in_prev'] = [False, in_prev1]
-		LAYERS[layer_ind]['additional_forward_args'] = [squeeze, sum_all]
-		LAYERS[layer_ind]['additional_deriv_args'] = [[squeeze, sum_all], [squeeze, sum_all]]
+		LAYERS[layer_ind]['additional_forward_args'] = [squeeze, sum_all, batch_imgs]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[squeeze, sum_all, batch_imgs], [squeeze, sum_all, batch_imgs]]
 		
 		return layer_ind
 		
