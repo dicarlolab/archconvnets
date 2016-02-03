@@ -16,11 +16,8 @@ def init_model():
 	
 	for init in [0,1]:
 		# below
-		add_conv_layer(LAYERS, 'F1', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(BATCH_SZ,3,IM_SZ,IM_SZ), PAD=2, init=init)
-		add_relu_layer(LAYERS, 'F1_relu', init=init)
-		add_max_pool_layer(LAYERS, 'F1_MAX', init=init)
-		
-		add_linear_F_layer(LAYERS, 'CIFAR', 10, batch_imgs=True, init=init)
+		add_linear_F_layer(LAYERS, 'CIFAR', 10, source=(5,3,4), batch_imgs=True, init=init)
+		add_linear_F_layer(LAYERS, 'CIFAR2', 20, batch_imgs=True, init=init)
 		
 		#add_conv_layer(LAYERS, 'F2', U_F1, U_F1_FILTER_SZ, PAD=2, init=init)
 		#add_max_pool_layer(LAYERS, 'F2_MAX', init=init)

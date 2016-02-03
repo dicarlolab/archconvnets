@@ -69,7 +69,6 @@ static PyObject *dot(PyObject *self, PyObject *args){
                            GPU_BUFFER2, buffer2_dim2, GPU_BUFFER1, buffer1_dim2, &beta, GPU_BUFFER_OUT, buffer2_dim2);
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	}else{
-		printf("n_batches %i\n", n_batches);
 		
 		/// non-batched version:
 		/*for(int batch = 0; batch < n_batches; batch++){

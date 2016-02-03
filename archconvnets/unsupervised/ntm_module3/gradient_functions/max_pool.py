@@ -41,15 +41,15 @@ def max_pool_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_ar
 	# ex. DERIV_ABOVE = (a,b,c,d,e,f)
 	# ex. LAYER_OUT = (d,e,f)
 	# -> DERIV_ABOVE = (a*b*c, d,e,f)
-	n_dims_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dims_not_summed])[np.newaxis], LAYER_OUT[1])))
+	n_dims_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1]) + 1 #...
+	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dims_not_summed])[np.newaxis], LAYER_OUT[1][1:])))
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
 	OUT_BUFFER[1] = _ntm_module3.max_pool_dinput(DESTDATA[0], DESTDATA[1], SRCDATA[0], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dims_not_summed], DESTDATA[1])))
+	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dims_not_summed], DESTDATA[1][1:])))
 	
 	if DEBUG:
 		assert additional_args == [None]

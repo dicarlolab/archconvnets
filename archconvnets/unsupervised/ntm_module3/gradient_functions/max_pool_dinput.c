@@ -23,12 +23,17 @@ static PyObject *max_pool_dinput(PyObject *self, PyObject *args){
 	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	// get sizes
-	long n_output = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
-	
 	long n_imgs = PyLong_AsLong(PyTuple_GetItem(imgs_shape,0));
 	long n_channels = PyLong_AsLong(PyTuple_GetItem(imgs_shape,1));
 	long img_sz = PyLong_AsLong(PyTuple_GetItem(imgs_shape,2));
-
+	
+	long n_output = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0)) / n_imgs; // repeats of deriv_above for which we will not have images (tile)
+	
+	if(PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0)) % n_imgs != 0){
+		printf("deriv_above or imgs not correct size\n");
+		return NULL;
+	}
+	
 	int out_sz = img_sz / POOL_STRIDE;
 	
 	cudnnStatus_t status;

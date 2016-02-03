@@ -3,11 +3,11 @@
 static PyObject * linear_F_dx(PyObject *self, PyObject *args){
 	cudaError_t err;
 	PyTupleObject *deriv_above_shape, *F_shape,*x_shape;
-	int F_ind, deriv_above_ind, out_buffer_ind, gpu_ind;
+	int F_ind, deriv_above_ind, out_buffer_ind, gpu_ind, n_imgs;
 	const float alpha = 1.0, beta = 0.0;
 	
-	if (!PyArg_ParseTuple(args, "iO!O!iO!ii", &F_ind, &PyTuple_Type, &F_shape, &PyTuple_Type, &x_shape, &deriv_above_ind, &PyTuple_Type, &deriv_above_shape,
-			&out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!O!iO!iii", &F_ind, &PyTuple_Type, &F_shape, &PyTuple_Type, &x_shape, &deriv_above_ind, &PyTuple_Type, &deriv_above_shape,
+			&out_buffer_ind, &n_imgs, &gpu_ind)) 
 		return NULL;
     
 	if(F_ind >= N_BUFFERS || F_ind < 0 || out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0 ||
@@ -21,14 +21,30 @@ static PyObject * linear_F_dx(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	// F_reshaped (10, 3) X_reshaped (5, 3, 4) deriv_Above_reshaped (2*3*5, 10, 4) out_buffer (2, 3, 5, 3, 4)
+	// compute: (2*3, 5,3,4)
+	
+	
 	// get sizes
-	long x_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)x_shape,0));
-	long x_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)x_shape,1));
-	long F_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)F_shape,0));
-	long F_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)F_shape,1));
 	long deriv_above_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)deriv_above_shape,0));
 	long deriv_above_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)deriv_above_shape,1));
 	long deriv_above_dim2 = PyLong_AsLong(PyTuple_GetItem((PyObject *)deriv_above_shape,2));
+	
+	int dim_offset = 0;
+	if(n_imgs > 1){ 
+		dim_offset = 1; // then first dimension is deriv_above not summed dims and imgs
+		
+		if(deriv_above_dim0 % n_imgs != 0){
+			printf("deriv above or n_imgs incorrect\n");
+			return NULL;
+		}
+	}
+	
+	long x_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)x_shape,dim_offset));
+	long x_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)x_shape,dim_offset+1));
+	long F_dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)F_shape,0));
+	long F_dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)F_shape,1));
+	
 	
 	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
@@ -49,6 +65,7 @@ static PyObject * linear_F_dx(PyObject *self, PyObject *args){
                                  gpu_buffers[gpu_ind][deriv_above_ind]+ batch*deriv_above_dim1*deriv_above_dim2, deriv_above_dim2, gpu_buffers[gpu_ind][F_ind], F_dim1, &beta, gpu_buffers[gpu_ind][out_buffer_ind] + batch*x_dim0*x_dim1, deriv_above_dim2);
 		ERR_CHECK_BLAS
 	}*/
+	
 	
 	////////////////////////////////////////////////////////
 	// setup batch pointers
