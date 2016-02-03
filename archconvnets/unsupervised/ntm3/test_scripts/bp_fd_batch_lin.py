@@ -19,7 +19,7 @@ F1_IND = 0
 set_buffer(random_function(LAYERS[F1_IND]['in_shape'][1]), WEIGHTS[F1_IND][1]) # target
 
 ################ which gradient to test
-gradient_layer = 0#find_layer(LAYERS, 'F1') #F1_IND
+gradient_layer = 0#find_layer(LAYERS, 'CIFAR2') #F1_IND
 gradient_arg = 0
 
 def f(y):

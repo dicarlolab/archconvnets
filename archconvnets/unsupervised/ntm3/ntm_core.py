@@ -59,7 +59,7 @@ def check_network(LAYERS):
 		# check if other layers claim to produce expected inputs
 		for arg in range(N_ARGS):
 			if L['in_source'][arg] >= 0 and isinstance(L['in_source'][arg], int):
-				assert L['in_shape'][arg] == LAYERS[L['in_source'][arg]]['out_shape'], '%i %i' % (layer_ind, arg)
+				assert L['in_shape'][arg] == LAYERS[L['in_source'][arg]]['out_shape'], '%s %i' % (L['name'], arg)
 				
 		# check if layers are ordered (no inputs to this layer come after this one in the list... unless recursive mem layer)
 		for arg in range(N_ARGS):

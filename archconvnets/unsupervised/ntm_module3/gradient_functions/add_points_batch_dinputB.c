@@ -62,35 +62,18 @@
 	}
 	
 	err = cudaMalloc((void**) &ones_gpu, n_imgs*sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
-	//err = cudaMemset(ones, 1, n_imgs*sizeof(DATA_TYPE));  MALLOC_ERR_CHECK
 	cudaMemcpy(ones_gpu, ones, n_imgs * sizeof(float), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
 	
+	///////////// could be parallelized...
 	for(int batch = 0; batch < n_batches; batch++){
 		err_blas = cublasSgemv(handle_blas[gpu_ind], CUBLAS_OP_N,
                            b_sz, n_imgs, &alpha, gpu_buffers[gpu_ind][deriv_above_ind] + batch*a_sz, b_sz,
                            ones_gpu, 1, &beta, GPU_BUFFER_OUT + batch*b_sz, 1);
 		ERR_CHECK_BLAS
 	}
-	//err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_T, 1, b_sz, n_imgs, &alpha,
-    //                       ones, 1, gpu_buffers[gpu_ind][deriv_above_ind], b_sz, &beta, GPU_BUFFER_OUT, 1);
-	
-	//err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, buffer2_dim2, buffer1_dim1, buffer1_dim2, &alpha,
-    //                       GPU_BUFFER2, buffer2_dim2, GPU_BUFFER1, buffer1_dim2, &beta, GPU_BUFFER_OUT, buffer2_dim2);
-	
-	
-	
 	
 	cudaFree(ones_gpu);
 	free(ones);
-	
-	/*const float scalar = 1;
-	
-	
-	// perform add: [better way to batch?]
-	for(int img = 0; img < n_imgs; img++){
-		err_blas = cublasSaxpy(handle_blas[gpu_ind], buffer_sz[gpu_ind][b_ind], &scalar, gpu_buffers[gpu_ind][b_ind], 1, 
-				gpu_buffers[gpu_ind][out_buffer_ind] + img*buffer_sz[gpu_ind][b_ind], 1); ERR_CHECK_BLAS
-	}*/
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR

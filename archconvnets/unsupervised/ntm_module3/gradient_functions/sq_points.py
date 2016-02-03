@@ -35,12 +35,8 @@ def sq_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_a
 	
 	LAYER_IN = args[0]
 	
-	if len(LAYER_IN[1]) == 1:
-		LAYER_IN_R = (LAYER_IN[1][0],1)
-	elif len(LAYER_IN[1]) == 4:
-		LAYER_IN_R = (np.prod(LAYER_IN[1]),1)
-	else:
-		LAYER_IN_R = LAYER_IN[1]
+	LAYER_IN_R = (np.prod(LAYER_IN[1]),1)
+	
 		
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)

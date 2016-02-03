@@ -17,7 +17,7 @@ def init_model():
 	for init in [0,1]:
 		# below
 		add_linear_F_layer(LAYERS, 'CIFAR', 10, source=(5,3,4), batch_imgs=True, init=init)
-		add_linear_F_layer(LAYERS, 'CIFAR2', 20, batch_imgs=True, init=init)
+		add_linear_F_bias_layer(LAYERS, 'CIFAR2', 20, batch_imgs=True, init=init)
 		
 		#add_conv_layer(LAYERS, 'F2', U_F1, U_F1_FILTER_SZ, PAD=2, init=init)
 		#add_max_pool_layer(LAYERS, 'F2_MAX', init=init)
@@ -36,7 +36,7 @@ def init_model():
 		#add_linear_F_bias_layer(LAYERS, 'CIFAR', 10, source='F3_MAX', init=init)
 		#add_pearson_layer(LAYERS, 'CIFAR_ERR', ['CIFAR', -1], init=init)
 		'''
-		#add_sq_points_layer(LAYERS,'SQ',init=init)
+		add_sq_points_layer(LAYERS,'SQ',init=init)
 		add_sum_layer(LAYERS, 'SUM', init=init)
 		
 		

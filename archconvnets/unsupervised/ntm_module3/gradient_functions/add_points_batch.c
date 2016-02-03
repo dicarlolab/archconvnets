@@ -39,10 +39,12 @@ static PyObject * add_points_batch(PyObject *self, PyObject *args){
 	const float scalar = 1;
 	cublasStatus_t err_blas;
 	
+	int b_sz = buffer_sz[gpu_ind][b_ind] / sizeof(DATA_TYPE);
+	
 	// perform add: [better way to batch?]
 	for(int img = 0; img < n_imgs; img++){
-		err_blas = cublasSaxpy(handle_blas[gpu_ind], buffer_sz[gpu_ind][b_ind], &scalar, gpu_buffers[gpu_ind][b_ind], 1, 
-				gpu_buffers[gpu_ind][out_buffer_ind] + img*buffer_sz[gpu_ind][b_ind], 1); ERR_CHECK_BLAS
+		err_blas = cublasSaxpy(handle_blas[gpu_ind], b_sz, &scalar, gpu_buffers[gpu_ind][b_ind], 1, 
+				gpu_buffers[gpu_ind][out_buffer_ind] + img*b_sz, 1); ERR_CHECK_BLAS
 	}
 	
 	#ifdef TIMING_DEBUG
