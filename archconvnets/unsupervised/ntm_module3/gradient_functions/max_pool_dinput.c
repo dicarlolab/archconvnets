@@ -45,7 +45,7 @@ static PyObject *max_pool_dinput(PyObject *self, PyObject *args){
 	// Set and allocate output tensor descriptor
 	//----------------------------------------
 	
-	long intended_buffer_sz = n_output*n_channels*img_sz*img_sz * DATA_TYPE_SZ;
+	long intended_buffer_sz = n_output*n_imgs*n_channels*img_sz*img_sz * DATA_TYPE_SZ;
 	
 	if(OUT_BUFFER_SZ == 0){
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, intended_buffer_sz); MALLOC_ERR_CHECK
