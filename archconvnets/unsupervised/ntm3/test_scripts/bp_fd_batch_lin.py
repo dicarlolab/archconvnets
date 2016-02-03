@@ -15,8 +15,10 @@ N_FRAMES_PRED = 1
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
 
 F1_IND = 0
+ERR_IND = find_layer(LAYERS, 'CIFAR_ERR')
 
 set_buffer(random_function(LAYERS[F1_IND]['in_shape'][1]), WEIGHTS[F1_IND][1]) # target
+set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1]) # target
 
 ################ which gradient to test
 gradient_layer = 0#find_layer(LAYERS, 'CIFAR2') #F1_IND

@@ -64,9 +64,9 @@ g2 = (W1_no_mean - (B/D)*W2_no_mean)/np.sqrt(C*D)*/
 
 static PyObject * pearson(PyObject *self, PyObject *args){
 	cudaError_t err;
-	int w1_ind, w2_ind, gpu_ind, out_buffer_ind;
+	int w1_ind, w2_ind, gpu_ind, out_buffer_ind, n_imgs;
 	
-	if (!PyArg_ParseTuple(args, "iiii", &w1_ind, &w2_ind, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iiiii", &w1_ind, &w2_ind, &out_buffer_ind, &n_imgs, &gpu_ind)) 
 		return NULL;
     
 	if(w1_ind >= N_BUFFERS || w1_ind < 0 || out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0 ||
@@ -85,13 +85,19 @@ static PyObject * pearson(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	int vector_len = buffer_sz[gpu_ind][w1_ind] / (n_imgs * sizeof(DATA_TYPE));
+	if(buffer_sz[gpu_ind][w1_ind] % n_imgs != 0){
+		printf("n_imgs does not equally divide vector %s\n", __FILE__);
+		return NULL;
+	}
+	
 	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
-		err = cudaMalloc((void**) &GPU_BUFFER_OUT, sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &GPU_BUFFER_OUT, n_imgs*sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
 		
-		OUT_BUFFER_SZ = sizeof(DATA_TYPE);
-	}else if(sizeof(DATA_TYPE) != OUT_BUFFER_SZ){ // does the output size match the buffer size?
+		OUT_BUFFER_SZ = n_imgs*sizeof(DATA_TYPE);
+	}else if(n_imgs*sizeof(DATA_TYPE) != OUT_BUFFER_SZ){ // does the output size match the buffer size?
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
@@ -100,10 +106,11 @@ static PyObject * pearson(PyObject *self, PyObject *args){
 	err = cudaMalloc((void**)&w_mean, 2*sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
 	err = cudaMalloc((void**)&BCD, 3*sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
 	
-	// run kernel
-	pearson_kernel <<< 1, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][w1_ind],
-		gpu_buffers[gpu_ind][w2_ind], w_mean, BCD, buffer_sz[gpu_ind][w1_ind]/sizeof(DATA_TYPE));
-	
+	for(int batch = 0; batch < n_imgs; batch++){
+		// run kernel
+		pearson_kernel <<< 1, MAX_THREADS_PER_BLOCK >>> (GPU_BUFFER_OUT + batch, gpu_buffers[gpu_ind][w1_ind] + batch*vector_len,
+			gpu_buffers[gpu_ind][w2_ind] + batch*vector_len, w_mean, BCD, vector_len);
+	}
 	
 	cudaFree((void**) w_mean); CHECK_CUDA_ERR
 	cudaFree((void**) BCD); CHECK_CUDA_ERR

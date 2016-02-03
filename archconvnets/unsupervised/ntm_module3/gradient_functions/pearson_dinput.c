@@ -1,3 +1,4 @@
+// for a given correlation value, compute derivs wrt w2
 __global__ void pearson_dinput_kernel(float * out, float * w1, float * w2, float * w_mean, float * BCD, int data_out_numel){
 	int ind = threadIdx.x;
 	
@@ -63,15 +64,53 @@ D = (W2_no_mean**2).sum()
 
 g2 = (W1_no_mean - (B/D)*W2_no_mean)/np.sqrt(C*D)*/
 
+
+// multiply deriv_above with pearson_gradient
+// pearson_gradient: (n_imgs, vector_len)  deriv_above (n_batches, n_imgs); 
+// output: (n_batches, n_imgs, vector_len)
+// out[batch] = deriv_above[batch] * pearson_gradient
+
+__global__ void deriv_above_pearson(float * out, float * pearson_gradient, float * deriv_above, 
+	int n_imgs, int vector_len, int n_batches, int data_out_numel){
+
+	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
+
+	int min_duplicates_per_thread = data_out_numel / THREAD_CAPACITY;
+	int n_additional_duplicates = data_out_numel % THREAD_CAPACITY;
+
+	int n_duplicates = min_duplicates_per_thread;
+	if(ind < n_additional_duplicates) n_duplicates++;
+
+	unsigned ind_g, batch, img, vec_i, r;
+	for(int dup = 0; dup < n_duplicates; dup++){
+		ind_g = dup*THREAD_CAPACITY + ind;
+
+		#ifdef DEBUG
+		if(ind_g >= data_out_numel) assert(0); // out of bounds
+		#endif
+
+		//out[batch, img, vec_i] = deriv_above[batch, img] * pearson_gradient[img, vec_i];
+
+		batch = ind_g / (n_imgs * vector_len);
+		r = ind_g % (n_imgs * vector_len);
+
+		img = r / vector_len;
+		vec_i = r % vector_len;
+		
+		out[ind_g] = deriv_above[batch*n_imgs + img] * 
+				pearson_gradient[img*vector_len + vec_i];
+	}
+}
+
 static PyObject * pearson_dinput(PyObject *self, PyObject *args){
 	cudaError_t err;
-	int w1_ind, w2_ind, gpu_ind, out_buffer_ind;
+	int w1_ind, w2_ind, gpu_ind, out_buffer_ind, n_imgs, n_batches, deriv_above_ind;
 	
-	if (!PyArg_ParseTuple(args, "iiii", &w1_ind, &w2_ind, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iiiiiii", &w1_ind, &w2_ind, &out_buffer_ind, &deriv_above_ind, &n_imgs, &n_batches, &gpu_ind)) 
 		return NULL;
     
 	if(w1_ind >= N_BUFFERS || w1_ind < 0 || out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0 ||
-			w2_ind >= N_BUFFERS || w2_ind < 0 ){ 
+			w2_ind >= N_BUFFERS || w2_ind < 0 || deriv_above_ind >= N_BUFFERS || deriv_above_ind < 0){ 
 		printf("buffer index incorrect, set_buffers().\n");
 		return NULL;
 	}
@@ -86,31 +125,50 @@ static PyObject * pearson_dinput(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	int vector_len = buffer_sz[gpu_ind][w1_ind] / (n_imgs * sizeof(DATA_TYPE));
+	if(buffer_sz[gpu_ind][w1_ind] % n_imgs != 0){
+		printf("n_imgs does not equally divide vector %s\n", __FILE__);
+		return NULL;
+	}
+	
 	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
+	unsigned intended_sz = n_batches*buffer_sz[gpu_ind][w1_ind];
+
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
-		err = cudaMalloc((void**) &GPU_BUFFER_OUT, buffer_sz[gpu_ind][w1_ind]); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &GPU_BUFFER_OUT, intended_sz); MALLOC_ERR_CHECK
 		
-		OUT_BUFFER_SZ = buffer_sz[gpu_ind][w1_ind];
-	}else if(buffer_sz[gpu_ind][w1_ind] != OUT_BUFFER_SZ){ // does the output size match the buffer size?
+		OUT_BUFFER_SZ = intended_sz;
+	}else if(intended_sz != OUT_BUFFER_SZ){ // does the output size match the buffer size?
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
 	
-	float * w_mean, * BCD;
-	err = cudaMalloc((void**)&w_mean, 2*sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
-	err = cudaMalloc((void**)&BCD, 3*sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
+	float * w_mean, * BCD, * pearson_grad;
+	err = cudaMalloc((void**) &w_mean, 2*sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
+	err = cudaMalloc((void**) &BCD, 3*sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
+	err = cudaMalloc((void**) &pearson_grad, buffer_sz[gpu_ind][w1_ind]);
+
+	int offset;
+	for(int img = 0; img < n_imgs; img++){
+		// run kernel
+		offset = img*vector_len;
+		pearson_dinput_kernel <<< 1, MAX_THREADS_PER_BLOCK >>> (pearson_grad + offset, 
+			gpu_buffers[gpu_ind][w1_ind] + offset, gpu_buffers[gpu_ind][w2_ind] + offset, w_mean, BCD, vector_len);
+	}
+
+	 deriv_above_pearson <<< 1, MAX_THREADS_PER_BLOCK >>> (GPU_BUFFER_OUT, pearson_grad, 
+	 	gpu_buffers[gpu_ind][deriv_above_ind],
+	        n_imgs, vector_len, n_batches, n_imgs*vector_len*n_batches);
 	
-	// run kernel
-	pearson_dinput_kernel <<< 1, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][w1_ind],
-		gpu_buffers[gpu_ind][w2_ind], w_mean, BCD, buffer_sz[gpu_ind][w1_ind]/sizeof(DATA_TYPE));
-	
+
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
 	
-	cudaFree((void**) w_mean); CHECK_CUDA_ERR
-	cudaFree((void**) BCD); CHECK_CUDA_ERR
+	cudaFree(pearson_grad); CHECK_CUDA_ERR
+	cudaFree(w_mean); CHECK_CUDA_ERR
+	cudaFree(BCD); CHECK_CUDA_ERR
 	
 	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
