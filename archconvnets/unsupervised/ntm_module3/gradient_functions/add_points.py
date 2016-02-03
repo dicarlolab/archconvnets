@@ -29,6 +29,63 @@ def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=GPU_IND):
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
+# out_buffer[img] = a[img] + b
+def add_points_batch(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
+	t = time.time()
+	
+	A, B = args
+	
+	if OUT_BUFFER is None:
+		OUT_BUFFER = init_buffer()
+	
+	_ntm_module3.add_points_batch(A[0], B[0], OUT_BUFFER[0], gpu_ind)
+	
+	OUT_BUFFER[1] = A[1]
+	
+	if DEBUG:
+		check_buffer(A)
+		check_buffer(B)
+		assert isinstance(gpu_ind,int)
+	
+	t_main[0] += time.time() - t
+	return OUT_BUFFER	
+
+
+# out_buffer[img] = a[img] + b
+
+# deriv_above: (2,3, 10, 4,5),   a: (10, 4,5)
+# b: (4,5) ===> return (2,3, 4,5) (sum deriv_above across images):
+#	deriv_above(2*3, 10, 4*5) batch first dimension -> transpose -> deriv_above*(1,1)
+
+# NOTE: add_points_batch_dinputA = add_points_dinput [with additional_args=[1]]
+def add_points_batch_dinputB(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
+	t = time.time()
+	
+	A, B = args
+	
+	if OUT_BUFFER is None:
+		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
+	
+	_ntm_module3.add_points_batch_dinputB(A[0], B[0], DERIV_ABOVE[0], OUT_BUFFER[0], gpu_ind)
+	
+	# reshape back to original dimensions
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], B[1])))
+	
+	if DEBUG:
+		assert isinstance(gpu_ind,int)
+		assert len(additional_args) == 1
+		check_buffer(A)
+		check_buffer(B)
+		check_buffer(LAYER_OUT)
+		check_buffer(DERIV_ABOVE)
+		assert A[1] == B[1]
+		#assert len(A[1]) == 2 or len(A[1]) == 4
+		check_buffer(OUT_BUFFER)
+		
+	t_main[1] += time.time() - t
+	return OUT_BUFFER	
+
 # c = a + scalar*b
 # additional_args[0] denotes the scalar (when equal to 1, the deriv wrt to a is taken [and b if scalar=1])
 def add_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[1], gpu_ind=GPU_IND):
@@ -39,7 +96,7 @@ def add_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	_ntm_module3.add_points_dinput((np.prod(A[1]), 1), OUT_BUFFER[0], DERIV_ABOVE[0], additional_args[0], gpu_ind)
+	_ntm_module3.add_points_dinput(OUT_BUFFER[0], DERIV_ABOVE[0], additional_args[0], gpu_ind)
 	
 	# reshape back to original dimensions
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])

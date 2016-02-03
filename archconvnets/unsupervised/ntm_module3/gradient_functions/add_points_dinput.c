@@ -2,9 +2,8 @@ static PyObject * add_points_dinput(PyObject *self, PyObject *args){
 	cudaError_t err;
 	int gpu_ind, out_buffer_ind, deriv_above_ind;
 	float scalar;
-	PyObject *a_shape;
 	
-	if (!PyArg_ParseTuple(args, "O!iifi", &PyTuple_Type, &a_shape, &out_buffer_ind, &deriv_above_ind, &scalar, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iifi", &out_buffer_ind, &deriv_above_ind, &scalar, &gpu_ind)) 
 		return NULL;
     
 	if(out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0 || deriv_above_ind >= N_BUFFERS || out_buffer_ind < 0){ 
@@ -16,10 +15,6 @@ static PyObject * add_points_dinput(PyObject *self, PyObject *args){
 		printf("gpu index incorrect, set_buffers().\n");
 		return NULL;
 	}
-	
-	// get sizes
-	long a_dim0 = PyLong_AsLong(PyTuple_GetItem(a_shape,0));
-	long a_dim1 = PyLong_AsLong(PyTuple_GetItem(a_shape,1));
 	
 	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
