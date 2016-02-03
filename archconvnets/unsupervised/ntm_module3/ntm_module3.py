@@ -137,7 +137,7 @@ def return_buffer(BUFFER, warn=1, gpu_ind=GPU_IND):
 # out_buffer = a * scalar0 + b * scalar
 # when OUT_BUFFER=None, store results in "a"
 t_add = [0]
-def point_wise_add(args, OUT_BUFFER=None, scalar=1, scalar0=1, gpu_ind=GPU_IND):
+def add_points_inc(args, OUT_BUFFER=None, scalar=1, scalar0=1, gpu_ind=GPU_IND):
 	t = time.time()
 	
 	A, B = args
@@ -148,7 +148,7 @@ def point_wise_add(args, OUT_BUFFER=None, scalar=1, scalar0=1, gpu_ind=GPU_IND):
 	else:
 		OUT_BUFFER = A
 	
-	_ntm_module3.point_wise_add(A[0], B[0], np.single(scalar), np.single(scalar0), OUT_BUFFER[0], gpu_ind)
+	_ntm_module3.add_points(A[0], B[0], np.single(scalar), np.single(scalar0), OUT_BUFFER[0], gpu_ind)
 
 	OUT_BUFFER[1] = B[1]
 	t_add[0] = time.time() - t

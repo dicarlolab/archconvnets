@@ -2,7 +2,7 @@
 
 // out_buffer = a * scalar0 + b * scalar
 
-static PyObject * point_wise_add(PyObject *self, PyObject *args){
+static PyObject * add_points(PyObject *self, PyObject *args){
 	cudaError_t err;
 	float scalar, scalar0;
 	int a_ind, b_ind, gpu_ind, out_buffer_ind;

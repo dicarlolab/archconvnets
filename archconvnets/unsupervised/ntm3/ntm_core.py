@@ -45,7 +45,7 @@ def check_network(LAYERS):
 			expected_shape = tuple(np.concatenate(((2,3), L['in_shape'][arg])))
 			OUT = L['deriv_F'][arg](args, LAYER_OUT, DERIV_ABOVE, additional_args=L['additional_deriv_args'][arg])
 
-			print L['name'],arg
+			#print L['name'],arg
 			assert return_buffer(OUT).shape == expected_shape, 'deriv not expected size (layer %s, arg %i)' % (L['name'], arg)
 			
 			free_buffer(OUT)
@@ -192,7 +192,7 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 					p_partial = P['partial'][arg2]
 					
 					deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[src]['out_shape'])
-					WEIGHT_DERIVS[p_layer_ind][p_arg] = point_wise_add((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp), scalar=scalar)
+					WEIGHT_DERIVS[p_layer_ind][p_arg] = add_points_inc((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp), scalar=scalar)
 					
 					squeeze_dim1(WEIGHT_DERIVS[p_layer_ind][p_arg], keep_dims)
 					free_buffer(deriv_temp)
@@ -204,7 +204,7 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 		
 		# input is not a layer, end here
 		else:
-			WEIGHT_DERIVS[layer_ind][arg] = point_wise_add((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new), scalar=scalar)
+			WEIGHT_DERIVS[layer_ind][arg] = add_points_inc((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new), scalar=scalar)
 			squeeze_dim1(WEIGHT_DERIVS[layer_ind][arg], keep_dims)
 			
 		free_buffer(deriv_above_new)
@@ -342,7 +342,7 @@ def update_weights(LAYERS, WEIGHTS, WEIGHT_DERIVS, EPS):
 		for arg in range(len(L['in_source'])):
 			# only update weight layers, not input layers
 			if hasattr(L['in_source'][arg], '__call__') and WEIGHT_DERIVS[layer_ind][arg][1] is not None: # if there was a deriv computed:
-				point_wise_add((WEIGHTS[layer_ind][arg], WEIGHT_DERIVS[layer_ind][arg]), scalar=EPS)
+				add_points_inc((WEIGHTS[layer_ind][arg], WEIGHT_DERIVS[layer_ind][arg]), scalar=EPS)
 	return WEIGHTS
 	
 def update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS, frame, FRAME_LAG):
@@ -367,14 +367,14 @@ def update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS, f
 						zero_buffer(WEIGHT_DERIVS_RMS[layer_ind][arg])
 					
 					# WEIGHT_DERIVS_RMS = 0.9*WEIGHT_DERIVS_RMS + 0.1*WEIGHT_DERIVS**2
-					point_wise_add((WEIGHT_DERIVS_RMS[layer_ind][arg], deriv_sq), scalar0=.9, scalar=.1)
+					add_points_inc((WEIGHT_DERIVS_RMS[layer_ind][arg], deriv_sq), scalar0=.9, scalar=.1)
 					deriv_sq = free_buffer(deriv_sq)
 					
 					# WEIGHT_DERIVS /= sqrt(WEIGHT_DERIVS_RMS
 					point_wise_div_sqrt((WEIGHT_DERIVS[layer_ind][arg], WEIGHT_DERIVS_RMS[layer_ind][arg]), clip=10)
 					
 					if frame > FRAME_LAG:
-						point_wise_add((WEIGHTS[layer_ind][arg], WEIGHT_DERIVS[layer_ind][arg]), scalar=EPS)
+						add_points_inc((WEIGHTS[layer_ind][arg], WEIGHT_DERIVS[layer_ind][arg]), scalar=EPS)
 				
 	return WEIGHT_DERIVS_RMS
 

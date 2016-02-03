@@ -16,7 +16,7 @@ def add_points(args, OUT_BUFFER=None, additional_args=[1], gpu_ind=GPU_IND):
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
-	_ntm_module3.point_wise_add(A[0], B[0], additional_args[0], 1., OUT_BUFFER[0], gpu_ind)
+	_ntm_module3.add_points(A[0], B[0], additional_args[0], 1., OUT_BUFFER[0], gpu_ind)
 	
 	OUT_BUFFER[1] = B[1]
 	
