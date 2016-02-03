@@ -2,7 +2,7 @@
 
  deriv_above: (2,3, 10, 4,5),   a: (10, 4,5)
  b: (4,5) ===> return (2,3, 4,5) (sum deriv_above across images):
-	deriv_above(2*3, 10, 4*5) batch first dimension -> out[batch] = deriv_above[batch].T * (1,1)
+	deriv_above(2*3, 10, 4*5) batch first dimension -> out[batch] = deriv_above[batch].T * (10,1)
 
  NOTE: add_points_batch_dinputA = add_points_dinput [with additional_args=[1]] */
 
@@ -23,6 +23,9 @@
 		printf("gpu index incorrect, set_buffers().\n");
 		return NULL;
 	}
+	
+	int a_sz = buffer_sz[gpu_ind][a_ind] / sizeof(DATA_TYPE);
+	int b_sz = buffer_sz[gpu_ind][b_ind] / sizeof(DATA_TYPE);
 	
 	int n_imgs = buffer_sz[gpu_ind][a_ind] / buffer_sz[gpu_ind][b_ind];
 	if(buffer_sz[gpu_ind][a_ind] % buffer_sz[gpu_ind][b_ind] != 0){
@@ -49,8 +52,39 @@
 		return NULL;
 	}
 	
-	/*const float scalar = 1;
 	cublasStatus_t err_blas;
+	const float alpha = 1, beta = 0;
+	float * ones_gpu, * ones;
+	
+	ones = (float *) malloc(n_imgs * sizeof(float));	
+	for(int i = 0; i < n_imgs; i++){
+		ones[i] = 1;
+	}
+	
+	err = cudaMalloc((void**) &ones_gpu, n_imgs*sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
+	//err = cudaMemset(ones, 1, n_imgs*sizeof(DATA_TYPE));  MALLOC_ERR_CHECK
+	cudaMemcpy(ones_gpu, ones, n_imgs * sizeof(float), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
+	
+	for(int batch = 0; batch < n_batches; batch++){
+		err_blas = cublasSgemv(handle_blas[gpu_ind], CUBLAS_OP_N,
+                           b_sz, n_imgs, &alpha, gpu_buffers[gpu_ind][deriv_above_ind] + batch*a_sz, b_sz,
+                           ones_gpu, 1, &beta, GPU_BUFFER_OUT + batch*b_sz, 1);
+		ERR_CHECK_BLAS
+	}
+	//err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_T, 1, b_sz, n_imgs, &alpha,
+    //                       ones, 1, gpu_buffers[gpu_ind][deriv_above_ind], b_sz, &beta, GPU_BUFFER_OUT, 1);
+	
+	//err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, buffer2_dim2, buffer1_dim1, buffer1_dim2, &alpha,
+    //                       GPU_BUFFER2, buffer2_dim2, GPU_BUFFER1, buffer1_dim2, &beta, GPU_BUFFER_OUT, buffer2_dim2);
+	
+	
+	
+	
+	cudaFree(ones_gpu);
+	free(ones);
+	
+	/*const float scalar = 1;
+	
 	
 	// perform add: [better way to batch?]
 	for(int img = 0; img < n_imgs; img++){
