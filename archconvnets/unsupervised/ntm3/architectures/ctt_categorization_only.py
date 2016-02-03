@@ -21,8 +21,10 @@ def init_model():
 		add_relu_layer(LAYERS, 'F1_relu', init=init)
 		add_max_pool_layer(LAYERS, 'F1_MAX', init=init)
 		add_conv_layer(LAYERS, 'F2', U_F2, U_F2_FILTER_SZ, PAD=2, init=init)
+		add_relu_layer(LAYERS, 'F2_relu', init=init)
 		add_max_pool_layer(LAYERS, 'F2_MAX', init=init)
 		add_conv_layer(LAYERS, 'F3', U_F3, U_F3_FILTER_SZ, PAD=2, init=init)
+		add_relu_layer(LAYERS, 'F3_relu', init=init)
 		add_max_pool_layer(LAYERS, 'F3_MAX', init=init)
 		
 		## cifar

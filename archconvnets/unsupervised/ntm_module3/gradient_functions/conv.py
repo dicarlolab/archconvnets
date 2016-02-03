@@ -44,7 +44,7 @@ def conv_ddata(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0
 	# ex. DERIV_ABOVE = (a,b,c,d,e,f)
 	# ex. LAYER_OUT = (d,e,f)
 	# -> DERIV_ABOVE = (a*b*c, d,e,f)
-	n_dims_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	n_dims_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1]) + 1 # plus 1 (the image dimension)
 	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dims_not_summed])[np.newaxis], LAYER_OUT[1][1:])))
 	
 	if OUT_BUFFER is None:
@@ -52,7 +52,7 @@ def conv_ddata(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0
 	
 	OUT_BUFFER[1] = _ntm_module3.conv_ddata(F[0], F[1], IMGS[0], IMGS[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, PAD, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dims_not_summed], IMGS[1])))
+	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dims_not_summed], IMGS[1][1:])))
 	
 	if DEBUG:
 		assert DERIV_ABOVE[1][n_dims_not_summed:] == LAYER_OUT[1]
@@ -145,7 +145,7 @@ def add_conv_layer(LAYERS, name, n_filters, filter_sz, source=None, imgs_shape=N
 			source_meta[1] = -1
 			in_shape[1] = imgs_shape
 			assert len(imgs_shape) == 4
-			assert imgs_shape[0] == 1
+			#assert imgs_shape[0] == 1
 		elif isinstance(source,str):
 			source_meta[1] = find_layer(LAYERS, source)
 			assert source_meta[1] is not None, 'could not find source conv inputs'

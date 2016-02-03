@@ -6,7 +6,7 @@ from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
 from architectures.ctt_categorization_only import *
 
-N_MOVIES = 6372
+N_MOVIES = 23658
 BATCH_SZ = 50
 EPS = 1e-1
 
@@ -25,7 +25,7 @@ elif train_filters_on == 2:
 else:
 	save_name = 'rand'
  
-save_name += '_%f' % (-EPS)
+save_name += 'relu_%f' % (-EPS)
 
 free_all_buffers()
 
