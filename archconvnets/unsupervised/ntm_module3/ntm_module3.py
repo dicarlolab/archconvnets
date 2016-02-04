@@ -29,9 +29,6 @@ def check_buffer(BUFFER, gpu_ind=GPU_IND):
 		assert return_buffer_sz(BUFFER[0], gpu_ind) == 0, '%i' % return_buffer_sz(BUFFER[0], gpu_ind)'''
 	return
 
-def set_device(gpu_ind=GPU_IND):
-	_ntm_module3.set_device(gpu_ind)
-
 def free_buffer(BUFFER, gpu_ind=GPU_IND):
 	#check_buffer(BUFFER)
 	n_vars_allocated[gpu_ind, BUFFER[0]] = False
@@ -278,7 +275,7 @@ def mult_partials(A, B, B_out_shape, OUT=None):
          return OUT
 
 
-set_device(GPU_IND)
+_ntm_module3.init_device(GPU_IND)
 
 from gradient_functions.cosine_sim import *
 from gradient_functions.linear_F import *

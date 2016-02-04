@@ -77,3 +77,5 @@ cudnnDataType_t dataType = CUDNN_DATA_FLOAT;
 
 cudnnHandle_t handle[N_GPUS];
 cublasHandle_t handle_blas[N_GPUS];
+
+char device_init[N_GPUS];

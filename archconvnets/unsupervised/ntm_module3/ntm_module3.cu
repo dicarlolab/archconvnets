@@ -8,6 +8,7 @@
 #include "copy_buffer.c"
 #include "zero_buffer.c"
 #include "set_device.c"
+#include "init_device.c"
 #include "gradient_functions/dot.cu"
 #include "gradient_functions/linear_F_dF.c"
 #include "gradient_functions/linear_F_dx.c"
@@ -64,6 +65,7 @@ static PyMethodDef _ntm_module3[] = {
 	{"return_buffer_sz", return_buffer_sz, METH_VARARGS},
 	{"zero_buffer", zero_buffer, METH_VARARGS},
 	{"set_device", set_device, METH_VARARGS},
+	{"init_device", init_device, METH_VARARGS},
 	{"linear_F_dF", linear_F_dF, METH_VARARGS},
 	{"linear_F_dx", linear_F_dx, METH_VARARGS},
 	{"dot", dot, METH_VARARGS},
@@ -117,37 +119,10 @@ extern "C" void init_ntm_module3(){
 	(void) Py_InitModule("_ntm_module3", _ntm_module3);
 	import_array();
 	
-	cudaError_t err;
-	cudnnStatus_t status;
-	cublasStatus_t err_blas;
-	
-	status = cudnnCreatePoolingDescriptor(&poolingDesc);  ERR_CHECK_R
-	status = cudnnSetPoolingDescriptor(poolingDesc, CUDNN_POOLING_MAX, POOL_WINDOW_SZ, POOL_WINDOW_SZ, POOL_STRIDE, POOL_STRIDE); ERR_CHECK_R
 	
 	/////////////////////////////////////////////////////////
 	for(int gpu_ind = 0; gpu_ind < N_GPUS; gpu_ind++){
-		cudaSetDevice(gpu_ind); CHECK_CUDA_ERR_R
-		
-		status = cudnnCreate(&handle[gpu_ind]);  ERR_CHECK_R
-		err_blas = cublasCreate(&handle_blas[gpu_ind]); ERR_CHECK_BLAS_R
-		
-		for(int buffer_ind = 0; buffer_ind < N_BUFFERS; buffer_ind++){
-			GPU_BUFFER = NULL;
-			BUFFER_SZ = 0;
-			
-			//---------------------------------------
-			// Create general Descriptors
-			//---------------------------------------
-			status = cudnnCreateTensor4dDescriptor(&srcDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
-			status = cudnnCreateTensor4dDescriptor(&gradDesc_data[gpu_ind][buffer_ind]);  ERR_CHECK_R
-			status = cudnnCreateTensor4dDescriptor(&destDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
-			status = cudnnCreateFilterDescriptor(&filterDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
-			status = cudnnCreateFilterDescriptor(&gradDesc_filter[gpu_ind][buffer_ind]);  ERR_CHECK_R
-			status = cudnnCreateConvolutionDescriptor(&convDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
-			status = cudnnCreateTensor4dDescriptor(&srcDiffDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
-			status = cudnnCreateTensor4dDescriptor(&destDiffDesc[gpu_ind][buffer_ind]);  ERR_CHECK_R
-		}
+		device_init[gpu_ind] = 0;
 	}
 	
-    cudaSetDevice(0); CHECK_CUDA_ERR_R
 } 

@@ -5,8 +5,6 @@ from archconvnets.unsupervised.ntm3.gpu_flag import *
 from archconvnets.unsupervised.ntm3.ntm_core import *
 import time
 
-from scipy.stats import pearsonr
-
 t_main = [0,0]
 
 # additional_args[0]: batch_imgs (separate correlations batched on first dim)
