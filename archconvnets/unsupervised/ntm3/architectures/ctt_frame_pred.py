@@ -8,7 +8,7 @@ N_TARGET = N_IN
 
 B = True # batch or not
 
-A_F = 128 # number of units in above layers
+A_F = 32 # number of units in above layers
 
 def init_model():
 	LAYERS = []

@@ -14,7 +14,7 @@ DIFF = True
 save_name = 'frame_pred_%f' % (EPS)
 
 if DIFF:
-	save_name += '%iF_diff' % A_F
+	save_name += '_%iF_diff' % A_F
 
 free_all_buffers()
 
