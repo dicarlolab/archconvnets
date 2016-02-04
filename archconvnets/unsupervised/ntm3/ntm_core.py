@@ -107,13 +107,18 @@ def build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS):
 		
 	return args
 
-def forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV):
+def forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, break_layer=None):
 	#check_weights(WEIGHTS, LAYERS)
 	#check_output_prev(OUTPUT_PREV, LAYERS)
 	
 	OUTPUT = init_gpu_list(OUTPUT, LAYERS, args=False)
 	
-	for layer_ind in range(len(LAYERS)):
+	if break_layer is not None:
+		n_layers = break_layer+1
+	else:
+		n_layers = len(LAYERS)
+	
+	for layer_ind in range(n_layers):
 		L = LAYERS[layer_ind]
 		N_ARGS = len(L['in_shape'])
 

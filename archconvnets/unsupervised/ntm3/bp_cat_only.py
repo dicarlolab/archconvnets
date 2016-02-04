@@ -185,9 +185,3 @@ while True:
 		t_start = time.time()
 		
 	frame += 1
-
-free_list_list(MEM_DERIVS)
-free_partials(PARTIALS_PREV)
-free_list(OUTPUT)
-free_list(WEIGHT_DERIVS)
-free_list(OUTPUT_PREV)
