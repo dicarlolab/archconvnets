@@ -25,7 +25,7 @@ IMG_SZ_CROP = 32 # input image size (px)
 IMG_SZ = 34 # input image size (px)
 PAD = 2
 
-GPU_S = 0
+GPU_S = 2
 GPU_UNS = 1
 
 N = 32

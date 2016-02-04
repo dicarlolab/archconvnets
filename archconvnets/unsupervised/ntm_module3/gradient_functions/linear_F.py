@@ -10,7 +10,7 @@ def random_function(size):
 	return np.asarray(np.random.random(size) - .5, dtype='single')
 	
 def random_normal_function(size):
-	return np.asarray(np.random.normal(loc=0, scale=.01, size=size), dtype='single')
+	return np.asarray(np.random.normal(loc=0, scale=.001, size=size), dtype='single')
 
 # additional_args = [True]: squeeze output last dimension
 def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=GPU_IND):
@@ -128,7 +128,7 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 
 linear_F = dot
 
-def add_linear_F_layer(LAYERS, name, n_filters, source=None, sum_all=False, squeeze=True, batch_imgs=False, random_function=random_function, init=0):
+def add_linear_F_layer(LAYERS, name, n_filters, source=None, sum_all=False, squeeze=True, batch_imgs=False, random_function=random_normal_function, init=0):
 	assert isinstance(name, str)
 	if init == 0:
 		assert find_layer(LAYERS, name) is None, 'layer %s has already been added' % name

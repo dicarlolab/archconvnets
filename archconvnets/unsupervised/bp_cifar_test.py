@@ -19,13 +19,13 @@ FL_scale = 0.001
 EPS_E = 3
 EPS = 1*10**(-EPS_E)
 
-N_IMGS = 1 # batch size
+N_IMGS = 100 # batch size
 IMG_SZ_CROP = 32 # input image size (px)
 IMG_SZ = 34 # input image size (px)
 PAD = 2
 
-GPU_S = 1
-GPU_UNS = 0
+GPU_S = 2
+GPU_UNS = 1
 
 N = 32
 n1 = N # L1 filters
@@ -100,7 +100,7 @@ class_err = []
 
 global_step = 0
 while True:
-	for s in range(10000/N_IMGS):
+	for s in range(500):
 		if s % 100 == 0:
 			t_mcc = time.time()
 			###############################################
@@ -168,44 +168,9 @@ while True:
 		
 		###########
 		max_pool_back_cudnn_buffers(MAX_OUTPUT3, FL_PRED, CONV_OUTPUT3, DPOOL3, gpu=GPU_UNS)
-		
-		dpool3 = return_buffer(DPOOL3, gpu=GPU_UNS)
-		dpool3e = np.zeros(np.concatenate((dpool3.shape, dpool3.shape[1:])),dtype='single')
-		dpool3e = dpool3e.reshape((dpool3.shape[0], np.prod(dpool3.shape[1:]), np.prod(dpool3.shape[1:])))
-		dpool3e[range(dpool3.shape[0])] = np.eye(np.prod(dpool3.shape[1:]))
-		dpool3e = dpool3e.reshape(np.concatenate((np.prod(dpool3.shape)[np.newaxis], dpool3.shape[1:])))
-		
-		set_buffer(dpool3e, 77, gpu=GPU_UNS)
-		conv_ddata_buffers(F3_IND, MAX_OUTPUT2, 77, DF3_DATA, gpu=GPU_UNS) # dimgs: filters, conv_out
-		
-		df3 = np.zeros(np.concatenate(((dpool3e.shape[0],), F3.shape)),dtype='single')
-		
-		for i in range(dpool3e.shape[0]):
-			set_buffer(dpool3e[i][np.newaxis], 78, gpu=GPU_UNS)
-			conv_dfilter_buffers(F3_IND, MAX_OUTPUT2, 78, DF3, stream=3, gpu=GPU_UNS) # dfilter: imgs, conv_out
-			df3[i] = return_buffer(DF3)
-		
-		
-		df3_data = return_buffer(DF3_DATA)
-		
-		df3_data = df3_data.reshape(np.concatenate((dpool3.shape, df3_data.shape[1:])))
-		
-		df3_data_mult = np.dot(dpool3.reshape((dpool3.shape[0], np.prod(dpool3.shape[1:]))), df3_data.reshape((np.prod(df3_data.shape[:4]), np.prod(df3_data.shape[4:]))))
-		df3_mult = np.dot(dpool3.reshape((dpool3.shape[0], np.prod(dpool3.shape[1:]))), df3.reshape((df3.shape[0], np.prod(df3.shape[1:]))))
-		
-		set_buffer(df3_mult.reshape(F3.shape), DF3)
-		df3_data_mult = df3_data_mult.reshape((df3_data.shape[4:]))[np.newaxis]
-		
-		set_buffer(df3_data_mult, DF3_DATA+55)
-		
-		#####
-		
-		#conv_dfilter_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3, stream=3, gpu=GPU_UNS)
-		#conv_ddata_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3_DATA, gpu=GPU_UNS) # dimgs: filters, conv_out
-		
-		#####
-		
-		max_pool_back_cudnn_buffers(MAX_OUTPUT2, DF3_DATA+55, CONV_OUTPUT2, DPOOL2, gpu=GPU_UNS)
+		conv_dfilter_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3, stream=3, gpu=GPU_UNS)
+		conv_ddata_buffers(F3_IND, MAX_OUTPUT2, DPOOL3, DF3_DATA, gpu=GPU_UNS)
+		max_pool_back_cudnn_buffers(MAX_OUTPUT2, DF3_DATA, CONV_OUTPUT2, DPOOL2, gpu=GPU_UNS)
 		conv_ddata_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2_DATA, gpu=GPU_UNS)
 		conv_dfilter_buffers(F2_IND, MAX_OUTPUT1, DPOOL2, DF2, stream=2, gpu=GPU_UNS)
 		max_pool_back_cudnn_buffers(MAX_OUTPUT1, DF2_DATA, CONV_OUTPUT1, DPOOL1, gpu=GPU_UNS)
@@ -231,5 +196,4 @@ while True:
 		global_step += 1
 		
 	epoch += 1
-	#break
-#sf()
+sf()

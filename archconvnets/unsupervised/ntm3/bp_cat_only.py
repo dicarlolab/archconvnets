@@ -6,7 +6,7 @@ from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
 from architectures.ctt_categorization_only import *
 
-EPS = 1e-2
+EPS = 1e-3
 
 train_filters_on = 0
 
@@ -23,7 +23,7 @@ elif train_filters_on == 2:
 else:
 	save_name = 'rand'
  
-save_name += '_nrms_%f' % (EPS)
+save_name += '_sq_nrms_%f' % (EPS)
 
 free_all_buffers()
 
@@ -77,6 +77,7 @@ WEIGHTS_F1_INIT = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 ################## load cifar
 N_IMGS_CIFAR = 50000
 
+imgs_mean = np.load('/home/darren/cifar-10-py-colmajor/batches.meta')['data_mean']
 z2 = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(1))
 for batch in range(2,6):
 	y = np.load('/home/darren/cifar-10-py-colmajor/data_batch_' + str(batch))
@@ -84,9 +85,9 @@ for batch in range(2,6):
 	z2['labels'] = np.concatenate((z2['labels'], y['labels']))
 
 z2['data'] = np.single(z2['data'])
-z2['data'] /= z2['data'].max()
+#z2['data'] /= z2['data'].max()
 mean_img = z2['data'].mean(1)[:,np.newaxis]
-x = z2['data'] - mean_img
+x = z2['data'] - imgs_mean
 cifar_imgs = np.ascontiguousarray(np.single(x.reshape((3, 32, 32, N_IMGS_CIFAR))).transpose((3,0,1,2))[:,np.newaxis])
 
 labels_cifar = np.asarray(z2['labels'])
@@ -160,8 +161,8 @@ while True:
 	
 	WEIGHT_DERIVS_RMS_OBJ = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_OBJ, WEIGHT_DERIVS_RMS_OBJ, EPS / BATCH_SZ, frame, FRAME_LAG)
 	WEIGHT_DERIVS_RMS_CAT = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CAT, WEIGHT_DERIVS_RMS_CAT, EPS / BATCH_SZ, frame, FRAME_LAG)
-	#WEIGHT_DERIVS_RMS_CIFAR = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR, EPS / BATCH_SZ, frame, FRAME_LAG)
-	WEIGHTS = update_weights(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, EPS / BATCH_SZ)
+	WEIGHT_DERIVS_RMS_CIFAR = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR, -EPS / BATCH_SZ, frame, FRAME_LAG)
+	#WEIGHTS = update_weights(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, -EPS / BATCH_SZ)
 		
 	
 	# print/save

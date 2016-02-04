@@ -38,9 +38,10 @@ def add_bias_layer(LAYERS, name, batch_imgs=False, random_function=random_functi
 		
 		return layer_ind
 
-def add_linear_F_bias_layer(LAYERS, name, n_filters, source=None, sum_all=False, squeeze=False, batch_imgs=False, random_function=random_function, init=0):
-	add_linear_F_layer(LAYERS, name+'_lin', n_filters, source, sum_all, squeeze, batch_imgs, random_function, init)
-	add_bias_layer(LAYERS, name, batch_imgs, random_function, init)
+def add_linear_F_bias_layer(LAYERS, name, n_filters, source=None, sum_all=False, squeeze=False, batch_imgs=False, random_function=random_normal_function, init=0):
+	add_linear_F_layer(LAYERS, name, n_filters, source, sum_all, squeeze, batch_imgs, random_function, init)
+	#add_linear_F_layer(LAYERS, name+'_lin', n_filters, source, sum_all, squeeze, batch_imgs, random_function, init)
+	#add_bias_layer(LAYERS, name, batch_imgs, random_function, init)
 	
 def add_sigmoid_F_bias_layer(LAYERS, name, n_filters, source=None, sum_all=False, squeeze=False, batch_imgs=False, random_function=random_function, init=0):
 	if isinstance(n_filters,int) == False:
