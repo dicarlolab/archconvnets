@@ -37,7 +37,7 @@ def check_network(LAYERS):
 		
 		# check if function corretly produces specified output dimensions
 		LAYER_OUT = L['forward_F'](args, additional_args=L['additional_forward_args'])
-		assert LAYER_OUT[1] == L['out_shape'], "layer %s (%i) didn't produce expected output (%i, %i)" % (L['name'], layer_ind, np.prod(LAYER_OUT[1]), np.prod(L['out_shape']))
+		assert return_buffer(LAYER_OUT).shape == L['out_shape'], "layer %s (%i) didn't produce expected output (%i, %i)" % (L['name'], layer_ind, np.prod(LAYER_OUT[1]), np.prod(L['out_shape']))
 		
 		# check if deriv functions correctly produce correct shapes
 		DERIV_ABOVE = init_buffer(np.zeros(np.concatenate(((2,3), L['out_shape'])), dtype='single'))
@@ -173,41 +173,42 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 		deriv_above = init_buffer(np.single(np.eye(np.prod(LAYERS[layer_ind]['out_shape'])).reshape(deriv_above_shape)))
 		deriv_above_created = True
 	
-	for arg in range(N_ARGS):		
+	for arg in range(N_ARGS):
 		src = L['in_source'][arg]
-		
-		# compute derivs
-		args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
-		deriv_above_new = L['deriv_F'][arg](args, OUTPUT[layer_ind], deriv_above, additional_args=L['additional_deriv_args'][arg])
-		
-		# input is a layer:
-		if isinstance(src, int) and src != -1:
-			# memory partials, stop here, add these partials to the correct weight derivs:
-			if L['in_prev'][arg]:
-				P = PARTIALS[src]
-				N_ARGS2 = len(P['in_source'])
-				for arg2 in range(N_ARGS2):
-					p_layer_ind = P['in_source'][arg2]
-					p_arg = P['in_arg'][arg2]
-					p_partial = P['partial'][arg2]
-					
-					deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[src]['out_shape'])
-					WEIGHT_DERIVS[p_layer_ind][p_arg] = add_points_inc((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp), scalar=scalar)
-					
-					squeeze_dim1(WEIGHT_DERIVS[p_layer_ind][p_arg], keep_dims)
-					free_buffer(deriv_temp)
-					
-			# another layer (At this time step, go back to earlier layers)
-			# [do not go back if this is the abort_layer where we stop backpropping]
-			elif src != abort_layer:
-				reverse_network_recur(deriv_above_new, src, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, scalar, abort_layer)
-		
-		# input is not a layer, end here
-		else:
-			WEIGHT_DERIVS[layer_ind][arg] = add_points_inc((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new), scalar=scalar)
-			squeeze_dim1(WEIGHT_DERIVS[layer_ind][arg], keep_dims)
+		if L['in_source'][arg] != -1: # don't compute gradients for user-supplied entries (Ex. images)
 			
-		free_buffer(deriv_above_new)
+			# compute derivs
+			args = build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS)
+			deriv_above_new = L['deriv_F'][arg](args, OUTPUT[layer_ind], deriv_above, additional_args=L['additional_deriv_args'][arg])
+			
+			# input is a layer:
+			if isinstance(src, int) and src != -1:
+				# memory partials, stop here, add these partials to the correct weight derivs:
+				if L['in_prev'][arg]:
+					P = PARTIALS[src]
+					N_ARGS2 = len(P['in_source'])
+					for arg2 in range(N_ARGS2):
+						p_layer_ind = P['in_source'][arg2]
+						p_arg = P['in_arg'][arg2]
+						p_partial = P['partial'][arg2]
+						
+						deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[src]['out_shape'])
+						WEIGHT_DERIVS[p_layer_ind][p_arg] = add_points_inc((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp), scalar=scalar)
+						
+						squeeze_dim1(WEIGHT_DERIVS[p_layer_ind][p_arg], keep_dims)
+						free_buffer(deriv_temp)
+						
+				# another layer (At this time step, go back to earlier layers)
+				# [do not go back if this is the abort_layer where we stop backpropping]
+				elif src != abort_layer:
+					reverse_network_recur(deriv_above_new, src, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, scalar, abort_layer)
+			
+			# input is not a layer, end here
+			else:
+				WEIGHT_DERIVS[layer_ind][arg] = add_points_inc((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new), scalar=scalar)
+				squeeze_dim1(WEIGHT_DERIVS[layer_ind][arg], keep_dims)
+				
+			free_buffer(deriv_above_new)
 	
 	if deriv_above_created:
 		free_buffer(deriv_above)

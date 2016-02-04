@@ -1,4 +1,4 @@
 GPU = True
 
 PANDA_PORT = 60000
-GPU_IND = 0
+GPU_IND = 3

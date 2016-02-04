@@ -24,8 +24,10 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	
 	# if source is a conv layer (4D input), sum across everything
 	if len(X[1]) == 4 or sum_all:
-		X_reshaped = (np.prod(X[1]), 1)
-		assert batch_imgs == False, 'not currently supported: batching of linear_F_dx in this way'
+		if batch_imgs:
+			X_reshaped = (X[1][0], np.prod(X[1][1:]), 1)
+		else:
+			X_reshaped = (np.prod(X[1]), 1)
 	else:
 		X_reshaped = X[1]
 	
@@ -76,7 +78,10 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	
 	# if source is a conv layer (4D input), sum across everything
 	if len(X[1]) == 4 or sum_all:
-		X_reshaped = (np.prod(X[1]), 1)
+		if batch_imgs:
+			X_reshaped = (X[1][0], np.prod(X[1][1:]), 1)
+		else:
+			X_reshaped = (np.prod(X[1]), 1)
 	else:
 		X_reshaped = X[1]
 	
@@ -95,10 +100,10 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 		else:
 			DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:len(DERIV_ABOVE[1])-1]), DERIV_ABOVE[1][-1])
 	
+	#print 'F', F[1], 'X', X[1], 'x_reshaped', X_reshaped
+	#print 'DERIV_ABOVE', DERIV_ABOVE[1], 'DERIV_ABOVE_reshaped', DERIV_ABOVE_reshaped
 	
 	# now: dot(deriv_above, x.T)
-	#print F[1], X[1], DERIV_ABOVE[1]
-	#print 'x_reshaped', X_reshaped, 'deriv_above_reshaped', DERIV_ABOVE_reshaped, squeeze
 	_ntm_module3.linear_F_dF(X[0], X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_batches, gpu_ind)
 	
 	# reshape back to original dimensions
