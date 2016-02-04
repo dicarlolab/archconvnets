@@ -1,7 +1,7 @@
 from ntm_core import *
 
 BATCH_SZ = 100
-N_CTT = 1 # number of past frames to conv through time
+N_CTT = 3 # number of past frames to conv through time
 IM_SZ = 32
 N_IN = IM_SZ*IM_SZ*3
 
@@ -21,24 +21,15 @@ def init_model():
 	for init in [0,1]:
 		# below
 		add_conv_layer(LAYERS, 'F1', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(BATCH_SZ,N_CTT*3,IM_SZ,IM_SZ), PAD=2, init=init)
-		#add_relu_layer(LAYERS, 'F1_relu', init=init)
 		add_max_pool_layer(LAYERS, 'F1_MAX', init=init)
-		add_conv_layer(LAYERS, 'F2', U_F2, U_F2_FILTER_SZ, PAD=0, init=init)
-		#add_relu_layer(LAYERS, 'F2_relu', init=init)
+		add_conv_layer(LAYERS, 'F2', U_F2, U_F2_FILTER_SZ, PAD=2, init=init)
 		add_max_pool_layer(LAYERS, 'F2_MAX', init=init)
-		add_conv_layer(LAYERS, 'F3', U_F3, U_F3_FILTER_SZ, PAD=0, init=init)
-		#add_relu_layer(LAYERS, 'F3_relu', init=init)
+		add_conv_layer(LAYERS, 'F3', U_F3, U_F3_FILTER_SZ, PAD=2, init=init)
 		add_max_pool_layer(LAYERS, 'F3_MAX', init=init)
 		
 		## cifar
 		add_linear_F_bias_layer(LAYERS, 'CIFAR', 10, source='F3_MAX', batch_imgs=B, init=init)
-		#add_linear_F_layer(LAYERS, 'CIFAR', 10, source='F3_MAX', batch_imgs=B, init=init)
-		
-		#add_pearson_layer(LAYERS, 'CIFAR_ERR', ['CIFAR', -1], batch_imgs=B, init=init)
-		
-		add_add_layer(LAYERS, 'CIFAR_ERR', ['CIFAR', -1], init=init)
-		add_sq_points_layer(LAYERS, 'CIFAR_SQ', init=init)
-		
+		add_pearson_layer(LAYERS, 'CIFAR_ERR', ['CIFAR', -1], batch_imgs=B, init=init)
 		add_sum_layer(LAYERS, 'CIFAR_SUM_ERR', init=init)
 		
 		## synthetic categorization
