@@ -13,7 +13,7 @@ def random_normal_function(size):
 	return np.asarray(np.random.normal(loc=0, scale=.1, size=size), dtype='single')
 
 def random_normal_bias_function(size):
-	return np.asarray(np.random.normal(loc=0, scale=.001, size=size), dtype='single')
+	return np.asarray(np.random.normal(loc=0, scale=.01, size=size), dtype='single')
 
 # additional_args = [True]: squeeze output last dimension
 def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=GPU_IND):

@@ -47,29 +47,18 @@ def init_model():
 		
 		###################################
 		## frame prediction
+		add_sigmoid_F_bias_layer(LAYERS, 'M3_0', N_TARGET/4, source='F3_MAX', batch_imgs=B, init=init)
 		
-		## above inputs (Max3)
-		add_sigmoid_F_bias_layer(LAYERS, 'M3_F0', A_F, source='F3_MAX', batch_imgs=B, init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'M3_F1', A_F, batch_imgs=B, init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'M3_F2', N_TARGET, batch_imgs=B, init=init)
+		# BUDGET = IM_SZ*IM_SZ*3 * U_F3*5*5
+		# BUDGET / (48*32*32) = 75
+		add_sigmoid_F_bias_layer(LAYERS, 'C1_0', 32, source='F1', batch_imgs=B, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'C1_1', N_TARGET/4, batch_imgs=B, init=init)
 		
-		## above inputs (conv1)
-		add_sigmoid_F_bias_layer(LAYERS, 'C1_F0', A_F, source='F1', batch_imgs=B, init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'C1_F1', A_F, batch_imgs=B, init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'C1_F2', N_TARGET, batch_imgs=B, init=init)
+		add_add_layer(LAYERS, 'STACK_SUM0', ['C1_1', 'M3_0'], init=init)
 		
-		## above inputs (max2)
-		add_sigmoid_F_bias_layer(LAYERS, 'M2_F0', A_F, source='F2_MAX', batch_imgs=B, init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'M2_F1', A_F, batch_imgs=B, init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'M2_F2', N_TARGET, batch_imgs=B, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM1', N_TARGET, batch_imgs=B, init=init)
 		
-		add_add_layer(LAYERS, 'STACK_SUM2', ['M3_F2', 'C1_F2'], init=init)
-		add_add_layer(LAYERS, 'STACK_SUM3', ['STACK_SUM2', 'M2_F2'], init=init)
-		
-		add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM4', N_TARGET, batch_imgs=B, init=init)
-		add_linear_F_bias_layer(LAYERS, 'STACK_SUM5', N_TARGET, batch_imgs=B, init=init)
-		
-		add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM5', -1], batch_imgs=B, init=init)
+		add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM1', -1], batch_imgs=B, init=init)
 		add_sum_layer(LAYERS, 'SUM_ERR', init=init)
 		
 	check_network(LAYERS)
