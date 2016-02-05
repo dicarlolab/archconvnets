@@ -17,7 +17,7 @@ LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
 F1_IND = 0
 ERR_IND = find_layer(LAYERS, 'CIFAR_ERR')
 
-set_buffer(random_function(LAYERS[F1_IND]['in_shape'][1]), WEIGHTS[F1_IND][1]) # target
+set_buffer(random_function(LAYERS[F1_IND]['in_shape'][1])*1e2, WEIGHTS[F1_IND][1]) # target
 set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1]) # target
 
 ################ which gradient to test
@@ -71,7 +71,7 @@ def g(y):
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e5
+eps = np.sqrt(np.finfo(np.float).eps)*1e3
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

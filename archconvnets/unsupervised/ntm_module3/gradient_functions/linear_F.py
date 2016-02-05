@@ -10,6 +10,9 @@ def random_function(size):
 	return np.asarray(np.random.random(size) - .5, dtype='single')
 	
 def random_normal_function(size):
+	return np.asarray(np.random.normal(loc=0, scale=.1, size=size), dtype='single')
+
+def random_normal_bias_function(size):
 	return np.asarray(np.random.normal(loc=0, scale=.001, size=size), dtype='single')
 
 # additional_args = [True]: squeeze output last dimension

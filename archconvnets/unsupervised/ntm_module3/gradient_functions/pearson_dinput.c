@@ -149,15 +149,19 @@ static PyObject * pearson_dinput(PyObject *self, PyObject *args){
 	err = cudaMalloc((void**) &BCD, 3*sizeof(DATA_TYPE)); MALLOC_ERR_CHECK
 	err = cudaMalloc((void**) &pearson_grad, buffer_sz[gpu_ind][w1_ind]);
 
-	int offset;
+	int offset, n_blocks;
 	for(int img = 0; img < n_imgs; img++){
 		// run kernel
 		offset = img*vector_len;
 		pearson_dinput_kernel <<< 1, MAX_THREADS_PER_BLOCK >>> (pearson_grad + offset, 
 			gpu_buffers[gpu_ind][w1_ind] + offset, gpu_buffers[gpu_ind][w2_ind] + offset, w_mean, BCD, vector_len);
 	}
+	
+	// determine number of blocks
+	n_blocks = (int)ceil((double)(n_imgs*vector_len*n_batches)/MAX_THREADS_PER_BLOCK);
+	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
 
-	 deriv_above_pearson <<< 1, MAX_THREADS_PER_BLOCK >>> (GPU_BUFFER_OUT, pearson_grad, 
+	 deriv_above_pearson <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (GPU_BUFFER_OUT, pearson_grad, 
 	 	gpu_buffers[gpu_ind][deriv_above_ind],
 	        n_imgs, vector_len, n_batches, n_imgs*vector_len*n_batches);
 	

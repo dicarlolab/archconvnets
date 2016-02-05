@@ -4,14 +4,14 @@ import scipy.optimize
 from ntm_core import *
 from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
-from architectures.ctt_frame_pred import *
+from architectures.ctt_frame_pred_test import *
 
-EPS = 1e-2
+EPS = 1e-3
 
-DIFF = True
-#DIFF = False
+#DIFF = True
+DIFF = False
 
-save_name = 'frame_pred_%f' % (EPS)
+save_name = 'frame_pred_%f_test' % (EPS)
 
 if DIFF:
 	save_name += '_%iF_diff' % A_F
@@ -41,7 +41,7 @@ t_start = time.time()
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names = init_model()
 
-PRED_IND = find_layer(LAYERS, 'STACK_SUM5')
+PRED_IND = find_layer(LAYERS, 'M3_0')
 CIFAR_PRED_IND = find_layer(LAYERS, 'CIFAR')
 OBJ_PRED_IND = find_layer(LAYERS, 'OBJ')
 CAT_PRED_IND = find_layer(LAYERS, 'CAT')
@@ -120,7 +120,10 @@ while True:
 		obj_target[img, objs[img]] = 1
 		
 		movie_inputs[img] = (z['imgs'][movie_frame-N_CTT:movie_frame] - mean_img).reshape((1,N_CTT*3, IM_SZ, IM_SZ))
-		frame_target[img] = (z['imgs'][movie_frame-1+N_FUTURE] - z['imgs'][movie_frame-1]).reshape((N_TARGET,1))
+		if DIFF:
+			frame_target[img] = (z['imgs'][movie_frame-1+N_FUTURE] - z['imgs'][movie_frame-1]).reshape((N_TARGET,1))
+		else:
+			frame_target[img] = (z['imgs'][movie_frame-1]).reshape((N_TARGET,1))
 	
 	movie_inputs = np.ascontiguousarray(movie_inputs)
 	frame_target = np.ascontiguousarray(frame_target)
@@ -130,6 +133,21 @@ while True:
 	set_buffer(obj_target, WEIGHTS[OBJ_DIFF_IND][1])
 	set_buffer(cifar_target, WEIGHTS[CIFAR_DIFF_IND][1])
 	set_buffer(frame_target, WEIGHTS[DIFF_IND][1])
+	
+	##############
+	# forward cifar
+	cifar_inputs = np.tile(cifar_imgs[cifar_batch*BATCH_SZ:(cifar_batch+1)*BATCH_SZ], (1,N_CTT,1,1,1)).reshape((BATCH_SZ,N_CTT*3, IM_SZ, IM_SZ))
+	set_buffer(cifar_inputs, WEIGHTS[F1_IND][1])
+	OUTPUT_CIFAR = forward_network(LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, break_layer=CIFAR_OUT_IND)
+	
+	# predictions/errors
+	cifar_pred = return_buffer(OUTPUT_CIFAR[CIFAR_PRED_IND])
+	cifar_err += return_buffer(OUTPUT_CIFAR[CIFAR_OUT_IND])[0]
+	cifar_class += (cifar_target.argmax(1).squeeze() == cifar_pred.argmax(1).squeeze()).sum()
+	
+	# reverse
+	WEIGHT_DERIVS_CIFAR = reverse_network(CIFAR_OUT_IND, LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CIFAR, abort_layer='F3_MAX')
+	WEIGHT_DERIVS_RMS_CIFAR = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR, EPS / BATCH_SZ, frame, FRAME_LAG)
 	
 	###############
 	# forward movie
@@ -152,24 +170,10 @@ while True:
 	WEIGHT_DERIVS_OBJ = reverse_network(OBJ_OUT_IND, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_OBJ, abort_layer='F3_MAX')
 	WEIGHT_DERIVS_CAT = reverse_network(CAT_OUT_IND, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CAT, abort_layer='F3_MAX')
 	
+	#WEIGHTS = update_weights(LAYERS, WEIGHTS, WEIGHT_DERIVS, EPS / BATCH_SZ)
 	WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS / BATCH_SZ, frame, FRAME_LAG)
 	WEIGHT_DERIVS_RMS_OBJ = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_OBJ, WEIGHT_DERIVS_RMS_OBJ, EPS / BATCH_SZ, frame, FRAME_LAG)
 	WEIGHT_DERIVS_RMS_CAT = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CAT, WEIGHT_DERIVS_RMS_CAT, EPS / BATCH_SZ, frame, FRAME_LAG)
-	
-	##############
-	# forward cifar
-	cifar_inputs = np.tile(cifar_imgs[cifar_batch*BATCH_SZ:(cifar_batch+1)*BATCH_SZ], (1,N_CTT,1,1,1)).reshape((BATCH_SZ,N_CTT*3, IM_SZ, IM_SZ))
-	set_buffer(cifar_inputs, WEIGHTS[F1_IND][1])
-	OUTPUT_CIFAR = forward_network(LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, break_layer=CIFAR_OUT_IND)
-	
-	# predictions/errors
-	cifar_pred = return_buffer(OUTPUT_CIFAR[CIFAR_PRED_IND])
-	cifar_err += return_buffer(OUTPUT_CIFAR[CIFAR_OUT_IND])[0]
-	cifar_class += (cifar_target.argmax(1).squeeze() == cifar_pred.argmax(1).squeeze()).sum()
-	
-	# reverse
-	WEIGHT_DERIVS_CIFAR = reverse_network(CIFAR_OUT_IND, LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CIFAR, abort_layer='F3_MAX')
-	WEIGHT_DERIVS_RMS_CIFAR = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR, EPS / BATCH_SZ, frame, FRAME_LAG)
 	
 	# print/save
 	if frame % SAVE_FREQ == 0 and frame != 0:
