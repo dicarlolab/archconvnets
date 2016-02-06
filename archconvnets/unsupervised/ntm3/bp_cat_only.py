@@ -6,11 +6,11 @@ from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
 from architectures.ctt_categorization_only import *
 
-EPS = 1e-2
+EPS = 1e-1
 
-train_filters_on = 3
+train_filters_on = 4
 
-abort_cifar = abort_cat = abort_obj = 'F3_MAX'
+abort_cifar = abort_cat = abort_obj = abort_imgnet = 'F3_MAX'
 if train_filters_on == 0:
 	save_name = 'cifar'
 	abort_cifar = None
@@ -20,6 +20,9 @@ elif train_filters_on == 1:
 elif train_filters_on == 2:
 	save_name = 'obj'
 	abort_obj = None
+elif train_filters_on == 3:
+	save_name = 'imgnet'
+	abort_imgnet = None
 else:
 	save_name = 'rand'
  
@@ -30,7 +33,7 @@ free_all_buffers()
 ################ init save vars
 
 frame = 0; frame_local = 0; err = 0; corr = 0; movie_ind = 0; 
-cifar_err = 0; cifar_class = 0
+cifar_err = 0; cifar_class = 0; imgnet_err = 0; imgnet_class = 0
 cat_err = 0; cat_class = 0; obj_err = 0; obj_class = 0
 
 EPOCH_LEN = 11 # length of movie
@@ -40,6 +43,7 @@ FRAME_LAG = 100 #SAVE_FREQ
 STOP_POINT = np.inf
 
 err_log = []; corr_log = []; cifar_err_log = []; cifar_class_log = []
+imgnet_err_log = []; imgnet_class_log = []
 cat_err_log = []; cat_class_log = []; obj_err_log = []; obj_class_log = []
 
 t_start = time.time()
@@ -47,18 +51,21 @@ t_start = time.time()
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names = init_model()
 
+IMGNET_PRED_IND = find_layer(LAYERS, 'IMGNET')
 CIFAR_PRED_IND = find_layer(LAYERS, 'CIFAR')
 OBJ_PRED_IND = find_layer(LAYERS, 'OBJ')
 CAT_PRED_IND = find_layer(LAYERS, 'CAT')
 
+IMGNET_DIFF_IND = find_layer(LAYERS, 'IMGNET_ERR')
 CIFAR_DIFF_IND = find_layer(LAYERS, 'CIFAR_ERR')
 CAT_DIFF_IND = find_layer(LAYERS, 'CAT_ERR')
 OBJ_DIFF_IND = find_layer(LAYERS, 'OBJ_ERR')
+IMGNET_DIFF_IND = find_layer(LAYERS, 'IMGNET_ERR')
 
+IMGNET_OUT_IND = find_layer(LAYERS, 'IMGNET_SUM_ERR')
 CIFAR_OUT_IND = find_layer(LAYERS, 'CIFAR_SUM_ERR')
 OBJ_OUT_IND = find_layer(LAYERS, 'OBJ_SUM_ERR')
 CAT_OUT_IND = find_layer(LAYERS, 'CAT_SUM_ERR')
-
 
 F1_IND = 0
 
@@ -66,6 +73,7 @@ MEM_DERIVS = [None]*len(MEM_INDS)
 
 OUTPUT = None; WEIGHT_DERIVS = None; WEIGHT_DERIVS_RMS = None
 OUTPUT_CIFAR = None; WEIGHT_DERIVS_CIFAR = None; WEIGHT_DERIVS_RMS_CIFAR = None
+OUTPUT_IMGNET = None; WEIGHT_DERIVS_IMGNET = None; WEIGHT_DERIVS_RMS_IMGNET = None
 OUTPUT_OBJ = None; WEIGHT_DERIVS_OBJ = None; WEIGHT_DERIVS_RMS_OBJ = None
 OUTPUT_CAT = None; WEIGHT_DERIVS_CAT = None; WEIGHT_DERIVS_RMS_CAT = None
 
@@ -103,10 +111,33 @@ objs = np.zeros(BATCH_SZ)
 
 mean_img = mean_img.reshape((1,1,3,32,32))
 
+###################### imgnet
+N_IMGNET_FILES = 199
+IMGNET_FILE_SZ = 10000
+set_buffer(np.single(np.random.random((BATCH_SZ, 999,1))), WEIGHTS[IMGNET_DIFF_IND][1])
+
 #####################
 while True:
 	cifar_batch = frame % (N_IMGS_CIFAR / BATCH_SZ)
+	imgnet_batch = frame % (IMGNET_FILE_SZ / BATCH_SZ)
 	
+	imgnet_file = ((frame*BATCH_SZ)/IMGNET_FILE_SZ) % N_IMGNET_FILES
+	
+	# load imgnet
+	if imgnet_batch == 0:
+		z = loadmat('/home/darren/imgnet32/data_batch_' + str(imgnet_file+1))
+		imgnet_imgs = np.single(z['data'])
+		imgnet_imgs /= imgnet_imgs.max()
+		imgnet_imgs = imgnet_imgs.reshape((IMGNET_FILE_SZ, 1, 3, IM_SZ, IM_SZ))
+		imgnet_imgs -= mean_img
+		
+		labels_imgnet = z['labels'].squeeze()
+		l = np.zeros((IMGNET_FILE_SZ, 999),dtype='uint8')
+		l[np.arange(IMGNET_FILE_SZ), labels_imgnet.astype(int)] = 1
+		Y_imgnet = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
+	
+	
+	# load movies
 	cat_target = np.zeros((BATCH_SZ, 8, 1), dtype='single')
 	obj_target = np.zeros((BATCH_SZ, 32, 1), dtype='single')
 	
@@ -124,12 +155,15 @@ while True:
 	
 	movie_inputs = np.ascontiguousarray(movie_inputs)
 	
+	#######
 	# load targets
 	cifar_target = Y_cifar[cifar_batch*BATCH_SZ:(cifar_batch+1)*BATCH_SZ]
+	imgnet_target = Y_imgnet[imgnet_batch*BATCH_SZ:(imgnet_batch+1)*BATCH_SZ]
 	
 	set_buffer(cat_target, WEIGHTS[CAT_DIFF_IND][1])
 	set_buffer(obj_target, WEIGHTS[OBJ_DIFF_IND][1])
 	set_buffer(cifar_target, WEIGHTS[CIFAR_DIFF_IND][1])
+	set_buffer(imgnet_target, WEIGHTS[IMGNET_DIFF_IND][1])
 	
 	###############
 	# forward movie
@@ -168,19 +202,40 @@ while True:
 	WEIGHT_DERIVS_CIFAR = reverse_network(CIFAR_OUT_IND, LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CIFAR, abort_layer=abort_cifar)
 	WEIGHT_DERIVS_RMS_CIFAR = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR, EPS / BATCH_SZ, frame, FRAME_LAG)
 	
+	##############
+	# forward imgnet
+	imgnet_inputs = np.tile(imgnet_imgs[imgnet_batch*BATCH_SZ:(imgnet_batch+1)*BATCH_SZ], (1,N_CTT,1,1,1)).reshape((BATCH_SZ,N_CTT*3, IM_SZ, IM_SZ))
+	set_buffer(imgnet_inputs, WEIGHTS[F1_IND][1])
+	OUTPUT_IMGNET = forward_network(LAYERS, WEIGHTS, OUTPUT_IMGNET, OUTPUT_PREV)
+	
+	# predictions/errors
+	imgnet_pred = return_buffer(OUTPUT_IMGNET[IMGNET_PRED_IND])
+	imgnet_err += return_buffer(OUTPUT_IMGNET[IMGNET_OUT_IND])[0]
+	imgnet_class += (imgnet_target.argmax(1).squeeze() == imgnet_pred.argmax(1).squeeze()).sum()
+	
+	# reverse
+	WEIGHT_DERIVS_IMGNET = reverse_network(IMGNET_OUT_IND, LAYERS, WEIGHTS, OUTPUT_IMGNET, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_IMGNET, abort_layer=abort_imgnet)
+	WEIGHT_DERIVS_RMS_IMGNET = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_IMGNET, WEIGHT_DERIVS_RMS_IMGNET, EPS / BATCH_SZ, frame, FRAME_LAG)
+	
 	# print/save
 	if frame % SAVE_FREQ == 0 and frame != 0:
 		corr_log.append(corr / (BATCH_SZ*SAVE_FREQ)); corr = 0
 		err_log.append(err / (BATCH_SZ*SAVE_FREQ)); err = 0
+		
 		cifar_err_log.append(cifar_err / (BATCH_SZ*SAVE_FREQ)); cifar_err = 0;
 		cifar_class_log.append(np.single(cifar_class) / (BATCH_SZ*SAVE_FREQ)); cifar_class = 0;
+		
+		imgnet_err_log.append(imgnet_err / (BATCH_SZ*SAVE_FREQ)); imgnet_err = 0;
+		imgnet_class_log.append(np.single(imgnet_class) / (BATCH_SZ*SAVE_FREQ)); imgnet_class = 0;
+		
 		cat_err_log.append(cat_err / (BATCH_SZ*SAVE_FREQ)); cat_err = 0;
 		cat_class_log.append(np.single(cat_class) / (BATCH_SZ*SAVE_FREQ)); cat_class = 0;
+		
 		obj_err_log.append(obj_err / (BATCH_SZ*SAVE_FREQ)); obj_err = 0;
 		obj_class_log.append(np.single(obj_class) / (BATCH_SZ*SAVE_FREQ)); obj_class = 0;
 		
-		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, OUTPUT_CIFAR, EPS, err_log, (np.single(frame * BATCH_SZ) / 50000), corr_log, cifar_err_log, cifar_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, t_start, save_name, print_names)
-		save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, [], [], EPS, err_log, corr_log, cifar_err_log, cifar_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, EPOCH_LEN, N_MOVIES)
+		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, OUTPUT_CIFAR, EPS, err_log, (np.single(frame * BATCH_SZ) / 50000), corr_log, cifar_err_log, cifar_class_log, imgnet_err_log, imgnet_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, t_start, save_name, print_names)
+		save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, [], [], EPS, err_log, corr_log, cifar_err_log, cifar_class_log, imgnet_err_log, imgnet_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, EPOCH_LEN, N_MOVIES)
 		
 		t_start = time.time()
 		

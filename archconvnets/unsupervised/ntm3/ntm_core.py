@@ -408,9 +408,12 @@ def print_layer(LAYERS, print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_le
 			np.min(B), np.max(B), -EPS*np.median(np.abs(DB/B)), np.min(O), np.max(O))
 
 
-def print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, cifar_err_log, cifar_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, t_start, save_name, print_names):
-	print 'err: ', err_log[-1], 'frame: ', frame, 'cifar_err: ', cifar_err_log[-1], 'cifar_class: ', cifar_class_log[-1], 'time: ', time.time() - t_start, 'GPU:', GPU_IND, save_name
-	print 'obj_err: ', obj_err_log[-1], 'obj_class: ', obj_class_log[-1], 'cat_err: ', cat_err_log[-1], 'cat_class: ', cat_class_log[-1]
+def print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, cifar_err_log, cifar_class_log, imgnet_err_log, imgnet_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, t_start, save_name, print_names):
+	print 'frame: ', frame, 'time: ', time.time() - t_start, 'GPU:', GPU_IND, save_name
+	print 'imgnet_class: ', imgnet_class_log[-1], 'imgnet_err: ', imgnet_err_log[-1]
+	print 'cifar_class: ', cifar_class_log[-1], 'cifar_err: ', cifar_err_log[-1]
+	print 'obj_class: ', obj_class_log[-1], 'obj_err: ', obj_err_log[-1]
+	print 'cat_class: ', cat_class_log[-1], 'cat_err: ', cat_err_log[-1]
 	
 	max_print_len = 0
 	for print_name in print_names:
@@ -436,11 +439,12 @@ def save_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, output_buffer, targe
 			'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, \
 			'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3, 'EPOCH_LEN': EPOCH_LEN})
 
-def save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, output_buffer, target_buffer, EPS, err_log, corr_log, cifar_err_log, cifar_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, EPOCH_LEN, N_MOVIES):
+def save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, output_buffer, target_buffer, EPS, err_log, corr_log, cifar_err_log, cifar_class_log, imgnet_err_log, imgnet_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, EPOCH_LEN, N_MOVIES):
 	WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 	WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2')][0])
 	WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F3')][0])
 	savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'N_MOVIES': N_MOVIES, \
 			'err_log': err_log, 'corr_log': corr_log, 'cifar_err_log': cifar_err_log, 'cifar_class_log': cifar_class_log, 'EPS': EPS, \
+			'imgnet_err_log': imgnet_err_log, 'imgnet_class_log': imgnet_class_log, \
 			'cat_err_log': cat_err_log, 'cat_class_log': cat_class_log, 'obj_err_log': obj_err_log, 'obj_class_log': obj_class_log,\
 			'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3, 'EPOCH_LEN': EPOCH_LEN})

@@ -6,12 +6,12 @@ from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
 from architectures.ctt_frame_pred import *
 
-EPS = 1e-2
+EPS = 1e-1
 
-DIFF = True
-#DIFF = False
+#DIFF = True
+DIFF = False
 
-N_FUTURE = 1 # how far into the future to predict
+N_FUTURE = 0 # how far into the future to predict
 
 save_name = 'frame_pred_%f_N_FUTURE_%i' % (EPS, N_FUTURE)
 

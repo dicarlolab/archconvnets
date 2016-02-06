@@ -42,6 +42,11 @@ def init_model():
 		add_pearson_layer(LAYERS, 'OBJ_ERR', ['OBJ', -1], batch_imgs=B, init=init)
 		add_sum_layer(LAYERS, 'OBJ_SUM_ERR', init=init)
 		
+		## imgnet
+		add_linear_F_bias_layer(LAYERS, 'IMGNET', 999, source='F3_MAX', batch_imgs=B, init=init)
+		add_pearson_layer(LAYERS, 'IMGNET_ERR', ['IMGNET', -1], batch_imgs=B, init=init)
+		add_sum_layer(LAYERS, 'IMGNET_SUM_ERR', init=init)
+		
 	check_network(LAYERS)
 	
 	################ init weights and inputs
