@@ -439,12 +439,12 @@ def save_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, output_buffer, targe
 			'err_log': err_log, 'corr_log': corr_log, 'EPS': EPS, \
 			'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3, 'EPOCH_LEN': EPOCH_LEN})
 
-def save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, output_buffer, target_buffer, EPS, err_log, corr_log, cifar_err_log, cifar_class_log, imgnet_err_log, imgnet_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, EPOCH_LEN, N_MOVIES):
+def save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, movie_inputs, output_buffer, target_buffer, EPS, err_log, corr_log, cifar_err_log, cifar_class_log, imgnet_err_log, imgnet_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, EPOCH_LEN, N_MOVIES):
 	WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 	WEIGHTS_F2 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F2')][0])
 	WEIGHTS_F3 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F3')][0])
 	savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'target_buffer': target_buffer, 'N_MOVIES': N_MOVIES, \
 			'err_log': err_log, 'corr_log': corr_log, 'cifar_err_log': cifar_err_log, 'cifar_class_log': cifar_class_log, 'EPS': EPS, \
-			'imgnet_err_log': imgnet_err_log, 'imgnet_class_log': imgnet_class_log, \
+			'imgnet_err_log': imgnet_err_log, 'imgnet_class_log': imgnet_class_log, 'movie_inputs': movie_inputs, \
 			'cat_err_log': cat_err_log, 'cat_class_log': cat_class_log, 'obj_err_log': obj_err_log, 'obj_class_log': obj_class_log,\
 			'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'F2': WEIGHTS_F2, 'F3': WEIGHTS_F3, 'EPOCH_LEN': EPOCH_LEN})

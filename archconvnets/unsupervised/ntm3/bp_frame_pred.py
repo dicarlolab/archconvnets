@@ -9,9 +9,9 @@ from architectures.ctt_frame_pred import *
 EPS = 1e-1
 
 DIFF = True
-#DIFF = False
+DIFF = False
 
-N_FUTURE = 1 # how far into the future to predict
+N_FUTURE = 4 # how far into the future to predict
 
 save_name = 'frame_pred_%f_N_FUTURE_%i' % (EPS, N_FUTURE)
 
@@ -243,7 +243,7 @@ while True:
 		output_buffer = return_buffer(OUTPUT[PRED_IND])
 		
 		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, OUTPUT_CIFAR, EPS, err_log, (np.single(frame * BATCH_SZ) / 50000), corr_log, cifar_err_log, cifar_class_log, imgnet_err_log, imgnet_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, t_start, save_name, print_names)
-		save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, output_buffer, frame_target, EPS, err_log, corr_log, cifar_err_log, cifar_class_log, imgnet_err_log, imgnet_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, EPOCH_LEN, N_MOVIES)
+		save_conv_state(LAYERS, WEIGHTS, WEIGHTS_F1_INIT, save_name, movie_inputs, output_buffer, frame_target, EPS, err_log, corr_log, cifar_err_log, cifar_class_log, imgnet_err_log, imgnet_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, EPOCH_LEN, N_MOVIES)
 		
 		t_start = time.time()
 		
