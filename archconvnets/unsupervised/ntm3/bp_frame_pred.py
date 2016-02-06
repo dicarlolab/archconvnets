@@ -138,7 +138,7 @@ while True:
 	obj_target = np.zeros((BATCH_SZ, 32, 1), dtype='single')
 	
 	for img in range(BATCH_SZ):
-		movie_frame = np.random.randint(EPOCH_LEN - N_CTT) + N_CTT # movies
+		movie_frame = np.random.randint(EPOCH_LEN - N_CTT - N_FUTURE + 1) + N_CTT # movies
 		z = loadmat('/home/darren/rotating_objs32_constback_50t/imgs' + str(np.random.randint(N_MOVIES))  + '.mat')
 		
 		cats[img] = z['cat'][0][0]
