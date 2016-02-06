@@ -45,14 +45,19 @@ def init_model():
 		add_pearson_layer(LAYERS, 'OBJ_ERR', ['OBJ', -1], batch_imgs=B, init=init)
 		add_sum_layer(LAYERS, 'OBJ_SUM_ERR', init=init)
 		
+		## imgnet
+		add_linear_F_bias_layer(LAYERS, 'IMGNET', 999, source='F3_MAX', batch_imgs=B, init=init)
+		add_pearson_layer(LAYERS, 'IMGNET_ERR', ['IMGNET', -1], batch_imgs=B, init=init)
+		add_sum_layer(LAYERS, 'IMGNET_SUM_ERR', init=init)
+		
 		###################################
 		## frame prediction
-		add_sigmoid_F_bias_layer(LAYERS, 'M3_0', N_TARGET/4, source='F3_MAX', batch_imgs=B, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'M3_0', N_TARGET/2, source='F3_MAX', batch_imgs=B, init=init)
 		
 		# BUDGET = IM_SZ*IM_SZ*3 * U_F3*5*5
 		# BUDGET / (48*32*32) = 75
 		add_sigmoid_F_bias_layer(LAYERS, 'C1_0', 32, source='F1', batch_imgs=B, init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'C1_1', N_TARGET/4, batch_imgs=B, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'C1_1', N_TARGET/2, batch_imgs=B, init=init)
 		
 		add_add_layer(LAYERS, 'STACK_SUM0', ['C1_1', 'M3_0'], init=init)
 		

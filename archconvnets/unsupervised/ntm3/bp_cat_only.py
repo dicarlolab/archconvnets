@@ -103,13 +103,13 @@ l[np.arange(N_IMGS_CIFAR),np.asarray(z2['labels']).astype(int)] = 1
 Y_cifar = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
 
 set_buffer(Y_cifar[:BATCH_SZ], WEIGHTS[CIFAR_DIFF_IND][1]) # cifar target
+mean_img = mean_img.reshape((1,1,3,32,32))
 
+########## movie init
 movie_inputs = np.zeros((BATCH_SZ, N_CTT*3, 32, 32), dtype='single')
 
 cats = np.zeros(BATCH_SZ)
 objs = np.zeros(BATCH_SZ)
-
-mean_img = mean_img.reshape((1,1,3,32,32))
 
 ###################### imgnet
 N_IMGNET_FILES = 199
