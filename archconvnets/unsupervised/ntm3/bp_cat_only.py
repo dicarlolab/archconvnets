@@ -112,7 +112,7 @@ cats = np.zeros(BATCH_SZ)
 objs = np.zeros(BATCH_SZ)
 
 ###################### imgnet
-N_IMGNET_FILES = 198
+N_IMGNET_FILES = 118
 IMGNET_FILE_SZ = 10000
 set_buffer(np.single(np.random.random((BATCH_SZ, 999,1))), WEIGHTS[IMGNET_DIFF_IND][1])
 
