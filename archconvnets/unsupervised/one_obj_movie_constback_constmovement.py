@@ -166,8 +166,8 @@ def get_two_movie_obj_latents(tdict, models, categories):
     ####################
     # generate the templates for each frame
     for frame in range(n_frames + n_frames_stagger):
-        l['bgphi'] = bgphi[frame]
-        l['bgpsi'] = bgpsi[frame]
+        l['bgphi'] = bgphi[0]
+        l['bgpsi'] = bgpsi[0]
         if (frame < n_frames) and l['show_front_object'] == True:
             l['front_rxz'] = front_rxz[frame]
             l['front_rxy'] = front_rxy[frame]
