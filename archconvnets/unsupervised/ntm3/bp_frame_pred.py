@@ -9,7 +9,7 @@ from architectures.ctt_frame_pred import *
 EPS = 1e-1
 
 DIFF = True
-DIFF = False
+#DIFF = False
 
 N_FUTURE = 4 # how far into the future to predict
 

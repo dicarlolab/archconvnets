@@ -409,7 +409,7 @@ def print_layer(LAYERS, print_name, WEIGHTS, WEIGHT_DERIVS, OUTPUT, max_print_le
 
 
 def print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, cifar_err_log, cifar_class_log, imgnet_err_log, imgnet_class_log, obj_err_log, obj_class_log, cat_err_log, cat_class_log, t_start, save_name, print_names):
-	print 'frame: ', frame, 'time: ', time.time() - t_start, 'GPU:', GPU_IND, save_name
+	print 'err: ', err_log[-1], 'frame: ', frame, 'time: ', time.time() - t_start, 'GPU:', GPU_IND, save_name
 	print 'imgnet_class: ', imgnet_class_log[-1], 'imgnet_err: ', imgnet_err_log[-1]
 	print 'cifar_class: ', cifar_class_log[-1], 'cifar_err: ', cifar_err_log[-1]
 	print 'obj_class: ', obj_class_log[-1], 'obj_err: ', obj_err_log[-1]
