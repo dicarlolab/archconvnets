@@ -62,8 +62,9 @@ def init_model():
 		add_add_layer(LAYERS, 'STACK_SUM0', ['C1_1', 'M3_0'], init=init)
 		
 		add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM1', N_TARGET, batch_imgs=B, init=init)
+		add_linear_F_bias_layer(LAYERS, 'STACK_SUM2', N_TARGET, batch_imgs=B, init=init)
 		
-		add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM1', -1], batch_imgs=B, init=init)
+		add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM2', -1], batch_imgs=B, init=init)
 		add_sum_layer(LAYERS, 'SUM_ERR', init=init)
 		
 	check_network(LAYERS)
@@ -73,7 +74,5 @@ def init_model():
 	MEM_INDS = []
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
-	print_names = ['F1','F2','F3']
-	
-	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names
+	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS
 

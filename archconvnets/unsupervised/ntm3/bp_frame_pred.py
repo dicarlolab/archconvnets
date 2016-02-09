@@ -9,12 +9,12 @@ from img_sets import *
 
 EPS = 1e-1
 
-train_filters_on = 5
+train_filters_on = 0
 
 abort_cifar = abort_cat = abort_obj = abort_imgnet = 'F3_MAX'
 MOVIE_BREAK_LAYER = 'OBJ_SUM_ERR'
 if train_filters_on == 0:
-	save_name = 'frame_pred'
+	save_name = 'frame_pred_N_FUTURE_%i' % N_FUTURE
 	MOVIE_BREAK_LAYER = 'SUM_ERR'
 elif train_filters_on == 1:
 	save_name = 'cifar'
@@ -31,7 +31,7 @@ elif train_filters_on == 4:
 else:
 	save_name = 'rand'
  
-save_name += '_%i_N_CTT_%f_N_MOVIES_%i' % (N_CTT, EPS, N_MOVIES)
+save_name += '_EPS_%f_N_CTT_%i_N_MOVIES_%i' % (EPS, N_CTT, N_MOVIES)
 
 free_all_buffers()
 
@@ -45,6 +45,8 @@ obj_err = 0; obj_class = 0; obj_test_err = 0; obj_test_class = 0
 SAVE_FREQ = 10000/(BATCH_SZ) # instantaneous checkpoint
 batch_LAG = 100 #SAVE_FREQ
 
+train_prediction = test_prediction = train_target = test_target = 0
+test_inputs = train_inputs = 0
 
 err_log = []; corr_log = []; cifar_err_log = []; cifar_class_log = []
 err_test_log = []; corr_test_log = []; cifar_test_err_log = []; cifar_test_class_log = []
@@ -56,9 +58,9 @@ cat_test_err_log = []; cat_test_class_log = []; obj_test_err_log = []; obj_test_
 t_start = time.time()
 
 ################ init weights and inputs
-LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names = init_model()
+LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
 
-PRED_IND = find_layer(LAYERS, 'STACK_SUM1')
+PRED_IND = find_layer(LAYERS, 'STACK_SUM2')
 IMGNET_PRED_IND = find_layer(LAYERS, 'IMGNET')
 CIFAR_PRED_IND = find_layer(LAYERS, 'CIFAR')
 OBJ_PRED_IND = find_layer(LAYERS, 'OBJ')
@@ -108,33 +110,6 @@ while True:
 	set_buffer(imgnet_target, WEIGHTS[IMGNET_DIFF_IND][1])
 	set_buffer(frame_target, WEIGHTS[DIFF_IND][1])
 	
-	###############
-	# forward movie
-	set_buffer(movie_inputs, WEIGHTS[F1_IND][1])
-	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, break_layer=MOVIE_BREAK_LAYER_IND)
-	
-	# predictions/errors
-	obj_pred = return_buffer(OUTPUT[OBJ_PRED_IND])
-	cat_pred = return_buffer(OUTPUT[CAT_PRED_IND])
-	
-	obj_err += return_buffer(OUTPUT[OBJ_OUT_IND])[0]
-	cat_err += return_buffer(OUTPUT[CAT_OUT_IND])[0]
-	
-	obj_class += (objs == obj_pred.argmax(1).squeeze()).sum()
-	cat_class += (cats == cat_pred.argmax(1).squeeze()).sum()
-	
-	# reverse
-	WEIGHT_DERIVS_OBJ = reverse_network(OBJ_OUT_IND, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_OBJ, abort_layer=abort_obj)
-	WEIGHT_DERIVS_CAT = reverse_network(CAT_OUT_IND, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CAT, abort_layer=abort_cat)
-	
-	WEIGHT_DERIVS_RMS_OBJ = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_OBJ, WEIGHT_DERIVS_RMS_OBJ, EPS / BATCH_SZ, batch, batch_LAG)
-	WEIGHT_DERIVS_RMS_CAT = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CAT, WEIGHT_DERIVS_RMS_CAT, EPS / BATCH_SZ, batch, batch_LAG)
-	
-	if train_filters_on == 0:
-		err += return_buffer(OUTPUT[OUT_IND])[0]
-		WEIGHT_DERIVS = reverse_network(OUT_IND, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)
-		WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS / BATCH_SZ, batch, batch_LAG)
-	
 	##############
 	# forward cifar
 	set_buffer(cifar_inputs, WEIGHTS[F1_IND][1])
@@ -163,9 +138,41 @@ while True:
 	WEIGHT_DERIVS_IMGNET = reverse_network(IMGNET_OUT_IND, LAYERS, WEIGHTS, OUTPUT_IMGNET, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_IMGNET, abort_layer=abort_imgnet)
 	WEIGHT_DERIVS_RMS_IMGNET = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_IMGNET, WEIGHT_DERIVS_RMS_IMGNET, EPS / BATCH_SZ, batch, batch_LAG)
 	
+	###############
+	# forward movie
+	set_buffer(movie_inputs, WEIGHTS[F1_IND][1])
+	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, break_layer=MOVIE_BREAK_LAYER_IND)
+	
+	# predictions/errors
+	obj_pred = return_buffer(OUTPUT[OBJ_PRED_IND])
+	cat_pred = return_buffer(OUTPUT[CAT_PRED_IND])
+	
+	obj_err += return_buffer(OUTPUT[OBJ_OUT_IND])[0]
+	cat_err += return_buffer(OUTPUT[CAT_OUT_IND])[0]
+	
+	obj_class += (objs == obj_pred.argmax(1).squeeze()).sum()
+	cat_class += (cats == cat_pred.argmax(1).squeeze()).sum()
+	
+	# reverse
+	WEIGHT_DERIVS_OBJ = reverse_network(OBJ_OUT_IND, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_OBJ, abort_layer=abort_obj)
+	WEIGHT_DERIVS_CAT = reverse_network(CAT_OUT_IND, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CAT, abort_layer=abort_cat)
+	
+	WEIGHT_DERIVS_RMS_OBJ = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_OBJ, WEIGHT_DERIVS_RMS_OBJ, EPS / BATCH_SZ, batch, batch_LAG)
+	WEIGHT_DERIVS_RMS_CAT = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CAT, WEIGHT_DERIVS_RMS_CAT, EPS / BATCH_SZ, batch, batch_LAG)
+	
+	if train_filters_on == 0:
+		err += return_buffer(OUTPUT[OUT_IND])[0]
+		WEIGHT_DERIVS = reverse_network(OUT_IND, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)
+		WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS / BATCH_SZ, batch, batch_LAG)
+	
+	##############
 	# print/save/test
 	if batch % SAVE_FREQ == 0 and batch != 0:
-
+		if train_filters_on == 0:
+			train_prediction = return_buffer(OUTPUT[PRED_IND])
+			train_target = copy.deepcopy(frame_target)
+			train_inputs = copy.deepcopy(movie_inputs)
+		
 		##########
 		# test imgnet/cifar
 		for t_batch in range(N_BATCHES_TEST):
@@ -220,6 +227,10 @@ while True:
 			cat_test_class += (cats == cat_pred.argmax(1).squeeze()).sum()
 			
 			if train_filters_on == 0:
+				test_prediction = return_buffer(OUTPUT[PRED_IND])
+				test_target = frame_target
+				test_inputs = movie_inputs
+				
 				err_test += return_buffer(OUTPUT[OUT_IND])[0]
 		
 		######## log/save
@@ -278,6 +289,8 @@ while True:
 		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': [], 'target_buffer': [], 'N_MOVIES': N_MOVIES, \
 			'err_test_log': err_test_log, 'corr_test_log': corr_test_log, 'cifar_test_err_log': cifar_test_err_log, \
 			'cifar_test_class_log': cifar_test_class_log, \
+			'test_prediction': test_prediction, 'test_target': test_target, 'test_inputs': test_inputs,
+			'train_prediction': train_prediction, 'train_target': train_target, 'train_inputs': train_inputs,
 			'imgnet_test_err_log': imgnet_test_err_log, 'imgnet_test_class_log': imgnet_test_class_log, \
 			'err_log': err_log, 'corr_log': corr_log, 'cifar_err_log': cifar_err_log, 'cifar_class_log': cifar_class_log, \
 			'imgnet_err_log': imgnet_err_log, 'imgnet_class_log': imgnet_class_log, 'movie_inputs': movie_inputs, \
