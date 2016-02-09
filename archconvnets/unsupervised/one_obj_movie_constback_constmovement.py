@@ -349,12 +349,12 @@ if __name__ == '__main__':
 	i = 0
 	while True:
 		t_start = time.time()
-		os.system('rm .skdata/genthor/cache/one_obj_32movie_5a* -r')
+		os.system('rm .skdata/genthor/cache/one_obj_32movie_5b* -r')
 		
 		cat_i = np.random.randint(8)
 		obj_i = np.random.randint(4)
 		
-		class one_obj_32movie_5a(MovieDataset):
+		class one_obj_32movie_5b(MovieDataset):
 			models = [MOVIE_OBJS[cat_list[cat_i]][obj_i], MOVIE_OBJS[cat_list[cat_i]][obj_i]]
 			model_categories = dict_inverse(MOVIE_OBJS)
 			model_categories = {models[0]: model_categories[models[0]], models[1]: model_categories[models[1]]}
@@ -364,10 +364,10 @@ if __name__ == '__main__':
 			templates[0]['seed'] = 1034423424 + np.random.randint(10344234244)
 
 		
-		dataset = one_obj_32movie_5a()
+		dataset = one_obj_32movie_5b()
 		try:
 			imgs = copy.deepcopy(dataset.get_images(preproc)[pad:pad+n_t][::-1]).transpose((0,3,1,2))[:,np.newaxis]
-			savemat('rotating_objs32_constback_const_movement_25t/imgs' + str(i) + '.mat',{'imgs':imgs,'cat':cat_i, 'obj': obj_i})
+			savemat('rotating_objs32_constback_const_movement_25t_b/imgs' + str(i) + '.mat',{'imgs':imgs,'cat':cat_i, 'obj': obj_i})
 			i+=1
 			print "%i elapsed time %f" % (i, time.time()-t_start)
 		except:

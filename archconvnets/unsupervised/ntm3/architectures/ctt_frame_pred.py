@@ -1,8 +1,6 @@
 from ntm_core import *
 
-BATCH_SZ = 100
 N_CTT = 3 # number of past frames to conv through time
-IM_SZ = 32
 N_IN = IM_SZ*IM_SZ*3
 N_TARGET = N_IN
 
@@ -44,11 +42,13 @@ def init_model():
 		add_linear_F_bias_layer(LAYERS, 'OBJ', 32, source='F3_MAX', batch_imgs=B, init=init)
 		add_pearson_layer(LAYERS, 'OBJ_ERR', ['OBJ', -1], batch_imgs=B, init=init)
 		add_sum_layer(LAYERS, 'OBJ_SUM_ERR', init=init)
+		# bp_frame_pred uses prior layer as breakpoint for forward_network()
 		
 		## imgnet
 		add_linear_F_bias_layer(LAYERS, 'IMGNET', 999, source='F3_MAX', batch_imgs=B, init=init)
 		add_pearson_layer(LAYERS, 'IMGNET_ERR', ['IMGNET', -1], batch_imgs=B, init=init)
 		add_sum_layer(LAYERS, 'IMGNET_SUM_ERR', init=init)
+		# bp_frame_pred uses prior layer as breakpoint for forward_network()
 		
 		###################################
 		## frame prediction

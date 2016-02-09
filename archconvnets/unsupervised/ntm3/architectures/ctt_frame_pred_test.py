@@ -1,8 +1,6 @@
 from ntm_core import *
 
-BATCH_SZ = 100
-N_CTT = 1 # number of past frames to conv through time
-IM_SZ = 32
+N_CTT = 3 # number of past frames to conv through time
 N_IN = IM_SZ*IM_SZ*3/4
 N_TARGET = N_IN
 

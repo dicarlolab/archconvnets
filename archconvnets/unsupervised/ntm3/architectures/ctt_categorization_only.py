@@ -1,8 +1,6 @@
 from ntm_core import *
 
-BATCH_SZ = 100
 N_CTT = 3 # number of past frames to conv through time
-IM_SZ = 32
 N_IN = IM_SZ*IM_SZ*3
 
 B = True # batch or not
@@ -54,7 +52,7 @@ def init_model():
 	MEM_INDS = []
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
-	print_names = ['F1','F2','F3']
+	print_names = []
 	
 	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, print_names
 
