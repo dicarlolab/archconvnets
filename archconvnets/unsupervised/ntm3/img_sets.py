@@ -60,7 +60,7 @@ N_BATCHES_TEST_MOVIE = 10
 N_MOVIES = 14755
 EPOCH_LEN = 11 # length of movie
 
-def load_movies(N_CTT, testing=False):
+def load_movies(N_CTT, DIFF=False, testing=False):
 	cats = np.zeros(BATCH_SZ)
 	objs = np.zeros(BATCH_SZ)
 	
@@ -89,7 +89,10 @@ def load_movies(N_CTT, testing=False):
 		
 		#temp = np.asarray(Image.fromarray(np.uint8(255*(z['imgs'][movie_frame-1+N_FUTURE] - mean_img)).reshape((3,32,32)).transpose((1,2,0))).resize((16,16)),dtype='single')/255
 		#frame_target[img] = temp.transpose((2,0,1)).reshape((3*16*16,1))
-		frame_target[img] = (z['imgs'][movie_frame-1+N_FUTURE][np.newaxis] - mean_img).reshape((3*IM_SZ*IM_SZ, 1))
+		if DIFF:
+			frame_target[img] = (z['imgs'][movie_frame-1+N_FUTURE][np.newaxis] - z['imgs'][movie_frame-1][np.newaxis]).reshape((3*IM_SZ*IM_SZ, 1))
+		else:
+			frame_target[img] = (z['imgs'][movie_frame-1+N_FUTURE][np.newaxis] - mean_img).reshape((3*IM_SZ*IM_SZ, 1))
 
 	movie_inputs = np.ascontiguousarray(movie_inputs)
 	
