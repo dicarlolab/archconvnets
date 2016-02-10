@@ -91,6 +91,7 @@ def load_movies(N_CTT, DIFF=False, testing=False):
 		#frame_target[img] = temp.transpose((2,0,1)).reshape((3*16*16,1))
 		if DIFF:
 			frame_target[img] = (z['imgs'][movie_frame-1+N_FUTURE][np.newaxis] - z['imgs'][movie_frame-1][np.newaxis]).reshape((3*IM_SZ*IM_SZ, 1))
+			frame_target[:,0] = .0001
 		else:
 			frame_target[img] = (z['imgs'][movie_frame-1+N_FUTURE][np.newaxis] - mean_img).reshape((3*IM_SZ*IM_SZ, 1))
 
