@@ -2,6 +2,7 @@ import numpy as np
 from scipy.io import loadmat
 from gpu_flag import *
 import Image
+import random
 from archconvnets.unsupervised.rosch_models_collated import *
 
 N_BATCHES_TEST = 100
@@ -57,7 +58,7 @@ def load_cifar(batch, N_CTT, testing=False):
 
 #############################
 # movies
-N_MOVIES = 42
+N_MOVIES = 58
 MOVIE_FILE_SZ = 2500
 MOVIE_FILE_SZ_COMB = 2500*2 # half objs in each file due to memory constraints of rendering
 N_FILES_TEST_MOVIE = 2
@@ -73,6 +74,7 @@ z = loadmat('/home/darren/new_movies2/0.mat')
 z2 = loadmat('/home/darren/new_movies2/1.mat')
 
 inds = np.arange(N_TEST)
+random.shuffle(inds)
 
 movie_test_imgs = np.concatenate((np.single(z['imgs']), np.single(z2['imgs'])), axis=0)
 movie_test_imgs /= movie_test_imgs.max()
@@ -124,6 +126,7 @@ def load_movies(batch, N_CTT, DIFF=False, testing=False):
 			z2 = loadmat('/home/darren/new_movies2/' + str(movie_file*2 + N_FILES_TEST_MOVIE + 1) + '.mat')
 
 			inds = np.arange(N_TEST)
+			random.shuffle(inds)
 
 			movie_imgs = np.concatenate((np.single(z['imgs']), np.single(z2['imgs'])), axis=0)
 			movie_imgs /= movie_imgs.max()
