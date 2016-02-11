@@ -2,6 +2,7 @@ import numpy as np
 from scipy.io import loadmat
 from gpu_flag import *
 import Image
+from archconvnets.unsupervised.rosch_models_collated import *
 
 N_BATCHES_TEST = 100
 
@@ -56,48 +57,117 @@ def load_cifar(batch, N_CTT, testing=False):
 
 #############################
 # movies
-N_BATCHES_TEST_MOVIE = 10
-N_MOVIES = 15931
-EPOCH_LEN = 11 # length of movie
+N_MOVIES = 42
+MOVIE_FILE_SZ = 2500
+MOVIE_FILE_SZ_COMB = 2500*2 # half objs in each file due to memory constraints of rendering
+N_FILES_TEST_MOVIE = 2
+N_MOVIE_BATCHES = 6
+EPOCH_LEN = 16 # length of movie
+N_CAT_MOVIE = 10
+N_OBJ_MOVIE = 122
 
-def load_movies(N_CTT, DIFF=False, testing=False):
-	cats = np.zeros(BATCH_SZ)
-	objs = np.zeros(BATCH_SZ)
+N_TEST = MOVIE_FILE_SZ*N_FILES_TEST_MOVIE
+N_BATCHES_TEST_MOVIE = N_TEST / BATCH_SZ
+
+z = loadmat('/home/darren/new_movies2/0.mat')
+z2 = loadmat('/home/darren/new_movies2/1.mat')
+
+inds = np.arange(N_TEST)
+
+movie_test_imgs = np.concatenate((np.single(z['imgs']), np.single(z2['imgs'])), axis=0)
+movie_test_imgs /= movie_test_imgs.max()
+movie_test_imgs = movie_test_imgs.reshape((N_TEST, EPOCH_LEN, 3, IM_SZ, IM_SZ))
+movie_test_imgs -= mean_img
+
+movie_test_objs = np.concatenate((z['obj_list'].squeeze(), z2['obj_list'].squeeze()))
+
+movie_test_objs = np.ascontiguousarray(movie_test_objs[inds])
+movie_test_imgs = np.ascontiguousarray(movie_test_imgs[inds])
+
+l = np.zeros((N_TEST, N_CAT_MOVIE),dtype='uint8')
+l[np.arange(N_TEST), syn_cats[movie_test_objs]] = 1
+Y_test_movie_cat = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
+
+l = np.zeros((N_TEST, N_OBJ_MOVIE),dtype='uint8')
+l[np.arange(N_TEST), movie_test_objs] = 1
+Y_test_movie_obj = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
+
+movie_objs = []
+movie_imgs = []
+Y_movie_cat = []
+Y_movie_obj = []
+
+def load_movies(batch, N_CTT, DIFF=False, testing=False):
+	global movie_imgs, movie_objs, Y_movie_cat, Y_movie_obj
+
+	movie_batch = batch % (MOVIE_FILE_SZ_COMB / BATCH_SZ)
 	
 	movie_inputs = np.zeros((BATCH_SZ, N_CTT*3, IM_SZ, IM_SZ), dtype='single')
-	frame_target = np.zeros((BATCH_SZ, 3*32*32, 1), dtype='single')
-	cat_target = np.zeros((BATCH_SZ, 8, 1), dtype='single')
-	obj_target = np.zeros((BATCH_SZ, 32, 1), dtype='single')
+	frame_target = np.zeros((BATCH_SZ, 3*IM_SZ*IM_SZ, 1), dtype='single')
 
-	for img in range(BATCH_SZ):
+	obj_target = np.zeros((BATCH_SZ, IM_SZ, 1), dtype='single')
+	
+	if testing:
+		obj_target = Y_test_movie_obj[movie_batch*BATCH_SZ:(movie_batch+1)*BATCH_SZ]
+		cat_target = Y_test_movie_cat[movie_batch*BATCH_SZ:(movie_batch+1)*BATCH_SZ]
+		
+		objs = movie_test_objs[movie_batch*BATCH_SZ:(movie_batch+1)*BATCH_SZ]
+		cats = syn_cats[movie_test_objs[movie_batch*BATCH_SZ:(movie_batch+1)*BATCH_SZ]]
+		
+		movie_cur_imgs = movie_test_imgs
+	else:
+		
+		if movie_batch == 0:
+			movie_file = ((batch*BATCH_SZ)/MOVIE_FILE_SZ_COMB) % (N_MOVIES/2 - N_FILES_TEST_MOVIE)
+			
+			z = loadmat('/home/darren/new_movies2/' + str(movie_file*2 + N_FILES_TEST_MOVIE) + '.mat')
+			z2 = loadmat('/home/darren/new_movies2/' + str(movie_file*2 + N_FILES_TEST_MOVIE + 1) + '.mat')
+
+			inds = np.arange(N_TEST)
+
+			movie_imgs = np.concatenate((np.single(z['imgs']), np.single(z2['imgs'])), axis=0)
+			movie_imgs /= movie_imgs.max()
+			movie_imgs = movie_imgs.reshape((N_TEST, EPOCH_LEN, 3, IM_SZ, IM_SZ))
+			movie_imgs -= mean_img
+
+			movie_objs = np.concatenate((z['obj_list'].squeeze(), z2['obj_list'].squeeze()))
+
+			movie_objs = np.ascontiguousarray(movie_objs[inds])
+			movie_imgs = np.ascontiguousarray(movie_imgs[inds])
+
+			l = np.zeros((N_TEST, N_CAT_MOVIE),dtype='uint8')
+			l[np.arange(N_TEST), syn_cats[movie_objs]] = 1
+			Y_movie_cat = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
+
+			l = np.zeros((N_TEST, N_OBJ_MOVIE),dtype='uint8')
+			l[np.arange(N_TEST), movie_objs] = 1
+			Y_movie_obj = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
+			
+		#############
+		
+		obj_target = Y_movie_obj[movie_batch*BATCH_SZ:(movie_batch+1)*BATCH_SZ]
+		cat_target = Y_movie_cat[movie_batch*BATCH_SZ:(movie_batch+1)*BATCH_SZ]
+		
+		objs = movie_objs[movie_batch*BATCH_SZ:(movie_batch+1)*BATCH_SZ]
+		cats = syn_cats[movie_objs[movie_batch*BATCH_SZ:(movie_batch+1)*BATCH_SZ]]
+		
+		movie_cur_imgs = movie_imgs
+		
+	
+	for movie in range(BATCH_SZ):
+		movie_ind = movie_batch*BATCH_SZ + movie
 		movie_frame = np.random.randint(EPOCH_LEN - N_CTT - N_FUTURE + 1) + N_CTT
-		
-		if testing == False:
-			movie_ind = np.random.randint(N_MOVIES - N_BATCHES_TEST_MOVIE*BATCH_SZ) + N_BATCHES_TEST_MOVIE*BATCH_SZ
-		else:
-			movie_ind = img + testing*BATCH_SZ
-		
-		z = loadmat('/home/darren/rotating_objs32_constback_const_movement_25t/imgs' + str(movie_ind)  + '.mat')
-		
-		cats[img] = z['cat'][0][0]
-		objs[img] = z['obj'][0][0]
-		
-		cat_target[img, cats[img]] = 1
-		obj_target[img, objs[img]] = 1
-		
-		movie_inputs[img] = (z['imgs'][movie_frame-N_CTT:movie_frame] - mean_img).reshape((1,N_CTT*3, IM_SZ, IM_SZ))
-		
-		#temp = np.asarray(Image.fromarray(np.uint8(255*(z['imgs'][movie_frame-1+N_FUTURE] - mean_img)).reshape((3,32,32)).transpose((1,2,0))).resize((16,16)),dtype='single')/255
-		#frame_target[img] = temp.transpose((2,0,1)).reshape((3*16*16,1))
+	
+		movie_inputs[movie] = movie_cur_imgs[movie_ind][movie_frame-N_CTT:movie_frame].reshape((1,N_CTT*3, IM_SZ,IM_SZ))
+
 		if DIFF:
-			frame_target[img] = (z['imgs'][movie_frame-1+N_FUTURE][np.newaxis] - z['imgs'][movie_frame-1][np.newaxis]).reshape((3*IM_SZ*IM_SZ, 1))
+			frame_target[movie] = (movie_cur_imgs[movie_ind][movie_frame-1+N_FUTURE] - movie_cur_imgs[movie_ind][movie_frame-1])[np.newaxis].reshape((3*IM_SZ*IM_SZ, 1))
 			frame_target[:,0] = .0001
 		else:
-			frame_target[img] = (z['imgs'][movie_frame-1+N_FUTURE][np.newaxis] - mean_img).reshape((3*IM_SZ*IM_SZ, 1))
-
-	movie_inputs = np.ascontiguousarray(movie_inputs)
+			frame_target[movie] = movie_cur_imgs[movie_ind][movie_frame-1+N_FUTURE][np.newaxis].reshape((3*IM_SZ*IM_SZ, 1))
 	
-	return objs,cats, cat_target, obj_target, movie_inputs, frame_target
+	return objs,cats, np.ascontiguousarray(cat_target), np.ascontiguousarray(obj_target), np.ascontiguousarray(movie_inputs), np.ascontiguousarray(frame_target)
+	
 
 #####################################################################
 # imgnet
@@ -130,9 +200,10 @@ def load_imgnet(batch, N_CTT, testing=False):
 		imgnet_target = Y_test_imgnet[imgnet_batch*BATCH_SZ:(imgnet_batch+1)*BATCH_SZ]
 		imgnet_inputs = np.tile(imgnet_test_imgs[imgnet_batch*BATCH_SZ:(imgnet_batch+1)*BATCH_SZ], (1,N_CTT,1,1,1)).reshape((BATCH_SZ,N_CTT*3, IM_SZ, IM_SZ))
 	else:
-		imgnet_file = ((batch*BATCH_SZ)/IMGNET_FILE_SZ) % (N_IMGNET_FILES-1)
 		
 		if imgnet_batch == 0:
+			imgnet_file = ((batch*BATCH_SZ)/IMGNET_FILE_SZ) % (N_IMGNET_FILES-1)
+			
 			z = loadmat('/home/darren/imgnet32/data_batch_' + str(imgnet_file+2))
 			imgnet_imgs = np.single(z['data'])
 			imgnet_imgs /= imgnet_imgs.max()

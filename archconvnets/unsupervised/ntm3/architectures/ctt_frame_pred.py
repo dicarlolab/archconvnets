@@ -34,12 +34,12 @@ def init_model():
 		add_sum_layer(LAYERS, 'CIFAR_SUM_ERR', init=init)
 		
 		## synthetic categorization
-		add_linear_F_bias_layer(LAYERS, 'CAT', 8, source='F3_MAX', batch_imgs=B, init=init)
+		add_linear_F_bias_layer(LAYERS, 'CAT', 10, source='F3_MAX', batch_imgs=B, init=init)
 		add_pearson_layer(LAYERS, 'CAT_ERR', ['CAT', -1], batch_imgs=B, init=init)
 		add_sum_layer(LAYERS, 'CAT_SUM_ERR', init=init)
 		
 		## synthetic identification
-		add_linear_F_bias_layer(LAYERS, 'OBJ', 32, source='F3_MAX', batch_imgs=B, init=init)
+		add_linear_F_bias_layer(LAYERS, 'OBJ', 122, source='F3_MAX', batch_imgs=B, init=init)
 		add_pearson_layer(LAYERS, 'OBJ_ERR', ['OBJ', -1], batch_imgs=B, init=init)
 		add_sum_layer(LAYERS, 'OBJ_SUM_ERR', init=init)
 		# bp_frame_pred uses prior layer as breakpoint for forward_network()

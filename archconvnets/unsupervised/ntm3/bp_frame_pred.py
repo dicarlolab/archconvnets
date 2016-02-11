@@ -10,7 +10,7 @@ from img_sets import *
 EPS = 1e-1
 
 DIFF = True
-train_filters_on = 0
+train_filters_on = 5
 
 abort_cifar = abort_cat = abort_obj = abort_imgnet = 'F3_MAX'
 MOVIE_BREAK_LAYER = 'OBJ_SUM_ERR'
@@ -104,7 +104,7 @@ while True:
 	# load imgs
 	cifar_target, cifar_inputs = load_cifar(batch, N_CTT)
 	imgnet_target, imgnet_inputs = load_imgnet(batch, N_CTT)
-	objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movies(N_CTT, DIFF=DIFF)
+	objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movies(batch, N_CTT, DIFF=DIFF)
 	
 	#######
 	# set targets
@@ -209,7 +209,7 @@ while True:
 		###########
 		# test movies
 		for t_batch in range(N_BATCHES_TEST_MOVIE):
-			objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movies(N_CTT, DIFF=DIFF, testing=t_batch)
+			objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movies(t_batch, N_CTT, DIFF=DIFF, testing=t_batch)
 			
 			set_buffer(cat_target, WEIGHTS[CAT_DIFF_IND][1])
 			set_buffer(obj_target, WEIGHTS[OBJ_DIFF_IND][1])

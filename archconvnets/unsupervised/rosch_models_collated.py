@@ -1,3 +1,17 @@
+import numpy as np
+
+syn_cats = np.zeros(122,dtype='int')
+
+syn_cats[17:17+11] = 1 # boats
+syn_cats[17+11:17+11+8] = 2 # planes
+syn_cats[17+11+8:17+11+8+10] = 3 # faces
+syn_cats[17+11+8+10:17+11+8+10+9] = 4 # chairs
+syn_cats[17+11+8+10+9:17+11+8+10+9+15] = 5 # tables
+syn_cats[17+11+8+10+9+15:17+11+8+10+9+15+6] = 6 # buildings
+syn_cats[17+11+8+10+9+15+6:17+11+8+10+9+15+6+16] = 7 # plants
+syn_cats[17+11+8+10+9+15+6+16:17+11+8+10+9+15+6+16+16] = 8 # bodies
+syn_cats[17+11+8+10+9+15+6+16+16:17+11+8+10+9+15+6+16+16+14] = 9 # shoes
+
 objs = ['shorthair_cat', 'lynx', 'leopard', 'doberman', 'weimaraner',
                'hedgehog', 'hare', 'fieldmouse', 'anteater',
                'MB30418','crocodile', 'terapin','elephant',
