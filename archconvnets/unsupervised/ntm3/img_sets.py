@@ -57,7 +57,7 @@ def load_cifar(batch, N_CTT, testing=False):
 #############################
 # movies
 N_BATCHES_TEST_MOVIE = 10
-N_MOVIES = 14755
+N_MOVIES = 15931
 EPOCH_LEN = 11 # length of movie
 
 def load_movies(N_CTT, DIFF=False, testing=False):
