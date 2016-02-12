@@ -10,7 +10,7 @@ from img_sets import *
 EPS = 1e-1
 
 DIFF = True
-train_filters_on = 5
+train_filters_on = 0
 
 abort_cifar = abort_cat = abort_obj = abort_imgnet = 'F3_MAX'
 MOVIE_BREAK_LAYER = 'OBJ_SUM_ERR'
@@ -65,23 +65,28 @@ t_start = time.time()
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
 
 PRED_IND = find_layer(LAYERS, 'STACK_SUM2')
-IMGNET_PRED_IND = find_layer(LAYERS, 'IMGNET')
-CIFAR_PRED_IND = find_layer(LAYERS, 'CIFAR')
 OBJ_PRED_IND = find_layer(LAYERS, 'OBJ')
 CAT_PRED_IND = find_layer(LAYERS, 'CAT')
 
 DIFF_IND = find_layer(LAYERS, 'ERR')
-IMGNET_DIFF_IND = find_layer(LAYERS, 'IMGNET_ERR')
-CIFAR_DIFF_IND = find_layer(LAYERS, 'CIFAR_ERR')
 CAT_DIFF_IND = find_layer(LAYERS, 'CAT_ERR')
 OBJ_DIFF_IND = find_layer(LAYERS, 'OBJ_ERR')
-IMGNET_DIFF_IND = find_layer(LAYERS, 'IMGNET_ERR')
+
 
 OUT_IND = find_layer(LAYERS, 'SUM_ERR')
-IMGNET_OUT_IND = find_layer(LAYERS, 'IMGNET_SUM_ERR')
-CIFAR_OUT_IND = find_layer(LAYERS, 'CIFAR_SUM_ERR')
 OBJ_OUT_IND = find_layer(LAYERS, 'OBJ_SUM_ERR')
 CAT_OUT_IND = find_layer(LAYERS, 'CAT_SUM_ERR')
+
+if CLASS_IMGNET:
+	IMGNET_PRED_IND = find_layer(LAYERS, 'IMGNET')
+	IMGNET_DIFF_IND = find_layer(LAYERS, 'IMGNET_ERR')
+	IMGNET_DIFF_IND = find_layer(LAYERS, 'IMGNET_ERR')
+	IMGNET_OUT_IND = find_layer(LAYERS, 'IMGNET_SUM_ERR')
+
+if CLASS_CIFAR:
+	CIFAR_PRED_IND = find_layer(LAYERS, 'CIFAR')
+	CIFAR_DIFF_IND = find_layer(LAYERS, 'CIFAR_ERR')
+	CIFAR_OUT_IND = find_layer(LAYERS, 'CIFAR_SUM_ERR')
 
 MOVIE_BREAK_LAYER_IND = find_layer(LAYERS, MOVIE_BREAK_LAYER)
 
@@ -100,51 +105,40 @@ PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 
 #####################
 while True:
-	#######
-	# load imgs
-	cifar_target, cifar_inputs = load_cifar(batch, N_CTT)
-	imgnet_target, imgnet_inputs = load_imgnet(batch, N_CTT)
-	objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movies(batch, N_CTT, DIFF=DIFF)
-	
-	#######
-	# set targets
-	set_buffer(cat_target, WEIGHTS[CAT_DIFF_IND][1])
-	set_buffer(obj_target, WEIGHTS[OBJ_DIFF_IND][1])
-	set_buffer(cifar_target, WEIGHTS[CIFAR_DIFF_IND][1])
-	set_buffer(imgnet_target, WEIGHTS[IMGNET_DIFF_IND][1])
-	set_buffer(frame_target, WEIGHTS[DIFF_IND][1])
 	
 	##############
 	# forward cifar
-	set_buffer(cifar_inputs, WEIGHTS[F1_IND][1])
-	OUTPUT_CIFAR = forward_network(LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, break_layer=CIFAR_OUT_IND)
-	
-	# predictions/errors
-	cifar_pred = return_buffer(OUTPUT_CIFAR[CIFAR_PRED_IND])
-	cifar_err += return_buffer(OUTPUT_CIFAR[CIFAR_OUT_IND])[0]
-	cifar_class += (cifar_target.argmax(1).squeeze() == cifar_pred.argmax(1).squeeze()).sum()
-	
-	# reverse
-	WEIGHT_DERIVS_CIFAR = reverse_network(CIFAR_OUT_IND, LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CIFAR, abort_layer=abort_cifar)
-	WEIGHT_DERIVS_RMS_CIFAR = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR, EPS / BATCH_SZ, batch, batch_LAG)
-	
+	if CLASS_CIFAR:
+		cifar_target, cifar_inputs = load_cifar(batch, N_CTT, CIFAR_DIFF_IND, WEIGHTS)
+		OUTPUT_CIFAR = forward_network(LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, break_layer=CIFAR_OUT_IND)
+		
+		# predictions/errors
+		cifar_pred = return_buffer(OUTPUT_CIFAR[CIFAR_PRED_IND])
+		cifar_err += return_buffer(OUTPUT_CIFAR[CIFAR_OUT_IND])[0]
+		cifar_class += (cifar_target.argmax(1).squeeze() == cifar_pred.argmax(1).squeeze()).sum()
+		
+		# reverse
+		WEIGHT_DERIVS_CIFAR = reverse_network(CIFAR_OUT_IND, LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_CIFAR, abort_layer=abort_cifar)
+		WEIGHT_DERIVS_RMS_CIFAR = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CIFAR, WEIGHT_DERIVS_RMS_CIFAR, EPS / BATCH_SZ, batch, batch_LAG)
+		
 	##############
 	# forward imgnet
-	set_buffer(imgnet_inputs, WEIGHTS[F1_IND][1])
-	OUTPUT_IMGNET = forward_network(LAYERS, WEIGHTS, OUTPUT_IMGNET, OUTPUT_PREV, break_layer=IMGNET_OUT_IND)
-	
-	# predictions/errors
-	imgnet_pred = return_buffer(OUTPUT_IMGNET[IMGNET_PRED_IND])
-	imgnet_err += return_buffer(OUTPUT_IMGNET[IMGNET_OUT_IND])[0]
-	imgnet_class += (imgnet_target.argmax(1).squeeze() == imgnet_pred.argmax(1).squeeze()).sum()
-	
-	# reverse
-	WEIGHT_DERIVS_IMGNET = reverse_network(IMGNET_OUT_IND, LAYERS, WEIGHTS, OUTPUT_IMGNET, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_IMGNET, abort_layer=abort_imgnet)
-	WEIGHT_DERIVS_RMS_IMGNET = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_IMGNET, WEIGHT_DERIVS_RMS_IMGNET, EPS / BATCH_SZ, batch, batch_LAG)
-	
+	if CLASS_IMGNET:
+		imgnet_target, imgnet_inputs = load_imgnet(batch, N_CTT, IMGNET_DIFF_IND, WEIGHTS)
+		OUTPUT_IMGNET = forward_network(LAYERS, WEIGHTS, OUTPUT_IMGNET, OUTPUT_PREV, break_layer=IMGNET_OUT_IND)
+		
+		# predictions/errors
+		imgnet_pred = return_buffer(OUTPUT_IMGNET[IMGNET_PRED_IND])
+		imgnet_err += return_buffer(OUTPUT_IMGNET[IMGNET_OUT_IND])[0]
+		imgnet_class += (imgnet_target.argmax(1).squeeze() == imgnet_pred.argmax(1).squeeze()).sum()
+		
+		# reverse
+		WEIGHT_DERIVS_IMGNET = reverse_network(IMGNET_OUT_IND, LAYERS, WEIGHTS, OUTPUT_IMGNET, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS_IMGNET, abort_layer=abort_imgnet)
+		WEIGHT_DERIVS_RMS_IMGNET = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_IMGNET, WEIGHT_DERIVS_RMS_IMGNET, EPS / BATCH_SZ, batch, batch_LAG)
+		
 	###############
 	# forward movie
-	set_buffer(movie_inputs, WEIGHTS[F1_IND][1])
+	objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movies(batch, N_CTT, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, WEIGHTS, DIFF=DIFF)
 	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, break_layer=MOVIE_BREAK_LAYER_IND)
 	
 	# predictions/errors
@@ -180,44 +174,35 @@ while True:
 		##########
 		# test imgnet/cifar
 		for t_batch in range(N_BATCHES_TEST):
-			cifar_target, cifar_inputs = load_cifar(t_batch, N_CTT, testing=True)
-			imgnet_target, imgnet_inputs = load_imgnet(t_batch, N_CTT, testing=True)
-			
-			set_buffer(cifar_target, WEIGHTS[CIFAR_DIFF_IND][1])
-			set_buffer(imgnet_target, WEIGHTS[IMGNET_DIFF_IND][1])
-			
 			##############
 			# forward cifar
-			set_buffer(cifar_inputs, WEIGHTS[F1_IND][1])
-			OUTPUT_CIFAR = forward_network(LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, break_layer=CIFAR_OUT_IND)
-			
-			# predictions/errors
-			cifar_pred = return_buffer(OUTPUT_CIFAR[CIFAR_PRED_IND])
-			cifar_test_err += return_buffer(OUTPUT_CIFAR[CIFAR_OUT_IND])[0]
-			cifar_test_class += (cifar_target.argmax(1).squeeze() == cifar_pred.argmax(1).squeeze()).sum()
-			
+			if CLASS_CIFAR:
+				cifar_target, cifar_inputs = load_cifar(t_batch, N_CTT, CIFAR_DIFF_IND, F1_IND, WEIGHTS, testing=True)
+				OUTPUT_CIFAR = forward_network(LAYERS, WEIGHTS, OUTPUT_CIFAR, OUTPUT_PREV, break_layer=CIFAR_OUT_IND)
+				
+				# predictions/errors
+				cifar_pred = return_buffer(OUTPUT_CIFAR[CIFAR_PRED_IND])
+				cifar_test_err += return_buffer(OUTPUT_CIFAR[CIFAR_OUT_IND])[0]
+				cifar_test_class += (cifar_target.argmax(1).squeeze() == cifar_pred.argmax(1).squeeze()).sum()
+				
 			##############
 			# forward imgnet
-			set_buffer(imgnet_inputs, WEIGHTS[F1_IND][1])
-			OUTPUT_IMGNET = forward_network(LAYERS, WEIGHTS, OUTPUT_IMGNET, OUTPUT_PREV, break_layer=IMGNET_OUT_IND)
-			
-			# predictions/errors
-			imgnet_pred = return_buffer(OUTPUT_IMGNET[IMGNET_PRED_IND])
-			imgnet_test_err += return_buffer(OUTPUT_IMGNET[IMGNET_OUT_IND])[0]
-			imgnet_test_class += (imgnet_target.argmax(1).squeeze() == imgnet_pred.argmax(1).squeeze()).sum()
-			
+			if CLASS_IMGNET:
+				imgnet_target, imgnet_inputs = load_imgnet(t_batch, N_CTT, IMGNET_DIFF_IND, F1_IND, WEIGHTS, testing=True)
+				OUTPUT_IMGNET = forward_network(LAYERS, WEIGHTS, OUTPUT_IMGNET, OUTPUT_PREV, break_layer=IMGNET_OUT_IND)
+				
+				# predictions/errors
+				imgnet_pred = return_buffer(OUTPUT_IMGNET[IMGNET_PRED_IND])
+				imgnet_test_err += return_buffer(OUTPUT_IMGNET[IMGNET_OUT_IND])[0]
+				imgnet_test_class += (imgnet_target.argmax(1).squeeze() == imgnet_pred.argmax(1).squeeze()).sum()
+				
 		###########
 		# test movies
 		for t_batch in range(N_BATCHES_TEST_MOVIE):
-			objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movies(t_batch, N_CTT, DIFF=DIFF, testing=t_batch)
-			
-			set_buffer(cat_target, WEIGHTS[CAT_DIFF_IND][1])
-			set_buffer(obj_target, WEIGHTS[OBJ_DIFF_IND][1])
-			set_buffer(frame_target, WEIGHTS[DIFF_IND][1])
 			
 			###############
 			# forward movie
-			set_buffer(movie_inputs, WEIGHTS[F1_IND][1])
+			objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movies(t_batch, N_CTT, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, WEIGHTS, DIFF=DIFF, testing=t_batch)
 			OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, break_layer=MOVIE_BREAK_LAYER_IND)
 			
 			# predictions/errors
@@ -274,12 +259,16 @@ while True:
 		if train_filters_on == 0:
 			print 'err: ', err_log[-1], 'err_test: ', err_test_log[-1]
 			print
-		print 'imgnet_class: ', imgnet_class_log[-1], 'imgnet_err: ', imgnet_err_log[-1]
-		print 'imgnet_class: ', imgnet_test_class_log[-1], 'imgnet_err: ', imgnet_test_err_log[-1]
-		print 
-		print 'cifar_class: ', cifar_class_log[-1], 'cifar_err: ', cifar_err_log[-1]
-		print 'cifar_class: ', cifar_test_class_log[-1], 'cifar_err: ', cifar_test_err_log[-1]
-		print
+		
+		if CLASS_IMGNET:
+			print 'imgnet_class: ', imgnet_class_log[-1], 'imgnet_err: ', imgnet_err_log[-1]
+			print 'imgnet_class: ', imgnet_test_class_log[-1], 'imgnet_err: ', imgnet_test_err_log[-1]
+			print 
+		
+		if CLASS_CIFAR:
+			print 'cifar_class: ', cifar_class_log[-1], 'cifar_err: ', cifar_err_log[-1]
+			print 'cifar_class: ', cifar_test_class_log[-1], 'cifar_err: ', cifar_test_err_log[-1]
+			print
 		print 'obj_class: ', obj_class_log[-1], 'obj_err: ', obj_err_log[-1]
 		print 'obj_class: ', obj_test_class_log[-1], 'obj_err: ', obj_test_err_log[-1]
 		print

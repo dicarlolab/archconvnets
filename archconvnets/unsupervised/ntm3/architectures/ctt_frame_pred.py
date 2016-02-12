@@ -28,10 +28,11 @@ def init_model():
 		add_conv_layer(LAYERS, 'F3', U_F3, U_F3_FILTER_SZ, PAD=2, init=init)
 		add_max_pool_layer(LAYERS, 'F3_MAX', init=init)
 		
-		## cifar
-		add_linear_F_bias_layer(LAYERS, 'CIFAR', 10, source='F3_MAX', batch_imgs=B, init=init)
-		add_pearson_layer(LAYERS, 'CIFAR_ERR', ['CIFAR', -1], batch_imgs=B, init=init)
-		add_sum_layer(LAYERS, 'CIFAR_SUM_ERR', init=init)
+		if CLASS_CIFAR:
+			## cifar
+			add_linear_F_bias_layer(LAYERS, 'CIFAR', 10, source='F3_MAX', batch_imgs=B, init=init)
+			add_pearson_layer(LAYERS, 'CIFAR_ERR', ['CIFAR', -1], batch_imgs=B, init=init)
+			add_sum_layer(LAYERS, 'CIFAR_SUM_ERR', init=init)
 		
 		## synthetic categorization
 		add_linear_F_bias_layer(LAYERS, 'CAT', 10, source='F3_MAX', batch_imgs=B, init=init)
@@ -44,10 +45,11 @@ def init_model():
 		add_sum_layer(LAYERS, 'OBJ_SUM_ERR', init=init)
 		# bp_frame_pred uses prior layer as breakpoint for forward_network()
 		
-		## imgnet
-		add_linear_F_bias_layer(LAYERS, 'IMGNET', 999, source='F3_MAX', batch_imgs=B, init=init)
-		add_pearson_layer(LAYERS, 'IMGNET_ERR', ['IMGNET', -1], batch_imgs=B, init=init)
-		add_sum_layer(LAYERS, 'IMGNET_SUM_ERR', init=init)
+		if CLASS_IMGNET:
+			## imgnet
+			add_linear_F_bias_layer(LAYERS, 'IMGNET', 999, source='F3_MAX', batch_imgs=B, init=init)
+			add_pearson_layer(LAYERS, 'IMGNET_ERR', ['IMGNET', -1], batch_imgs=B, init=init)
+			add_sum_layer(LAYERS, 'IMGNET_SUM_ERR', init=init)
 		# bp_frame_pred uses prior layer as breakpoint for forward_network()
 		
 		###################################

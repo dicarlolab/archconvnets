@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.io import loadmat
-from gpu_flag import *
+from ntm_core import *
 import Image
 import random
 from archconvnets.unsupervised.rosch_models_collated import *
@@ -43,18 +43,24 @@ l = np.zeros((CIFAR_FILE_SZ, 10),dtype='uint8')
 l[np.arange(CIFAR_FILE_SZ),np.asarray(z2['labels']).astype(int)] = 1
 Y_test_cifar = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
 
-def load_cifar(batch, N_CTT, testing=False):
-	cifar_batch = batch % (N_IMGS_CIFAR / BATCH_SZ)
-	
-	if testing:
-		assert batch < N_BATCHES_TEST
-		cifar_inputs = np.tile(cifar_test_imgs[cifar_batch*BATCH_SZ:(cifar_batch+1)*BATCH_SZ], (1,N_CTT,1,1,1)).reshape((BATCH_SZ,N_CTT*3, IM_SZ, IM_SZ))
-		cifar_target = Y_test_cifar[cifar_batch*BATCH_SZ:(cifar_batch+1)*BATCH_SZ]
+def load_cifar(batch, N_CTT, CIFAR_DIFF_IND, F1_IND, WEIGHTS, testing=False):
+	if CLASS_CIFAR:
+		cifar_batch = batch % (N_IMGS_CIFAR / BATCH_SZ)
+		
+		if testing:
+			assert batch < N_BATCHES_TEST
+			cifar_inputs = np.tile(cifar_test_imgs[cifar_batch*BATCH_SZ:(cifar_batch+1)*BATCH_SZ], (1,N_CTT,1,1,1)).reshape((BATCH_SZ,N_CTT*3, IM_SZ, IM_SZ))
+			cifar_target = Y_test_cifar[cifar_batch*BATCH_SZ:(cifar_batch+1)*BATCH_SZ]
+		else:
+			cifar_inputs = np.tile(cifar_imgs[cifar_batch*BATCH_SZ:(cifar_batch+1)*BATCH_SZ], (1,N_CTT,1,1,1)).reshape((BATCH_SZ,N_CTT*3, IM_SZ, IM_SZ))
+			cifar_target = Y_cifar[cifar_batch*BATCH_SZ:(cifar_batch+1)*BATCH_SZ]
+		
+		set_buffer(cifar_target, WEIGHTS[CIFAR_DIFF_IND][1])
+		set_buffer(cifar_inputs, WEIGHTS[F1_IND][1])
+		
+		return cifar_target, cifar_inputs
 	else:
-		cifar_inputs = np.tile(cifar_imgs[cifar_batch*BATCH_SZ:(cifar_batch+1)*BATCH_SZ], (1,N_CTT,1,1,1)).reshape((BATCH_SZ,N_CTT*3, IM_SZ, IM_SZ))
-		cifar_target = Y_cifar[cifar_batch*BATCH_SZ:(cifar_batch+1)*BATCH_SZ]
-	
-	return cifar_target, cifar_inputs
+		return None, None
 
 #############################
 # movies
@@ -99,7 +105,7 @@ movie_imgs = []
 Y_movie_cat = []
 Y_movie_obj = []
 
-def load_movies(batch, N_CTT, DIFF=False, testing=False):
+def load_movies(batch, N_CTT, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, WEIGHTS, DIFF=False, testing=False):
 	global movie_imgs, movie_objs, Y_movie_cat, Y_movie_obj
 
 	movie_batch = batch % (MOVIE_FILE_SZ_COMB / BATCH_SZ)
@@ -169,7 +175,18 @@ def load_movies(batch, N_CTT, DIFF=False, testing=False):
 		else:
 			frame_target[movie] = movie_cur_imgs[movie_ind][movie_frame-1+N_FUTURE][np.newaxis].reshape((3*IM_SZ*IM_SZ, 1))
 	
-	return objs,cats, np.ascontiguousarray(cat_target), np.ascontiguousarray(obj_target), np.ascontiguousarray(movie_inputs), np.ascontiguousarray(frame_target)
+	cat_target = np.ascontiguousarray(cat_target)
+	obj_target = np.ascontiguousarray(obj_target)
+	movie_inputs = np.ascontiguousarray(movie_inputs)
+	frame_target = np.ascontiguousarray(frame_target)
+	
+	set_buffer(cat_target, WEIGHTS[CAT_DIFF_IND][1])
+	set_buffer(obj_target, WEIGHTS[OBJ_DIFF_IND][1])
+	set_buffer(frame_target, WEIGHTS[DIFF_IND][1])
+	
+	set_buffer(movie_inputs, WEIGHTS[F1_IND][1])
+	
+	return objs,cats, cat_target, obj_target, movie_inputs, frame_target
 	
 
 #####################################################################
@@ -192,34 +209,39 @@ assert N_BATCHES_TEST*BATCH_SZ <= IMGNET_FILE_SZ
 imgnet_imgs = []
 Y_imgnet = []
 
-def load_imgnet(batch, N_CTT, testing=False):
-	global imgnet_imgs
-	global Y_imgnet
-	
-	imgnet_batch = batch % (IMGNET_FILE_SZ / BATCH_SZ)
-	
-	if testing:
-		assert batch < N_BATCHES_TEST
-		imgnet_target = Y_test_imgnet[imgnet_batch*BATCH_SZ:(imgnet_batch+1)*BATCH_SZ]
-		imgnet_inputs = np.tile(imgnet_test_imgs[imgnet_batch*BATCH_SZ:(imgnet_batch+1)*BATCH_SZ], (1,N_CTT,1,1,1)).reshape((BATCH_SZ,N_CTT*3, IM_SZ, IM_SZ))
+def load_imgnet(batch, N_CTT, IMGNET_DIFF_IND, F1_IND, WEIGHTS, testing=False):
+	if CLASS_IMGNET:
+		global imgnet_imgs
+		global Y_imgnet
+		
+		imgnet_batch = batch % (IMGNET_FILE_SZ / BATCH_SZ)
+		
+		if testing:
+			assert batch < N_BATCHES_TEST
+			imgnet_target = Y_test_imgnet[imgnet_batch*BATCH_SZ:(imgnet_batch+1)*BATCH_SZ]
+			imgnet_inputs = np.tile(imgnet_test_imgs[imgnet_batch*BATCH_SZ:(imgnet_batch+1)*BATCH_SZ], (1,N_CTT,1,1,1)).reshape((BATCH_SZ,N_CTT*3, IM_SZ, IM_SZ))
+		else:
+			
+			if imgnet_batch == 0:
+				imgnet_file = ((batch*BATCH_SZ)/IMGNET_FILE_SZ) % (N_IMGNET_FILES-1)
+				
+				z = loadmat('/home/darren/imgnet32/data_batch_' + str(imgnet_file+2))
+				imgnet_imgs = np.single(z['data'])
+				imgnet_imgs /= imgnet_imgs.max()
+				imgnet_imgs = imgnet_imgs.reshape((IMGNET_FILE_SZ, 1, 3, IM_SZ, IM_SZ))
+				imgnet_imgs -= mean_img
+				
+				labels_imgnet = z['labels'].squeeze()
+				l = np.zeros((IMGNET_FILE_SZ, 999),dtype='uint8')
+				l[np.arange(IMGNET_FILE_SZ), labels_imgnet.astype(int)] = 1
+				Y_imgnet = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
+			
+			imgnet_target = Y_imgnet[imgnet_batch*BATCH_SZ:(imgnet_batch+1)*BATCH_SZ]
+			imgnet_inputs = np.tile(imgnet_imgs[imgnet_batch*BATCH_SZ:(imgnet_batch+1)*BATCH_SZ], (1,N_CTT,1,1,1)).reshape((BATCH_SZ,N_CTT*3, IM_SZ, IM_SZ))
+		
+		set_buffer(imgnet_target, WEIGHTS[IMGNET_DIFF_IND][1])
+		set_buffer(imgnet_inputs, WEIGHTS[F1_IND][1])
+		return imgnet_target, np.ascontiguousarray(imgnet_inputs)
 	else:
-		
-		if imgnet_batch == 0:
-			imgnet_file = ((batch*BATCH_SZ)/IMGNET_FILE_SZ) % (N_IMGNET_FILES-1)
-			
-			z = loadmat('/home/darren/imgnet32/data_batch_' + str(imgnet_file+2))
-			imgnet_imgs = np.single(z['data'])
-			imgnet_imgs /= imgnet_imgs.max()
-			imgnet_imgs = imgnet_imgs.reshape((IMGNET_FILE_SZ, 1, 3, IM_SZ, IM_SZ))
-			imgnet_imgs -= mean_img
-			
-			labels_imgnet = z['labels'].squeeze()
-			l = np.zeros((IMGNET_FILE_SZ, 999),dtype='uint8')
-			l[np.arange(IMGNET_FILE_SZ), labels_imgnet.astype(int)] = 1
-			Y_imgnet = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
-		
-		imgnet_target = Y_imgnet[imgnet_batch*BATCH_SZ:(imgnet_batch+1)*BATCH_SZ]
-		imgnet_inputs = np.tile(imgnet_imgs[imgnet_batch*BATCH_SZ:(imgnet_batch+1)*BATCH_SZ], (1,N_CTT,1,1,1)).reshape((BATCH_SZ,N_CTT*3, IM_SZ, IM_SZ))
-		
-	return imgnet_target, np.ascontiguousarray(imgnet_inputs)
+		return None, None
 

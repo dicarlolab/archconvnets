@@ -101,7 +101,7 @@ bgnode.setScale(bgscale, bgscale, bgscale)
 
 movie_ind = 0
 
-imgs = np.zeros((N_MOVIES, N_FRAMES, 3, IMG_SZ, IMG_SZ),dtype='single')
+imgs = np.zeros((N_MOVIES, N_FRAMES, 3, IMG_SZ, IMG_SZ),dtype='uint8')
 bg_list  = np.zeros(N_MOVIES, dtype='int')
 obj_list = np.zeros(N_MOVIES, dtype='int')
 
