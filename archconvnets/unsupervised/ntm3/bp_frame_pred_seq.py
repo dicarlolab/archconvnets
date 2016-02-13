@@ -28,7 +28,7 @@ else:
 save_name += '_EPS_%f_N_CTT_%i_N_MOVIES_%i' % (EPS, N_CTT, N_MOVIES)
 
 if DIFF:
-	save_name += '_diff_250'
+	save_name += '_diff_2000_32F'
 
 free_all_buffers()
 
