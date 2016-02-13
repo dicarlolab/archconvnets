@@ -9,6 +9,7 @@ N_BATCHES_TEST = 100
 
 ##############################
 ################## load cifar
+
 N_IMGS_CIFAR = 50000
 CIFAR_FILE_SZ = 10000
 
@@ -30,21 +31,20 @@ l[np.arange(N_IMGS_CIFAR),np.asarray(z2['labels']).astype(int)] = 1
 Y_cifar = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
 mean_img = mean_img_orig.reshape((1,1,3,IM_SZ,IM_SZ))
 
+if CLASS_CIFAR:
+	# cifar test
+	z2 = np.load('/home/darren/cifar-10-py-colmajor/data_batch_6')
+	z2['data'] = np.single(z2['data'])
+	z2['data'] /= z2['data'].max()
+	x = z2['data'] - mean_img_orig
+	cifar_test_imgs = np.ascontiguousarray(np.single(x.reshape((3, IM_SZ, IM_SZ, CIFAR_FILE_SZ))).transpose((3,0,1,2))[:,np.newaxis])
 
-# cifar test
-z2 = np.load('/home/darren/cifar-10-py-colmajor/data_batch_6')
-z2['data'] = np.single(z2['data'])
-z2['data'] /= z2['data'].max()
-x = z2['data'] - mean_img_orig
-cifar_test_imgs = np.ascontiguousarray(np.single(x.reshape((3, IM_SZ, IM_SZ, CIFAR_FILE_SZ))).transpose((3,0,1,2))[:,np.newaxis])
+	labels_test_cifar = np.asarray(z2['labels'])
+	l = np.zeros((CIFAR_FILE_SZ, 10),dtype='uint8')
+	l[np.arange(CIFAR_FILE_SZ),np.asarray(z2['labels']).astype(int)] = 1
+	Y_test_cifar = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
 
-labels_test_cifar = np.asarray(z2['labels'])
-l = np.zeros((CIFAR_FILE_SZ, 10),dtype='uint8')
-l[np.arange(CIFAR_FILE_SZ),np.asarray(z2['labels']).astype(int)] = 1
-Y_test_cifar = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
-
-def load_cifar(batch, N_CTT, CIFAR_DIFF_IND, F1_IND, WEIGHTS, testing=False):
-	if CLASS_CIFAR:
+	def load_cifar(batch, N_CTT, CIFAR_DIFF_IND, F1_IND, WEIGHTS, testing=False):
 		cifar_batch = batch % (N_IMGS_CIFAR / BATCH_SZ)
 		
 		if testing:
@@ -59,8 +59,7 @@ def load_cifar(batch, N_CTT, CIFAR_DIFF_IND, F1_IND, WEIGHTS, testing=False):
 		set_buffer(cifar_inputs, WEIGHTS[F1_IND][1])
 		
 		return cifar_target, cifar_inputs
-	else:
-		return None, None
+
 
 #############################
 # movies
@@ -112,8 +111,6 @@ def load_movies(batch, N_CTT, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, WEIG
 	
 	movie_inputs = np.zeros((BATCH_SZ, N_CTT*3, IM_SZ, IM_SZ), dtype='single')
 	frame_target = np.zeros((BATCH_SZ, 3*IM_SZ*IM_SZ, 1), dtype='single')
-
-	obj_target = np.zeros((BATCH_SZ, IM_SZ, 1), dtype='single')
 	
 	if testing:
 		obj_target = Y_test_movie_obj[movie_batch*BATCH_SZ:(movie_batch+1)*BATCH_SZ]
@@ -126,7 +123,7 @@ def load_movies(batch, N_CTT, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, WEIG
 	else:
 		
 		if movie_batch == 0:
-			movie_file = ((batch*BATCH_SZ)/MOVIE_FILE_SZ_COMB) % (N_MOVIES/2 - N_FILES_TEST_MOVIE)
+			movie_file = ((batch*BATCH_SZ)/MOVIE_FILE_SZ_COMB) % (N_MOVIES/2 - N_FILES_TEST_MOVIE/2)
 			
 			z = loadmat('/home/darren/new_movies2/' + str(movie_file*2 + N_FILES_TEST_MOVIE) + '.mat')
 			z2 = loadmat('/home/darren/new_movies2/' + str(movie_file*2 + N_FILES_TEST_MOVIE + 1) + '.mat')
@@ -191,26 +188,26 @@ def load_movies(batch, N_CTT, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, WEIG
 
 #####################################################################
 # imgnet
-N_IMGNET_FILES = 118
-IMGNET_FILE_SZ = 10000
+if CLASS_IMGNET:
+	N_IMGNET_FILES = 118
+	IMGNET_FILE_SZ = 10000
 
-z = loadmat('/home/darren/imgnet32/data_batch_1')
-imgnet_test_imgs = np.single(z['data'])
-imgnet_test_imgs /= imgnet_test_imgs.max()
-imgnet_test_imgs = imgnet_test_imgs.reshape((IMGNET_FILE_SZ, 1, 3, IM_SZ, IM_SZ))
-imgnet_test_imgs -= mean_img
+	z = loadmat('/home/darren/imgnet32/data_batch_1')
+	imgnet_test_imgs = np.single(z['data'])
+	imgnet_test_imgs /= imgnet_test_imgs.max()
+	imgnet_test_imgs = imgnet_test_imgs.reshape((IMGNET_FILE_SZ, 1, 3, IM_SZ, IM_SZ))
+	imgnet_test_imgs -= mean_img
 
-labels_imgnet = z['labels'].squeeze()
-l = np.zeros((IMGNET_FILE_SZ, 999),dtype='uint8')
-l[np.arange(IMGNET_FILE_SZ), labels_imgnet.astype(int)] = 1
-Y_test_imgnet = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
-assert N_BATCHES_TEST*BATCH_SZ <= IMGNET_FILE_SZ
+	labels_imgnet = z['labels'].squeeze()
+	l = np.zeros((IMGNET_FILE_SZ, 999),dtype='uint8')
+	l[np.arange(IMGNET_FILE_SZ), labels_imgnet.astype(int)] = 1
+	Y_test_imgnet = np.ascontiguousarray(np.single(l)[:,:,np.newaxis]) # imgs by categories
+	assert N_BATCHES_TEST*BATCH_SZ <= IMGNET_FILE_SZ
 
-imgnet_imgs = []
-Y_imgnet = []
+	imgnet_imgs = []
+	Y_imgnet = []
 
-def load_imgnet(batch, N_CTT, IMGNET_DIFF_IND, F1_IND, WEIGHTS, testing=False):
-	if CLASS_IMGNET:
+	def load_imgnet(batch, N_CTT, IMGNET_DIFF_IND, F1_IND, WEIGHTS, testing=False):
 		global imgnet_imgs
 		global Y_imgnet
 		
@@ -242,6 +239,3 @@ def load_imgnet(batch, N_CTT, IMGNET_DIFF_IND, F1_IND, WEIGHTS, testing=False):
 		set_buffer(imgnet_target, WEIGHTS[IMGNET_DIFF_IND][1])
 		set_buffer(imgnet_inputs, WEIGHTS[F1_IND][1])
 		return imgnet_target, np.ascontiguousarray(imgnet_inputs)
-	else:
-		return None, None
-
