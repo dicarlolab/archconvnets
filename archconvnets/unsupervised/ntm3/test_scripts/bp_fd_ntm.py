@@ -17,9 +17,10 @@ F1_IND = 0
 ERR_IND = find_layer(LAYERS, 'ERR')
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) * 10
 set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1]) # target
+set_buffer(random_function(LAYERS[2]['in_shape'][1]), WEIGHTS[2][1]) # target
 
 ################ which gradient to test
-gradient_layer = F1_IND
+gradient_layer = 2
 gradient_arg = 0
 
 def f(y):

@@ -1,7 +1,7 @@
 from ntm_core import *
 
 N_FRAMES_PRED = 1
-N_IN = 2
+N_IN = 4
 
 def init_model():
 	LAYERS = []

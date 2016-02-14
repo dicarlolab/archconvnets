@@ -19,28 +19,19 @@ def init_model():
 
 	for init in [0,1]:
 		# below
-		add_sigmoid_F_bias_layer(LAYERS, 'F1', U_F1, (2, 3), init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'F2', U_F2, init=init)
-		add_linear_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
+		add_linear_F_bias_layer(LAYERS, 'F1', 2, source=(3,4), init=init)
+		add_linear_F_bias_layer(LAYERS, 'F2', 2, source=(3,5), init=init)
+		add_dotT_layer(LAYERS, 'FC', ['F1','F2'], init=init)
 		
-		add_add_layer(LAYERS, 'MEM', [HEAD_INPUT, 'MEM-'], init=init)
-		add_softmax_layer(LAYERS,'MEM2',init=init)
-		#add_sum_layer(LAYERS, 'SUM', init=init)
+		add_pearson_layer(LAYERS, 'ERR', ['FC', -1], init=init)
+		#add_sum_layer(LAYERS,'ERR_SUM',init=init)
 		
-		#add_add_layer(LAYERS, 'ERR', ['SUM', -1], scalar=-1, init=init)
-		
-		add_pearson_layer(LAYERS, 'ERR', ['MEM2', -1], init=init)
-		
-		#####
-		
-		#add_sq_points_layer(LAYERS, 'SQ_ERR', init=init)
-		#add_sum_layer(LAYERS, 'SUM_ERR', init=init)
 
 	check_network(LAYERS)
 	
 	################ init weights and inputs
 	WEIGHTS = init_weights(LAYERS)
-	MEM_INDS = find_layer(LAYERS, ['MEM'])
+	MEM_INDS = []#find_layer(LAYERS, ['MEM'])
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
 	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS

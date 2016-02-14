@@ -1,4 +1,3 @@
-# todo: save script; cifar opt
 import numpy as np
 import time
 import scipy.optimize

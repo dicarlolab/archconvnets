@@ -41,16 +41,16 @@ def init_model():
 		
 		###################################
 		## frame prediction
-		add_sigmoid_F_bias_layer(LAYERS, 'M3_0', 2000, source='F3_MAX', batch_imgs=B, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'M3_0', 1000, source='F3_MAX', batch_imgs=B, init=init)
 		
 		# BUDGET = IM_SZ*IM_SZ*3 * U_F3*5*5
 		# BUDGET / (48*32*32) = 75
 		add_sigmoid_F_bias_layer(LAYERS, 'C1_0', 128, source='F1', batch_imgs=B, init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'C1_1', 2000, batch_imgs=B, init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'C1_1', 1000, batch_imgs=B, init=init)
 		
 		add_add_layer(LAYERS, 'STACK_SUM0', ['C1_1', 'M3_0'], init=init)
 		
-		add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM1', 2000, batch_imgs=B, init=init)
+		#add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM1', 1000, batch_imgs=B, init=init)
 		add_linear_F_bias_layer(LAYERS, 'STACK_SUM2', N_TARGET, batch_imgs=B, init=init)
 		
 		add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM2', -1], batch_imgs=B, init=init)

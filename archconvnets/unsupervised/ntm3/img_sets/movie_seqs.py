@@ -13,7 +13,7 @@ def resize_inputs(inputs): # 2500,3,32,32
 
 #############################
 # movies
-N_MOVIES = 40
+N_MOVIES = 444
 MOVIE_FILE_SZ = 2500
 N_FILES_TEST_MOVIE = 1
 EPOCH_LEN = 16 # length of movie

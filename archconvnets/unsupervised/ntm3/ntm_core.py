@@ -37,15 +37,16 @@ def check_network(LAYERS):
 		
 		# check if function corretly produces specified output dimensions
 		LAYER_OUT = L['forward_F'](args, additional_args=L['additional_forward_args'])
+		#print L['name']
 		assert return_buffer(LAYER_OUT).shape == L['out_shape'], "layer %s (%i) didn't produce expected output (%i, %i)" % (L['name'], layer_ind, np.prod(LAYER_OUT[1]), np.prod(L['out_shape']))
 		
 		# check if deriv functions correctly produce correct shapes
 		DERIV_ABOVE = init_buffer(np.zeros(np.concatenate(((2,3), L['out_shape'])), dtype='single'))
 		for arg in range(N_ARGS):
 			expected_shape = tuple(np.concatenate(((2,3), L['in_shape'][arg])))
+			
 			OUT = L['deriv_F'][arg](args, LAYER_OUT, DERIV_ABOVE, additional_args=L['additional_deriv_args'][arg])
 
-			#print L['name'],arg
 			assert return_buffer(OUT).shape == expected_shape, 'deriv not expected size (layer %s, arg %i)' % (L['name'], arg)
 			
 			free_buffer(OUT)
@@ -224,7 +225,8 @@ def init_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS):
 	dest = LAYERS[layer_cur]['in_source'][arg]
 	
 	# don't traverse previous states
-	if LAYERS[layer_cur]['in_prev'][arg] == False:
+	# don't compute gradients for user-supplied entries (Ex. images)
+	if LAYERS[layer_cur]['in_prev'][arg] == False and LAYERS[layer_cur]['in_source'][arg] != -1: 
 		
 		# input or weights, end:
 		if (isinstance(dest, int) == False) or dest == -1:
@@ -272,7 +274,9 @@ def free_partials(PARTIALS_PREV):
 def copy_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS, MEM_WEIGHT_DERIVS):
 	dest = LAYERS[layer_cur]['in_source'][arg]
 	
-	if LAYERS[layer_cur]['in_prev'][arg] == False:
+	# don't traverse previous states
+	# don't compute gradients for user-supplied entries (Ex. images)
+	if LAYERS[layer_cur]['in_prev'][arg] == False and LAYERS[layer_cur]['in_source'][arg] != -1: 
 		# end (weighting, input or mem layer input):
 		if (isinstance(dest, int) == False) or dest == -1:
 			# have these inputs already been added?

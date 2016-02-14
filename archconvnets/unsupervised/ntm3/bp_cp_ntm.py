@@ -9,7 +9,7 @@ no_mem = True
 no_mem = False
 
 EPS = -1e-3
-BATCH_SZ = 32
+BATCH_SZ = 1
 
 if no_mem:
 	from architectures.model_architecture_cp_no_mem import init_model
@@ -31,7 +31,7 @@ START_SIGNAL = 0; TRAIN_SIGNAL = 1
 SAVE_FREQ = 250 # instantaneous checkpoint
 WRITE_FREQ = 50 # new checkpoint
 FRAME_LAG = 250
-STOP_POINT = np.inf #SAVE_FREQ*15
+STOP_POINT = 5000#np.inf #SAVE_FREQ*15
 inputs = np.zeros((2,1),dtype='single')
 
 target_seq = np.abs(np.asarray(np.random.normal(size=TIME_LENGTH),dtype='single'))
@@ -69,11 +69,11 @@ while True:
 		training = 1 - training
 		elapsed_time = 0
 		if training == 1: # new training sequence
-			#free_list(OUTPUT_PREV)
-			#free_partials(PARTIALS_PREV)
+			free_list(OUTPUT_PREV)
+			free_partials(PARTIALS_PREV)
 			
-			#OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
-			#PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
+			OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
+			PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 			
 			#free_partials(PARTIALS_PREV)
 			#PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
@@ -95,7 +95,7 @@ while True:
 	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 	
 	if training != 1:
-		err += return_buffer(OUTPUT[-1])
+		err += return_buffer(OUTPUT[-1])[0]
 	
 	training_flag_buffer[frame % SAVE_FREQ] = copy.deepcopy(training)
 	train_buffer[frame % SAVE_FREQ] = copy.deepcopy(inputs[TRAIN_SIGNAL])
@@ -123,8 +123,9 @@ while True:
 		corr_log.append(pearsonr(target_buffer[training_flag_buffer == 0], output_buffer[training_flag_buffer == 0])[0])
 		err_log.append(err / SAVE_FREQ); err = 0
 		
-		#print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, t_start, save_name, print_names)
-		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, corr_log, [[0]], [[0]], [[0]], [[0]], [[0]], [[0]], t_start, save_name, print_names)
+		print 'batch: ', frame, 'time: ', time.time() - t_start, 'GPU:', GPU_IND, save_name
+		print 'err: ', err_log[-1], 'corr: ', corr_log[-1]
+		print '------------'
 		
 		#######
 		

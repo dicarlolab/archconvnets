@@ -15,8 +15,6 @@ __global__ void softmax_dlayer_in_kernel(float * layer_out, float * deriv_above,
 		else
 			out[ind] += -LAYER_OUT(b,c1)*LAYER_OUT(b,c) * deriv_above[a*dim0*dim1 + b*dim1 + c1];
 	}
-	
-	//out[ind] *= deriv_above[ind];
 }
 
 // [a,b,c] * [b,c,b,c] = [a,b,c]
