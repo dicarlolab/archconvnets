@@ -42,12 +42,12 @@ __global__ void cosine_sim_dmem_kernel(float * keys, float * mem,
 }
 
 static PyObject *cosine_sim_dmem(PyObject *self, PyObject *args){
-	PyTupleObject *keys_shape, *mem_shape;
-	int keys_ind, mem_ind, out_buffer_ind, gpu_ind;
+	PyObject *keys_shape, *mem_shape;
+	int keys_ind, mem_ind, out_buffer_ind, gpu_ind, n_imgs;
 	cudaError_t err;
 	
-	if (!PyArg_ParseTuple(args, "iO!iO!ii", &keys_ind, &PyTuple_Type, &keys_shape, 
-			&mem_ind, &PyTuple_Type, &mem_shape, &out_buffer_ind, &gpu_ind))
+	if (!PyArg_ParseTuple(args, "iO!iO!iii", &keys_ind, &PyTuple_Type, &keys_shape, 
+			&mem_ind, &PyTuple_Type, &mem_shape, &out_buffer_ind, &n_imgs, &gpu_ind))
 		return NULL;
 	
 	if(keys_ind >= N_BUFFERS || keys_ind < 0 || 
@@ -68,12 +68,12 @@ static PyObject *cosine_sim_dmem(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
-	long n_controllers = PyLong_AsLong(PyTuple_GetItem((PyObject *)keys_shape,0));
-	long mem_length = PyLong_AsLong(PyTuple_GetItem((PyObject *)keys_shape,1));
-	long M = PyLong_AsLong(PyTuple_GetItem((PyObject *)mem_shape,0));
+	long n_controllers = PyLong_AsLong(PyTuple_GetItem(keys_shape,0));
+	long mem_length = PyLong_AsLong(PyTuple_GetItem(keys_shape,1));
+	long M = PyLong_AsLong(PyTuple_GetItem(mem_shape,0));
 	
-	if(n_controllers*mem_length*sizeof(DATA_TYPE) != KEYS_SZ || M*mem_length*sizeof(DATA_TYPE) != MEM_SZ){
-		printf("specified input sizes do not equal to stored gpu buffer. dot_cpu()\n");
+	if(n_imgs*n_controllers*mem_length*sizeof(DATA_TYPE) != KEYS_SZ || n_imgs*M*mem_length*sizeof(DATA_TYPE) != MEM_SZ){
+		printf("specified input sizes do not equal to stored gpu buffer. %s\n", __FILE__);
 		return NULL;
 	}
 	

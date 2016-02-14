@@ -24,12 +24,12 @@ def init_model():
 		add_linear_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
 		
 		add_add_layer(LAYERS, 'MEM', [HEAD_INPUT, 'MEM-'], init=init)
-		
+		add_softmax_layer(LAYERS,'MEM2',init=init)
 		#add_sum_layer(LAYERS, 'SUM', init=init)
 		
 		#add_add_layer(LAYERS, 'ERR', ['SUM', -1], scalar=-1, init=init)
 		
-		add_pearson_layer(LAYERS, 'ERR', ['MEM', -1], init=init)
+		add_pearson_layer(LAYERS, 'ERR', ['MEM2', -1], init=init)
 		
 		#####
 		

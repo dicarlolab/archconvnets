@@ -1,5 +1,5 @@
 #define COS(A, B) data_out[(A)*M + B]
-#define COS_SZ (n_controllers*M*sizeof(DATA_TYPE))
+#define COS_SZ (n_imgs*n_controllers*M*sizeof(DATA_TYPE))
 
 #define KEYS_IND(A, B) ((A)*mem_length + B)
 #define MEM_IND(A, B) ((A)*mem_length + B)
@@ -54,12 +54,12 @@ __global__ void cosine_sim_kernel(float * keys, float * mem,
 	return denom # [n_controllers, n_mem_slots]*/
 
 static PyObject *cosine_sim(PyObject *self, PyObject *args){
-	PyTupleObject *keys_shape, *mem_shape;
-	int keys_ind, mem_ind, out_buffer_ind, gpu_ind;
+	PyObject *keys_shape, *mem_shape;
+	int keys_ind, mem_ind, out_buffer_ind, gpu_ind, n_imgs;
 	cudaError_t err;
 	
-	if (!PyArg_ParseTuple(args, "iO!iO!ii", &keys_ind, &PyTuple_Type, &keys_shape, 
-			&mem_ind, &PyTuple_Type, &mem_shape, &out_buffer_ind, &gpu_ind))
+	if (!PyArg_ParseTuple(args, "iO!iO!iii", &keys_ind, &PyTuple_Type, &keys_shape, 
+			&mem_ind, &PyTuple_Type, &mem_shape, &out_buffer_ind, &n_imgs, &gpu_ind))
 		return NULL;
 	
 	if(keys_ind >= N_BUFFERS || keys_ind < 0 || 
@@ -79,12 +79,17 @@ static PyObject *cosine_sim(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	// get sizes
-	long n_controllers = PyLong_AsLong(PyTuple_GetItem((PyObject *)keys_shape,0));
-	long mem_length = PyLong_AsLong(PyTuple_GetItem((PyObject *)keys_shape,1));
-	long M = PyLong_AsLong(PyTuple_GetItem((PyObject *)mem_shape,0));
+	int dim_offset = 0;
 	
-	if(n_controllers*mem_length*sizeof(DATA_TYPE) != KEYS_SZ || M*mem_length*sizeof(DATA_TYPE) != MEM_SZ){
+	if(n_imgs > 1)
+		dim_offset ++;
+	
+	// get sizes
+	long n_controllers = PyLong_AsLong(PyTuple_GetItem(keys_shape, dim_offset));
+	long mem_length = PyLong_AsLong(PyTuple_GetItem(keys_shape, 1 + dim_offset));
+	long M = PyLong_AsLong(PyTuple_GetItem(mem_shape, dim_offset));
+	
+	if(n_imgs*n_controllers*mem_length*sizeof(DATA_TYPE) != KEYS_SZ || n_imgs*M*mem_length*sizeof(DATA_TYPE) != MEM_SZ){
 		printf("specified input sizes do not equal to stored gpu buffer. dot_cpu()\n");
 		return NULL;
 	}
@@ -100,8 +105,12 @@ static PyObject *cosine_sim(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	// run kernel
-	cosine_sim_kernel <<< n_controllers, M >>> (GPU_KEYS, GPU_MEM, GPU_BUFFER_OUT, n_controllers, mem_length, M);
+	for(int batch = 0; batch < n_imgs; batch++){
+		// run kernel
+		cosine_sim_kernel <<< n_controllers, M >>> (GPU_KEYS + batch*n_controllers*mem_length, 
+			GPU_MEM + batch*M*mem_length, GPU_BUFFER_OUT + batch*n_controllers*M, 
+			n_controllers, mem_length, M);
+	}
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR

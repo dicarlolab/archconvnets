@@ -38,17 +38,14 @@ def softmax_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	
 	dim1, dim2 = LAYER_OUT[1]
 	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	_ntm_module3.softmax_dlayer_in(LAYER_OUT[0], LAYER_OUT[1], DERIV_ABOVE[0], OUT_BUFFER[0], gpu_ind)
 	
-	_ntm_module3.softmax_dlayer_in(LAYER_OUT[0], LAYER_OUT[1], OUT_BUFFER_TEMP[0], gpu_ind)
-		
 	if len(args[0][1]) == 2:
-		OUT_BUFFER_TEMP[1] = (dim1,dim2,dim1,dim2)
+		OUT_BUFFER[1] = DERIV_ABOVE[1]
 	else:
-		OUT_BUFFER_TEMP[1] = (dim1,dim2,dim1,dim2,1)
+		n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+		OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], LAYER_OUT[1], np.ones(1))))
 	
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
 	
 	if DEBUG:
 		check_buffer(OUT_BUFFER)

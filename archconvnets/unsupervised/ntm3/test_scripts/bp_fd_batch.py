@@ -3,31 +3,21 @@ import time
 import scipy.optimize
 from scipy.io import loadmat
 from ntm_core import *
-from archconvnets.unsupervised.ntm3.architectures.ctt_categorization_only_batch import *
+from archconvnets.unsupervised.ntm3.architectures.model_architecture_cp_batch_test import *
 
 free_all_buffers()
-N_MOVIES = 22872 #17750 #12340 #6372
-EPOCH_LEN = 11 # length of movie
-N_FUTURE = 1 # how far into the future to predict
-N_FRAMES_PRED = 1
 
 ################ init weights and inputs
-LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
+LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
 
 F1_IND = 0
+MEM_IND = find_layer(LAYERS, 'MEM_lin')
 
-# load movie
-movie_name = '/home/darren/rotating_objs32_constback_50t/imgs' + str(np.random.randint(N_MOVIES))  + '.mat'
-z = loadmat(movie_name)
-
-inputs = np.ascontiguousarray(np.single(z['imgs'] - .5))
-inputs = np.single(np.random.random(inputs.shape))
-
-# forward movie
-set_buffer(inputs[:BATCH_SZ].reshape((BATCH_SZ,3, IM_SZ, IM_SZ)), WEIGHTS[F1_IND][1])  # inputs
+set_buffer(random_function(LAYERS[F1_IND]['in_shape'][1]), WEIGHTS[F1_IND][1])
+set_buffer(random_function(LAYERS[MEM_IND]['in_shape'][1]), WEIGHTS[MEM_IND][1])
 
 ################ which gradient to test
-gradient_layer = find_layer(LAYERS, 'F1') #F1_IND
+gradient_layer = F1_IND
 gradient_arg = 0
 
 def f(y):
