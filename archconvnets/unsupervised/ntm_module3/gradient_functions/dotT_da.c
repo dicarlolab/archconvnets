@@ -1,7 +1,8 @@
-#define ADD_MEM_DGW_NUMEL (M * mem_length * C * M)
+#define ADD_MEM_DGW_NUMEL (dim_above * C * M)
 #define ADD_MEM_DGW_SZ (ADD_MEM_DGW_NUMEL*sizeof(DATA_TYPE))
 
-__global__ void add_mem_dgw_kernel(float * add_out, float * data_out, int mem_length, int M, int C_M, int mem_length_C_M, int data_out_numel){
+__global__ void add_mem_dgw_kernel(float * add_out, float * deriv_above, float * data_out, int mem_length, int M, int C, 
+		int dim_above, int data_out_numel){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
 	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
@@ -10,7 +11,7 @@ __global__ void add_mem_dgw_kernel(float * add_out, float * data_out, int mem_le
 	int n_duplicates = min_duplicates_per_thread;
 	if(ind < n_additional_duplicates) n_duplicates++;
 	
-	unsigned ind_g, i,j,k,l, remainder;
+	unsigned ind_g, remainder, mem, ind_temp, a, c, m;
 	for(int dup = 0; dup < n_duplicates; dup++){
 		ind_g = dup*THREAD_CAPACITY + ind;
 		
@@ -18,20 +19,19 @@ __global__ void add_mem_dgw_kernel(float * add_out, float * data_out, int mem_le
 		if(ind_g >= data_out_numel) assert(0); // out of bounds
 		#endif
 		
-		// we are computing the output data_out[i,j,k,l]... determine indices
-		i = ind_g / mem_length_C_M;
-		remainder = ind_g % mem_length_C_M;
+		// we are computing the output data_out[a, C, M]... determine indices
+		a = ind_g / (C*M);
+		remainder = ind_g % (C*M);
 		
-		j = remainder / C_M;
-		remainder = remainder % C_M;
+		c = remainder / M;
+		m = remainder % M;
 		
-		k = remainder / M;
-		l = remainder % M;
-		
-		if(i != l)
-			data_out[ind_g] = 0;
-		else
-			data_out[ind_g] = add_out[k*mem_length + j];
+		data_out[ind_g] = 0;
+		ind_temp = a*M*mem_length + m*mem_length;
+		for(mem = 0; mem < mem_length; mem++){
+			//data_out[ind_g] += deriv_above[a, m, mem] * add_out[c, mem];
+			data_out[ind_g] += deriv_above[ind_temp + mem] * add_out[c*mem_length + mem];
+		}
 	}
 }
 
@@ -43,12 +43,17 @@ __global__ void add_mem_dgw_kernel(float * add_out, float * data_out, int mem_le
 // gw = (16, 6)  add_out = (16, 8)
 // C, M    ....            C, mem_length
 
+// deriv_above = (a, M, mem_length)
+// deriv_above (a, M, mem_length) * dotT_da (M, mem_length, C, M) = [a, C, M]
+
+
 static PyObject *dotT_da(PyObject *self, PyObject *args){
 	cudaError_t err;
-	int gpu_ind, add_out_ind, out_buffer_ind;
-	PyObject *gw_shape, *add_out_shape;
+	int gpu_ind, add_out_ind, out_buffer_ind, deriv_above_ind;
+	PyObject *gw_shape, *add_out_shape, *deriv_above_shape;
 	
-	if (!PyArg_ParseTuple(args, "iO!O!ii", &add_out_ind, &PyTuple_Type, &gw_shape, &PyTuple_Type, &add_out_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!O!iO!ii", &add_out_ind, &PyTuple_Type, &gw_shape, &PyTuple_Type, &add_out_shape, &deriv_above_ind, 
+		&PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &gpu_ind)) 
 		return NULL;
         
 	if(out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0 || add_out_ind >= N_BUFFERS || add_out_ind < 0){
@@ -62,6 +67,8 @@ static PyObject *dotT_da(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
+	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
+	
 	long C = PyLong_AsLong(PyTuple_GetItem(gw_shape,0));
 	long M = PyLong_AsLong(PyTuple_GetItem(gw_shape,1));
 	
@@ -93,9 +100,10 @@ static PyObject *dotT_da(PyObject *self, PyObject *args){
 	int n_blocks = (int)ceil((double)ADD_MEM_DGW_NUMEL/MAX_THREADS_PER_BLOCK);
 	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
 	
+	
 	// run kernel
 	add_mem_dgw_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][add_out_ind], 
-			GPU_BUFFER_OUT, mem_length, M, C*M, mem_length*C*M, ADD_MEM_DGW_NUMEL);
+			gpu_buffers[gpu_ind][deriv_above_ind], GPU_BUFFER_OUT, mem_length, M, C, dim_above, ADD_MEM_DGW_NUMEL);
 		
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
