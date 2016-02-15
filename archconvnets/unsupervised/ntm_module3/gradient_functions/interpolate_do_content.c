@@ -1,23 +1,21 @@
-__global__ void interpolate_do_content_kernel(float * interp_gate_out, float * dido, int dim0, int dim1){ 
+__global__ void interpolate_do_content_kernel(float * interp_gate_out, float * deriv_above, float * out_data, int dim0, int dim1){ 
+	int a = blockIdx.x;
 	int i = threadIdx.x / dim1;
 	int j = threadIdx.x % dim1;
 
-	for(int i_local = 0; i_local < dim0; i_local++){
-		for(int j_local = 0; j_local < dim1; j_local++){
-			DIDO(i,j,i_local,j_local) = 0;
-	}}
-
-	DIDO(i,j,i,j) = interp_gate_out[i];//INTERP_GATE_OUT(i,j);
-
-	return;
+	unsigned ind = a*dim0*dim1 + i*dim1 + j;
+	
+	//out_data[a,i,j] = deriv_above[a,i,j] * interp_gate_out[i];
+	out_data[ind] = deriv_above[ind] * interp_gate_out[i];
 }
 
 static PyObject * interpolate_do_content(PyObject *self, PyObject *args){
 	cudaError_t err;
-	PyTupleObject *o_prev_shape;
-	int interp_gate_out_ind, out_buffer_ind, gpu_ind;
+	PyObject *o_prev_shape, *deriv_above_shape;
+	int interp_gate_out_ind, out_buffer_ind, deriv_above_ind, gpu_ind;
 	
-	if (!PyArg_ParseTuple(args, "iO!ii", &interp_gate_out_ind, &PyTuple_Type, &o_prev_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!iO!ii", &interp_gate_out_ind, &PyTuple_Type, &o_prev_shape, 
+		&deriv_above_ind, &PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &gpu_ind)) 
 		return NULL;
     
 	if(interp_gate_out_ind >= N_BUFFERS || interp_gate_out_ind < 0 ||  out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0){ 
@@ -31,8 +29,9 @@ static PyObject * interpolate_do_content(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
-	long dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_prev_shape,0));
-	long dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_prev_shape,1));
+	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
+	long dim0 = PyLong_AsLong(PyTuple_GetItem(o_prev_shape,0));
+	long dim1 = PyLong_AsLong(PyTuple_GetItem(o_prev_shape,1));
 	
 	if(dim0*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][interp_gate_out_ind]){
 		printf("specified input sizes do not equal to stored gpu buffer\n");
@@ -40,17 +39,17 @@ static PyObject * interpolate_do_content(PyObject *self, PyObject *args){
 	}
 	
 	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
-	
+	unsigned intended_sz = buffer_sz[gpu_ind][deriv_above_ind];
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
-		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DIDO_SZ); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &GPU_BUFFER_OUT, intended_sz); MALLOC_ERR_CHECK
 		
-		OUT_BUFFER_SZ = DIDO_SZ;
-	}else if(DIDO_SZ != OUT_BUFFER_SZ){ // does the output size match the buffer size?
+		OUT_BUFFER_SZ = intended_sz;
+	}else if(intended_sz != OUT_BUFFER_SZ){ // does the output size match the buffer size?
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
 	
-	interpolate_do_content_kernel <<< 1, dim0*dim1 >>> (gpu_buffers[gpu_ind][interp_gate_out_ind], 
+	interpolate_do_content_kernel <<< dim_above, dim0*dim1 >>> (gpu_buffers[gpu_ind][interp_gate_out_ind], gpu_buffers[gpu_ind][deriv_above_ind], 
 		gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
 	
 	#ifdef TIMING_DEBUG

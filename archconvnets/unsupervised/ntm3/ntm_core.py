@@ -46,7 +46,7 @@ def check_network(LAYERS):
 			expected_shape = tuple(np.concatenate(((2,3), L['in_shape'][arg])))
 			
 			OUT = L['deriv_F'][arg](args, LAYER_OUT, DERIV_ABOVE, additional_args=L['additional_deriv_args'][arg])
-
+			
 			assert return_buffer(OUT).shape == expected_shape, 'deriv not expected size (layer %s, arg %i)' % (L['name'], arg)
 			
 			free_buffer(OUT)
