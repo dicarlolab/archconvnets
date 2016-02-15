@@ -18,7 +18,7 @@ F2_IND = find_layer(LAYERS,'F2_lin')
 F3_IND = find_layer(LAYERS,'F3_lin')
 
 ERR_IND = find_layer(LAYERS, 'ERR')
-x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) * 1
+x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) * 1e-1
 set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1]) # target
 set_buffer(random_function(LAYERS[F2_IND]['in_shape'][1]), WEIGHTS[F2_IND][1]) # target
 #set_buffer(random_function(LAYERS[F3_IND]['in_shape'][1]), WEIGHTS[F3_IND][1]) # target
@@ -79,7 +79,7 @@ def g(y):
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e5
+eps = np.sqrt(np.finfo(np.float).eps)*1e6
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)
