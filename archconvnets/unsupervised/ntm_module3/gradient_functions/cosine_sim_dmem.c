@@ -9,45 +9,60 @@
 #define MEM_SZ buffer_sz[gpu_ind][mem_ind]
 #define KEYS_SZ buffer_sz[gpu_ind][keys_ind]
 
-#define COSEDM_SZ (n_controllers*M*M*mem_length*sizeof(DATA_TYPE))
+#define COSEDM_SZ (dim_above*M*mem_length*sizeof(DATA_TYPE))
 	
-__global__ void cosine_sim_dmem_kernel(float * keys, float * mem, 
+__global__ void cosine_sim_dmem_kernel(float * keys, float * mem, float * deriv_above,
 			float * data_out, long n_controllers, long mem_length, long M){
 	
-	int i = blockIdx.x;
+	int i;
+	int a = blockIdx.x;
 	int j = threadIdx.x / mem_length;
 	int k = threadIdx.x % mem_length;
 	
-	float numer = 0, denom, keys_sq_sum = 0, mem_sq_sum = 0;
-	
+	float denom, mem_sq_sum = 0, cosedm;
+		
 	for(int k_local = 0; k_local < mem_length; k_local++){
 		mem_sq_sum += MEM(j,k_local) * MEM(j,k_local);
-		keys_sq_sum += KEYS(i,k_local) * KEYS(i,k_local);
-		
-		numer += KEYS(i,k_local) * MEM(j,k_local);
 	}
 	mem_sq_sum = sqrt(mem_sq_sum);
-	keys_sq_sum = sqrt(keys_sq_sum);
 	
-	denom = keys_sq_sum * mem_sq_sum;
+	unsigned ind = a*M*mem_length + j*mem_length + k;
 	
-	COSEDM(i,j,j,k) = (KEYS(i,k) - (keys_sq_sum * MEM(j,k) * numer / (mem_sq_sum * denom))) / denom;
-	
-	for(int j_local = 0; j_local < M; j_local++){
-		if(j_local != j)
-			COSEDM(i,j,j_local,k) = 0;
+	data_out[ind] = 0; //data_out[a,j,k] = 0
+	for(i = 0; i < n_controllers; i++){
+		float keys_sq_sum = 0, numer = 0;
+		
+		for(int k_local = 0; k_local < mem_length; k_local++){
+			keys_sq_sum += KEYS(i,k_local) * KEYS(i,k_local);
+			numer += KEYS(i,k_local) * MEM(j,k_local);
+		}
+		keys_sq_sum = sqrt(keys_sq_sum);
+		
+		denom = keys_sq_sum * mem_sq_sum;
+		
+		//COSEDM(i,j,k) = (KEYS(i,k) - (keys_sq_sum * MEM(j,k) * numer / (mem_sq_sum * denom))) / denom;
+		cosedm = (KEYS(i,k) - (keys_sq_sum * MEM(j,k) * numer / (mem_sq_sum * denom))) / denom;
+		
+		//data_out[a,j,k] += cosedm * deriv_above[a,i,j];
+		data_out[ind] += cosedm * deriv_above[a*n_controllers*M + i*M + j];
+		
 	}
-
-	return;
 }
 
+/* keys: N_CONTROLLERS, M_LENGTH
+ mem: N_MEM_SLOTS, M_LENGTH
+ out: N_CONTROLLERS, N_MEM_SLOTS*/
+ // deriv_above [a, n_controllers, M]
+ // cosedm [n_controllers, M, M, mem_length] .... [n_controllers, M, mem_length]
+ // deriv_above * cosedm = [a, M, mem_length] (sum across n_controllers)
+
 static PyObject *cosine_sim_dmem(PyObject *self, PyObject *args){
-	PyObject *keys_shape, *mem_shape;
-	int keys_ind, mem_ind, out_buffer_ind, gpu_ind, n_imgs;
+	PyObject *keys_shape, *mem_shape, *deriv_above_shape;
+	int keys_ind, mem_ind, out_buffer_ind, gpu_ind, deriv_above_ind, n_imgs;
 	cudaError_t err;
 	
-	if (!PyArg_ParseTuple(args, "iO!iO!iii", &keys_ind, &PyTuple_Type, &keys_shape, 
-			&mem_ind, &PyTuple_Type, &mem_shape, &out_buffer_ind, &n_imgs, &gpu_ind))
+	if (!PyArg_ParseTuple(args, "iO!iO!iO!iii", &keys_ind, &PyTuple_Type, &keys_shape, 
+			&mem_ind, &PyTuple_Type, &mem_shape, &deriv_above_ind, &PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &n_imgs, &gpu_ind))
 		return NULL;
 	
 	if(keys_ind >= N_BUFFERS || keys_ind < 0 || 
@@ -68,6 +83,7 @@ static PyObject *cosine_sim_dmem(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
+	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
 	long n_controllers = PyLong_AsLong(PyTuple_GetItem(keys_shape,0));
 	long mem_length = PyLong_AsLong(PyTuple_GetItem(keys_shape,1));
 	long M = PyLong_AsLong(PyTuple_GetItem(mem_shape,0));
@@ -89,7 +105,8 @@ static PyObject *cosine_sim_dmem(PyObject *self, PyObject *args){
 	}
 	
 	// run kernel
-	cosine_sim_dmem_kernel <<< n_controllers, M*mem_length >>> (GPU_KEYS, GPU_MEM, GPU_BUFFER_OUT, n_controllers, mem_length, M);
+	cosine_sim_dmem_kernel <<< dim_above, M*mem_length >>> (GPU_KEYS, GPU_MEM, gpu_buffers[gpu_ind][deriv_above_ind],
+		GPU_BUFFER_OUT, n_controllers, mem_length, M);
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR

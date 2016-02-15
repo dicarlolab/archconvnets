@@ -8,6 +8,7 @@ t_main = [0,0,0]
 
 # keys: N_CONTROLLERS, M_LENGTH
 # mem: N_MEM_SLOTS, M_LENGTH
+# out: N_CONTROLLERS, N_MEM_SLOTS
 # additional_args[0]: batch_imgs (separate correlations batched on first dim)
 def cosine_sim(args, OUT_BUFFER=None, additional_args=[False], gpu_ind=GPU_IND):
 	t = time.time()
@@ -61,20 +62,12 @@ def cosine_sim_dmem(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_ar
 	else:
 		n_imgs = 1
 	
-	n_controllers, mem_length = KEYS[1][:2]
-	M = MEM[1][0]
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dim_not_summed])[np.newaxis], DERIV_ABOVE[1][n_dim_not_summed:])))
 	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	_ntm_module3.cosine_sim_dmem(KEYS[0], KEYS[1], MEM[0], MEM[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_imgs, gpu_ind)
 	
-	_ntm_module3.cosine_sim_dmem(KEYS[0], KEYS[1], MEM[0], MEM[1], OUT_BUFFER_TEMP[0], n_imgs, gpu_ind)
-	
-	if len(MEM[1]) == 2:
-		OUT_BUFFER_TEMP[1] = (n_controllers, M, M, mem_length)
-	else:
-		OUT_BUFFER_TEMP[1] = (n_controllers, M, M, mem_length,1)
-		
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
+	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], MEM[1])))
 	
 	if DEBUG:
 		check_buffer(OUT_BUFFER_TEMP)
