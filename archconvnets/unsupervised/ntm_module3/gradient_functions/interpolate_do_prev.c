@@ -1,26 +1,22 @@
-#define DIDO(A, B, C, D) dido[(A)*dim1*dim0*dim1 + (B)*dim0*dim1 + (C)*dim1 + D]
-#define DIDO_SZ (dim0*dim1*dim0*dim1*sizeof(DATA_TYPE))
+#define DIDO_SZ (dim_above*dim0*dim1*sizeof(DATA_TYPE))
 
-__global__ void interpolate_do_prev_kernel(float * interp_gate_out, float * dido, int dim0, int dim1){ 
+__global__ void interpolate_do_prev_kernel(float * interp_gate_out, float * deriv_above, float * out_data, int dim0, int dim1){ 
+	int a = blockIdx.x;
 	int i = threadIdx.x / dim1;
 	int j = threadIdx.x % dim1;
 
-	for(int i_local = 0; i_local < dim0; i_local++){
-		for(int j_local = 0; j_local < dim1; j_local++){
-			DIDO(i,j,i_local,j_local) = 0;
-	}}
+	unsigned ind = a*dim0*dim1 + i*dim1 + j;
 
-	DIDO(i,j,i,j) = 1 - interp_gate_out[i];//INTERP_GATE_OUT(i,j);
-
-	return;
+	out_data[ind] = deriv_above[ind] * (1-interp_gate_out[i]);
 }
 
 static PyObject * interpolate_do_prev(PyObject *self, PyObject *args){
 	cudaError_t err;
-	PyTupleObject *o_prev_shape;
-	int interp_gate_out_ind, out_buffer_ind, gpu_ind;
+	PyObject *o_prev_shape, *deriv_above_shape;
+	int interp_gate_out_ind, out_buffer_ind, deriv_above_ind, gpu_ind;
 	
-	if (!PyArg_ParseTuple(args, "iO!ii", &interp_gate_out_ind, &PyTuple_Type, &o_prev_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!iO!ii", &interp_gate_out_ind, &PyTuple_Type, &o_prev_shape,
+		&deriv_above_ind, &PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &gpu_ind)) 
 		return NULL;
     
 	if(interp_gate_out_ind >= N_BUFFERS || interp_gate_out_ind < 0 ||  out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0){ 
@@ -34,6 +30,7 @@ static PyObject * interpolate_do_prev(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
+	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
 	long dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_prev_shape,0));
 	long dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)o_prev_shape,1));
 	
@@ -53,7 +50,8 @@ static PyObject * interpolate_do_prev(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	interpolate_do_prev_kernel <<< 1, dim0*dim1 >>> (gpu_buffers[gpu_ind][interp_gate_out_ind], 
+	interpolate_do_prev_kernel <<< dim_above, dim0*dim1 >>> (gpu_buffers[gpu_ind][interp_gate_out_ind],
+		gpu_buffers[gpu_ind][deriv_above_ind],	
 		gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
 	
 	#ifdef TIMING_DEBUG

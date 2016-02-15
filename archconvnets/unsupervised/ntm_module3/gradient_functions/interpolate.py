@@ -100,14 +100,12 @@ def interpolate_do_prev(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additiona
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dim_not_summed])[np.newaxis], DERIV_ABOVE[1][n_dim_not_summed:])))
 	
-	_ntm_module3.interpolate_do_prev(INTERP_GATE_OUT[0], O_PREV[1], OUT_BUFFER_TEMP[0], gpu_ind)
+	_ntm_module3.interpolate_do_prev(INTERP_GATE_OUT[0], O_PREV[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((O_CONTENT[1], O_PREV[1])))
-	
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
+	OUT_BUFFER[1] = DERIV_ABOVE[1]
 	
 	if DEBUG:
 		assert isinstance(gpu_ind,int)
