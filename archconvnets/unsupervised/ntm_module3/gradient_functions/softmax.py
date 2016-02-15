@@ -36,8 +36,6 @@ def softmax_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	dim1, dim2 = LAYER_OUT[1]
-	
 	_ntm_module3.softmax_dlayer_in(LAYER_OUT[0], LAYER_OUT[1], DERIV_ABOVE[0], OUT_BUFFER[0], gpu_ind)
 	
 	if len(args[0][1]) == 2:

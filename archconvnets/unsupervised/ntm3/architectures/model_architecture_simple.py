@@ -18,10 +18,12 @@ def init_model():
 	HEAD_INPUT = 'F3'
 
 	for init in [0,1]:
-		# below
-		add_sigmoid_F_bias_layer(LAYERS, 'F1', 2, source=(3,4), init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'F2', 2, source=(3,1), init=init)
-		add_sharpen_layer(LAYERS, 'FC', ['F1','F2'], init=init)
+		# (16, 1) (16, 6) (16, 6)
+		
+		add_sigmoid_F_bias_layer(LAYERS, 'F1', 16, source=(3,1), init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'F2', 16, source=(3,6), init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'F3', 16, source=(3,6), init=init)
+		add_interpolate_layer(LAYERS, 'FC', ['F1','F2','F3'], init=init)
 		
 		add_pearson_layer(LAYERS, 'ERR', ['FC', -1], init=init)
 		#add_sum_layer(LAYERS,'ERR_SUM',init=init)
