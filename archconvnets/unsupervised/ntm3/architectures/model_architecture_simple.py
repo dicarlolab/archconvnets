@@ -19,9 +19,9 @@ def init_model():
 
 	for init in [0,1]:
 		# below
-		add_linear_F_bias_layer(LAYERS, 'F1', 2, source=(3,4), init=init)
-		add_linear_F_bias_layer(LAYERS, 'F2', 2, source=(3,5), init=init)
-		add_dotT_layer(LAYERS, 'FC', ['F1','F2'], init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'F1', 2, source=(3,4), init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'F2', 2, source=(3,1), init=init)
+		add_sharpen_layer(LAYERS, 'FC', ['F1','F2'], init=init)
 		
 		add_pearson_layer(LAYERS, 'ERR', ['FC', -1], init=init)
 		#add_sum_layer(LAYERS,'ERR_SUM',init=init)

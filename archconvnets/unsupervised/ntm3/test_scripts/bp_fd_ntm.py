@@ -8,19 +8,20 @@ from architectures.model_architecture_simple import init_model
 #from architectures.highway import init_model
 
 free_all_buffers()
-N_FRAMES = 3
+N_FRAMES = 2
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
 
 F1_IND = 0
+F2_IND = find_layer(LAYERS,'F2_lin')
 ERR_IND = find_layer(LAYERS, 'ERR')
-x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) * 10
+x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) * 1
 set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1]) # target
-set_buffer(random_function(LAYERS[2]['in_shape'][1]), WEIGHTS[2][1]) # target
+set_buffer(random_function(LAYERS[F2_IND]['in_shape'][1]), WEIGHTS[F2_IND][1]) # target
 
 ################ which gradient to test
-gradient_layer = 2
+gradient_layer = F2_IND
 gradient_arg = 0
 
 def f(y):

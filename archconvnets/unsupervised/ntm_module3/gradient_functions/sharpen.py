@@ -40,14 +40,12 @@ def sharpen_dgamma(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_arg
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dim_not_summed])[np.newaxis], DERIV_ABOVE[1][n_dim_not_summed:])))
 	
-	_ntm_module3.sharpen_dgamma(W[0], W[1], GAMMA[0], GAMMA[1], OUT_BUFFER_TEMP[0], gpu_ind)
+	_ntm_module3.sharpen_dgamma(W[0], W[1], GAMMA[0], GAMMA[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((W[1], GAMMA[1])))
-	
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
+	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], GAMMA[1])))
 	
 	if DEBUG:
 		assert isinstance(gpu_ind,int)
