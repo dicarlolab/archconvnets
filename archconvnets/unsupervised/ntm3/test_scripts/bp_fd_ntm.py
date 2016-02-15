@@ -20,7 +20,7 @@ set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1])
 set_buffer(random_function(LAYERS[2]['in_shape'][1]), WEIGHTS[2][1]) # target
 
 ################ which gradient to test
-gradient_layer = 0
+gradient_layer = 2
 gradient_arg = 0
 
 def f(y):
