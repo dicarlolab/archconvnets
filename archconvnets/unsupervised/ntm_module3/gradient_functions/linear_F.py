@@ -94,14 +94,14 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	if batch_imgs:
 		n_batches = np.prod(DERIV_ABOVE[1][:n_dim_not_summed]) * LAYER_OUT[1][0] # deriv above * n_imgs
 		# reshape deriv_above to 2 dims
-		DERIV_ABOVE_reshaped = (n_batches, np.prod(DERIV_ABOVE[1][n_dim_not_summed+1:len(DERIV_ABOVE[1])-1]), DERIV_ABOVE[1][-1])
+		DERIV_ABOVE_reshaped = (n_batches, np.prod(DERIV_ABOVE[1][n_dim_not_summed+1:-1]), DERIV_ABOVE[1][-1])
 	else:
 		n_batches = 1
 		# reshape deriv_above to 2 dims
 		if squeeze:
 			DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1]), 1)
 		else:
-			DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:len(DERIV_ABOVE[1])-1]), DERIV_ABOVE[1][-1])
+			DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:-1]), DERIV_ABOVE[1][-1])
 	
 	#print 'LAYER_OUT', LAYER_OUT[1], 'n_dim_not_summed', n_dim_not_summed
 	#print 'F', F[1], 'X', X[1], 'x_reshaped', X_reshaped, 'n_batches', n_batches, 'squeeze', squeeze
@@ -200,7 +200,7 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, sum_all=False, sque
 			out_shape = (n_batches,) + out_shape
 		
 		if squeeze and out_shape[-1] == 1:
-			out_shape = out_shape[:len(out_shape)-1]
+			out_shape = out_shape[:-1]
 		
 		LAYERS[layer_ind]['forward_F'] = linear_F
 		LAYERS[layer_ind]['out_shape'] = out_shape
