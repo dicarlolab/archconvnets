@@ -21,9 +21,9 @@ def init_model():
 		# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, mem_length]
 		
 		add_sigmoid_F_bias_layer(LAYERS, 'F1', 16, source=(3,3), init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'F2', 16, source=(3,6), init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'F2', 16, source=(3,1), init=init)
 		
-		add_shift_w_layer(LAYERS, 'FC', ['F1','F2'], init=init)
+		add_focus_keys_layer(LAYERS, 'FC', ['F1','F2'], init=init)
 		
 		add_pearson_layer(LAYERS, 'ERR', ['FC', -1], init=init)
 		#add_sum_layer(LAYERS,'ERR_SUM',init=init)

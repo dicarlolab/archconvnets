@@ -1,25 +1,36 @@
 #define DFKB(A, B, C) dfkb[(A)*mem_length*n_controllers + (B)*n_controllers + (C)]
-#define DFKB_SZ (n_controllers*mem_length*n_controllers*sizeof(DATA_TYPE))
+#define DFKB_SZ (dim_above*n_controllers*sizeof(DATA_TYPE))
 #define KEYS_SZ buffer_sz[gpu_ind][keys_ind]
 
-__global__ void focus_key_dbeta_out_kernel(float * keys, float * dfkb, int n_controllers, int mem_length){ 
-	int i = threadIdx.x / mem_length;
-	int j = threadIdx.x % mem_length;
-
-	DFKB(i,j,i) = KEYS(i,j);
+__global__ void focus_key_dbeta_out_kernel(float * keys, float * deriv_above, float * out_data, int n_controllers, int mem_length){ 
+	int a = blockIdx.x;
+	int i = threadIdx.x;
 	
-	for(int i_local = 0; i_local < n_controllers; i_local++){
-		if(i_local != i)
-			DFKB(i,j,i_local) = 0;
+	int ind = a*n_controllers + i;
+	out_data[ind] = 0;
+	
+	int ind_temp = a*n_controllers*mem_length + i*mem_length;
+	
+	for(int j = 0; j < mem_length; j++){
+		//out_data[a,i] += deriv_above[a,i,j] * KEYS(i,j);
+		out_data[ind] += deriv_above[ind_temp + j] * KEYS(i,j);
 	}
 }
 
+// deriv_above: [a, n_controllers, mem_length]
+// key: [n_controllers, mem_length]
+// beta_out: [n_controllers]
+// dfkb: [n_controllers, mem_length, n_controllers] -> [n_controllers, mem_length]
+
+// deriv_above * dfkb = [a, n_controllers] (sum mem_length)
+
 static PyObject * focus_key_dbeta_out(PyObject *self, PyObject *args){
 	cudaError_t err;
-	PyTupleObject *keys_shape;
-	int keys_ind, out_buffer_ind, gpu_ind;
+	PyObject *keys_shape, *deriv_above_shape;
+	int keys_ind, out_buffer_ind, gpu_ind, deriv_above_ind;
 	
-	if (!PyArg_ParseTuple(args, "iO!ii", &keys_ind, &PyTuple_Type, &keys_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!iO!ii", &keys_ind, &PyTuple_Type, &keys_shape, &deriv_above_ind,
+		&PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &gpu_ind)) 
 		return NULL;
     
 	if(keys_ind >= N_BUFFERS || keys_ind < 0 || out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0){ 
@@ -38,8 +49,9 @@ static PyObject * focus_key_dbeta_out(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
-	long n_controllers = PyLong_AsLong(PyTuple_GetItem((PyObject *)keys_shape,0));
-	long mem_length = PyLong_AsLong(PyTuple_GetItem((PyObject *)keys_shape,1));
+	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
+	long n_controllers = PyLong_AsLong(PyTuple_GetItem(keys_shape,0));
+	long mem_length = PyLong_AsLong(PyTuple_GetItem(keys_shape,1));
 	
 	if(n_controllers*mem_length*sizeof(DATA_TYPE) != KEYS_SZ){
 		printf("specified input sizes do not equal to stored gpu buffer\n");
@@ -57,7 +69,9 @@ static PyObject * focus_key_dbeta_out(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	focus_key_dbeta_out_kernel <<< 1, n_controllers * mem_length >>> (gpu_buffers[gpu_ind][keys_ind], gpu_buffers[gpu_ind][out_buffer_ind], n_controllers, mem_length);
+	focus_key_dbeta_out_kernel <<< dim_above, n_controllers >>> (gpu_buffers[gpu_ind][keys_ind], 
+		gpu_buffers[gpu_ind][deriv_above_ind],
+		gpu_buffers[gpu_ind][out_buffer_ind], n_controllers, mem_length);
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
