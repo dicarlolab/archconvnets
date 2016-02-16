@@ -41,11 +41,11 @@ def sharpen_dgamma(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_arg
 		OUT_BUFFER = init_buffer()
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dim_not_summed])[np.newaxis], DERIV_ABOVE[1][n_dim_not_summed:])))
+	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
 	
 	_ntm_module3.sharpen_dgamma(W[0], W[1], GAMMA[0], GAMMA[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], GAMMA[1])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + GAMMA[1]
 	
 	if DEBUG:
 		assert isinstance(gpu_ind,int)
@@ -68,11 +68,11 @@ def sharpen_dw(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[N
 		OUT_BUFFER = init_buffer()
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dim_not_summed])[np.newaxis], DERIV_ABOVE[1][n_dim_not_summed:])))
+	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
 	
 	_ntm_module3.sharpen_dw(W[0], W[1], GAMMA[0], GAMMA[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], W[1])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + W[1]
 	
 	if DEBUG:
 		assert isinstance(gpu_ind,int)

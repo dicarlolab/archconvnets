@@ -45,14 +45,14 @@ def conv_ddata(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[0
 	# ex. LAYER_OUT = (d,e,f)
 	# -> DERIV_ABOVE = (a*b*c, d,e,f)
 	n_dims_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1]) + 1 # plus 1 (the image dimension)
-	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dims_not_summed])[np.newaxis], LAYER_OUT[1][1:])))
+	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dims_not_summed]),) + LAYER_OUT[1][1:]
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
 	OUT_BUFFER[1] = _ntm_module3.conv_ddata(F[0], F[1], IMGS[0], IMGS[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, PAD, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dims_not_summed], IMGS[1][1:])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dims_not_summed] + IMGS[1][1:]
 	
 	if DEBUG:
 		assert DERIV_ABOVE[1][n_dims_not_summed:] == LAYER_OUT[1]
@@ -85,14 +85,14 @@ def conv_dfilter(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=
 	# ex. LAYER_OUT = (d,e,f)
 	# -> DERIV_ABOVE = (a*b*c, d,e,f)
 	n_dims_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dims_not_summed])[np.newaxis], LAYER_OUT[1][1:])))
+	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dims_not_summed]),) + LAYER_OUT[1][1:]
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
 	OUT_BUFFER[1] = _ntm_module3.conv_dfilter(F[0], F[1], IMGS[0], IMGS[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, PAD, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dims_not_summed], F[1])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dims_not_summed] + F[1]
 	
 	if DEBUG:
 		check_buffer(F)

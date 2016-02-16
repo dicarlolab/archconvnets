@@ -48,7 +48,7 @@ def mult_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional
 	else: # deriv. wrt B
 		_ntm_module3.mult_points_dinput(A[0], A[1], OUT_BUFFER_TEMP[0], gpu_ind)
 	
-	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((A[1], A[1])))
+	OUT_BUFFER_TEMP[1] = A[1] + A[1]
 	
 	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
 	free_buffer(OUT_BUFFER_TEMP)

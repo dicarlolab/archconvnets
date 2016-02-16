@@ -42,7 +42,7 @@ def softmax_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 		OUT_BUFFER[1] = DERIV_ABOVE[1]
 	else:
 		n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-		OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], LAYER_OUT[1], np.ones(1))))
+		OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + LAYER_OUT[1] + (1,)
 	
 	
 	if DEBUG:

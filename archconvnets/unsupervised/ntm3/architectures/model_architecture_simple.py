@@ -20,13 +20,18 @@ def init_model():
 	for init in [0,1]:
 		# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, mem_length]
 		
-		add_sigmoid_F_bias_layer(LAYERS, 'F1', 16, source=(3,3), init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'F2', 16, source=(3,1), init=init)
+		add_linear_F_bias_layer(LAYERS, 'F1', 3, (8, 4, 2), batch_imgs=True, init=init)
+		add_linear_F_bias_layer(LAYERS, 'F2', 3, (8, 5, 7), batch_imgs=True, init=init)
 		
-		add_focus_keys_layer(LAYERS, 'FC', ['F1','F2'], init=init)
+		add_dotT_layer(LAYERS, 'F3', ['F1','F2'], batch_imgs=True, init=init)
 		
-		add_pearson_layer(LAYERS, 'ERR', ['FC', -1], init=init)
-		#add_sum_layer(LAYERS,'ERR_SUM',init=init)
+		#add_linear_F_bias_layer(LAYERS, 'F1', 3, (4, 2), init=init)
+		#add_linear_F_bias_layer(LAYERS, 'F2', 3, (5, 7), init=init)
+		
+		#add_dotT_layer(LAYERS, 'F3', ['F1','F2'], init=init)
+		
+		add_pearson_layer(LAYERS, 'ERR', ['F3', -1], batch_imgs=True, init=init)
+		add_sum_layer(LAYERS,'ERR_SUM',init=init)
 		
 
 	check_network(LAYERS)

@@ -70,7 +70,7 @@ def add_points_batch_dinputB(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, addi
 	
 	# reshape back to original dimensions
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], B[1])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + B[1]
 	
 	if DEBUG:
 		assert isinstance(gpu_ind,int)
@@ -100,7 +100,7 @@ def add_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	
 	# reshape back to original dimensions
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], A[1])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + A[1]
 	
 	if DEBUG:
 		assert isinstance(gpu_ind,int)

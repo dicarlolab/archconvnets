@@ -50,7 +50,7 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	# so we have deriv_above (3d: i,j,k) and x (2d: k,l), compute batched dot product (i,j,l)
 	_ntm_module3.linear_F_dx(F[0], F_reshaped, X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_imgs, gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], X[1])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + X[1]
 	
 	#print 'F_reshaped', F_reshaped, 'X_reshaped', X_reshaped, 'deriv_Above_reshaped', DERIV_ABOVE_reshaped, 'out_buffer', OUT_BUFFER[1]
 	
@@ -111,7 +111,7 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	_ntm_module3.linear_F_dF(X[0], X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_batches, gpu_ind)
 	
 	# reshape back to original dimensions
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], F[1])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + F[1]
 	
 	#print 'out_buffer', OUT_BUFFER[1], 'X_reshaped', X_reshaped, 'deriv_above_reshaped', DERIV_ABOVE_reshaped, 'n_batches', n_batches
 	
@@ -145,6 +145,9 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, sum_all=False, sque
 		in_shape = [None]*2
 		in_prev1 = False
 		
+		#############
+		# source for X ( in_shape[1] ):
+		
 		# default to previous layer as input
 		if source is None:
 			in_source = layer_ind-1
@@ -163,36 +166,38 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, sum_all=False, sque
 		else:
 			assert False, 'unknown source input'
 		
+		
+		#################
+		# reshape X and use the new shape to determine the shape of F and the output shape
+		assert len(in_shape[1]) > 2 or batch_imgs == False, "X should be >= 3 dim if batch_imgs = True"
+		
 		if batch_imgs:
 			n_batches = in_shape[1][0]
+			shape_offset = 1
 		else:
 			n_batches = 1
+			shape_offset = 0
 		
 		# if source is a conv layer (4D input), sum across everything
 		if len(in_shape[1]) == 4 or sum_all:
-			if batch_imgs:
-				in_shape_reshaped = (np.prod(in_shape[1][1:]), 1)
-			else:
-				in_shape_reshaped = (np.prod(in_shape[1]), 1)
+			in_shape_reshaped = (np.prod(in_shape[1][shape_offset:]), 1)
 		else:
-			if batch_imgs:
-				in_shape_reshaped = copy.deepcopy(in_shape[1][1:])
-			else:
-				in_shape_reshaped = copy.deepcopy(in_shape[1])
+			in_shape_reshaped = in_shape[1][shape_offset:]
+		
+		##############
+		# determine F and output shapes
 		
 		# if n_filters is an int or a tuple
 		if isinstance(n_filters,int):
 			in_shape[0] = (n_filters, in_shape_reshaped[0])
-			if batch_imgs:
-				out_shape = (n_batches, in_shape[0][0], in_shape_reshaped[1])
-			else:
-				out_shape = (in_shape[0][0], in_shape_reshaped[1])
+			out_shape = (in_shape[0][0], in_shape_reshaped[1])
 		else:
-			in_shape[0] = tuple(np.concatenate((np.asarray(n_filters), np.asarray(in_shape_reshaped[0])[np.newaxis])))
-			if batch_imgs:
-				out_shape = tuple(np.concatenate((np.asarray(n_batches)[np.newaxis], in_shape[0][:len(in_shape[0])-1], np.asarray(in_shape_reshaped[1])[np.newaxis])))
-			else:
-				out_shape = tuple(np.concatenate((in_shape[0][:len(in_shape[0])-1], np.asarray(in_shape_reshaped[1])[np.newaxis])))
+			in_shape[0] = n_filters + (in_shape_reshaped[0],)
+			out_shape = in_shape[0][:len(in_shape[0])-1] + (in_shape_reshaped[1],)
+			
+		
+		if batch_imgs:
+			out_shape = (n_batches,) + out_shape
 		
 		if squeeze and out_shape[-1] == 1:
 			out_shape = out_shape[:len(out_shape)-1]

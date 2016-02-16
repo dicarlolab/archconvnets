@@ -45,7 +45,7 @@ def sigmoid_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	# deriv_above * layer_out * (1-layer_out)
 	_ntm_module3.sigmoid_dlayer_in(LAYER_OUT[0], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], LAYER_IN[1])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + LAYER_IN[1]
 	
 	if DEBUG:
 		assert additional_args == [None]

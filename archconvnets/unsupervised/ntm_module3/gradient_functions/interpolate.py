@@ -43,11 +43,11 @@ def interpolate_dinterp_gate_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, 
 		OUT_BUFFER = init_buffer()
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dim_not_summed])[np.newaxis], DERIV_ABOVE[1][n_dim_not_summed:])))
+	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
 	
 	_ntm_module3.interpolate_dinterp_gate_out(O_CONTENT[0], O_CONTENT[1], O_PREV[0], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], INTERP_GATE_OUT[1])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + INTERP_GATE_OUT[1]
 	
 	if DEBUG:
 		assert isinstance(gpu_ind,int)
@@ -72,7 +72,7 @@ def interpolate_do_content(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additi
 		OUT_BUFFER = init_buffer()
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dim_not_summed])[np.newaxis], DERIV_ABOVE[1][n_dim_not_summed:])))
+	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
 	
 	_ntm_module3.interpolate_do_content(INTERP_GATE_OUT[0], O_PREV[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
@@ -101,7 +101,7 @@ def interpolate_do_prev(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additiona
 		OUT_BUFFER = init_buffer()
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dim_not_summed])[np.newaxis], DERIV_ABOVE[1][n_dim_not_summed:])))
+	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
 	
 	_ntm_module3.interpolate_do_prev(INTERP_GATE_OUT[0], O_PREV[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	

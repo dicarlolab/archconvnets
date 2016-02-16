@@ -40,7 +40,7 @@ def relu_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_arg
 	_ntm_module3.relu_dlayer_in(LAYER_IN[0], DERIV_ABOVE[0], OUT_BUFFER[0], 0, gpu_ind)
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], LAYER_IN[1])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + LAYER_IN[1]
 	
 	if DEBUG:
 		check_buffer(LAYER_IN)

@@ -63,11 +63,11 @@ def cosine_sim_dmem(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_ar
 		n_imgs = 1
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dim_not_summed])[np.newaxis], DERIV_ABOVE[1][n_dim_not_summed:])))
+	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
 	
 	_ntm_module3.cosine_sim_dmem(KEYS[0], KEYS[1], MEM[0], MEM[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_imgs, gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], MEM[1])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + MEM[1]
 	
 	if DEBUG:
 		check_buffer(OUT_BUFFER_TEMP)
@@ -86,46 +86,6 @@ def cosine_sim_dmem(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_ar
 	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
-'''def cosine_sim_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
-	t = time.time()
-	
-	KEYS, MEM = args
-	
-	if OUT_BUFFER is None:
-		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
-	
-	n_controllers, mem_length = KEYS[1][:2]
-	M = MEM[1][0]
-	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
-	
-	_ntm_module3.cosine_sim_dkeys(KEYS[0], KEYS[1][:2], MEM[0], MEM[1][:2], OUT_BUFFER_TEMP[0], gpu_ind)
-		
-	if len(KEYS[1]) == 2:
-		OUT_BUFFER_TEMP[1] = (n_controllers, M, n_controllers, mem_length)
-	else:
-		OUT_BUFFER_TEMP[1] = (n_controllers, M, n_controllers, mem_length, 1)
-		
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
-	
-	if DEBUG:
-		check_buffer(OUT_BUFFER_TEMP)
-		assert isinstance(gpu_ind,int)
-		check_buffer(OUT_BUFFER)
-		check_buffer(KEYS)
-		check_buffer(MEM)
-		check_buffer(LAYER_OUT)
-		check_buffer(DERIV_ABOVE)
-		assert (len(MEM[1]) == 2) or ((len(MEM[1]) == 3) and (MEM[1][2] == 1))
-		assert (len(KEYS[1]) == 2) or ((len(KEYS[1]) == 3) and (KEYS[1][2] == 1))
-		assert KEYS[0] != MEM[0]
-		assert OUT_BUFFER[0] != KEYS[0]
-		assert OUT_BUFFER[0] != MEM[0]
-		assert KEYS[1][1] == MEM[1][1]
-	
-	t_main[2] += time.time() - t
-	return OUT_BUFFER'''
 
 def cosine_sim_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
@@ -136,11 +96,11 @@ def cosine_sim_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_a
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dim_not_summed])[np.newaxis], DERIV_ABOVE[1][n_dim_not_summed:])))
+	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
 	
 	_ntm_module3.cosine_sim_dkeys(KEYS[0], KEYS[1], MEM[0], MEM[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], KEYS[1])))
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + KEYS[1]
 	
 	if DEBUG:
 		check_buffer(OUT_BUFFER_TEMP)
