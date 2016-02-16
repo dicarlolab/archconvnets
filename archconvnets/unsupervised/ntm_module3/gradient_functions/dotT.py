@@ -10,12 +10,18 @@ t_main = [0,0,0]
 def dotT(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	
+	batch_imgs = additional_args[0]
 	BUFFER1, BUFFER2 = args
+	
+	if batch_imgs:
+		n_imgs = BUFFER2[1][0]
+	else:
+		n_imgs = 1
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	_ntm_module3.dotT(BUFFER1[0], BUFFER1[1], BUFFER2[0], BUFFER2[1], OUT_BUFFER[0], gpu_ind)
+	_ntm_module3.dotT(BUFFER1[0], BUFFER1[1], BUFFER2[0], BUFFER2[1], OUT_BUFFER[0], n_imgs, gpu_ind)
 	
 	OUT_BUFFER[1] = (BUFFER1[1][1], BUFFER2[1][1])
 	
@@ -36,7 +42,13 @@ def dotT(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 def dotT_da(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	
+	batch_imgs = additional_args[0]
 	F, X = args
+	
+	if batch_imgs:
+		n_imgs = X[1][0]
+	else:
+		n_imgs = 1
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
@@ -44,7 +56,7 @@ def dotT_da(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
 	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
 	
-	_ntm_module3.dotT_da(X[0], F[1], X[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
+	_ntm_module3.dotT_da(X[0], F[1], X[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_imgs, gpu_ind)
 	
 	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + F[1]
 	
@@ -66,7 +78,13 @@ def dotT_da(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None
 def dotT_db(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	
+	batch_imgs = additional_args[0]
 	F, X = args
+	
+	if batch_imgs:
+		n_imgs = X[1][0]
+	else:
+		n_imgs = 1
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
@@ -74,7 +92,7 @@ def dotT_db(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
 	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
 	
-	_ntm_module3.dotT_db(F[0], F[1], X[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
+	_ntm_module3.dotT_db(F[0], F[1], X[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_imgs, gpu_ind)
 	
 	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + X[1]
 	
@@ -93,7 +111,7 @@ def dotT_db(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None
 	t_main[2] += time.time() - t
 	return OUT_BUFFER
 
-def add_dotT_layer(LAYERS, name, source, init=0):
+def add_dotT_layer(LAYERS, name, source, batch_imgs=False, init=0):
 	assert isinstance(name, str)
 	assert len(source) == 2
 	
@@ -122,8 +140,8 @@ def add_dotT_layer(LAYERS, name, source, init=0):
 		LAYERS[layer_ind]['in_source'] = in_source
 		LAYERS[layer_ind]['deriv_F'] = [dotT_da, dotT_db]
 		LAYERS[layer_ind]['in_prev'] = [False, False]
-		LAYERS[layer_ind]['additional_forward_args'] = [None]
-		LAYERS[layer_ind]['additional_deriv_args'] = [[None], [None]]
+		LAYERS[layer_ind]['additional_forward_args'] = [batch_imgs]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[batch_imgs], [batch_imgs]]
 		
 		return layer_ind
 	
