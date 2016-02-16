@@ -55,11 +55,12 @@ __global__ void cosine_sim_dkeys_kernel(float * keys, float * mem, float * deriv
 
 static PyObject *cosine_sim_dkeys(PyObject *self, PyObject *args){
 	PyObject *keys_shape, *mem_shape, *deriv_above_shape;
-	int keys_ind, mem_ind, out_buffer_ind, gpu_ind, deriv_above_ind;
+	int keys_ind, mem_ind, out_buffer_ind, gpu_ind, deriv_above_ind, n_imgs;
 	cudaError_t err;
 	
-	if (!PyArg_ParseTuple(args, "iO!iO!iO!ii", &keys_ind, &PyTuple_Type, &keys_shape, 
-			&mem_ind, &PyTuple_Type, &mem_shape, &deriv_above_ind, &PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &gpu_ind))
+	if (!PyArg_ParseTuple(args, "iO!iO!iO!iii", &keys_ind, &PyTuple_Type, &keys_shape, 
+			&mem_ind, &PyTuple_Type, &mem_shape, &deriv_above_ind, &PyTuple_Type, &deriv_above_shape, &out_buffer_ind, 
+			&n_imgs, &gpu_ind))
 		return NULL;
 	
 	if(keys_ind >= N_BUFFERS || keys_ind < 0 || 
@@ -79,11 +80,15 @@ static PyObject *cosine_sim_dkeys(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	int dim_offset = 0; // skip over img dimension
+	if(n_imgs > 1)
+		dim_offset ++;
+	
 	// get sizes
-	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
-	long n_controllers = PyLong_AsLong(PyTuple_GetItem(keys_shape,0));
-	long mem_length = PyLong_AsLong(PyTuple_GetItem(keys_shape,1));
-	long M = PyLong_AsLong(PyTuple_GetItem(mem_shape,0));
+	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape, 0));
+	long n_controllers = PyLong_AsLong(PyTuple_GetItem(keys_shape, dim_offset));
+	long mem_length = PyLong_AsLong(PyTuple_GetItem(keys_shape, 1 + dim_offset));
+	long M = PyLong_AsLong(PyTuple_GetItem(mem_shape, dim_offset));
 	
 	if(n_controllers*mem_length*sizeof(DATA_TYPE) != KEYS_SZ || M*mem_length*sizeof(DATA_TYPE) != MEM_SZ){
 		printf("specified input sizes do not equal to stored gpu buffer. dot_cpu()\n");
@@ -101,10 +106,13 @@ static PyObject *cosine_sim_dkeys(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	// run kernel
-	cosine_sim_dkeys_kernel <<< dim_above, n_controllers*mem_length >>> (GPU_KEYS, GPU_MEM, 
-		gpu_buffers[gpu_ind][deriv_above_ind],
-		GPU_BUFFER_OUT, n_controllers, mem_length, M);
+	for(int batch = 0; batch < n_imgs; batch++){
+		// run kernel
+		cosine_sim_dkeys_kernel <<< dim_above, n_controllers*mem_length >>> (GPU_KEYS + batch*n_controllers*mem_length, 
+			GPU_MEM + batch*M*mem_length, 
+			gpu_buffers[gpu_ind][deriv_above_ind],
+			GPU_BUFFER_OUT, n_controllers, mem_length, M);
+	}
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR

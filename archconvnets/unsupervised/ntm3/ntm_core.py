@@ -41,17 +41,17 @@ def check_network(LAYERS):
 		assert return_buffer(LAYER_OUT).shape == L['out_shape'], "layer %s (%i) didn't produce expected output (%i, %i)" % (L['name'], layer_ind, np.prod(LAYER_OUT[1]), np.prod(L['out_shape']))
 		
 		# check if deriv functions correctly produce correct shapes
-		DERIV_ABOVE = init_buffer(np.zeros(np.concatenate(((2,3), L['out_shape'])), dtype='single'))
+		'''DERIV_ABOVE = init_buffer(np.zeros(np.concatenate(((BATCH_SZ,2,3), L['out_shape'])), dtype='single'))
 		for arg in range(N_ARGS):
-			expected_shape = tuple(np.concatenate(((2,3), L['in_shape'][arg])))
+			expected_shape = tuple(np.concatenate(((BATCH_SZ,2,3), L['in_shape'][arg])))
 			
 			OUT = L['deriv_F'][arg](args, LAYER_OUT, DERIV_ABOVE, additional_args=L['additional_deriv_args'][arg])
-			#print L['name'], arg, expected_shape
+			print L['name'], arg, OUT[1], expected_shape
 			assert return_buffer(OUT).shape == expected_shape, 'deriv not expected size (layer %s, arg %i)' % (L['name'], arg)
 			
 			free_buffer(OUT)
+		free_buffer(DERIV_ABOVE)'''
 		free_buffer(LAYER_OUT)
-		free_buffer(DERIV_ABOVE)
 		
 		# free mem
 		for arg in range(N_ARGS):
@@ -199,6 +199,7 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 						p_partial = P['partial'][arg2]
 						
 						deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[src]['out_shape'])
+						#print deriv_temp, WEIGHT_DERIVS[p_layer_ind][p_arg], p_layer_ind, p_arg
 						WEIGHT_DERIVS[p_layer_ind][p_arg] = add_points_inc((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp), scalar=scalar)
 						
 						squeeze_dim1(WEIGHT_DERIVS[p_layer_ind][p_arg], keep_dims)
@@ -289,6 +290,8 @@ def copy_traverse_to_end(layer_orig, layer_cur, arg, LAYERS, PARTIALS, MEM_WEIGH
 			# copy partials to mem_weight_derivs
 			# note: there is redundant copying happening if a layer contributes to multiple
 			# branches...this in principle should be checked for to save some time
+			#print layer_cur, arg, layer_orig, inds[0]
+			#print MEM_WEIGHT_DERIVS[layer_cur][arg], PARTIALS[layer_orig]['partial'][inds[0]]
 			copy_buffer(MEM_WEIGHT_DERIVS[layer_cur][arg], PARTIALS[layer_orig]['partial'][inds[0]])
 		
 		# continue (another layer)

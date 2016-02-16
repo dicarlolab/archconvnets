@@ -30,7 +30,7 @@ static PyObject * add_points(PyObject *self, PyObject *args){
 		OUT_BUFFER_SZ = buffer_sz[gpu_ind][b_ind];
 		buffer_prev_init = 0;
 	}else if(buffer_sz[gpu_ind][b_ind] != OUT_BUFFER_SZ){ // does the output size match the buffer size?
-		printf("output buffer size not allocated to correct size\n");
+		printf("output buffer size not allocated to correct size, %li %li %s\n", buffer_sz[gpu_ind][b_ind], OUT_BUFFER_SZ, __FILE__);
 		return NULL;
 	}
 	

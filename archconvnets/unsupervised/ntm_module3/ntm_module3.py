@@ -18,7 +18,7 @@ def return_buffer_sz(buffer_ind, gpu_ind=GPU_IND):
 	return _ntm_module3.return_buffer_sz(buffer_ind, gpu_ind)
 
 def check_buffer(BUFFER, gpu_ind=GPU_IND):
-	'''assert len(BUFFER) == 2
+	assert len(BUFFER) == 2
 	assert isinstance(BUFFER[0], int)
 	assert BUFFER[0] >= 0
 	assert n_vars_allocated[gpu_ind, BUFFER[0]]
@@ -26,8 +26,7 @@ def check_buffer(BUFFER, gpu_ind=GPU_IND):
 	if BUFFER[1] is not None:
 		assert return_buffer_sz(BUFFER[0], gpu_ind) == np.prod(BUFFER[1]), 'stored size %i did not match actual size %i' % (return_buffer_sz(BUFFER[0], gpu_ind), np.prod(BUFFER[1]))
 	else:
-		assert return_buffer_sz(BUFFER[0], gpu_ind) == 0, '%i' % return_buffer_sz(BUFFER[0], gpu_ind)'''
-	return
+		assert return_buffer_sz(BUFFER[0], gpu_ind) == 0, '%i' % return_buffer_sz(BUFFER[0], gpu_ind)
 
 def free_buffer(BUFFER, gpu_ind=GPU_IND):
 	#check_buffer(BUFFER)

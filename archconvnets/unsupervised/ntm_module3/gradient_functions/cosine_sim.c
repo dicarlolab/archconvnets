@@ -80,7 +80,6 @@ static PyObject *cosine_sim(PyObject *self, PyObject *args){
 	}
 	
 	int dim_offset = 0;
-	
 	if(n_imgs > 1)
 		dim_offset ++;
 	

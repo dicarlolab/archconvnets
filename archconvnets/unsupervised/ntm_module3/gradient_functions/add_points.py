@@ -66,7 +66,10 @@ def add_points_batch_dinputB(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, addi
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	_ntm_module3.add_points_batch_dinputB(A[0], B[0], DERIV_ABOVE[0], OUT_BUFFER[0], gpu_ind)
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	dim_above = np.int(np.prod(DERIV_ABOVE[1][:n_dim_not_summed]))
+	
+	_ntm_module3.add_points_batch_dinputB(A[0], B[0], DERIV_ABOVE[0], dim_above, OUT_BUFFER[0], gpu_ind)
 	
 	# reshape back to original dimensions
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])

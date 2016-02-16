@@ -18,14 +18,15 @@ def init_model():
 	HEAD_INPUT = 'F3'
 
 	for init in [0,1]:
-		add_linear_F_bias_layer(LAYERS, 'F1', 3, (8, 4, 2), batch_imgs=True, init=init)
-		add_linear_F_bias_layer(LAYERS, 'F2', 3, (8, 5, 7), batch_imgs=True, init=init)
+		'''add_linear_F_bias_layer(LAYERS, 'F1', 3, (BATCH_SZ, 4, 2), batch_imgs=True, init=init)
+		add_linear_F_bias_layer(LAYERS, 'F2', 3, (BATCH_SZ, 4, 2), batch_imgs=True, init=init)
+		add_add_layer(LAYERS, 'F3s', ['F1', 'F2-'], init=init)'''
+		
+		add_linear_F_bias_layer(LAYERS, 'F1', 3, (BATCH_SZ, 4, 2), batch_imgs=True, init=init)
+		add_linear_F_bias_layer(LAYERS, 'F2', 3, (BATCH_SZ, 5, 7), batch_imgs=True, init=init)
 		add_dotT_layer(LAYERS, 'F3', ['F1','F2'], batch_imgs=True, init=init)
-		
-		#add_linear_F_bias_layer(LAYERS, 'F1', 3, (4, 2), init=init)
-		#add_linear_F_bias_layer(LAYERS, 'F2', 3, (5, 7), init=init)
-		
-		#add_dotT_layer(LAYERS, 'F3', ['F1','F2'], init=init)
+		add_dotT_layer(LAYERS, 'F32', ['F1','F2'], batch_imgs=True, init=init)
+		add_add_layer(LAYERS, 'F3s', ['F3', 'F32-'], init=init)
 		
 		add_pearson_layer(LAYERS, 'ERR', ['F3', -1], batch_imgs=True, init=init)
 		add_sum_layer(LAYERS,'ERR_SUM',init=init)
@@ -35,7 +36,7 @@ def init_model():
 	
 	################ init weights and inputs
 	WEIGHTS = init_weights(LAYERS)
-	MEM_INDS = []#find_layer(LAYERS, ['MEM'])
+	MEM_INDS = find_layer(LAYERS, ['F32'])
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
 	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS

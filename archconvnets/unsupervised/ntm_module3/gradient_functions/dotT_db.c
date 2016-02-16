@@ -1,38 +1,5 @@
-#define ADD_MEM_DADD_OUT_NUMEL (dim_above * C * mem_length)
-#define ADD_MEM_DADD_OUT_SZ (n_imgs*ADD_MEM_DADD_OUT_NUMEL*sizeof(DATA_TYPE))
-
-__global__ void add_mem_dadd_out_kernel(float * gw, float * deriv_above, float * data_out, int mem_length, int M, int C, int dim_above, int data_out_numel){
-	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
-	
-	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
-	int n_additional_duplicates = data_out_numel % THREAD_CAPACITY;
-	
-	int n_duplicates = min_duplicates_per_thread;
-	if(ind < n_additional_duplicates) n_duplicates++;
-	
-	unsigned ind_g, remainder, ind_temp, a, c, m, mem;
-	for(int dup = 0; dup < n_duplicates; dup++){
-		ind_g = dup*THREAD_CAPACITY + ind;
-		
-		#ifdef DEBUG
-		if(ind_g >= data_out_numel) assert(0); // out of bounds
-		#endif
-		
-		// we are computing the output data_out[a, c, mem]... determine indices
-		a = ind_g / (C*mem_length);
-		remainder = ind_g % (C*mem_length);
-		
-		c = remainder / mem_length;
-		mem = remainder % mem_length;
-		
-		data_out[ind_g] = 0;
-		ind_temp = a*M*mem_length + mem;
-		for(m = 0; m < M; m++)
-			data_out[ind_g] += deriv_above[ind_temp + m*mem_length] * gw[c*M + m];
-			//data_out[ind_g] += deriv_above[a, m, mem] * gw[c, m];
-		
-	}
-}
+#define ADD_MEM_DADD_OUT_NUMEL (dim_above * n_imgs * C * mem_length)
+#define ADD_MEM_DADD_OUT_SZ (ADD_MEM_DADD_OUT_NUMEL*sizeof(DATA_TYPE))
 
 /*def add_mem_dadd_out(gw):
 	temp = np.zeros((M, mem_length, C, mem_length),dtype='single')
@@ -40,19 +7,22 @@ __global__ void add_mem_dadd_out_kernel(float * gw, float * deriv_above, float *
 	return temp*/
 
 // gw = (16, 6)  add_out = (16, 8)
-// C, M    ....            C, mem_length
+// img, C, M    ....            img, C, mem_length
 
-// deriv_above = (a, M, mem_length)
-// deriv_above (a, M, mem_length) * dotT_db (M, mem_length, C, mem_length) = [a, C, mem_length]
-//  deriv_above (a, M, mem_length) * gw (C, M) = [a, C, mem_length]
+// deriv_above = (a, img, M, mem_length)
+// deriv_above (a, img, M, mem_length) * gw (img, C, M) = [a, C, mem_length]
+
+// batch a*img:
+//		out[a,img] = gw[img] * deriv_above[a, img]
+
 
 static PyObject *dotT_db(PyObject *self, PyObject *args){
 	cudaError_t err;
-	int gpu_ind, gw_ind, out_buffer_ind, deriv_above_ind, n_imgs;
-	PyObject *gw_shape, *add_out_shape, * deriv_above_shape;
+	int gpu_ind, gw_ind, out_buffer_ind, deriv_above_ind, n_imgs, dim_above;
+	PyObject *gw_shape, *add_out_shape;
 	
-	if (!PyArg_ParseTuple(args, "iO!O!iO!iii", &gw_ind, &PyTuple_Type, &gw_shape, &PyTuple_Type, &add_out_shape, 
-		&deriv_above_ind, &PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &n_imgs, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!O!iiiii", &gw_ind, &PyTuple_Type, &gw_shape, &PyTuple_Type, &add_out_shape, 
+		&deriv_above_ind, &dim_above, &out_buffer_ind, &n_imgs, &gpu_ind)) 
 		return NULL;
         
 	if(out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0 || gw_ind >= N_BUFFERS || gw_ind < 0){
@@ -70,8 +40,6 @@ static PyObject *dotT_db(PyObject *self, PyObject *args){
 		dim_offset ++;
 	
 	// get sizes
-	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape, 0));
-	
 	long C = PyLong_AsLong(PyTuple_GetItem(gw_shape, dim_offset));
 	long M = PyLong_AsLong(PyTuple_GetItem(gw_shape, 1 + dim_offset));
 	
@@ -99,15 +67,30 @@ static PyObject *dotT_db(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	// determine number of blocks
-	int n_blocks = (int)ceil((double)ADD_MEM_DADD_OUT_NUMEL/MAX_THREADS_PER_BLOCK);
-	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
+	// deriv_above (a, img, M, mem_length) * gw (img, C, M) = [a, C, mem_length]
+
+	// batch a*img:
+	//		out[a,img] = gw[img] * deriv_above[a, img]
 	
-	for(int batch = 0; batch < n_imgs; batch++){
-		// run kernel
-		add_mem_dadd_out_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][gw_ind] + batch*C*M, 
-				gpu_buffers[gpu_ind][deriv_above_ind] + batch*M*mem_length, 
-				GPU_BUFFER_OUT + batch*ADD_MEM_DADD_OUT_NUMEL, mem_length, M, C, dim_above, ADD_MEM_DADD_OUT_NUMEL);
+	cublasStatus_t err_blas;
+	
+	const float alpha = 1.0, beta = 0.0;
+	
+	for(int batch = 0; batch < dim_above; batch++){
+		for(int img = 0; img < n_imgs; img++){
+			// run kernel
+
+			err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, mem_length, C, 
+							M, &alpha,
+                           gpu_buffers[gpu_ind][deriv_above_ind] + batch*n_imgs*M*mem_length + img*M*mem_length,
+						   mem_length,
+						   gpu_buffers[gpu_ind][gw_ind] + img*C*M, 
+						   M, &beta, GPU_BUFFER_OUT + batch*n_imgs*C*mem_length + img*C*mem_length, mem_length);
+			
+			//err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, buffer2_dim2, buffer1_dim1, buffer1_dim2, &alpha,
+            //               GPU_BUFFER2, buffer2_dim2, GPU_BUFFER1, buffer1_dim2, &beta, GPU_BUFFER_OUT, buffer2_dim2);
+			ERR_CHECK_BLAS
+		}
 	}
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR

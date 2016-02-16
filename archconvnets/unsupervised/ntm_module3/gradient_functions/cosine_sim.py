@@ -95,10 +95,15 @@ def cosine_sim_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_a
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
+	if batch_imgs:
+		n_imgs = X[1][0]
+	else:
+		n_imgs = 1
+	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
 	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
 	
-	_ntm_module3.cosine_sim_dkeys(KEYS[0], KEYS[1], MEM[0], MEM[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
+	_ntm_module3.cosine_sim_dkeys(KEYS[0], KEYS[1], MEM[0], MEM[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_imgs, gpu_ind)
 	
 	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + KEYS[1]
 	

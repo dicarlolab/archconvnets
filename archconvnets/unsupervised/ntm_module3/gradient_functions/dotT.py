@@ -56,11 +56,13 @@ def dotT_da(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
+	dim_above = np.int(np.prod(DERIV_ABOVE[1][:n_dim_not_summed]))
 	
-	_ntm_module3.dotT_da(X[0], F[1], X[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_imgs, gpu_ind)
+	_ntm_module3.dotT_da(X[0], F[1], X[1], DERIV_ABOVE[0], dim_above, OUT_BUFFER[0], n_imgs, gpu_ind)
 	
 	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + F[1]
+	#print 'DERIV_ABOVE', DERIV_ABOVE[1], 'F', F[1], 'dim_above', dim_above, 'n_imgs', n_imgs, 'OUT_BUFFER', OUT_BUFFER[1]
+	#check_buffer(OUT_BUFFER)
 	
 	if DEBUG:
 		check_buffer(F)
@@ -92,11 +94,13 @@ def dotT_db(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
+	dim_above = np.int(np.prod(DERIV_ABOVE[1][:n_dim_not_summed]))
 	
-	_ntm_module3.dotT_db(F[0], F[1], X[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_imgs, gpu_ind)
+	_ntm_module3.dotT_db(F[0], F[1], X[1], DERIV_ABOVE[0], dim_above, OUT_BUFFER[0], n_imgs, gpu_ind)
 	
 	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + X[1]
+	#print 'DERIV_ABOVE', DERIV_ABOVE[1], 'F', F[1], 'dim_above', dim_above, 'n_imgs', n_imgs, 'OUT_BUFFER', OUT_BUFFER[1]
+	#check_buffer(OUT_BUFFER)
 	
 	if DEBUG:
 		check_buffer(F)
