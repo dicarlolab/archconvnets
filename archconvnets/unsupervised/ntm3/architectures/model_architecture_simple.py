@@ -18,13 +18,12 @@ def init_model():
 	HEAD_INPUT = 'F3'
 
 	for init in [0,1]:
-		# keys: N_CONTROLLERS, M_LENGTH
-		# mem: N_MEM_SLOTS, M_LENGTH
+		# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, mem_length]
 		
-		add_sigmoid_F_bias_layer(LAYERS, 'F1', 16, source=(3,6), init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'F2', 8, source=(3,6), init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'F1', 16, source=(3,3), init=init)
+		add_sigmoid_F_bias_layer(LAYERS, 'F2', 16, source=(3,6), init=init)
 		
-		add_cosine_sim_layer(LAYERS, 'FC', ['F1','F2'], init=init)
+		add_shift_w_layer(LAYERS, 'FC', ['F1','F2'], init=init)
 		
 		add_pearson_layer(LAYERS, 'ERR', ['FC', -1], init=init)
 		#add_sum_layer(LAYERS,'ERR_SUM',init=init)
