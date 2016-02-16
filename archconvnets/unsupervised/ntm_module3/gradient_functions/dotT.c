@@ -22,7 +22,6 @@ static PyObject *dotT(PyObject *self, PyObject *args){
 	}
 	
 	int dim_offset = 0;
-	
 	if(n_imgs > 1)
 		dim_offset ++;
 	
@@ -34,12 +33,12 @@ static PyObject *dotT(PyObject *self, PyObject *args){
 	long buffer2_dim2 = PyLong_AsLong(PyTuple_GetItem(buffer_shape2, 1 + dim_offset));
 	
 	if(buffer1_dim1 != buffer2_dim1){
-		printf("inner dot product dimensions do not match, (%li, %li), (%li, %li)\n", buffer1_dim1, buffer1_dim2, buffer2_dim1, buffer2_dim2);
+		printf("inner dot product dimensions do not match %s, (%li, %li), (%li, %li)\n", __FILE__, buffer1_dim1, buffer1_dim2, buffer2_dim1, buffer2_dim2);
 		return NULL;
 	}
 	
-	if(buffer1_dim1*buffer1_dim2*sizeof(DATA_TYPE) != BUFFER_SZ1 || buffer2_dim1*buffer2_dim2*sizeof(DATA_TYPE) != BUFFER_SZ2){
-		printf("specified input sizes do not equal to stored gpu buffer. dot()\n");
+	if(n_imgs*buffer1_dim1*buffer1_dim2*sizeof(DATA_TYPE) != BUFFER_SZ1 || n_imgs*buffer2_dim1*buffer2_dim2*sizeof(DATA_TYPE) != BUFFER_SZ2){
+		printf("specified input sizes do not equal to stored gpu buffer. %s\n", __FILE__);
 		printf("%li %li %li %li", buffer1_dim1*buffer1_dim2*sizeof(DATA_TYPE), BUFFER_SZ1, buffer2_dim1*buffer2_dim2*sizeof(DATA_TYPE), BUFFER_SZ2);
 		return NULL;
 	}

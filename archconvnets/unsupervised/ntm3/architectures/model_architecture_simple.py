@@ -18,11 +18,8 @@ def init_model():
 	HEAD_INPUT = 'F3'
 
 	for init in [0,1]:
-		# shift_out: [n_controllers, n_shifts], w_interp: [n_controllers, mem_length]
-		
 		add_linear_F_bias_layer(LAYERS, 'F1', 3, (8, 4, 2), batch_imgs=True, init=init)
 		add_linear_F_bias_layer(LAYERS, 'F2', 3, (8, 5, 7), batch_imgs=True, init=init)
-		
 		add_dotT_layer(LAYERS, 'F3', ['F1','F2'], batch_imgs=True, init=init)
 		
 		#add_linear_F_bias_layer(LAYERS, 'F1', 3, (4, 2), init=init)

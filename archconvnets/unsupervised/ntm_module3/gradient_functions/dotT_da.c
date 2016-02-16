@@ -1,5 +1,5 @@
 #define ADD_MEM_DGW_NUMEL (dim_above * C * M)
-#define ADD_MEM_DGW_SZ (ADD_MEM_DGW_NUMEL*sizeof(DATA_TYPE))
+#define ADD_MEM_DGW_SZ (n_imgs*ADD_MEM_DGW_NUMEL*sizeof(DATA_TYPE))
 
 __global__ void add_mem_dgw_kernel(float * add_out, float * deriv_above, float * data_out, int mem_length, int M, int C, 
 		int dim_above, int data_out_numel){
@@ -49,11 +49,11 @@ __global__ void add_mem_dgw_kernel(float * add_out, float * deriv_above, float *
 
 static PyObject *dotT_da(PyObject *self, PyObject *args){
 	cudaError_t err;
-	int gpu_ind, add_out_ind, out_buffer_ind, deriv_above_ind;
+	int gpu_ind, add_out_ind, out_buffer_ind, deriv_above_ind, n_imgs;
 	PyObject *gw_shape, *add_out_shape, *deriv_above_shape;
 	
-	if (!PyArg_ParseTuple(args, "iO!O!iO!ii", &add_out_ind, &PyTuple_Type, &gw_shape, &PyTuple_Type, &add_out_shape, &deriv_above_ind, 
-		&PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!O!iO!iii", &add_out_ind, &PyTuple_Type, &gw_shape, &PyTuple_Type, &add_out_shape, &deriv_above_ind, 
+		&PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &n_imgs, &gpu_ind)) 
 		return NULL;
         
 	if(out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0 || add_out_ind >= N_BUFFERS || add_out_ind < 0){
@@ -66,22 +66,26 @@ static PyObject *dotT_da(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	int dim_offset = 0;
+	if(n_imgs > 1)
+		dim_offset ++;
+	
 	// get sizes
-	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
+	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape, 0));
 	
-	long C = PyLong_AsLong(PyTuple_GetItem(gw_shape,0));
-	long M = PyLong_AsLong(PyTuple_GetItem(gw_shape,1));
+	long C = PyLong_AsLong(PyTuple_GetItem(gw_shape, dim_offset));
+	long M = PyLong_AsLong(PyTuple_GetItem(gw_shape, 1 + dim_offset));
 	
-	long C2 = PyLong_AsLong(PyTuple_GetItem(add_out_shape,0));
-	long mem_length = PyLong_AsLong(PyTuple_GetItem(add_out_shape,1));
+	long C2 = PyLong_AsLong(PyTuple_GetItem(add_out_shape, dim_offset));
+	long mem_length = PyLong_AsLong(PyTuple_GetItem(add_out_shape, 1 + dim_offset));
 	
 	if(C != C2){
 		printf("inner dot product dimensions do not match\n");
 		return NULL;
 	}
 	
-	if(C*mem_length*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][add_out_ind]){
-		printf("specified input sizes do not equal to stored gpu buffer. dot_cpu()\n");
+	if(n_imgs*C*mem_length*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][add_out_ind]){
+		printf("specified input sizes do not equal to stored gpu buffer. %s\n", __FILE__);
 		return NULL;
 	}
 	
@@ -101,10 +105,12 @@ static PyObject *dotT_da(PyObject *self, PyObject *args){
 	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
 	
 	
-	// run kernel
-	add_mem_dgw_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][add_out_ind], 
-			gpu_buffers[gpu_ind][deriv_above_ind], GPU_BUFFER_OUT, mem_length, M, C, dim_above, ADD_MEM_DGW_NUMEL);
-		
+	for(int batch = 0; batch < n_imgs; batch++){
+		// run kernel
+		add_mem_dgw_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][add_out_ind] + batch*C*mem_length, 
+				gpu_buffers[gpu_ind][deriv_above_ind] + batch*M*mem_length, 
+				GPU_BUFFER_OUT + batch*ADD_MEM_DGW_NUMEL, mem_length, M, C, dim_above, ADD_MEM_DGW_NUMEL);
+	}
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif

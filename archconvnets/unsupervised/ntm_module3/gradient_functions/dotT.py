@@ -23,7 +23,9 @@ def dotT(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	
 	_ntm_module3.dotT(BUFFER1[0], BUFFER1[1], BUFFER2[0], BUFFER2[1], OUT_BUFFER[0], n_imgs, gpu_ind)
 	
-	OUT_BUFFER[1] = (BUFFER1[1][1], BUFFER2[1][1])
+	OUT_BUFFER[1] = (BUFFER1[1][-1], BUFFER2[1][-1])
+	if batch_imgs:
+		OUT_BUFFER[1] = (n_imgs,) + OUT_BUFFER[1]
 	
 	if DEBUG:
 		check_buffer(BUFFER1)
@@ -135,13 +137,18 @@ def add_dotT_layer(LAYERS, name, source, batch_imgs=False, init=0):
 		in_shape[1] = LAYERS[in_source[1]]['out_shape']
 		
 		LAYERS[layer_ind]['forward_F'] = dotT
-		LAYERS[layer_ind]['out_shape'] = (in_shape[0][1], in_shape[1][1])
+		LAYERS[layer_ind]['out_shape'] = (in_shape[0][1 + batch_imgs], in_shape[1][1 + batch_imgs])
 		LAYERS[layer_ind]['in_shape'] = in_shape
 		LAYERS[layer_ind]['in_source'] = in_source
 		LAYERS[layer_ind]['deriv_F'] = [dotT_da, dotT_db]
 		LAYERS[layer_ind]['in_prev'] = [False, False]
 		LAYERS[layer_ind]['additional_forward_args'] = [batch_imgs]
 		LAYERS[layer_ind]['additional_deriv_args'] = [[batch_imgs], [batch_imgs]]
+		
+		if batch_imgs:
+			n_imgs = in_shape[0][0]
+			assert n_imgs == in_shape[1][0]
+			LAYERS[layer_ind]['out_shape'] = (n_imgs,) + LAYERS[layer_ind]['out_shape']
 		
 		return layer_ind
 	
