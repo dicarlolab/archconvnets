@@ -76,17 +76,12 @@ def shift_w_dw_interp(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	C, M = W_INTERP[1]
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	DERIV_ABOVE_reshaped = tuple(np.concatenate((np.prod(DERIV_ABOVE[1][:n_dim_not_summed])[np.newaxis], DERIV_ABOVE[1][n_dim_not_summed:])))
 	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	_ntm_module3.shift_w_dw_interp(SHIFT_OUT[0], W_INTERP[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	_ntm_module3.shift_w_dw_interp(SHIFT_OUT[0], W_INTERP[1], OUT_BUFFER_TEMP[0], gpu_ind)
-		
-	OUT_BUFFER_TEMP[1] = (C, M, C, M)
-	check_buffer(OUT_BUFFER_TEMP)
-	
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
+	OUT_BUFFER[1] = tuple(np.concatenate((DERIV_ABOVE[1][:n_dim_not_summed], W_INTERP[1])))
 	
 	if DEBUG:
 		assert isinstance(gpu_ind,int)
