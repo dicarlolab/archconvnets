@@ -1,4 +1,3 @@
-#define DFKB(A, B, C) dfkb[(A)*mem_length*n_controllers + (B)*n_controllers + (C)]
 #define DFKB_SZ (dim_above*n_controllers*sizeof(DATA_TYPE))
 #define KEYS_SZ buffer_sz[gpu_ind][keys_ind]
 
