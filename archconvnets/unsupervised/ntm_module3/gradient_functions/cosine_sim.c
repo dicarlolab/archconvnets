@@ -104,10 +104,10 @@ static PyObject *cosine_sim(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	for(int batch = 0; batch < n_imgs; batch++){
+	for(int img = 0; img < n_imgs; img++){
 		// run kernel
-		cosine_sim_kernel <<< n_controllers, M >>> (GPU_KEYS + batch*n_controllers*mem_length, 
-			GPU_MEM + batch*M*mem_length, GPU_BUFFER_OUT + batch*n_controllers*M, 
+		cosine_sim_kernel <<< n_controllers, M >>> (GPU_KEYS + img*n_controllers*mem_length, 
+			GPU_MEM + img*M*mem_length, GPU_BUFFER_OUT + img*n_controllers*M, 
 			n_controllers, mem_length, M);
 	}
 	

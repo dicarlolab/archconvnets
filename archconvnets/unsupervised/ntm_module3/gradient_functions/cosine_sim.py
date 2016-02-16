@@ -63,9 +63,9 @@ def cosine_sim_dmem(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_ar
 		n_imgs = 1
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
+	dim_above = np.int(np.prod(DERIV_ABOVE[1][:n_dim_not_summed]))
 	
-	_ntm_module3.cosine_sim_dmem(KEYS[0], KEYS[1], MEM[0], MEM[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_imgs, gpu_ind)
+	_ntm_module3.cosine_sim_dmem(KEYS[0], KEYS[1], MEM[0], MEM[1], DERIV_ABOVE[0], dim_above, OUT_BUFFER[0], n_imgs, gpu_ind)
 	
 	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + MEM[1]
 	
@@ -90,20 +90,21 @@ def cosine_sim_dmem(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_ar
 def cosine_sim_dkeys(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	
+	batch_imgs = additional_args[0]
 	KEYS, MEM = args
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
 	if batch_imgs:
-		n_imgs = X[1][0]
+		n_imgs = KEYS[1][0]
 	else:
 		n_imgs = 1
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
+	dim_above = np.int(np.prod(DERIV_ABOVE[1][:n_dim_not_summed]))
 	
-	_ntm_module3.cosine_sim_dkeys(KEYS[0], KEYS[1], MEM[0], MEM[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_imgs, gpu_ind)
+	_ntm_module3.cosine_sim_dkeys(KEYS[0], KEYS[1], MEM[0], MEM[1], DERIV_ABOVE[0], dim_above, OUT_BUFFER[0], n_imgs, gpu_ind)
 	
 	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + KEYS[1]
 	
@@ -179,6 +180,6 @@ def add_cosine_sim_layer(LAYERS, name, source, mem_shape=None, batch_imgs=False,
 		LAYERS[layer_ind]['deriv_F'] = [cosine_sim_dkeys, cosine_sim_dmem]
 		LAYERS[layer_ind]['in_prev'] = [False, in_source_prev]
 		LAYERS[layer_ind]['additional_forward_args'] = [batch_imgs]
-		LAYERS[layer_ind]['additional_deriv_args'] = [[None], [None]]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[batch_imgs], [batch_imgs]]
 		
 		return layer_ind

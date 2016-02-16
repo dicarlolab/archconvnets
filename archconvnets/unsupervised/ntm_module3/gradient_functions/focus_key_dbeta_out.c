@@ -1,6 +1,8 @@
 #define DFKB_SZ (dim_above*n_controllers*sizeof(DATA_TYPE))
 #define KEYS_SZ buffer_sz[gpu_ind][keys_ind]
 
+#define KEYS_F(A, B) keys[(A)*mem_length + B]
+
 __global__ void focus_key_dbeta_out_kernel(float * keys, float * deriv_above, float * out_data, int n_controllers, int mem_length){ 
 	int a = blockIdx.x;
 	int i = threadIdx.x;
@@ -12,7 +14,7 @@ __global__ void focus_key_dbeta_out_kernel(float * keys, float * deriv_above, fl
 	
 	for(int j = 0; j < mem_length; j++){
 		//out_data[a,i] += deriv_above[a,i,j] * KEYS(i,j);
-		out_data[ind] += deriv_above[ind_temp + j] * KEYS(i,j);
+		out_data[ind] += deriv_above[ind_temp + j] * KEYS_F(i,j);
 	}
 }
 
