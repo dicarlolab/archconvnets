@@ -9,16 +9,20 @@ t_main = [0,0,0]
 def softmax(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	
+	batch_imgs = additional_args[0]
 	LAYER_IN = args[0]
-	
-	LAYER_IN_R = LAYER_IN[1][:2]
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
-	_ntm_module3.softmax(LAYER_IN[0], LAYER_IN_R, OUT_BUFFER[0], gpu_ind)
+	if batch_imgs:
+		n_imgs = LAYER_IN[1][0]
+	else:
+		n_imgs = 1
 	
-	OUT_BUFFER[1] = LAYER_IN_R
+	_ntm_module3.softmax(LAYER_IN[0], LAYER_IN[1], OUT_BUFFER[0], n_imgs, gpu_ind)
+	
+	OUT_BUFFER[1] = LAYER_IN[1][:2+batch_imgs]
 	
 	if DEBUG:
 		check_buffer(LAYER_IN)
@@ -33,17 +37,28 @@ def softmax(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 def softmax_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	
+	batch_imgs = additional_args[0]
+	LAYER_IN = args[0]
+	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	_ntm_module3.softmax_dlayer_in(LAYER_OUT[0], LAYER_OUT[1], DERIV_ABOVE[0], OUT_BUFFER[0], gpu_ind)
+	if batch_imgs:
+		n_imgs = LAYER_IN[1][0]
+	else:
+		n_imgs = 1
 	
-	if len(args[0][1]) == 2:
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	
+	_ntm_module3.softmax_dlayer_in(LAYER_OUT[0], LAYER_OUT[1], DERIV_ABOVE[0], OUT_BUFFER[0], n_imgs, gpu_ind)
+	
+	# squeeze or not [?]
+	if len(LAYER_IN[1]) == 2 or (batch_imgs and len(LAYER_IN[1]) == 3):
 		OUT_BUFFER[1] = DERIV_ABOVE[1]
 	else:
-		n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-		OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + LAYER_OUT[1] + (1,)
+		OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + (1,)
 	
+	print OUT_BUFFER[1], n_imgs
 	
 	if DEBUG:
 		check_buffer(OUT_BUFFER)
@@ -59,7 +74,7 @@ def softmax_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	return OUT_BUFFER
 
 	
-def add_softmax_layer(LAYERS, name, source=None, init=0):
+def add_softmax_layer(LAYERS, name, source=None, batch_imgs=False, init=0):
 	assert isinstance(name, str)
 	
 	if init == 0:
@@ -87,16 +102,16 @@ def add_softmax_layer(LAYERS, name, source=None, init=0):
 		else:
 			assert False, 'unknown source input'
 		
-		assert len(in_shape[0]) == 2 or (len(in_shape[0]) == 3 and in_shape[0][2] == 1)
+		assert len(in_shape[0]) == 2 or (len(in_shape[0]) == 3 and in_shape[0][2] == 1) or (batch_imgs and len(in_shape[0]) == 3)
 		
 		LAYERS[layer_ind]['forward_F'] = softmax
-		LAYERS[layer_ind]['out_shape'] = in_shape[0][:2]
+		LAYERS[layer_ind]['out_shape'] = in_shape[0][:2+batch_imgs]
 		LAYERS[layer_ind]['in_shape'] = in_shape
 		LAYERS[layer_ind]['in_source'] = [in_source]
 		LAYERS[layer_ind]['deriv_F'] = [softmax_dlayer_in]
 		LAYERS[layer_ind]['in_prev'] = [False]
-		LAYERS[layer_ind]['additional_forward_args'] = [None]
-		LAYERS[layer_ind]['additional_deriv_args'] = [[None]]
+		LAYERS[layer_ind]['additional_forward_args'] = [batch_imgs]
+		LAYERS[layer_ind]['additional_deriv_args'] = [[batch_imgs]]
 		
 		return layer_ind
 

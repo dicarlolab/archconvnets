@@ -175,8 +175,14 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 	deriv_above_created = False
 	
 	if deriv_above is None:
-		deriv_above_shape = np.concatenate((LAYERS[layer_ind]['out_shape'], LAYERS[layer_ind]['out_shape']))
-		deriv_above = init_buffer(np.single(np.eye(np.prod(LAYERS[layer_ind]['out_shape'])).reshape(deriv_above_shape)))
+		if len(LAYERS[layer_ind]['out_shape']) > 1: # skip image dim
+			n_imgs = LAYERS[layer_ind]['out_shape'][0]
+			deriv_above_shape = LAYERS[layer_ind]['out_shape'] + LAYERS[layer_ind]['out_shape'][1:]
+			deriv_above = init_buffer(np.single(np.tile(np.eye(np.prod(LAYERS[layer_ind]['out_shape'][1:]))[np.newaxis], (n_imgs, 1, 1))).reshape(deriv_above_shape))
+		else:
+			deriv_above_shape = LAYERS[layer_ind]['out_shape'] + LAYERS[layer_ind]['out_shape']
+			deriv_above = init_buffer(np.single(np.eye(np.prod(LAYERS[layer_ind]['out_shape'])).reshape(deriv_above_shape)))
+			
 		deriv_above_created = True
 	
 	for arg in range(N_ARGS):
@@ -199,7 +205,7 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 						p_partial = P['partial'][arg2]
 						
 						deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[src]['out_shape'])
-						#print deriv_temp, WEIGHT_DERIVS[p_layer_ind][p_arg], p_layer_ind, p_arg
+						
 						WEIGHT_DERIVS[p_layer_ind][p_arg] = add_points_inc((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp), scalar=scalar)
 						
 						squeeze_dim1(WEIGHT_DERIVS[p_layer_ind][p_arg], keep_dims)
@@ -213,7 +219,6 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 			# input is not a layer, end here
 			else:
 				WEIGHT_DERIVS[layer_ind][arg] = add_points_inc((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new), scalar=scalar)
-				squeeze_dim1(WEIGHT_DERIVS[layer_ind][arg], keep_dims)
 				
 			free_buffer(deriv_above_new)
 	

@@ -1,8 +1,9 @@
 __global__ void softmax_kernel(float * layer_in, float * out, int dim0, int dim1){ 
-	int i = blockIdx.x;
+	int img = blockIdx.x / dim0;
+	int i = blockIdx.x % dim0;
 	int j = threadIdx.x;
 
-	int ind = i*dim1 + j;
+	int ind = img*dim0*dim1 + i*dim1 + j;
 	float exp_layer_in = __expf(layer_in[ind]);
 	
 	extern __shared__ float shared_mem[];
@@ -25,9 +26,9 @@ __global__ void softmax_kernel(float * layer_in, float * out, int dim0, int dim1
 static PyObject *softmax(PyObject *self, PyObject *args){
 	cudaError_t err;
 	PyObject *layer_in_shape;
-	int gpu_ind, layer_in_ind, out_buffer_ind;
+	int gpu_ind, layer_in_ind, out_buffer_ind, n_imgs;
 	
-	if (!PyArg_ParseTuple(args, "iO!ii", &layer_in_ind, &PyTuple_Type, &layer_in_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!iii", &layer_in_ind, &PyTuple_Type, &layer_in_shape, &out_buffer_ind, &n_imgs, &gpu_ind)) 
 		return NULL;
     
 	if(layer_in_ind >= N_BUFFERS || layer_in_ind < 0 || out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0){
@@ -40,11 +41,15 @@ static PyObject *softmax(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	// get sizes
-	long dim0 = PyLong_AsLong(PyTuple_GetItem((PyObject *)layer_in_shape,0));
-	long dim1 = PyLong_AsLong(PyTuple_GetItem((PyObject *)layer_in_shape,1));
+	int dim_offset = 0; // skip over img dimension
+	if(n_imgs > 1)
+		dim_offset ++;
 	
-	if(dim0*dim1*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][layer_in_ind]){
+	// get sizes
+	long dim0 = PyLong_AsLong(PyTuple_GetItem(layer_in_shape, dim_offset));
+	long dim1 = PyLong_AsLong(PyTuple_GetItem(layer_in_shape, 1 + dim_offset));
+	
+	if(n_imgs*dim0*dim1*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][layer_in_ind]){
 		printf("specified input sizes do not equal to stored gpu buffer.\n");
 		return NULL;
 	}
@@ -60,7 +65,8 @@ static PyObject *softmax(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	softmax_kernel <<< dim0, dim1, sizeof(float) >>> (gpu_buffers[gpu_ind][layer_in_ind], gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
+	softmax_kernel <<< n_imgs*dim0, dim1, sizeof(float) >>> (gpu_buffers[gpu_ind][layer_in_ind], 
+		gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR

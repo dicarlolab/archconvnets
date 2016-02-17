@@ -147,6 +147,7 @@ def add_points_inc(args, OUT_BUFFER=None, scalar=1, scalar0=1, gpu_ind=GPU_IND):
 	_ntm_module3.add_points(A[0], B[0], np.single(scalar), np.single(scalar0), OUT_BUFFER[0], gpu_ind)
 
 	OUT_BUFFER[1] = B[1]
+	
 	t_add[0] = time.time() - t
 	return OUT_BUFFER
 
@@ -168,43 +169,25 @@ def point_wise_div_sqrt(args, OUT_BUFFER=None, clip=10, gpu_ind=GPU_IND):
 
 # additional_args[0]: Squeeze output or not, 
 # additional_args[1] (sum_all): collapse x from [k,j] to [k*j,1] to give an output of [i,1] as opposed to [i,j]
-# additional_args[2] batch_imgs: batch first dim of buffer2 
 t_dot = [0]
-def dot(args, OUT_BUFFER=None, additional_args=[True, False, False], gpu_ind=GPU_IND):
+def dot(args, OUT_BUFFER=None, additional_args=[True, False], gpu_ind=GPU_IND):
 	t = time.time()
 	
-	squeeze, sum_all, batch_imgs = additional_args
+	squeeze, sum_all = additional_args
 	BUFFER1, BUFFER2 = args
 	
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	
-	if batch_imgs:
-		n_batches = BUFFER2[1][0]
-	else:
-		n_batches = 1
+	n_batches = BUFFER2[1][0]
 	
 	# if source is a conv layer (4D input), sum across everything
 	if len(BUFFER2[1]) == 4 or sum_all:
-		if batch_imgs:
-			BUFFER2_reshaped = (np.prod(BUFFER2[1][1:]), 1)
-		else:
-			BUFFER2_reshaped = (np.prod(BUFFER2[1]), 1)
+		BUFFER2_reshaped = (np.prod(BUFFER2[1][1:]), 1)
 	else:
-		if batch_imgs:
-			BUFFER2_reshaped = BUFFER2[1][1:]
-		else:
-			BUFFER2_reshaped = BUFFER2[1]
+		BUFFER2_reshaped = BUFFER2[1][1:]
 	
-	if DEBUG:
-		assert len(BUFFER1[1]) >= 2
-		assert len(BUFFER2[1]) == 2 or len(BUFFER2[1]) == 4
-		assert OUT_BUFFER[0] != BUFFER1[0]
-		assert OUT_BUFFER[0] != BUFFER2[0]
-		assert (OUT_BUFFER[1] is not None)
-		assert BUFFER1[1][-1] == BUFFER2_reshaped[0]
 	
 	# reshape buffer1 into two dimensions:
 	# (a,b,c,d,e) -> (a*b*c*d, e)
@@ -212,10 +195,7 @@ def dot(args, OUT_BUFFER=None, additional_args=[True, False, False], gpu_ind=GPU
 	
 	_ntm_module3.dot(BUFFER1[0], BUFFER1_new_shape, BUFFER2[0], BUFFER2_reshaped, OUT_BUFFER[0], n_batches, gpu_ind)
 	
-	if batch_imgs:
-		OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(n_batches)[np.newaxis], np.asarray(BUFFER1[1][:len(BUFFER1[1])-1]), np.asarray(BUFFER2_reshaped[1])[np.newaxis])))
-	else:
-		OUT_BUFFER[1] = tuple(np.concatenate((np.asarray(BUFFER1[1][:len(BUFFER1[1])-1]), np.asarray(BUFFER2_reshaped[1])[np.newaxis])))
+	OUT_BUFFER[1] = (n_batches,) + BUFFER1[1][:len(BUFFER1[1])-1] + (BUFFER2_reshaped[1],)
 	
 	
 	if squeeze and OUT_BUFFER[1][-1] == 1: # squeeze
@@ -256,22 +236,23 @@ def find_layer(LAYERS, name):
                  return INDS
          return None
 
-def mult_partials(A, B, B_out_shape, OUT=None):
-         A_ndim = len(A[1]) - len(B_out_shape)
-         B_ndim = len(B[1]) - len(B_out_shape)
+def mult_partials(A, B, B_out_shape, OUT=None, gpu_ind=GPU_IND):
+	if OUT is None:
+		OUT = init_buffer(gpu_ind=gpu_ind)
+	
+	n_imgs = A[1][0]
+	
+	A_ndim = len(A[1]) - len(B_out_shape)
+	B_ndim = len(B[1]) - len(B_out_shape)
 
-         if DEBUG:
-                 assert A_ndim > 0
-                 assert B_ndim > 0
-                 assert np.sum(np.asarray(A[1][A_ndim:]) == np.asarray(B[1][:len(B_out_shape)])) == len(B_out_shape)
-
-         A_dim0 = np.prod(A[1][:A_ndim])
-         B_dim1 = np.prod(B[1][len(B_out_shape):])
-         collapsed = np.prod(B_out_shape)
-
-         OUT = dot([[A[0], (A_dim0, collapsed)], [B[0], (collapsed, B_dim1)]], OUT)
-         OUT[1] = tuple(np.concatenate((A[1][:A_ndim], B[1][len(B_out_shape):])))
-         return OUT
+	A_dim0 = np.prod(A[1][1:1+A_ndim])
+	B_dim1 = np.prod(B[1][len(B_out_shape):])
+	collapsed = np.prod(B_out_shape[1:])
+	
+	# batched dot products over all imgs
+	_ntm_module3.dot_batched(A[0], (n_imgs, A_dim0, collapsed), B[0], (n_imgs, collapsed, B_dim1), OUT[0], gpu_ind)
+	OUT[1] = A[1][:A_ndim+1] + B[1][len(B_out_shape):]
+	return OUT
 
 
 _ntm_module3.init_device(GPU_IND)
