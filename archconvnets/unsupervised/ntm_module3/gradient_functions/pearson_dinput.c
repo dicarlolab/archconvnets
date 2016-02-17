@@ -91,13 +91,13 @@ __global__ void deriv_above_pearson(float * out, float * pearson_gradient, float
 
 		//out[batch, img, vec_i] = deriv_above[batch, img] * pearson_gradient[img, vec_i];
 
-		batch = ind_g / (n_imgs * vector_len);
-		r = ind_g % (n_imgs * vector_len);
+		img = ind_g / (n_batches * vector_len);
+		r = ind_g % (n_batches * vector_len);
 
-		img = r / vector_len;
+		batch = r / vector_len;
 		vec_i = r % vector_len;
 		
-		out[ind_g] = deriv_above[batch*n_imgs + img] * 
+		out[ind_g] = deriv_above[img*n_batches + batch] * 
 				pearson_gradient[img*vector_len + vec_i];
 	}
 }

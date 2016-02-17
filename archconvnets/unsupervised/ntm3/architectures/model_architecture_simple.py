@@ -27,6 +27,7 @@ def init_model():
 		add_linear_F_layer(LAYERS, 'F2', N_CONTROLLERS, (BATCH_SZ, 5, M_LENGTH), init=init)
 		#add_focus_keys_layer(LAYERS, 'F3', ['F1','F2'], batch_imgs=True, init=init)
 		#add_focus_keys_layer(LAYERS, 'F32', ['F1','F2'], batch_imgs=True, init=init)
+		
 		add_add_layer(LAYERS, 'F3s', ['F1b', 'F2-'], init=init)
 		
 		'''add_linear_F_bias_layer(LAYERS, 'F1', 3, (BATCH_SZ, 3, 2), batch_imgs=True, init=init)
@@ -35,7 +36,7 @@ def init_model():
 		add_dotT_layer(LAYERS, 'F32', ['F1','F2'], batch_imgs=True, init=init)
 		add_add_layer(LAYERS, 'F3s', ['F3', 'F32-'], init=init)'''
 		
-		#add_pearson_layer(LAYERS, 'ERR', ['F1', -1], batch_imgs=True, init=init)
+		add_pearson_layer(LAYERS, 'ERR', ['F3s', -1], init=init)
 		add_sum_layer(LAYERS,'ERR_SUM',init=init)
 		
 

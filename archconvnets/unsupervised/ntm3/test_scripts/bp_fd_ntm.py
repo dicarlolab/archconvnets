@@ -18,8 +18,12 @@ F2_IND = find_layer(LAYERS,'F2')
 F3_IND = find_layer(LAYERS,'F3_lin')
 
 ERR_IND = find_layer(LAYERS, 'ERR')
+F1c_IND = find_layer(LAYERS, 'F1c')
+F2c_IND = find_layer(LAYERS, 'F2c')
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) * 1e-1
-#set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1]) # target
+set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1]) # target
+#set_buffer(random_function(LAYERS[F1c_IND]['in_shape'][1]), WEIGHTS[F1c_IND][1]) # target
+#set_buffer(random_function(LAYERS[F2c_IND]['in_shape'][1]), WEIGHTS[F2c_IND][1]) # target
 set_buffer(random_function(LAYERS[F2_IND]['in_shape'][1]), WEIGHTS[F2_IND][1]) # target
 #set_buffer(random_function(LAYERS[F3_IND]['in_shape'][1]), WEIGHTS[F3_IND][1]) # target
 
