@@ -158,7 +158,7 @@ static PyObject * linear_F_dF(PyObject *self, PyObject *args){
 			free(buffer1_pointers);
 			free(buffer2_pointers);
 			free(out_pointers);
-			printf("..........................linear_F code is untested for this case............\n");
+			
 		}
 		
 		ERR_CHECK_BLAS
