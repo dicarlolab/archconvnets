@@ -1,6 +1,6 @@
 #define DLDF_SZ (keep_sum*deriv_above_dim0*x_dim0*sizeof(DATA_TYPE))
 
-__global__ void pairwise_product_kernel(float * deriv_above, float * X, float * out_buffer, 
+__global__ void pairwise_product_kernel_dF(float * deriv_above, float * X, float * out_buffer, 
 		int dim_above, int dim2, int dim0, int data_out_numel){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
@@ -185,7 +185,7 @@ static PyObject * linear_F_dF(PyObject *self, PyObject *args){
 		int n_blocks = (int)ceil((double)DLDF_SZ/(sizeof(DATA_TYPE)*MAX_THREADS_PER_BLOCK));
 		if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
 		
-		pairwise_product_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][deriv_above_ind], 
+		pairwise_product_kernel_dF <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][deriv_above_ind], 
 			gpu_buffers[gpu_ind][x_ind], GPU_BUFFER_OUT, 
 			dim_above, deriv_above_dim0, x_dim0, DLDF_SZ/sizeof(DATA_TYPE));
 		

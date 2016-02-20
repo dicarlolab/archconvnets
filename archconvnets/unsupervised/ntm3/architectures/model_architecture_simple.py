@@ -19,11 +19,12 @@ def init_model():
 	HEAD_INPUT = 'F3'
 
 	for init in [0,1]:
-		add_sigmoid_F_bias_layer(LAYERS, 'T1', N_CONTROLLERS, (BATCH_SZ, 4, 3), init=init)
+		add_relu_F_bias_layer(LAYERS, 'T1', N_CONTROLLERS, (BATCH_SZ, 4, 3), init=init)
+		add_linear_F_bias_layer(LAYERS, 'T1b', N_CONTROLLERS, init=init)
 		add_sigmoid_F_bias_layer(LAYERS, 'T2', N_CONTROLLERS, (BATCH_SZ, 4, 5), init=init)
 		add_sigmoid_F_bias_layer(LAYERS, 'T3', 3, (BATCH_SZ, 4, 5), init=init)
 		
-		add_dotT_layer(LAYERS, 'S1', ['T1-','T2'], init=init)
+		add_dotT_layer(LAYERS, 'S1', ['T1b-','T2'], init=init)
 		add_add_layer(LAYERS, 'S2', ['T3','S1-'], init=init)
 		
 		add_sq_points_layer(LAYERS, 'Sa', init=init)

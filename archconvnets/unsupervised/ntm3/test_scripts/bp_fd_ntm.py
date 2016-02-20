@@ -32,7 +32,7 @@ set_buffer(random_function(LAYERS[X3_IND]['in_shape'][1]), WEIGHTS[X3_IND][1]) #
 #set_buffer(random_function(LAYERS[X5_IND]['in_shape'][1]), WEIGHTS[X5_IND][1]) # target
 
 ################ which gradient to test
-gradient_layer = X3_IND
+gradient_layer = X1_IND
 gradient_arg = 0
 
 def f(y):
