@@ -23,8 +23,8 @@ def init_model():
 		add_sigmoid_F_bias_layer(LAYERS, 'T2', N_CONTROLLERS, (BATCH_SZ, 4, 5), init=init)
 		add_sigmoid_F_bias_layer(LAYERS, 'T3', 3, (BATCH_SZ, 4, 5), init=init)
 		
-		#add_dotT_layer(LAYERS, 'S1', ['T1','T2'], init=init)
-		#add_add_layer(LAYERS, 'S2', ['T3','S1'], init=init)
+		add_dotT_layer(LAYERS, 'S1', ['T1-','T2'], init=init)
+		add_add_layer(LAYERS, 'S2', ['T3','S1-'], init=init)
 		
 		add_sq_points_layer(LAYERS, 'Sa', init=init)
 		
@@ -36,7 +36,7 @@ def init_model():
 	
 	################ init weights and inputs
 	WEIGHTS = init_weights(LAYERS)
-	MEM_INDS = []#find_layer(LAYERS, ['T2', 'S1'])
+	MEM_INDS = find_layer(LAYERS, ['T2', 'S1'])
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
 	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS

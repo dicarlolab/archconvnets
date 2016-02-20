@@ -73,7 +73,7 @@ static PyObject *dotT_db(PyObject *self, PyObject *args){
 	
 	const float alpha = 1.0, beta = 0.0;
 	
-	for(int img = 0; img < n_imgs; img++){
+	/*for(int img = 0; img < n_imgs; img++){
 		for(int a = 0; a < dim_above; a++){
 			
 			err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, mem_length, C, 
@@ -83,11 +83,57 @@ static PyObject *dotT_db(PyObject *self, PyObject *args){
 						   gpu_buffers[gpu_ind][gw_ind] + img*C*M, 
 						   M, &beta, GPU_BUFFER_OUT + img*dim_above*C*mem_length + a*C*mem_length, mem_length);
 			
-			//err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, buffer2_dim2, buffer1_dim1, buffer1_dim2, &alpha,
-            //               GPU_BUFFER2, buffer2_dim2, GPU_BUFFER1, buffer1_dim2, &beta, GPU_BUFFER_OUT, buffer2_dim2);
 			ERR_CHECK_BLAS
 		}
+	}*/
+	
+	int n_batches = n_imgs * dim_above;
+	
+	////////////////////////////////////////////////////////
+	// setup batch pointers on CPU, then copy to GPU
+	float ** buffer1_pointers = (float **) malloc(n_batches * sizeof(float *));
+	float ** buffer2_pointers = (float **) malloc(n_batches * sizeof(float *));
+	float ** out_pointers = (float **) malloc(n_batches * sizeof(float *));	
+	
+	if(buffer1_pointers == NULL || buffer2_pointers == NULL || out_pointers == NULL){
+		printf("malloc err line: %i, %s\n",__LINE__,__FILE__);
+		return NULL;
 	}
+	
+	float ** buffer1_pointers_gpu, ** buffer2_pointers_gpu, **out_pointers_gpu;
+	
+	err = cudaMalloc((void**) &buffer1_pointers_gpu, n_batches*sizeof(float*)); MALLOC_ERR_CHECK
+	err = cudaMalloc((void**) &buffer2_pointers_gpu, n_batches*sizeof(float*)); MALLOC_ERR_CHECK
+	err = cudaMalloc((void**) &out_pointers_gpu, n_batches*sizeof(float*)); MALLOC_ERR_CHECK
+	
+	int batch = 0;
+	for(int img = 0; img < n_imgs; img++){
+		for(int a = 0; a < dim_above; a++){
+			buffer1_pointers[batch] = gpu_buffers[gpu_ind][gw_ind] + img*C*M;
+			buffer2_pointers[batch] = gpu_buffers[gpu_ind][deriv_above_ind] + img*dim_above*M*mem_length + a*M*mem_length;
+			out_pointers[batch] = GPU_BUFFER_OUT + img*dim_above*C*mem_length + a*C*mem_length;
+			
+			batch ++;
+		}
+	}
+	
+	cudaMemcpy(buffer1_pointers_gpu, buffer1_pointers, n_batches * sizeof(float *), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
+	cudaMemcpy(buffer2_pointers_gpu, buffer2_pointers, n_batches * sizeof(float *), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
+	cudaMemcpy(out_pointers_gpu, out_pointers, n_batches * sizeof(float *), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
+	
+	err_blas = cublasSgemmBatched(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, mem_length, C, M, &alpha,
+			 (const float**) buffer2_pointers_gpu, mem_length, (const float**) buffer1_pointers_gpu, M, &beta, out_pointers_gpu, mem_length, n_batches);
+	
+	cudaFree(buffer1_pointers_gpu);
+	cudaFree(buffer2_pointers_gpu);
+	cudaFree(out_pointers_gpu);
+	
+	free(buffer1_pointers);
+	free(buffer2_pointers);
+	free(out_pointers);
+	
+	ERR_CHECK_BLAS
+	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
