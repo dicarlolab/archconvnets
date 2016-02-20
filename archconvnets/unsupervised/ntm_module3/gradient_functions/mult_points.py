@@ -20,14 +20,6 @@ def mult_points(args, OUT_BUFFER=None, additional_args=[], gpu_ind=GPU_IND):
 	
 	OUT_BUFFER[1] = B[1]
 	
-	if DEBUG:
-		check_buffer(OUT_BUFFER)
-		assert len(additional_args) == 0
-		assert isinstance(gpu_ind,int)
-		check_buffer(A)
-		check_buffer(B)
-		assert A[1] == B[1]
-		
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
@@ -41,27 +33,17 @@ def mult_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	n_imgs = A[1][0]
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	dim_above = np.prod(DERIV_ABOVE[1][1:1+n_dim_not_summed])
+	DERIV_ABOVE_reshaped = (n_imgs, dim_above) + DERIV_ABOVE[1][n_dim_not_summed+1:]
 	
 	if additional_args[0] == 0: # deriv. wrt A
-		_ntm_module3.mult_points_dinput(B[0], A[1], OUT_BUFFER_TEMP[0], gpu_ind)
+		_ntm_module3.mult_points_dinput(B[0], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	else: # deriv. wrt B
-		_ntm_module3.mult_points_dinput(A[0], A[1], OUT_BUFFER_TEMP[0], gpu_ind)
+		_ntm_module3.mult_points_dinput(A[0], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER_TEMP[1] = A[1] + A[1]
-	
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
-	
-	if DEBUG:
-		assert isinstance(gpu_ind,int)
-		assert len(additional_args) == 1
-		assert additional_args[0] == 0 or additional_args[0] == 1
-		check_buffer(A)
-		check_buffer(B)
-		check_buffer(LAYER_OUT)
-		check_buffer(DERIV_ABOVE)
-		assert A[1] == B[1]
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:1+n_dim_not_summed] + A[1][1:]
 	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER

@@ -22,16 +22,6 @@ def shift_w(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	
 	OUT_BUFFER[1] = W_INTERP[1]
 	
-	if DEBUG:
-		assert isinstance(gpu_ind,int)
-		assert additional_args == [None]
-		check_buffer(OUT_BUFFER)
-		check_buffer(SHIFT_OUT)
-		check_buffer(W_INTERP)
-		assert SHIFT_OUT[1][0] == W_INTERP[1][0]
-		assert len(SHIFT_OUT[1]) == len(W_INTERP[1]) == 2
-		assert SHIFT_OUT[1][1] == 3 # 3 shifts
-	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
@@ -43,26 +33,14 @@ def shift_w_dshift_out(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	C, M = W_INTERP[1]
-	
+	n_imgs = SHIFT_OUT[1][0]
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
+	dim_above = np.prod(DERIV_ABOVE[1][1:1+n_dim_not_summed])
+	DERIV_ABOVE_reshaped = (n_imgs, dim_above) + DERIV_ABOVE[1][n_dim_not_summed+1:]
 	
 	_ntm_module3.shift_w_dshift_out(W_INTERP[0], W_INTERP[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + SHIFT_OUT[1]
-	
-	if DEBUG:
-		assert isinstance(gpu_ind,int)
-		assert additional_args == [None]
-		check_buffer(SHIFT_OUT)
-		check_buffer(W_INTERP)
-		assert SHIFT_OUT[1][0] == W_INTERP[1][0]
-		assert len(SHIFT_OUT[1]) == len(W_INTERP[1]) == 2
-		assert SHIFT_OUT[1][1] == 3 # 3 shifts
-		check_buffer(OUT_BUFFER)
-		check_buffer(DERIV_ABOVE)
-		check_buffer(OUT_BUFFER_TEMP)
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:1+n_dim_not_summed] + SHIFT_OUT[1][1:]
 	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
@@ -75,23 +53,14 @@ def shift_w_dw_interp(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
+	n_imgs = SHIFT_OUT[1][0]
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]),) + DERIV_ABOVE[1][n_dim_not_summed:]
+	dim_above = np.prod(DERIV_ABOVE[1][1:1+n_dim_not_summed])
+	DERIV_ABOVE_reshaped = (n_imgs, dim_above) + DERIV_ABOVE[1][n_dim_not_summed+1:]
 	
 	_ntm_module3.shift_w_dw_interp(SHIFT_OUT[0], W_INTERP[1], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + W_INTERP[1]
-	
-	if DEBUG:
-		assert isinstance(gpu_ind,int)
-		assert additional_args == [None]
-		check_buffer(SHIFT_OUT)
-		check_buffer(W_INTERP)
-		assert SHIFT_OUT[1][0] == W_INTERP[1][0]
-		assert len(SHIFT_OUT[1]) == len(W_INTERP[1]) == 2
-		assert SHIFT_OUT[1][1] == 3 # 3 shifts
-		check_buffer(OUT_BUFFER)
-		check_buffer(DERIV_ABOVE)
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:1+n_dim_not_summed] + W_INTERP[1][1:]
 	
 	t_main[2] += time.time() - t
 	return OUT_BUFFER
@@ -114,9 +83,10 @@ def add_shift_w_layer(LAYERS, name, source, init=0):
 		assert isinstance(source[1],str)
 		source[1] = find_layer(LAYERS, source[1])
 		
-		
 		in_shape[1] = LAYERS[source[1]]['out_shape']
-		in_shape[0] = (in_shape[1][0], N_SHIFTS)
+		in_shape[0] = in_shape[1][:2] + (N_SHIFTS,)
+		
+		assert len(in_shape[1]) == 3
 		
 		LAYERS[layer_ind]['forward_F'] = shift_w
 		LAYERS[layer_ind]['out_shape'] = LAYERS[source[1]]['out_shape']

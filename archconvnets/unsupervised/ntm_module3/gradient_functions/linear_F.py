@@ -15,6 +15,39 @@ def random_normal_function(size):
 def random_normal_bias_function(size):
 	return np.asarray(np.random.normal(loc=0, scale=.01, size=size), dtype='single')
 
+# additional_args[0]: Squeeze output or not, 
+# additional_args[1] (sum_all): collapse x from [img,k,j] to [img,k*j,1] to give an output of [img,i,1] as opposed to [img,i,j]
+def linear_F(args, OUT_BUFFER=None, additional_args=[True, False], gpu_ind=GPU_IND):
+	t = time.time()
+	
+	squeeze, sum_all = additional_args
+	F, X = args
+	
+	if OUT_BUFFER is None:
+		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
+	
+	n_imgs = X[1][0]
+	
+	# if source is a conv layer (4D input), sum across everything
+	if len(X[1]) != 3 or sum_all:
+		X_reshaped = (n_imgs, np.prod(X[1][1:]), 1)
+	else:
+		X_reshaped = X[1]
+	
+	# reshape F into two dimensions:
+	# (a,b,c,d,e) -> (a*b*c*d, e)
+	F_reshaped = (np.prod(F[1][:-1]), F[1][-1])
+	
+	_ntm_module3.linear_F(F[0], F_reshaped, X[0], X_reshaped, OUT_BUFFER[0], gpu_ind)
+	
+	OUT_BUFFER[1] = (n_imgs,) + F[1][:-1] + (X_reshaped[-1],)
+	
+	if squeeze and OUT_BUFFER[1][-1] == 1: # squeeze
+		OUT_BUFFER[1] = OUT_BUFFER[1][:len(OUT_BUFFER[1])-1]
+	
+	t_main[0] += time.time() - t
+	return OUT_BUFFER
+
 # additional_args = [True]: squeeze output last dimension
 def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[True], gpu_ind=GPU_IND):
 	t = time.time()
@@ -25,26 +58,32 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
+	n_imgs = X[1][0]
+	
 	# if source is a conv layer (4D input), sum across everything
-	if len(X[1]) == 4 or sum_all:
-		X_reshaped = (X[1][0], np.prod(X[1][1:]), 1)
+	if len(X[1]) != 3 or sum_all:
+		X_reshaped = (n_imgs, np.prod(X[1][1:]), 1)
 	else:
 		X_reshaped = X[1]
 	
 	# reshape buffer1 into two dimensions:
 	# (a,b,c,d,e) -> (a*b*c*d, e)
-	F_reshaped = (np.prod(F[1][:len(F[1])-1]), F[1][-1])
+	F_reshaped = (np.prod(F[1][:-1]), F[1][-1])
 	
-	# reshape deriv_above to 3 dims, first of which we batch over
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	
-	n_imgs = X[1][0]
-	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed+1]), DERIV_ABOVE[1][-2], DERIV_ABOVE[1][-1])
+	dim_above = np.prod(DERIV_ABOVE[1][1:1+n_dim_not_summed])
+	DERIV_ABOVE_reshaped = (n_imgs, dim_above) + DERIV_ABOVE[1][n_dim_not_summed+1:]
 	
 	# so we have deriv_above (3d: i,j,k) and x (2d: k,l), compute batched dot product (i,j,l)
-	_ntm_module3.linear_F_dx(F[0], F_reshaped, X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_imgs, gpu_ind)
+	if np.prod(LAYER_OUT[1]) != n_imgs or dim_above != 1:
+		_ntm_module3.linear_F_dx(F[0], F_reshaped, X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
+	else:
+		# F: (1, 7) X: (50, 7, 1) deriv_above: (50, 1, 1)
+		OUT_BUFFER = set_buffer(return_buffer(DERIV_ABOVE)*(return_buffer(F).T[np.newaxis]), OUT_BUFFER)
 	
 	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed+1] + X[1][1:]
+	
+	check_buffer(OUT_BUFFER)
 	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
@@ -54,40 +93,39 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	t = time.time()
 	
 	squeeze, sum_all = additional_args
-	
 	F, X = args
-	n_imgs = X[1][0]
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
+	n_imgs = X[1][0]
 	
 	# if source is a conv layer (4D input), sum across everything
-	if len(X[1]) == 4 or sum_all:
+	if len(X[1]) != 3 or sum_all:
 		X_reshaped = (n_imgs, np.prod(X[1][1:]), 1)
 	else:
 		X_reshaped = X[1]
 	
-	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	dim_above = np.prod(DERIV_ABOVE[1][1:1+n_dim_not_summed])
 	
-	n_batches = np.prod(DERIV_ABOVE[1][:n_dim_not_summed+1]) # deriv above * n_imgs
-	# reshape deriv_above to 2 dims
-	DERIV_ABOVE_reshaped = (n_batches, np.prod(DERIV_ABOVE[1][n_dim_not_summed+1:-1]), DERIV_ABOVE[1][-1])
-	
-	_ntm_module3.linear_F_dF(X[0], X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], n_batches, gpu_ind)
-	
-	# reshape back to original dimensions
-	if n_batches != n_imgs:
-		OUT_BUFFER[1] = DERIV_ABOVE[1][:1+n_dim_not_summed] + F[1]
+	if X[1][-1] != 1:
+		DERIV_ABOVE_reshaped = (n_imgs, dim_above) + DERIV_ABOVE[1][n_dim_not_summed+1:]
 	else:
-		OUT_BUFFER[1] = F[1]
+		DERIV_ABOVE_reshaped = (n_imgs, dim_above, np.prod(F[1][:-1]), 1)
 	
+	# now: dot(deriv_above, x.T)
+	_ntm_module3.linear_F_dF(X[0], X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
+	
+	# did we sum all the images together or not?
+	OUT_BUFFER[1] = F[1]
+	if dim_above != 1:
+		OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed+1] + F[1]
+	
+	check_buffer(OUT_BUFFER)
 	
 	t_main[2] += time.time() - t
 	return OUT_BUFFER
-
-linear_F = dot
 
 def add_linear_F_layer(LAYERS, name, n_filters, source=None, sum_all=False, squeeze=True, random_function=random_normal_function, init=0):
 	assert isinstance(name, str)
@@ -126,28 +164,28 @@ def add_linear_F_layer(LAYERS, name, n_filters, source=None, sum_all=False, sque
 		
 		#################
 		# reshape X and use the new shape to determine the shape of F and the output shape
-		assert len(in_shape[1]) > 2
+		assert len(in_shape[1]) > 2, "X should be >= 3 dim"
 		
+		n_imgs = in_shape[1][0]
 		# if source is a conv layer (4D input), sum across everything
-		if len(in_shape[1]) == 4 or sum_all:
-			in_shape_reshaped = (np.prod(in_shape[1][1:]), 1)
+		if len(in_shape[1]) != 3 or sum_all:
+			X_reshaped = (n_imgs, np.prod(in_shape[1][1:]), 1)
 		else:
-			in_shape_reshaped = in_shape[1][1:]
+			X_reshaped = in_shape[1]
 		
 		##############
 		# determine F and output shapes
 		
 		# if n_filters is an int or a tuple
 		if isinstance(n_filters,int):
-			in_shape[0] = (n_filters, in_shape_reshaped[0])
-			out_shape = (in_shape[0][0], in_shape_reshaped[1])
+			in_shape[0] = (n_filters, X_reshaped[1])
+			out_shape = (n_imgs, n_filters, X_reshaped[-1])
 		else:
-			in_shape[0] = n_filters + (in_shape_reshaped[0],)
-			out_shape = in_shape[0][:len(in_shape[0])-1] + (in_shape_reshaped[1],)
+			in_shape[0] = n_filters + (X_reshaped[1],)
+			out_shape = (n_imgs,) + in_shape[0][:-1] + (X_reshaped[-1],)
 			
-		
-		out_shape = (in_shape[1][0],) + out_shape
-		
+		######
+		# squeeze
 		if squeeze and out_shape[-1] == 1:
 			out_shape = out_shape[:-1]
 		

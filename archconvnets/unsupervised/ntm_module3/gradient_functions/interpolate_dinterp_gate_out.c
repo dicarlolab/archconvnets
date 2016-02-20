@@ -1,22 +1,22 @@
-#define DIDG_SZ (dim_above*dim0*sizeof(DATA_TYPE))
-#define O_CONTENT(A, B) o_content[(A)*dim1 + B]
-#define O_PREV(A, B) o_prev[(A)*dim1 + B]
+#define DIDG_SZ (n_imgs*dim_above*dim0*sizeof(DATA_TYPE))
 
 __global__ void interpolate_dinterp_gate_out_kernel(float * o_content, float * o_prev, float * deriv_above,
-		float * out_data, int dim0, int dim1){ 
-	int a = blockIdx.x;
+		float * out_data, int dim0, int dim1, int dim_above){ 
+	int img = blockIdx.x / dim_above;
+	int a = blockIdx.x % dim_above;
 	int i = threadIdx.x;
-	int j;
 	
-	int ind = a*dim0 + i;
-	int ind_t = a*dim0*dim1 + i*dim1;
+	unsigned ind = img*dim_above*dim0 + a*dim0 + i;
+	
+	int ind_t = ind * dim1;
+	int ind_t2 = img*dim0*dim1 + i*dim1;
 	
 	//out_data[a,i] = 0;
 	out_data[ind] = 0;
-	for(j = 0; j < dim1; j++){
+	for(int j = 0; j < dim1; j++){
 		//DIDG(i,j) = O_CONTENT(i,j) - O_PREV(i,j);
 		//out_data[a,i] += (O_CONTENT(i,j) - O_PREV(i,j)) * deriv_above[a,i,j];
-		out_data[ind] += (O_CONTENT(i,j) - O_PREV(i,j)) * deriv_above[ind_t + j];
+		out_data[ind] += (o_content[ind_t2 + j] - o_prev[ind_t2 + j]) * deriv_above[ind_t + j];
 	}
 }
 
@@ -26,11 +26,11 @@ __global__ void interpolate_dinterp_gate_out_kernel(float * o_content, float * o
 
 static PyObject * interpolate_dinterp_gate_out(PyObject *self, PyObject *args){
 	cudaError_t err;
-	PyObject *o_content_shape, *deriv_above_shape;
+	PyObject *o_content_shape;
 	int o_content_ind, o_prev_ind, out_buffer_ind, gpu_ind, deriv_above_ind;
 	
-	if (!PyArg_ParseTuple(args, "iO!iiO!ii", &o_content_ind, &PyTuple_Type, &o_content_shape, &o_prev_ind, &deriv_above_ind,
-			&PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!iiii", &o_content_ind, &PyTuple_Type, &o_content_shape, &o_prev_ind, &deriv_above_ind,
+			&out_buffer_ind, &gpu_ind)) 
 		return NULL;
     
 	if(o_content_ind >= N_BUFFERS || o_content_ind < 0 ||
@@ -46,17 +46,17 @@ static PyObject * interpolate_dinterp_gate_out(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
-	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
-	long dim0 = PyLong_AsLong(PyTuple_GetItem(o_content_shape,0));
-	long dim1 = PyLong_AsLong(PyTuple_GetItem(o_content_shape,1));
+	long n_imgs = PyLong_AsLong(PyTuple_GetItem(o_content_shape,0));
+	long dim0 = PyLong_AsLong(PyTuple_GetItem(o_content_shape,1));
+	long dim1 = PyLong_AsLong(PyTuple_GetItem(o_content_shape,2));
 	
-	if(dim0*dim1*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][o_content_ind] ||
-		dim0*dim1*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][o_prev_ind]){
-		printf("specified input sizes do not equal to stored gpu buffer\n");
+	long dim_above = buffer_sz[gpu_ind][deriv_above_ind] / buffer_sz[gpu_ind][o_content_ind];
+	
+	if(n_imgs*dim0*dim1*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][o_content_ind] ||
+		n_imgs*dim0*dim1*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][o_prev_ind]){
+		printf("specified input sizes do not equal to stored gpu buffer, %s\n", __FILE__);
 		return NULL;
 	}
-	
-	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DIDG_SZ); MALLOC_ERR_CHECK
@@ -67,15 +67,13 @@ static PyObject * interpolate_dinterp_gate_out(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	interpolate_dinterp_gate_out_kernel <<< dim_above, dim0 >>> (gpu_buffers[gpu_ind][o_content_ind], gpu_buffers[gpu_ind][o_prev_ind], 
+	interpolate_dinterp_gate_out_kernel <<< n_imgs*dim_above, dim0 >>> (gpu_buffers[gpu_ind][o_content_ind], gpu_buffers[gpu_ind][o_prev_ind], 
 		gpu_buffers[gpu_ind][deriv_above_ind],
-		gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1);
+		gpu_buffers[gpu_ind][out_buffer_ind], dim0, dim1, dim_above);
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
-	
-	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

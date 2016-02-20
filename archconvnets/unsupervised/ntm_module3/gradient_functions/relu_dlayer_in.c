@@ -1,4 +1,5 @@
-__global__ void relu_dlayer_in_kernel(float * layer_in, float * out, int thresh, int data_out_numel, int n_deriv_ind){ 
+__global__ void relu_dlayer_in_kernel(float * layer_in, float * out, int thresh, int data_out_numel, int layer_sz, 
+			int n_imgs, int dim_above){ 
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
 	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
@@ -7,12 +8,17 @@ __global__ void relu_dlayer_in_kernel(float * layer_in, float * out, int thresh,
 	int n_duplicates = min_duplicates_per_thread;
 	if(ind < n_additional_duplicates) n_duplicates++;
 	
-	unsigned ind_g, deriv_ind;
+	unsigned ind_g, img, loc, dim_offset, ind_temp;
 	for(int dup = 0; dup < n_duplicates; dup++){
 		ind_g = dup*THREAD_CAPACITY + ind;
 		if(layer_in[ind_g] < thresh){
-			for(deriv_ind = 0; deriv_ind < n_deriv_ind; deriv_ind++){
-				out[deriv_ind*data_out_numel + ind_g] = 0;
+			img = ind_g / layer_sz;
+			loc = ind_g % layer_sz;
+			
+			ind_temp = img*dim_above*layer_sz + loc;
+			
+			for(dim_offset = 0; dim_offset < dim_above*layer_sz; dim_offset += layer_sz){
+				out[ind_temp + dim_offset] = 0;
 			}
 		}
 	}
@@ -22,9 +28,10 @@ __global__ void relu_dlayer_in_kernel(float * layer_in, float * out, int thresh,
 
 static PyObject * relu_dlayer_in(PyObject *self, PyObject *args){
 	cudaError_t err;
+	PyObject *deriv_above_shape;
 	int layer_in_ind, deriv_above_ind, out_buffer_ind, gpu_ind, thresh;
 	
-	if (!PyArg_ParseTuple(args, "iiiii", &layer_in_ind, &deriv_above_ind, &out_buffer_ind, &thresh, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iiO!iii", &layer_in_ind, &deriv_above_ind, &PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &thresh, &gpu_ind)) 
 		return NULL;
     
 	if(layer_in_ind >= N_BUFFERS || layer_in_ind < 0 || out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0){ 
@@ -42,7 +49,9 @@ static PyObject * relu_dlayer_in(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	long n_imgs = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape, 0));
+	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape, 1));
+	long layer_sz = buffer_sz[gpu_ind][layer_in_ind] / (sizeof(DATA_TYPE) * n_imgs);
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, buffer_sz[gpu_ind][deriv_above_ind]); MALLOC_ERR_CHECK
@@ -60,7 +69,7 @@ static PyObject * relu_dlayer_in(PyObject *self, PyObject *args){
 	cudaMemcpy(gpu_buffers[gpu_ind][out_buffer_ind], gpu_buffers[gpu_ind][deriv_above_ind], buffer_sz[gpu_ind][deriv_above_ind], cudaMemcpyDeviceToDevice); CHECK_CUDA_ERR
 	
 	relu_dlayer_in_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][layer_in_ind], gpu_buffers[gpu_ind][out_buffer_ind], 
-		thresh, buffer_sz[gpu_ind][layer_in_ind]/sizeof(DATA_TYPE), buffer_sz[gpu_ind][deriv_above_ind]/buffer_sz[gpu_ind][layer_in_ind]);
+		thresh, buffer_sz[gpu_ind][layer_in_ind]/sizeof(DATA_TYPE), layer_sz, n_imgs, dim_above);
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR

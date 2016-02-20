@@ -19,13 +19,6 @@ def relu(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	
 	OUT_BUFFER[1] = LAYER_IN[1]
 	
-	if DEBUG:
-		check_buffer(LAYER_IN)
-		assert len(LAYER_IN[1]) == 2
-		assert additional_args == [None]
-		assert isinstance(gpu_ind,int)
-		assert len(args) == 1
-	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
@@ -37,18 +30,14 @@ def relu_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_arg
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	_ntm_module3.relu_dlayer_in(LAYER_IN[0], DERIV_ABOVE[0], OUT_BUFFER[0], 0, gpu_ind)
-	
+	n_imgs = LAYER_IN[1][0]
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + LAYER_IN[1]
+	dim_above = np.prod(DERIV_ABOVE[1][1:1+n_dim_not_summed])
+	DERIV_ABOVE_reshaped = (n_imgs, dim_above) + DERIV_ABOVE[1][n_dim_not_summed+1:]
 	
-	if DEBUG:
-		check_buffer(LAYER_IN)
-		check_buffer(LAYER_OUT)
-		check_buffer(DERIV_ABOVE)
-		assert additional_args == [None]
-		assert isinstance(gpu_ind,int)
-		assert len(args) == 1
+	_ntm_module3.relu_dlayer_in(LAYER_IN[0], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], 0, gpu_ind)
+	
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed+1] + LAYER_IN[1][1:]
 	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER

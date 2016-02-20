@@ -1,7 +1,4 @@
-#define MULT_POINTS_DINPUT_NUMEL (a_dim0*a_dim1)
-#define MULT_POINTS_DINPUT_SZ (a_dim0*a_dim1*a_dim0*a_dim1*sizeof(DATA_TYPE))
-
-__global__ void mult_points_dinput_kernel(float * a, float * out, int a_dim1, int a_dim1_a_dim0_a_dim1, int a_dim0_a_dim1, int data_out_numel){
+__global__ void mult_points_dinput_kernel(float * a, float * deriv_above, float * out, int dim_above, int layer_sz, int data_out_numel){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
 	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
@@ -10,7 +7,7 @@ __global__ void mult_points_dinput_kernel(float * a, float * out, int a_dim1, in
 	int n_duplicates = min_duplicates_per_thread;
 	if(ind < n_additional_duplicates) n_duplicates++;
 	
-	unsigned ind_g, ind_l, i, j;
+	unsigned ind_g, img, loc;
 	for(int dup = 0; dup < n_duplicates; dup++){
 		ind_g = dup*THREAD_CAPACITY + ind;
 		
@@ -18,21 +15,21 @@ __global__ void mult_points_dinput_kernel(float * a, float * out, int a_dim1, in
 		if(ind_g >= data_out_numel) assert(0); // out of bounds
 		#endif
 		
-		i = ind_g / a_dim1;
-		j = ind_g % a_dim1;
+		img = ind_g / (dim_above*layer_sz);
+		//r = ind_g % (dim_above*layer_sz);
+		//loc = r % layer_sz;
+		loc = (ind_g % (dim_above*layer_sz)) % layer_sz;
 		
-		ind_l = i*a_dim1_a_dim0_a_dim1 + j*a_dim0_a_dim1 + i*a_dim1 + j;
-		
-		out[ind_l] = a[ind_g];
+		out[ind_g] = deriv_above[ind_g] * a[img*layer_sz + loc];
 	}
 }
 
 static PyObject * mult_points_dinput(PyObject *self, PyObject *args){
 	cudaError_t err;
-	int gpu_ind, out_buffer_ind, a_ind;
-	PyObject *a_shape;
+	int gpu_ind, out_buffer_ind, a_ind, deriv_above_ind;
+	PyObject *deriv_above_shape;
 	
-	if (!PyArg_ParseTuple(args, "iO!ii", &a_ind, &PyTuple_Type, &a_shape, &out_buffer_ind, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iiO!ii", &a_ind, &deriv_above_ind, &PyTuple_Type, &deriv_above_shape, &out_buffer_ind, &gpu_ind)) 
 		return NULL;
     
 	if(out_buffer_ind >= N_BUFFERS){ 
@@ -46,36 +43,33 @@ static PyObject * mult_points_dinput(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
-	long a_dim0 = PyLong_AsLong(PyTuple_GetItem(a_shape,0));
-	long a_dim1 = PyLong_AsLong(PyTuple_GetItem(a_shape,1));
+	long n_imgs = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
+	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,1));
+	
+	long layer_sz = buffer_sz[gpu_ind][a_ind] / (n_imgs*sizeof(DATA_TYPE));
 
-	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	unsigned intended_sz = n_imgs*dim_above*layer_sz*sizeof(DATA_TYPE);
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
-		err = cudaMalloc((void**) &GPU_BUFFER_OUT, MULT_POINTS_DINPUT_SZ); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &GPU_BUFFER_OUT, intended_sz); MALLOC_ERR_CHECK
 		
-		OUT_BUFFER_SZ = MULT_POINTS_DINPUT_SZ;
-	}else if(OUT_BUFFER_SZ != MULT_POINTS_DINPUT_SZ){ // does the output size match the buffer size?
+		OUT_BUFFER_SZ = intended_sz;
+	}else if(OUT_BUFFER_SZ != intended_sz){ // does the output size match the buffer size?
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
 	
 	// determine number of blocks
-	int n_blocks = (int)ceil((double)MULT_POINTS_DINPUT_NUMEL/MAX_THREADS_PER_BLOCK);
+	int n_blocks = (int)ceil((double)intended_sz/(sizeof(DATA_TYPE)*MAX_THREADS_PER_BLOCK));
 	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
 	
-	err = cudaMemset(gpu_buffers[gpu_ind][out_buffer_ind], 0, MULT_POINTS_DINPUT_SZ);  MALLOC_ERR_CHECK
-	
 	// run kernel
-	mult_points_dinput_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][a_ind], 
-		gpu_buffers[gpu_ind][out_buffer_ind], a_dim1, a_dim1*a_dim0*a_dim1, 
-		a_dim0*a_dim1, MULT_POINTS_DINPUT_NUMEL);
+	mult_points_dinput_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][a_ind], gpu_buffers[gpu_ind][deriv_above_ind],
+		gpu_buffers[gpu_ind][out_buffer_ind], dim_above, layer_sz, intended_sz/sizeof(DATA_TYPE));
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
-	
-	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

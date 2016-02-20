@@ -11,6 +11,7 @@
 #include "init_device.c"
 #include "gradient_functions/dot.cu"
 #include "gradient_functions/dot_batched.c"
+#include "gradient_functions/linear_F.c"
 #include "gradient_functions/linear_F_dF.c"
 #include "gradient_functions/linear_F_dx.c"
 #include "gradient_functions/sum_points.c"
@@ -67,6 +68,7 @@ static PyMethodDef _ntm_module3[] = {
 	{"zero_buffer", zero_buffer, METH_VARARGS},
 	{"set_device", set_device, METH_VARARGS},
 	{"init_device", init_device, METH_VARARGS},
+	{"linear_F", linear_F, METH_VARARGS},
 	{"linear_F_dF", linear_F_dF, METH_VARARGS},
 	{"linear_F_dx", linear_F_dx, METH_VARARGS},
 	{"dot", dot, METH_VARARGS},

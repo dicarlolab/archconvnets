@@ -18,11 +18,11 @@
 
 static PyObject *dotT_db(PyObject *self, PyObject *args){
 	cudaError_t err;
-	int gpu_ind, gw_ind, out_buffer_ind, deriv_above_ind, n_imgs, dim_above;
+	int gpu_ind, gw_ind, out_buffer_ind, deriv_above_ind;
 	PyObject *gw_shape, *add_out_shape;
 	
-	if (!PyArg_ParseTuple(args, "iO!O!iiiii", &gw_ind, &PyTuple_Type, &gw_shape, &PyTuple_Type, &add_out_shape, 
-		&deriv_above_ind, &dim_above, &out_buffer_ind, &n_imgs, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!O!iii", &gw_ind, &PyTuple_Type, &gw_shape, &PyTuple_Type, &add_out_shape, 
+		&deriv_above_ind, &out_buffer_ind, &gpu_ind)) 
 		return NULL;
         
 	if(out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0 || gw_ind >= N_BUFFERS || gw_ind < 0){
@@ -35,16 +35,15 @@ static PyObject *dotT_db(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	int dim_offset = 0;
-	if(n_imgs > 1)
-		dim_offset ++;
-	
 	// get sizes
-	long C = PyLong_AsLong(PyTuple_GetItem(gw_shape, dim_offset));
-	long M = PyLong_AsLong(PyTuple_GetItem(gw_shape, 1 + dim_offset));
+	long n_imgs = PyLong_AsLong(PyTuple_GetItem(gw_shape, 0));
+	long C = PyLong_AsLong(PyTuple_GetItem(gw_shape, 1));
+	long M = PyLong_AsLong(PyTuple_GetItem(gw_shape, 2));
 	
-	long C2 = PyLong_AsLong(PyTuple_GetItem(add_out_shape, dim_offset));
-	long mem_length = PyLong_AsLong(PyTuple_GetItem(add_out_shape, 1 + dim_offset));
+	long C2 = PyLong_AsLong(PyTuple_GetItem(add_out_shape, 1));
+	long mem_length = PyLong_AsLong(PyTuple_GetItem(add_out_shape, 2));
+	
+	long dim_above = buffer_sz[gpu_ind][deriv_above_ind] / (n_imgs*M*mem_length*sizeof(DATA_TYPE));
 	
 	if(C != C2){
 		printf("inner dot product dimensions do not match\n");
@@ -55,8 +54,6 @@ static PyObject *dotT_db(PyObject *self, PyObject *args){
 		printf("specified input sizes do not equal to stored gpu buffer. %s\n", __FILE__);
 		return NULL;
 	}
-	
-	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, ADD_MEM_DADD_OUT_SZ); MALLOC_ERR_CHECK
@@ -76,16 +73,15 @@ static PyObject *dotT_db(PyObject *self, PyObject *args){
 	
 	const float alpha = 1.0, beta = 0.0;
 	
-	for(int batch = 0; batch < dim_above; batch++){
-		for(int img = 0; img < n_imgs; img++){
-			// run kernel
-
+	for(int img = 0; img < n_imgs; img++){
+		for(int a = 0; a < dim_above; a++){
+			
 			err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, mem_length, C, 
 							M, &alpha,
-                           gpu_buffers[gpu_ind][deriv_above_ind] + batch*n_imgs*M*mem_length + img*M*mem_length,
+                           gpu_buffers[gpu_ind][deriv_above_ind] + img*dim_above*M*mem_length + a*M*mem_length,
 						   mem_length,
 						   gpu_buffers[gpu_ind][gw_ind] + img*C*M, 
-						   M, &beta, GPU_BUFFER_OUT + batch*n_imgs*C*mem_length + img*C*mem_length, mem_length);
+						   M, &beta, GPU_BUFFER_OUT + img*dim_above*C*mem_length + a*C*mem_length, mem_length);
 			
 			//err_blas = cublasSgemm(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, buffer2_dim2, buffer1_dim1, buffer1_dim2, &alpha,
             //               GPU_BUFFER2, buffer2_dim2, GPU_BUFFER1, buffer1_dim2, &beta, GPU_BUFFER_OUT, buffer2_dim2);
@@ -95,8 +91,6 @@ static PyObject *dotT_db(PyObject *self, PyObject *args){
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
-	
-	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

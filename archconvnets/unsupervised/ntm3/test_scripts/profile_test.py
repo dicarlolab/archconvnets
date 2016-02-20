@@ -7,7 +7,7 @@ from ntm_core import *
 #from architectures.model_architecture_simple import init_model
 #from architectures.model_architecture_cp import init_model
 #from architectures.movie_phys_latent import init_model
-from architectures.movie_phys_latent_predict_series import init_model
+from architectures.model_architecture_cp_batched import init_model
 #from architectures.highway import init_model
 
 free_all_buffers()
@@ -27,6 +27,9 @@ MEM_DERIVS = [None]*len(MEM_INDS)
 OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
 
 PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
+
+t_start = time.time()
+
 for frame in range(N_FRAMES):
 	set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
 	
@@ -39,6 +42,8 @@ for frame in range(N_FRAMES):
 	
 	OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
 	
+print 'elapsed time', time.time() - t_start
+
 import archconvnets.unsupervised.ntm_module3.gradient_functions.cosine_sim as cosine_sim_module
 import archconvnets.unsupervised.ntm_module3.gradient_functions.linear_F as linear_F_module
 import archconvnets.unsupervised.ntm_module3.gradient_functions.add_points as add_points_module
@@ -57,9 +62,11 @@ import archconvnets.unsupervised.ntm_module3.gradient_functions.conv as conv_mod
 import archconvnets.unsupervised.ntm_module3.gradient_functions.max_pool as max_pool_module
 import archconvnets.unsupervised.ntm_module3.gradient_functions.pearson as pearson_module
 
-
+print
 print 'point_wise_add', t_add
 print 'dot', t_dot
+print 'mult_partials_keep', t_mult_partials_keep
+print 'mult_partials_nkeep', t_mult_partials_nkeep
 print 'cosine_sim', cosine_sim_module.t_main
 print 'linear_F', linear_F_module.t_main
 print 'add_points', add_points_module.t_main

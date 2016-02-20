@@ -109,9 +109,6 @@ def build_forward_args(L, layer_ind, OUTPUT, OUTPUT_PREV, WEIGHTS):
 	return args
 
 def forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, break_layer=None):
-	#check_weights(WEIGHTS, LAYERS)
-	#check_output_prev(OUTPUT_PREV, LAYERS)
-	
 	OUTPUT = init_gpu_list(OUTPUT, LAYERS, args=False)
 	
 	if break_layer is not None:
@@ -172,18 +169,15 @@ def reverse_network(layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, W
 def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims, scalar, abort_layer): # multiply all partials together
 	L = LAYERS[layer_ind]
 	N_ARGS = len(L['in_shape'])
-	deriv_above_created = False
+	deriv_above_created = deriv_above is None
 	
-	if deriv_above is None:
-		if len(LAYERS[layer_ind]['out_shape']) > 1: # skip image dim
-			n_imgs = LAYERS[layer_ind]['out_shape'][0]
-			deriv_above_shape = LAYERS[layer_ind]['out_shape'] + LAYERS[layer_ind]['out_shape'][1:]
-			deriv_above = init_buffer(np.single(np.tile(np.eye(np.prod(LAYERS[layer_ind]['out_shape'][1:]))[np.newaxis], (n_imgs, 1, 1))).reshape(deriv_above_shape))
-		else:
-			deriv_above_shape = LAYERS[layer_ind]['out_shape'] + LAYERS[layer_ind]['out_shape']
-			deriv_above = init_buffer(np.single(np.eye(np.prod(LAYERS[layer_ind]['out_shape'])).reshape(deriv_above_shape)))
-			
-		deriv_above_created = True
+	if len(LAYERS[layer_ind]['out_shape']) > 1 and deriv_above is None: # skip image dim
+		n_imgs = LAYERS[layer_ind]['out_shape'][0]
+		deriv_above_shape = LAYERS[layer_ind]['out_shape'] + LAYERS[layer_ind]['out_shape'][1:]
+		deriv_above = init_buffer(np.single(np.tile(np.eye(np.prod(LAYERS[layer_ind]['out_shape'][1:]))[np.newaxis], (n_imgs, 1, 1))).reshape(deriv_above_shape))
+	elif deriv_above is None:
+		deriv_above_shape = LAYERS[layer_ind]['out_shape'] + LAYERS[layer_ind]['out_shape']
+		deriv_above = init_buffer(np.single(np.eye(np.prod(LAYERS[layer_ind]['out_shape'])).reshape(deriv_above_shape)))
 	
 	for arg in range(N_ARGS):
 		src = L['in_source'][arg]
@@ -204,11 +198,11 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 						p_arg = P['in_arg'][arg2]
 						p_partial = P['partial'][arg2]
 						
-						deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[src]['out_shape'])
+						# multiply partials batched over the images, then sum the results:
+						deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[src]['out_shape'], keep_dims=keep_dims)
 						
 						WEIGHT_DERIVS[p_layer_ind][p_arg] = add_points_inc((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp), scalar=scalar)
 						
-						squeeze_dim1(WEIGHT_DERIVS[p_layer_ind][p_arg], keep_dims)
 						free_buffer(deriv_temp)
 						
 				# another layer (At this time step, go back to earlier layers)
@@ -338,10 +332,18 @@ def find_layer(LAYERS, name):
 	return None
 	
 # randomly generate outputs for layer INDS
-def random_function_list(LAYERS, INDS):
+def random_function_list(LAYERS, INDS, rep_batches=True):
 	PREV_VALS = []
 	for layer_ind in INDS:
-		PREV_VALS.append(random_function(LAYERS[layer_ind]['out_shape']))
+		if rep_batches == False:
+			vals = random_function(LAYERS[layer_ind]['out_shape'])
+		else:
+			n_batches = LAYERS[layer_ind]['out_shape'][0]
+			n_remaining_dims = len(LAYERS[layer_ind]['out_shape']) - 1
+			vals = random_function(LAYERS[layer_ind]['out_shape'][1:])[np.newaxis]
+			vals = np.tile(vals, (n_batches,) + n_remaining_dims*(1,))
+			
+		PREV_VALS.append(vals)
 	return PREV_VALS
 
 # move PREV_VALS into OUTPUT_PREV in layers INDS
@@ -378,7 +380,7 @@ def update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS, f
 				if WEIGHT_DERIVS[layer_ind][arg][1] is not None: # if there was a deriv computed
 					
 					# deriv_sq = WEIGHT_DERIVS ** 2
-					deriv_sq = sq_points([WEIGHT_DERIVS[layer_ind][arg]], deriv_sq, deriv_computable=False)
+					deriv_sq = sq_points([WEIGHT_DERIVS[layer_ind][arg]], deriv_sq)
 					
 					if WEIGHT_DERIVS_RMS[layer_ind][arg][1] is None: # init WEIGHT_DERIVS_RMS, todo: cleanup this
 						copy_buffer(WEIGHT_DERIVS[layer_ind][arg], WEIGHT_DERIVS_RMS[layer_ind][arg])

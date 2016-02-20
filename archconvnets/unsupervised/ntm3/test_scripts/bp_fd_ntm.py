@@ -8,27 +8,31 @@ from architectures.model_architecture_simple import init_model
 #from architectures.highway import init_model
 
 free_all_buffers()
-N_FRAMES = 3
+N_FRAMES = 2
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
 
 F1_IND = 0
-F2_IND = find_layer(LAYERS,'F2')
-F3_IND = find_layer(LAYERS,'F3_lin')
+X1_IND = find_layer(LAYERS,'T1_lin')
+X2_IND = find_layer(LAYERS,'T2_lin')
+X3_IND = find_layer(LAYERS,'T3_lin')
+X4_IND = find_layer(LAYERS,'T4_lin')
+
+X1b_IND = find_layer(LAYERS,'T1_b')
 
 ERR_IND = find_layer(LAYERS, 'ERR')
-F1c_IND = find_layer(LAYERS, 'F1c')
-F2c_IND = find_layer(LAYERS, 'F2c')
-x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) * 1e-1
+x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) * 1e0
 set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1]) # target
-#set_buffer(random_function(LAYERS[F1c_IND]['in_shape'][1]), WEIGHTS[F1c_IND][1]) # target
-#set_buffer(random_function(LAYERS[F2c_IND]['in_shape'][1]), WEIGHTS[F2c_IND][1]) # target
-set_buffer(random_function(LAYERS[F2_IND]['in_shape'][1]), WEIGHTS[F2_IND][1]) # target
-#set_buffer(random_function(LAYERS[F3_IND]['in_shape'][1]), WEIGHTS[F3_IND][1]) # target
+
+set_buffer(random_function(LAYERS[X1_IND]['in_shape'][1]), WEIGHTS[X1_IND][1]) # target
+set_buffer(random_function(LAYERS[X2_IND]['in_shape'][1]), WEIGHTS[X2_IND][1]) # target
+set_buffer(random_function(LAYERS[X3_IND]['in_shape'][1]), WEIGHTS[X3_IND][1]) # target
+#set_buffer(random_function(LAYERS[X4_IND]['in_shape'][1]), WEIGHTS[X4_IND][1]) # target
+#set_buffer(random_function(LAYERS[X5_IND]['in_shape'][1]), WEIGHTS[X5_IND][1]) # target
 
 ################ which gradient to test
-gradient_layer = F1_IND
+gradient_layer = X3_IND
 gradient_arg = 0
 
 def f(y):
@@ -41,7 +45,7 @@ def f(y):
 	
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
-
+		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
 	
@@ -51,14 +55,11 @@ def f(y):
 	return z
 
 def g(y):
-	OUTPUT = None; WEIGHT_DERIVS = None
-	MEM_DERIVS = [None]*len(MEM_INDS)
-	OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
+	OUTPUT = None; WEIGHT_DERIVS = None; MEM_DERIVS = [None]*len(MEM_INDS); OUTPUT_PREV = init_output_prev(LAYERS, MEM_INDS, PREV_VALS); PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 	Wy = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 	weights_shape = Wy.shape; Wy = Wy.ravel(); Wy[i_ind] = y
 	set_buffer(Wy.reshape(weights_shape), WEIGHTS[gradient_layer][gradient_arg])
 	
-	PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
 		
@@ -83,7 +84,7 @@ def g(y):
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e6
+eps = np.sqrt(np.finfo(np.float).eps)*1e5
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

@@ -3,7 +3,7 @@
 __global__ void sq_points_kernel(float * layer_in, float * out_buffer, int data_out_numel){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
-	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
+	int min_duplicates_per_thread = data_out_numel / THREAD_CAPACITY;
 	int n_additional_duplicates = data_out_numel % THREAD_CAPACITY;
 	
 	int n_duplicates = min_duplicates_per_thread;
@@ -45,8 +45,6 @@ static PyObject *sq_points(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
-	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, buffer_sz[gpu_ind][layer_in_ind]); MALLOC_ERR_CHECK
 		
@@ -66,8 +64,6 @@ static PyObject *sq_points(PyObject *self, PyObject *args){
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
-	
-	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

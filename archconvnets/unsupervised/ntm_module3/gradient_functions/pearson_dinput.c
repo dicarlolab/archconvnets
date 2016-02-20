@@ -71,7 +71,7 @@ g2 = (W1_no_mean - (B/D)*W2_no_mean)/np.sqrt(C*D)*/
 // out[batch] = deriv_above[batch] * pearson_gradient
 
 __global__ void deriv_above_pearson(float * out, float * pearson_gradient, float * deriv_above, 
-	int n_imgs, int vector_len, int n_batches, int data_out_numel){
+		int vector_len, int dim_above, int data_out_numel){
 
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 
@@ -89,24 +89,26 @@ __global__ void deriv_above_pearson(float * out, float * pearson_gradient, float
 		if(ind_g >= data_out_numel) assert(0); // out of bounds
 		#endif
 
-		//out[batch, img, vec_i] = deriv_above[batch, img] * pearson_gradient[img, vec_i];
+		//out[img, batch, vec_i] = deriv_above[img, batch] * pearson_gradient[img, vec_i];
 
-		img = ind_g / (n_batches * vector_len);
-		r = ind_g % (n_batches * vector_len);
+		img = ind_g / (dim_above * vector_len);
+		r = ind_g % (dim_above * vector_len);
 
 		batch = r / vector_len;
 		vec_i = r % vector_len;
 		
-		out[ind_g] = deriv_above[img*n_batches + batch] * 
+		out[ind_g] = deriv_above[img*dim_above + batch] * 
 				pearson_gradient[img*vector_len + vec_i];
 	}
 }
 
 static PyObject * pearson_dinput(PyObject *self, PyObject *args){
 	cudaError_t err;
-	int w1_ind, w2_ind, gpu_ind, out_buffer_ind, n_imgs, n_batches, deriv_above_ind;
+	PyObject * deriv_above_shape;
+	int w1_ind, w2_ind, gpu_ind, out_buffer_ind, deriv_above_ind;
 	
-	if (!PyArg_ParseTuple(args, "iiiiiii", &w1_ind, &w2_ind, &out_buffer_ind, &deriv_above_ind, &n_imgs, &n_batches, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iiiiO!i", &w1_ind, &w2_ind, &out_buffer_ind, &deriv_above_ind, &PyTuple_Type, &deriv_above_shape, 
+			&gpu_ind)) 
 		return NULL;
     
 	if(w1_ind >= N_BUFFERS || w1_ind < 0 || out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0 ||
@@ -125,15 +127,16 @@ static PyObject * pearson_dinput(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
+	long n_imgs = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
+	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,1));
+	
 	int vector_len = buffer_sz[gpu_ind][w1_ind] / (n_imgs * sizeof(DATA_TYPE));
 	if(buffer_sz[gpu_ind][w1_ind] % n_imgs != 0){
 		printf("n_imgs does not equally divide vector %s\n", __FILE__);
 		return NULL;
 	}
 	
-	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
-	
-	unsigned intended_sz = n_batches*buffer_sz[gpu_ind][w1_ind];
+	unsigned intended_sz = dim_above*buffer_sz[gpu_ind][w1_ind];
 
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, intended_sz); MALLOC_ERR_CHECK
@@ -158,12 +161,11 @@ static PyObject * pearson_dinput(PyObject *self, PyObject *args){
 	}
 	
 	// determine number of blocks
-	n_blocks = (int)ceil((double)(n_imgs*vector_len*n_batches)/MAX_THREADS_PER_BLOCK);
+	n_blocks = (int)ceil((double)(n_imgs*vector_len*dim_above)/MAX_THREADS_PER_BLOCK);
 	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
 
 	 deriv_above_pearson <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (GPU_BUFFER_OUT, pearson_grad, 
-	 	gpu_buffers[gpu_ind][deriv_above_ind],
-	        n_imgs, vector_len, n_batches, n_imgs*vector_len*n_batches);
+	 	gpu_buffers[gpu_ind][deriv_above_ind], vector_len, dim_above, n_imgs*vector_len*dim_above);
 	
 
 	#ifdef TIMING_DEBUG

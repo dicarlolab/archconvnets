@@ -21,12 +21,6 @@ def sigmoid(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	
 	OUT_BUFFER[1] = LAYER_IN[1]
 	
-	if DEBUG:
-		assert additional_args == [None]
-		assert isinstance(gpu_ind,int)
-		assert len(args) == 1
-		check_buffer(LAYER_IN)
-	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
@@ -38,27 +32,16 @@ def sigmoid_dlayer_in(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	# reshape deriv_above to 2 dims
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
-	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dim_not_summed]), np.prod(DERIV_ABOVE[1][n_dim_not_summed:]))
+	n_imgs = LAYER_IN[1][0]
+	dim_above = np.prod(DERIV_ABOVE[1][1:1+n_dim_not_summed])
+	DERIV_ABOVE_reshaped = (n_imgs, dim_above) + DERIV_ABOVE[1][n_dim_not_summed+1:]
 	
-	# deriv_above * layer_out * (1-layer_out)
+	# out[:,dim] = deriv_above[:,dim] * layer_out * (1-layer_out)
 	_ntm_module3.sigmoid_dlayer_in(LAYER_OUT[0], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed] + LAYER_IN[1]
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed+1] + LAYER_IN[1][1:]
 	
-	if DEBUG:
-		assert additional_args == [None]
-		assert isinstance(gpu_ind,int)
-		assert len(args) == 1
-		assert GPU
-		assert LAYER_IN[1][:2] == LAYER_OUT[1]
-		check_buffer(LAYER_OUT)
-		check_buffer(args[0])
-		check_buffer(OUT_BUFFER)
-		check_buffer(OUT_BUFFER)
-		check_buffer(DERIV_ABOVE)
-		
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 

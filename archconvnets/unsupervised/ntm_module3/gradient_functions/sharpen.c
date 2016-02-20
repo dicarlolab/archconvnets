@@ -2,11 +2,12 @@
 #define GAMMA_SZ buffer_sz[gpu_ind][gamma_ind]
 
 __global__ void sharpen_kernel(float * w, float * gamma, float * out, int dim1, int dim2){ 
-	int i = blockIdx.x;
+	int img = blockIdx.x / dim1;
+	int i = blockIdx.x % dim1;
 	int j = threadIdx.x;
-	int ind = i*dim2 + j;
+	int ind = img*dim1*dim2 + i*dim2 + j;
 
-	float pow_local = __powf(w[ind], gamma[i]);
+	float pow_local = __powf(w[ind], gamma[img*dim1 + i]);
 	
 	extern __shared__ float shared_mem[];
 	float * local_sum = (float*)&shared_mem;
@@ -45,15 +46,14 @@ static PyObject * sharpen(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
-	long dim1 = PyLong_AsLong(PyTuple_GetItem(w_shape,0));
-	long dim2 = PyLong_AsLong(PyTuple_GetItem(w_shape,1));
+	long n_imgs = PyLong_AsLong(PyTuple_GetItem(w_shape,0));
+	long dim1 = PyLong_AsLong(PyTuple_GetItem(w_shape,1));
+	long dim2 = PyLong_AsLong(PyTuple_GetItem(w_shape,2));
 	
-	if(dim1*dim2*sizeof(DATA_TYPE) != W_SHARPEN_SZ || dim1*sizeof(DATA_TYPE) != GAMMA_SZ){
+	if(n_imgs*dim1*dim2*sizeof(DATA_TYPE) != W_SHARPEN_SZ || n_imgs*dim1*sizeof(DATA_TYPE) != GAMMA_SZ){
 		printf("specified input sizes do not equal to stored gpu buffer\n");
 		return NULL;
 	}
-	
-	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, W_SHARPEN_SZ); MALLOC_ERR_CHECK
@@ -64,14 +64,12 @@ static PyObject * sharpen(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	sharpen_kernel <<< dim1, dim2, sizeof(float) >>> (gpu_buffers[gpu_ind][w_ind], gpu_buffers[gpu_ind][gamma_ind],
+	sharpen_kernel <<< n_imgs*dim1, dim2, sizeof(float) >>> (gpu_buffers[gpu_ind][w_ind], gpu_buffers[gpu_ind][gamma_ind],
 		gpu_buffers[gpu_ind][out_buffer_ind], dim1, dim2);
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
-	
-	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

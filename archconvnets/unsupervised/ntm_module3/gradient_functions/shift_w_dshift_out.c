@@ -1,5 +1,4 @@
 #define N_SHIFTS 3
-#define DSDS_SZ (dim_above*C*N_SHIFTS*sizeof(DATA_TYPE))
 #define W_INTERP(A, B) w_interp[(A)*M + B]
 
 __global__ void shift_w_dshift_out_kernel(float * w_interp, float * deriv_above,
@@ -56,34 +55,35 @@ static PyObject * shift_w_dshift_out(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
-	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
-	long C = PyLong_AsLong(PyTuple_GetItem(w_interp_shape,0));
-	long M = PyLong_AsLong(PyTuple_GetItem(w_interp_shape,1));
+	long n_imgs = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
+	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,1));
+	long C = PyLong_AsLong(PyTuple_GetItem(w_interp_shape,1));
+	long M = PyLong_AsLong(PyTuple_GetItem(w_interp_shape,2));
 	
-	if(C*M*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][w_interp_ind]){
-		printf("specified input sizes do not equal to stored gpu buffer\n");
+	if(n_imgs*C*M*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][w_interp_ind]){
+		printf("specified input sizes do not equal to stored gpu buffer %s\n", __FILE__);
 		return NULL;
 	}
 	
-	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
+	unsigned intended_sz = n_imgs*dim_above*C*N_SHIFTS*sizeof(DATA_TYPE);
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
-		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DSDS_SZ); MALLOC_ERR_CHECK
+		err = cudaMalloc((void**) &GPU_BUFFER_OUT, intended_sz); MALLOC_ERR_CHECK
 		
-		OUT_BUFFER_SZ = DSDS_SZ;
-	}else if(DSDS_SZ != OUT_BUFFER_SZ){ // does the output size match the buffer size?
+		OUT_BUFFER_SZ = intended_sz;
+	}else if(intended_sz != OUT_BUFFER_SZ){ // does the output size match the buffer size?
 		printf("output buffer size not allocated to correct size\n");
 		return NULL;
 	}
 	
-	shift_w_dshift_out_kernel <<< dim_above, C * N_SHIFTS  >>> (gpu_buffers[gpu_ind][w_interp_ind], gpu_buffers[gpu_ind][deriv_above_ind],
-		gpu_buffers[gpu_ind][out_buffer_ind], C, M);
-	
+	for(int img = 0; img < n_imgs; img++){
+		shift_w_dshift_out_kernel <<< dim_above, C * N_SHIFTS  >>> (gpu_buffers[gpu_ind][w_interp_ind] + img*C*M,  
+			gpu_buffers[gpu_ind][deriv_above_ind] + img*dim_above*C*M,
+			gpu_buffers[gpu_ind][out_buffer_ind] + img*dim_above*C*N_SHIFTS, C, M);
+	}
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
-	
-	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

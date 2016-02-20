@@ -54,6 +54,9 @@ def sum_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_
 	
 	OUT_BUFFER = set_buffer(output, OUT_BUFFER)
 	
+	if OUT_BUFFER[1][0] == 1 and OUT_BUFFER[1][1] != 1 and len(OUT_BUFFER[1]) == 2:
+		OUT_BUFFER[1] = (OUT_BUFFER[1][1], OUT_BUFFER[1][0])
+	
 	if DEBUG:
 		assert additional_args == [None]
 		assert len(args) == 1

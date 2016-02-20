@@ -7,12 +7,12 @@
 #define MEM_SZ buffer_sz[gpu_ind][mem_ind]
 #define KEYS_SZ buffer_sz[gpu_ind][keys_ind]
 
-#define COSED_SZ (dim_above*n_imgs*n_controllers*mem_length*sizeof(DATA_TYPE))
+#define COSED_SZ (n_imgs*dim_above*n_controllers*mem_length*sizeof(DATA_TYPE))
 	
 __global__ void cosine_sim_dkeys_kernel(float * keys, float * mem, float * deriv_above,
-			float * data_out, long n_controllers, long mem_length, long M, long n_imgs){
-	int a = blockIdx.x / n_imgs;
-	int img = blockIdx.x % n_imgs;
+			float * data_out, long n_controllers, long mem_length, long M, long dim_above){
+	int img = blockIdx.x / dim_above;
+	int a = blockIdx.x % dim_above;
 	int i = threadIdx.x / mem_length;
 	int k = threadIdx.x % mem_length;
 	
@@ -23,10 +23,10 @@ __global__ void cosine_sim_dkeys_kernel(float * keys, float * mem, float * deriv
 	}
 	keys_sq_sum = sqrt(keys_sq_sum);
 	
-	unsigned ind = a*n_imgs*n_controllers*mem_length + img*n_controllers*mem_length + i*mem_length + k;
+	unsigned ind = img*dim_above*n_controllers*mem_length + a*n_controllers*mem_length + i*mem_length + k;
 	data_out[ind] = 0; // a,img,i,k
 	
-	unsigned ind_temp = a*n_imgs*n_controllers*M + img*n_controllers*M + i*M;
+	unsigned ind_temp = img*dim_above*n_controllers*M + a*n_controllers*M + i*M;
 	
 	for(int j = 0; j < M; j++){
 		float numer = 0, mem_sq_sum = 0;
@@ -57,12 +57,11 @@ __global__ void cosine_sim_dkeys_kernel(float * keys, float * mem, float * deriv
 
 static PyObject *cosine_sim_dkeys(PyObject *self, PyObject *args){
 	PyObject *keys_shape, *mem_shape;
-	int keys_ind, mem_ind, out_buffer_ind, gpu_ind, deriv_above_ind, n_imgs, dim_above;
+	int keys_ind, mem_ind, out_buffer_ind, gpu_ind, deriv_above_ind;
 	cudaError_t err;
 	
-	if (!PyArg_ParseTuple(args, "iO!iO!iiiii", &keys_ind, &PyTuple_Type, &keys_shape, 
-			&mem_ind, &PyTuple_Type, &mem_shape, &deriv_above_ind, &dim_above, &out_buffer_ind, 
-			&n_imgs, &gpu_ind))
+	if (!PyArg_ParseTuple(args, "iO!iO!iii", &keys_ind, &PyTuple_Type, &keys_shape, 
+			&mem_ind, &PyTuple_Type, &mem_shape, &deriv_above_ind, &out_buffer_ind, &gpu_ind))
 		return NULL;
 	
 	if(keys_ind >= N_BUFFERS || keys_ind < 0 || 
@@ -77,45 +76,35 @@ static PyObject *cosine_sim_dkeys(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	if(MEM_SZ == 0 || KEYS_SZ == 0){
-		printf("buffer not initialized. use set_buffers()\n");
-		return NULL;
-	}
-	
-	int dim_offset = 0; // skip over img dimension
-	if(n_imgs > 1)
-		dim_offset ++;
-	
 	// get sizes
-	long n_controllers = PyLong_AsLong(PyTuple_GetItem(keys_shape, dim_offset));
-	long mem_length = PyLong_AsLong(PyTuple_GetItem(keys_shape, 1 + dim_offset));
-	long M = PyLong_AsLong(PyTuple_GetItem(mem_shape, dim_offset));
+	long n_imgs = PyLong_AsLong(PyTuple_GetItem(keys_shape, 0));
+	long n_controllers = PyLong_AsLong(PyTuple_GetItem(keys_shape, 1));
+	long mem_length = PyLong_AsLong(PyTuple_GetItem(keys_shape, 2));
+	long M = PyLong_AsLong(PyTuple_GetItem(mem_shape, 1));
+	
+	long dim_above = buffer_sz[gpu_ind][deriv_above_ind] / (n_imgs*n_controllers*M*sizeof(DATA_TYPE));
 	
 	if(n_imgs*n_controllers*mem_length*sizeof(DATA_TYPE) != KEYS_SZ || n_imgs*M*mem_length*sizeof(DATA_TYPE) != MEM_SZ){
 		printf("specified input sizes do not equal to stored gpu buffer. %s\n",__FILE__);
 		return NULL;
 	}
 	
-	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
-	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, COSED_SZ); MALLOC_ERR_CHECK
 		
 		OUT_BUFFER_SZ = COSED_SZ;
 	}else if(COSED_SZ != OUT_BUFFER_SZ){ // does the output size match the buffer size?
-		printf("output buffer size not allocated to correct size\n");
+		printf("output buffer size not allocated to correct size %s\n", __FILE__);
 		return NULL;
 	}
 	
 	// run kernel
 	cosine_sim_dkeys_kernel <<< dim_above*n_imgs, n_controllers*mem_length >>> (GPU_KEYS, 
-			GPU_MEM, gpu_buffers[gpu_ind][deriv_above_ind], GPU_BUFFER_OUT, n_controllers, mem_length, M, n_imgs);
+			GPU_MEM, gpu_buffers[gpu_ind][deriv_above_ind], GPU_BUFFER_OUT, n_controllers, mem_length, M, dim_above);
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
-	
-	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

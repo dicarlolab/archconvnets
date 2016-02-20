@@ -6,8 +6,7 @@ import time
 
 t_main = [0,0]
 
-# deriv_computable: require dimensions be <= 2, required for sq_points_dinput to work correctly
-def sq_points(args, OUT_BUFFER=None, additional_args=[None], deriv_computable=True, gpu_ind=GPU_IND):
+def sq_points(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	t = time.time()
 	
 	LAYER_IN = args[0]
@@ -19,14 +18,6 @@ def sq_points(args, OUT_BUFFER=None, additional_args=[None], deriv_computable=Tr
 	
 	OUT_BUFFER[1] = LAYER_IN[1]
 	
-	if DEBUG:
-		assert isinstance(gpu_ind,int)
-		assert additional_args == [None]
-		assert len(args) == 1
-		check_buffer(LAYER_IN)
-		if deriv_computable:
-			assert len(LAYER_IN[1]) <= 2
-	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
@@ -34,33 +25,14 @@ def sq_points_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_a
 	t = time.time()
 	
 	LAYER_IN = args[0]
-	
-	LAYER_IN_R = (np.prod(LAYER_IN[1]),1)
-	
 		
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer(gpu_ind=gpu_ind)
 	
-	OUT_BUFFER_TEMP = init_buffer(gpu_ind=gpu_ind)
+	_ntm_module3.sq_points_dinput(LAYER_IN[0], LAYER_IN[1], DERIV_ABOVE[0], OUT_BUFFER[0], gpu_ind)
 	
-	_ntm_module3.sq_points_dinput(LAYER_IN[0], LAYER_IN_R, OUT_BUFFER_TEMP[0], gpu_ind)
-	
-	OUT_BUFFER_TEMP[1] = tuple(np.concatenate((LAYER_IN[1], LAYER_IN[1])))
-	
-	OUT_BUFFER = mult_partials(DERIV_ABOVE, OUT_BUFFER_TEMP, LAYER_OUT[1], OUT_BUFFER)
-	free_buffer(OUT_BUFFER_TEMP)
-	
-	if DEBUG:
-		check_buffer(LAYER_OUT)
-		check_buffer(OUT_BUFFER)
-		assert isinstance(gpu_ind,int)
-		assert additional_args == [None]
-		assert len(args) == 1
-		check_buffer(LAYER_IN)
-		check_buffer(DERIV_ABOVE)
-		assert len(LAYER_IN[1]) <= 2
-		assert LAYER_IN[1] == LAYER_OUT[1]
-		check_buffer(OUT_BUFFER_TEMP)
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:1+n_dim_not_summed] + LAYER_IN[1][1:]
 	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER

@@ -16,9 +16,9 @@ __global__ void focus_key_kernel(float * keys, float * beta_out, float * out, in
 static PyObject * focus_key(PyObject *self, PyObject *args){
 	cudaError_t err;
 	PyObject *keys_shape;
-	int keys_ind, out_buffer_ind, gpu_ind, beta_out_ind, n_imgs;
+	int keys_ind, out_buffer_ind, gpu_ind, beta_out_ind;
 	
-	if (!PyArg_ParseTuple(args, "iO!iiii", &keys_ind, &PyTuple_Type, &keys_shape, &beta_out_ind, &out_buffer_ind, &n_imgs, &gpu_ind)) 
+	if (!PyArg_ParseTuple(args, "iO!iii", &keys_ind, &PyTuple_Type, &keys_shape, &beta_out_ind, &out_buffer_ind, &gpu_ind)) 
 		return NULL;
     
 	if(keys_ind >= N_BUFFERS || keys_ind < 0 || out_buffer_ind >= N_BUFFERS || out_buffer_ind < 0 ||
@@ -32,20 +32,15 @@ static PyObject * focus_key(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	int dim_offset = 0; // skip over img dimension
-	if(n_imgs > 1)
-		dim_offset ++;
-	
 	// get sizes
-	long n_controllers = PyLong_AsLong(PyTuple_GetItem(keys_shape, dim_offset));
-	long mem_length = PyLong_AsLong(PyTuple_GetItem(keys_shape, 1 + dim_offset));
+	long n_imgs = PyLong_AsLong(PyTuple_GetItem(keys_shape, 0));
+	long n_controllers = PyLong_AsLong(PyTuple_GetItem(keys_shape, 1));
+	long mem_length = PyLong_AsLong(PyTuple_GetItem(keys_shape, 2));
 	
 	if(n_imgs*n_controllers*mem_length*sizeof(DATA_TYPE) != KEYS_SZ || n_imgs*n_controllers*sizeof(DATA_TYPE) != BETA_OUT_SZ){
 		printf("specified input sizes do not equal to stored gpu buffer\n");
 		return NULL;
 	}
-	
-	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, FOCUS_SZ); MALLOC_ERR_CHECK
@@ -62,8 +57,6 @@ static PyObject * focus_key(PyObject *self, PyObject *args){
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
-	
-	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

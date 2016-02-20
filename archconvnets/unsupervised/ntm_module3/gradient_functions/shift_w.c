@@ -47,16 +47,15 @@ static PyObject * shift_w(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
-	long n_controllers = PyLong_AsLong(PyTuple_GetItem(w_interp_shape,0));
-	long M = PyLong_AsLong(PyTuple_GetItem(w_interp_shape,1));
+	long n_imgs = PyLong_AsLong(PyTuple_GetItem(w_interp_shape, 0));
+	long n_controllers = PyLong_AsLong(PyTuple_GetItem(w_interp_shape, 1));
+	long M = PyLong_AsLong(PyTuple_GetItem(w_interp_shape, 2));
 	
-	if(n_controllers*M*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][w_interp_ind] || 
-			n_controllers*N_SHIFTS*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][shift_out_ind]){
-		printf("specified input sizes do not equal to stored gpu buffer\n");
+	if(n_imgs*n_controllers*M*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][w_interp_ind] || 
+			n_imgs*n_controllers*N_SHIFTS*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][shift_out_ind]){
+		printf("specified input sizes do not equal to stored gpu buffer, %s\n", __FILE__);
 		return NULL;
 	}
-	
-	///cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, buffer_sz[gpu_ind][w_interp_ind]); MALLOC_ERR_CHECK
@@ -67,14 +66,14 @@ static PyObject * shift_w(PyObject *self, PyObject *args){
 		return NULL;
 	}
 	
-	shift_w_kernel <<< 1, n_controllers * M >>> (gpu_buffers[gpu_ind][shift_out_ind], gpu_buffers[gpu_ind][w_interp_ind],
-		gpu_buffers[gpu_ind][out_buffer_ind], n_controllers, M);
-	
+	for(int img = 0; img < n_imgs; img++){
+		shift_w_kernel <<< 1, n_controllers * M >>> (gpu_buffers[gpu_ind][shift_out_ind] + img*n_controllers*N_SHIFTS, 
+			gpu_buffers[gpu_ind][w_interp_ind] + img*n_controllers*M,
+			gpu_buffers[gpu_ind][out_buffer_ind] + img*n_controllers*M, n_controllers, M);
+	}
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
-	
-	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

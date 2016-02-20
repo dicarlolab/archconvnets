@@ -7,7 +7,7 @@ __global__ void interpolate_kernel(float * interp_gate, float * o_content, float
 	int n_duplicates = min_duplicates_per_thread;
 	if(ind < n_additional_duplicates) n_duplicates++;
 	
-	unsigned ind_g, interp_ind;
+	unsigned ind_g, interp_ind, i, img;
 	for(int dup = 0; dup < n_duplicates; dup++){
 		ind_g = dup*THREAD_CAPACITY + ind;
 		
@@ -15,9 +15,14 @@ __global__ void interpolate_kernel(float * interp_gate, float * o_content, float
 		if(ind_g >= data_out_numel) assert(0); // out of bounds
 		#endif
 		
-		// we are computing the output out_buffer[i,j]... determine start indices of data1 & data2 for summation:
+		// we are computing the output out_buffer[img, i,j]... determine start indices of data1 & data2 for summation:
 		
-		interp_ind = ind_g / dim2;
+		img = ind_g / (dim1*dim2);
+		//r = ind_g % (dim1*dim2);
+		//i = r / dim2;
+		i = (ind_g % (dim1*dim2)) / dim2;
+		
+		interp_ind = img*dim1 + i;
 		
 		out_buffer[ind_g] = interp_gate[interp_ind] * o_content[ind_g] + (1 - interp_gate[interp_ind]) * o_prev[ind_g];
 	}
@@ -53,16 +58,15 @@ static PyObject *interpolate(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
-	long dim1 = PyLong_AsLong(PyTuple_GetItem(o_content_shape,0));
-	long dim2 = PyLong_AsLong(PyTuple_GetItem(o_content_shape,1));
+	long n_imgs = PyLong_AsLong(PyTuple_GetItem(o_content_shape,0));
+	long dim1 = PyLong_AsLong(PyTuple_GetItem(o_content_shape,1));
+	long dim2 = PyLong_AsLong(PyTuple_GetItem(o_content_shape,2));
 	
-	if(dim1*dim2*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][o_content_ind] || dim1*dim2*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][o_prev_ind] || 
-			dim1*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][interp_gate_ind]){
+	if(n_imgs*dim1*dim2*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][o_content_ind] || n_imgs*dim1*dim2*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][o_prev_ind] || 
+			n_imgs*dim1*sizeof(DATA_TYPE) != buffer_sz[gpu_ind][interp_gate_ind]){
 		printf("specified input sizes do not equal to stored gpu buffer. dot()\n");
 		return NULL;
 	}
-	
-	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, buffer_sz[gpu_ind][o_content_ind]); MALLOC_ERR_CHECK
@@ -74,18 +78,16 @@ static PyObject *interpolate(PyObject *self, PyObject *args){
 	}
 
 	// determine number of blocks
-	int n_blocks = (int)ceil((double)(dim1*dim2)/MAX_THREADS_PER_BLOCK);
+	int n_blocks = (int)ceil((double)(n_imgs*dim1*dim2)/MAX_THREADS_PER_BLOCK);
 	if(n_blocks >= MAX_BLOCKS) n_blocks = MAX_BLOCKS;
 	
 	// run kernel
 	interpolate_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][interp_gate_ind], gpu_buffers[gpu_ind][o_content_ind],
-		gpu_buffers[gpu_ind][o_prev_ind], gpu_buffers[gpu_ind][out_buffer_ind], dim1, dim2, dim1*dim2);
+		gpu_buffers[gpu_ind][o_prev_ind], gpu_buffers[gpu_ind][out_buffer_ind], dim1, dim2, n_imgs*dim1*dim2);
 	
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
-	
-	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

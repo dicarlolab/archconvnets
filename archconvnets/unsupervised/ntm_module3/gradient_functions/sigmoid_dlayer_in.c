@@ -2,7 +2,7 @@
 #define SIGMOID_DLAYER_IN_SZ buffer_sz[gpu_ind][deriv_above_ind]
 
 __global__ void sigmoid_dlayer_in_kernel(float * layer_out, float * deriv_above, float * out_buffer, 
-		int deriv_above_dim2, int data_out_numel){
+		int dim_above, int layer_sz, int data_out_numel){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
 	int min_duplicates_per_thread = (int)floor((double)data_out_numel / THREAD_CAPACITY);
@@ -11,7 +11,7 @@ __global__ void sigmoid_dlayer_in_kernel(float * layer_out, float * deriv_above,
 	int n_duplicates = min_duplicates_per_thread;
 	if(ind < n_additional_duplicates) n_duplicates++;
 	
-	unsigned ind_g, ind_g_local;
+	unsigned ind_g, ind_g_local, img, loc;
 	for(int dup = 0; dup < n_duplicates; dup++){
 		ind_g = dup*THREAD_CAPACITY + ind;
 		
@@ -19,7 +19,12 @@ __global__ void sigmoid_dlayer_in_kernel(float * layer_out, float * deriv_above,
 		if(ind_g >= data_out_numel) assert(0); // out of bounds
 		#endif
 		
-		ind_g_local = ind_g % deriv_above_dim2;
+		img = ind_g / (dim_above*layer_sz);
+		//r = ind_g % (dim_above*layer_sz);
+		//loc = r % layer_sz;
+		loc = (ind_g % (dim_above*layer_sz)) % layer_sz;
+		
+		ind_g_local = img*layer_sz + loc;
 		
 		out_buffer[ind_g] = deriv_above[ind_g] * layer_out[ind_g_local] * (1-layer_out[ind_g_local]);
 	}
@@ -44,15 +49,15 @@ static PyObject *sigmoid_dlayer_in(PyObject *self, PyObject *args){
 	}
 	
 	// get sizes
-	long deriv_above_dim1 = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
-	long deriv_above_dim2 = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,1));
+	long n_imgs = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,0));
+	long dim_above = PyLong_AsLong(PyTuple_GetItem(deriv_above_shape,1));
+	long layer_sz = buffer_sz[gpu_ind][deriv_above_ind] / (n_imgs * dim_above * sizeof(DATA_TYPE));
 	
-	if(deriv_above_dim2 != buffer_sz[gpu_ind][layer_out_ind]/sizeof(DATA_TYPE)){
-		printf("input dims don't match %s %i\n", __FILE__,__LINE__);
+	if(n_imgs*layer_sz != buffer_sz[gpu_ind][layer_out_ind]/sizeof(DATA_TYPE)){
+		printf("input dims don't match %s %i... n_imgs %li, layer_sz %li, layer_out_sz: %li\n", __FILE__,__LINE__,
+			n_imgs, layer_sz, buffer_sz[gpu_ind][layer_out_ind]/sizeof(DATA_TYPE));
 		return NULL;
 	}
-	
-	//cudaSetDevice(gpu_ind); CHECK_CUDA_ERR
 	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, SIGMOID_DLAYER_IN_SZ); MALLOC_ERR_CHECK
@@ -69,13 +74,11 @@ static PyObject *sigmoid_dlayer_in(PyObject *self, PyObject *args){
 	
 	// run kernel
 	sigmoid_dlayer_in_kernel <<< n_blocks, MAX_THREADS_PER_BLOCK >>> (gpu_buffers[gpu_ind][layer_out_ind], 
-		gpu_buffers[gpu_ind][deriv_above_ind], gpu_buffers[gpu_ind][out_buffer_ind], deriv_above_dim2, SIGMOID_DLAYER_IN_NUMEL);
+		gpu_buffers[gpu_ind][deriv_above_ind], gpu_buffers[gpu_ind][out_buffer_ind], dim_above, layer_sz, SIGMOID_DLAYER_IN_NUMEL);
 		
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
-	
-	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;
