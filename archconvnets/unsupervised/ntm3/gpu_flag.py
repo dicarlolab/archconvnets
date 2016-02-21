@@ -1,8 +1,8 @@
 GPU = True
 
-BATCH_SZ = 50
+BATCH_SZ = 32
 PANDA_PORT = 60000
-GPU_IND = 1
+GPU_IND = 0
 IM_SZ = 32
 
 N_FUTURE = 3 # how far into the future to predict

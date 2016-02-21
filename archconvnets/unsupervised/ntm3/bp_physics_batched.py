@@ -7,10 +7,10 @@ from scipy.stats import zscore, pearsonr
 from worlds.elastic_world_batched import generate_imgs
 
 no_mem = True
-no_mem = False
+#no_mem = False
 T_AHEAD = 2
-INPUT_SCALE = 1e-1
-EPS = -1e-1
+INPUT_SCALE = 1e-5
+EPS = -5e-2
 
 if no_mem:
 	from architectures.model_architecture_movie_no_mem_batched import init_model
@@ -25,8 +25,8 @@ free_all_buffers()
 frame = 0; frame_local = 0; err = 0
 
 EPOCH_LEN = 6*6
-SAVE_FREQ = 25 # instantaneous checkpoint
-FRAME_LAG = 100 #SAVE_FREQ
+SAVE_FREQ = 1 # instantaneous checkpoint
+FRAME_LAG = 10 #SAVE_FREQ
 STOP_POINT = np.inf #SAVE_FREQ*15
 
 output_buffer = np.zeros(SAVE_FREQ,dtype='single')
