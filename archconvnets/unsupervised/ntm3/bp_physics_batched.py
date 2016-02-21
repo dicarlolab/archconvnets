@@ -4,7 +4,7 @@ import scipy.optimize
 from ntm_core import *
 from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
-from worlds.elastic_world import generate_imgs
+from worlds.elastic_world_batched import generate_imgs
 
 no_mem = True
 no_mem = False
