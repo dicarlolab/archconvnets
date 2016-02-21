@@ -9,11 +9,11 @@ from worlds.elastic_world_batched import generate_imgs
 no_mem = True
 no_mem = False
 T_AHEAD = 2
-INPUT_SCALE = 1e-5
-EPS = 5e-2
+INPUT_SCALE = 1e-1
+EPS = -1e-1
 
 if no_mem:
-	from architectures.model_architecture_movie_no_mem_read_only import init_model
+	from architectures.model_architecture_movie_no_mem_batched import init_model
 	save_name = 'ntm_physics_no_mem_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
 else:
 	from architectures.model_architecture_movie_mem_batched import init_model
@@ -26,7 +26,7 @@ frame = 0; frame_local = 0; err = 0
 
 EPOCH_LEN = 6*6
 SAVE_FREQ = 25 # instantaneous checkpoint
-FRAME_LAG = 50 #SAVE_FREQ
+FRAME_LAG = 100 #SAVE_FREQ
 STOP_POINT = np.inf #SAVE_FREQ*15
 
 output_buffer = np.zeros(SAVE_FREQ,dtype='single')
@@ -86,7 +86,7 @@ while True:
 	
 	# take step
 	if frame < STOP_POINT:
-		WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS, frame, FRAME_LAG)
+		WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS / BATCH_SZ, frame, FRAME_LAG)
 		
 	# print
 	if frame % SAVE_FREQ == 0 and frame != 0:
