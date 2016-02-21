@@ -43,7 +43,7 @@ def linear_F(args, OUT_BUFFER=None, additional_args=[True, False], gpu_ind=GPU_I
 	OUT_BUFFER[1] = (n_imgs,) + F[1][:-1] + (X_reshaped[-1],)
 	
 	if squeeze and OUT_BUFFER[1][-1] == 1: # squeeze
-		OUT_BUFFER[1] = OUT_BUFFER[1][:len(OUT_BUFFER[1])-1]
+		OUT_BUFFER[1] = OUT_BUFFER[1][:-1]
 	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER

@@ -34,7 +34,7 @@ def max_pool_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_ar
 	# -> DERIV_ABOVE = (a*b*c, d,e,f)
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
 	n_imgs = DERIV_ABOVE[1][0]
-	dim_above = np.prod(DERIV_ABOVE[1][1:+n_dim_not_summed])
+	dim_above = np.prod(DERIV_ABOVE[1][1:1+n_dim_not_summed])
 	DERIV_ABOVE_reshaped = (n_imgs, dim_above) + LAYER_OUT[1][1:]
 	
 	if OUT_BUFFER is None:

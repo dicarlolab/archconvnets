@@ -1,6 +1,6 @@
 GPU = True
 
-BATCH_SZ = 50
+BATCH_SZ = 5
 PANDA_PORT = 60000
 GPU_IND = 0
 IM_SZ = 32
