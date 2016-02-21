@@ -8,7 +8,7 @@ from scipy.stats import zscore, pearsonr
 no_mem = True
 no_mem = False
 
-EPS = -5e-2
+EPS = -1e-2
 
 if no_mem:
 	from architectures.model_architecture_cp_no_mem import init_model
