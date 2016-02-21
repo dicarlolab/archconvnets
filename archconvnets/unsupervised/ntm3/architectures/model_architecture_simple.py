@@ -20,6 +20,7 @@ def init_model():
 
 	for init in [0,1]:
 		add_conv_layer(LAYERS, 'F3', U_F3, 5, source = -1, imgs_shape=(BATCH_SZ,3,32,32), init=init)
+		add_max_pool_layer(LAYERS, 'F1_MAX', init=init)
 		add_conv_layer(LAYERS, 'F4', U_F3, 5, init=init)
 		add_linear_F_bias_layer(LAYERS, 'Sa', U_F3, init=init)
 		

@@ -17,15 +17,6 @@ def max_pool(args, OUT_BUFFER=None, additional_args=[None], gpu_ind=GPU_IND):
 	
 	OUT_BUFFER[1] = _ntm_module3.max_pool(CONV_OUTPUT[0], CONV_OUTPUT[1], OUT_BUFFER[0], gpu_ind)
 	
-	if DEBUG:
-		check_buffer(CONV_OUTPUT)
-		assert len(CONV_OUTPUT[1]) == 4
-		assert CONV_OUTPUT[1][-1] == CONV_OUTPUT[1][-2]
-		assert CONV_OUTPUT[1][0] == 1
-		assert additional_args == [None]
-		assert isinstance(gpu_ind,int)
-		assert len(args) == 1
-	
 	t_main[0] += time.time() - t
 	return OUT_BUFFER
 
@@ -41,32 +32,18 @@ def max_pool_dinput(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_ar
 	# ex. DERIV_ABOVE = (a,b,c,d,e,f)
 	# ex. LAYER_OUT = (d,e,f)
 	# -> DERIV_ABOVE = (a*b*c, d,e,f)
-	n_dims_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1]) + 1 #...
-	DERIV_ABOVE_reshaped = (np.prod(DERIV_ABOVE[1][:n_dims_not_summed]),) + LAYER_OUT[1][1:]
+	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
+	n_imgs = DERIV_ABOVE[1][0]
+	dim_above = np.prod(DERIV_ABOVE[1][1:+n_dim_not_summed])
+	DERIV_ABOVE_reshaped = (n_imgs, dim_above) + LAYER_OUT[1][1:]
 	
 	if OUT_BUFFER is None:
 		OUT_BUFFER = init_buffer()
 	
 	OUT_BUFFER[1] = _ntm_module3.max_pool_dinput(DESTDATA[0], DESTDATA[1], SRCDATA[0], DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
-	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dims_not_summed] + DESTDATA[1][1:]
-	
-	if DEBUG:
-		assert additional_args == [None]
-		assert isinstance(gpu_ind,int)
-		assert len(args) == 1
-		check_buffer(OUT_BUFFER)
-		assert DERIV_ABOVE[1][n_dims_not_summed:] == LAYER_OUT[1]
-		check_buffer(DERIV_ABOVE)
-		check_buffer(SRCDATA)
-		check_buffer(DESTDATA)
-		assert len(SRCDATA[1]) == len(DESTDATA[1]) == 4
-		assert SRCDATA[1][-1] == SRCDATA[1][-2]
-		assert DESTDATA[1][-1] == DESTDATA[1][-2]
-		assert SRCDATA[1][0] == DESTDATA[1][0]
-		assert SRCDATA[1][1] == DESTDATA[1][1]
-		assert SRCDATA[1][0] == 1
-	
+	OUT_BUFFER[1] = DERIV_ABOVE[1][:1+n_dim_not_summed] + DESTDATA[1][1:]
+
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
 

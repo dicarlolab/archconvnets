@@ -14,7 +14,7 @@ N_FRAMES = 2
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
 
 F1_IND = 0
-X1_IND = find_layer(LAYERS,'F4')
+X1_IND = find_layer(LAYERS,'F3')
 X2_IND = find_layer(LAYERS,'T2_lin')
 X3_IND = find_layer(LAYERS,'T3_lin')
 X4_IND = find_layer(LAYERS,'T4_lin')
