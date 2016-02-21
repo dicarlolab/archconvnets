@@ -19,17 +19,10 @@ def init_model():
 	HEAD_INPUT = 'F3'
 
 	for init in [0,1]:
-		add_relu_F_bias_layer(LAYERS, 'T1', N_CONTROLLERS, (BATCH_SZ, 4, 3), init=init)
-		add_linear_F_bias_layer(LAYERS, 'T1b', N_CONTROLLERS, init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'T2', N_CONTROLLERS, (BATCH_SZ, 4, 5), init=init)
-		add_sigmoid_F_bias_layer(LAYERS, 'T3', 3, (BATCH_SZ, 4, 5), init=init)
+		add_conv_layer(LAYERS, 'F3', U_F3, 5, source = -1, imgs_shape=(BATCH_SZ,3,32,32), init=init)
+		add_linear_F_bias_layer(LAYERS, 'Sa', U_F3, init=init)
 		
-		add_dotT_layer(LAYERS, 'S1', ['T1b-','T2'], init=init)
-		add_add_layer(LAYERS, 'S2', ['T3','S1-'], init=init)
-		
-		add_sq_points_layer(LAYERS, 'Sa', init=init)
-		
-		add_pearson_layer(LAYERS, 'ERR', ['Sa', -1], init=init)
+		add_pearson_layer(LAYERS, 'ERR', ['Sa-', -1], init=init)
 		add_sum_layer(LAYERS,'ERR_SUM',init=init)
 		
 
@@ -37,7 +30,7 @@ def init_model():
 	
 	################ init weights and inputs
 	WEIGHTS = init_weights(LAYERS)
-	MEM_INDS = find_layer(LAYERS, ['T2', 'S1'])
+	MEM_INDS = find_layer(LAYERS, ['Sa'])
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)
 	
 	return LAYERS, WEIGHTS, MEM_INDS, PREV_VALS

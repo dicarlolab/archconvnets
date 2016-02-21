@@ -28,7 +28,7 @@
 
 
 //#define DEBUG 1
-//#define TIMING_DEBUG 1
+#define TIMING_DEBUG 1
 
 #define CHECK_CUDA_ERR {err = cudaGetLastError();if(err != cudaSuccess){\
 		printf("CUDA error: %s, %s, %i\n",cudaGetErrorString(err),__FILE__,__LINE__);return NULL;}}

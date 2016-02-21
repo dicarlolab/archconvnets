@@ -75,11 +75,7 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	DERIV_ABOVE_reshaped = (n_imgs, dim_above) + DERIV_ABOVE[1][n_dim_not_summed+1:]
 	
 	# so we have deriv_above (3d: i,j,k) and x (2d: k,l), compute batched dot product (i,j,l)
-	#if F_reshaped[0] != 1 or X_reshaped[2] != 1: #np.prod(LAYER_OUT[1]) != n_imgs:
 	_ntm_module3.linear_F_dx(F[0], F_reshaped, X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
-	#else:
-	#	# F: (1, 7) X: (50, 7, 1) deriv_above: (50, 1, 1)
-	#	OUT_BUFFER = set_buffer(return_buffer(DERIV_ABOVE)*(return_buffer(F).T[np.newaxis]), OUT_BUFFER)
 	
 	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed+1] + X[1][1:]
 	
