@@ -35,7 +35,7 @@ static PyObject * conv_dfilter(PyObject *self, PyObject *args){
 	int conv_out_sz_y;
 
 	long intended_sz = n_filters*n_channels*filter_sz*filter_sz * DATA_TYPE_SZ;
-	int n_imgs_kernel = n_imgs;
+	int n_imgs_kernel = n_imgs; // only if dim_above == 1
 	
 	if(dim_above != 1){ // don't sum across images
 		intended_sz *= n_batches;

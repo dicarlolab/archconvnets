@@ -14,7 +14,7 @@ N_FRAMES = 2
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
 
 F1_IND = 0
-X1_IND = find_layer(LAYERS,'T1_lin')
+X1_IND = find_layer(LAYERS,'F4')
 X2_IND = find_layer(LAYERS,'T2_lin')
 X3_IND = find_layer(LAYERS,'T3_lin')
 X4_IND = find_layer(LAYERS,'T4_lin')
@@ -25,9 +25,9 @@ ERR_IND = find_layer(LAYERS, 'ERR')
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) * 1e0
 set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1]) # target
 
-set_buffer(random_function(LAYERS[X1_IND]['in_shape'][1]), WEIGHTS[X1_IND][1]) # target
-set_buffer(random_function(LAYERS[X2_IND]['in_shape'][1]), WEIGHTS[X2_IND][1]) # target
-set_buffer(random_function(LAYERS[X3_IND]['in_shape'][1]), WEIGHTS[X3_IND][1]) # target
+#set_buffer(random_function(LAYERS[X1_IND]['in_shape'][1]), WEIGHTS[X1_IND][1]) # target
+#set_buffer(random_function(LAYERS[X2_IND]['in_shape'][1]), WEIGHTS[X2_IND][1]) # target
+#set_buffer(random_function(LAYERS[X3_IND]['in_shape'][1]), WEIGHTS[X3_IND][1]) # target
 #set_buffer(random_function(LAYERS[X4_IND]['in_shape'][1]), WEIGHTS[X4_IND][1]) # target
 #set_buffer(random_function(LAYERS[X5_IND]['in_shape'][1]), WEIGHTS[X5_IND][1]) # target
 
