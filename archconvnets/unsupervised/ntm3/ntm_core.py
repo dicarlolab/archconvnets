@@ -201,6 +201,21 @@ def reverse_network_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPU
 						# multiply partials batched over the images, then sum the results:
 						deriv_temp = mult_partials(deriv_above_new, p_partial, LAYERS[src]['out_shape'], keep_dims=keep_dims)
 						
+						check_buffer(deriv_above_new)
+						check_buffer(p_partial)
+						check_buffer(deriv_temp)
+						check_buffer(WEIGHT_DERIVS[p_layer_ind][p_arg])
+						
+						'''print
+						print 'L_name', L['name'], 'arg',arg
+						print 'P_NAME', LAYERS[P['in_source'][arg2]]['name']
+						print 'P_in_source', P['in_source'][arg2], 'P_in_arg', P['in_arg'][arg2], 
+						print 'WEIGHT_DERIVS_p_layer', WEIGHT_DERIVS[p_layer_ind][p_arg][1]
+						print 'deriv_temp', deriv_temp[1]
+						print 'deriv_above_new', deriv_above_new[1]
+						print 'p_partial', p_partial[1]
+						print 'out_shape', LAYERS[src]['out_shape']'''
+						
 						WEIGHT_DERIVS[p_layer_ind][p_arg] = add_points_inc((WEIGHT_DERIVS[p_layer_ind][p_arg], deriv_temp), scalar=scalar)
 						
 						free_buffer(deriv_temp)

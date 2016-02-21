@@ -79,6 +79,7 @@ def init_model():
 		add_add_layer(LAYERS, 'STACK_SUM', ['STACK_SUM_F3', 'MEM_STACK'], init=init)
 		
 		add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM', -1], init=init)
+		add_sum_layer(LAYERS,'ERR_SUM',init=init)
 
 	check_network(LAYERS)
 	

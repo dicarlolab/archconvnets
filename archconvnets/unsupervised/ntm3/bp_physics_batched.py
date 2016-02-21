@@ -10,7 +10,7 @@ no_mem = True
 no_mem = False
 T_AHEAD = 2
 INPUT_SCALE = 1e-5
-EPS = 1e-1
+EPS = 5e-2
 
 if no_mem:
 	from architectures.model_architecture_movie_no_mem_read_only import init_model
@@ -26,11 +26,11 @@ frame = 0; frame_local = 0; err = 0
 
 EPOCH_LEN = 6*6
 SAVE_FREQ = 25 # instantaneous checkpoint
-FRAME_LAG = 25 #SAVE_FREQ
+FRAME_LAG = 50 #SAVE_FREQ
 STOP_POINT = np.inf #SAVE_FREQ*15
 
 output_buffer = np.zeros(SAVE_FREQ,dtype='single')
-err_log = []; corr_log = []
+err_log = []
 
 t_start = time.time()
 
@@ -39,7 +39,6 @@ LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
 
 STACK_SUM_IND = find_layer(LAYERS, 'ERR')
 TARGET_IND = find_layer(LAYERS, 'ERR')
-OUT_IND = find_layer(LAYERS, 'ERR')
 F1_IND = 0
 
 OUTPUT = None; WEIGHT_DERIVS = None
@@ -72,13 +71,13 @@ while True:
 	
 	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 	
-	current_err = return_buffer(OUTPUT[-1])
+	current_err = return_buffer(OUTPUT[-1])[0]
 	err += current_err;  output_buffer[frame % SAVE_FREQ]
 
 	
 	###### reverse
 	WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)
-		
+	
 	# update partials_prev
 	MEM_DERIVS = reverse_network(MEM_INDS, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, MEM_DERIVS, keep_dims=True)
 	PARTIALS_PREV = copy_partials(MEM_INDS, LAYERS, PARTIALS_PREV, MEM_DERIVS)
@@ -91,14 +90,13 @@ while True:
 		
 	# print
 	if frame % SAVE_FREQ == 0 and frame != 0:
-		#corr_log.append(pearsonr(targets[frame_local+T_AHEAD], return_buffer(OUTPUT[STACK_SUM_IND]))[0])
-		err_log.append(err / SAVE_FREQ); err = 0
+		err_log.append(err / (BATCH_SZ*SAVE_FREQ)); err = 0
 		
-		print_state(LAYERS, WEIGHTS, WEIGHT_DERIVS, OUTPUT, EPS, err_log, frame, err_log, t_start, save_name, print_names)
+		print 'err: ', err_log[-1], 'batch: ', frame, 'time: ', time.time() - t_start, 'GPU:', GPU_IND, save_name
 		
 		#######
 		WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
-		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'err_log': err_log, 'corr_log': err_log, 'EPS': EPS, \
+		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'err_log': err_log, 'EPS': EPS, \
 				'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'EPOCH_LEN': EPOCH_LEN})
 		
 		t_start = time.time()
