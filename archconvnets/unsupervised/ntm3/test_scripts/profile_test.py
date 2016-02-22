@@ -7,11 +7,11 @@ from ntm_core import *
 #from architectures.model_architecture_simple import init_model
 #from architectures.model_architecture_cp import init_model
 #from architectures.movie_phys_latent import init_model
-from architectures.model_architecture_cp_batched import init_model
-#from architectures.highway import init_model
+#from architectures.model_architecture_cp_batched import init_model
+from architectures.model_architecture_movie_mem_batched import init_model
 
 free_all_buffers()
-N_FRAMES = 50*2
+N_FRAMES = 10 #50*2
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
@@ -32,6 +32,7 @@ t_start = time.time()
 
 for frame in range(N_FRAMES):
 	set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
+	set_buffer(target[frame], WEIGHTS[TARGET_IND][1])  # inputs
 	
 	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 	WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)
