@@ -7,7 +7,7 @@ from scipy.stats import zscore, pearsonr
 from worlds.elastic_world_batched import generate_imgs
 
 no_mem = True
-#no_mem = False
+no_mem = False
 T_AHEAD = 2
 INPUT_SCALE = 1e-5
 EPS = -5e-2

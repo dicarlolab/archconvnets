@@ -38,7 +38,7 @@ for loc_x in range(out_sz):
 		imgs_temp = imgs_pad[:,:,loc_x:loc_x+filter_sz, loc_y:loc_y+filter_sz].reshape((n_imgs, 3*filter_sz*filter_sz))
 		out_cpu[:,:, loc_x, loc_y] = np.dot(imgs_temp, filters_temp)
 		
-		
+	
 # deriv_above [n_imgs, dim_above, n_filters, out_sz, out_sz]
 # F [n_filters, 3, f_sz, f_sz]
 # imgs [n_imgs, 3, in_sz, in_sz]
