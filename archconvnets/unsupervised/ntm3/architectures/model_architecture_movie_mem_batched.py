@@ -3,9 +3,9 @@ from ntm_core import *
 def init_model():
 	LAYERS = []
 
-	N_CONTROLLERS = 3
-	N_MEM_SLOTS = 3
-	M_LENGTH = 3
+	N_CONTROLLERS = 16
+	N_MEM_SLOTS = 6
+	M_LENGTH = 8
 
 	mem_shape = (BATCH_SZ, N_MEM_SLOTS, M_LENGTH)
 	
@@ -13,9 +13,9 @@ def init_model():
 	U_F2_FILTER_SZ = 5
 	U_F3_FILTER_SZ = 3
 	
-	U_F1 = 32
-	U_F2 = 32
-	U_F3 = 32
+	U_F1 = 16
+	U_F2 = 16
+	U_F3 = 16
 	U_FL = 8
 	
 	A_F1 = 10

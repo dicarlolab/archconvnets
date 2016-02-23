@@ -16,7 +16,7 @@ if no_mem:
 	save_name = 'ntm_physics_series_no_mem_%f' % EPS
 else:
 	from architectures.model_architecture_movie_mem_batched import init_model
-	save_name = 'ntm_physics_series_%f' % EPS
+	save_name = 'ntm_physics_series2_%f' % EPS
 	
 free_all_buffers()
 
@@ -114,7 +114,7 @@ while True:
 		
 		err_log.append(err / (BATCH_SZ*SAVE_FREQ)); err = 0
 		
-		print 'err: ', err_log[-1], 'batch: ', frame, 'time: ', time.time() - t_start, 'GPU:', GPU_IND, save_name
+		print 'err: ', err_log[-1], 'batch: ', frame, 'time: ', time.time() - t_start, 'GPU:', GPU_IND, 'batch_sz:', BATCH_SZ, save_name
 		print 'err_t_series: ', err_t_series_log[-1]
 		
 		#######

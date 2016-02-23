@@ -63,6 +63,12 @@ static PyObject * linear_F_dx(PyObject *self, PyObject *args){
 	long F_dim0 = PyLong_AsLong(PyTuple_GetItem(F_shape,0));
 	long F_dim1 = PyLong_AsLong(PyTuple_GetItem(F_shape,1));
 	
+	if(buffer_sz[gpu_ind][deriv_above_ind] != n_imgs*dim_above*deriv_above_dim1*deriv_above_dim2*sizeof(DATA_TYPE)){
+		printf("deriv_above incorrect size %li %li\n", buffer_sz[gpu_ind][deriv_above_ind], n_imgs*dim_above*deriv_above_dim1*deriv_above_dim2*sizeof(DATA_TYPE));
+		printf("%li %li %li %li\n", n_imgs,dim_above,deriv_above_dim1,deriv_above_dim2);
+		return NULL;
+	}
+	
 	if(OUT_BUFFER_SZ == 0){ // init output buffer
 		err = cudaMalloc((void**) &GPU_BUFFER_OUT, DLDX_SZ); MALLOC_ERR_CHECK
 		

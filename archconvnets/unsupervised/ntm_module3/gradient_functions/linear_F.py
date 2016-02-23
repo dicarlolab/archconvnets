@@ -72,7 +72,7 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	
 	n_dim_not_summed = len(DERIV_ABOVE[1]) - len(LAYER_OUT[1])
 	dim_above = np.prod(DERIV_ABOVE[1][1:1+n_dim_not_summed])
-	DERIV_ABOVE_reshaped = (n_imgs, dim_above) + DERIV_ABOVE[1][n_dim_not_summed+1:]
+	DERIV_ABOVE_reshaped = (n_imgs, dim_above, F_reshaped[0], X_reshaped[-1])
 	
 	# so we have deriv_above (3d: i,j,k) and x (2d: k,l), compute batched dot product (i,j,l)
 	_ntm_module3.linear_F_dx(F[0], F_reshaped, X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
