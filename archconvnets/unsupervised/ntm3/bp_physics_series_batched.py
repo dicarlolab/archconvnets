@@ -120,7 +120,7 @@ while True:
 		#######
 		WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'err_log': err_log, 'EPS': EPS, \
-				'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'EPOCH_LEN': EPOCH_LEN, 'err_t_series': err_t_series_log,
+				'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'EPOCH_LEN': EPOCH_LEN, 'err_t_series': err_t_series_log, 'BATCH_SZ': BATCH_SZ,
 				'input_buffer': input_buffer, 'target_buffer': target_buffer, 'output_buffer': output_buffer})
 		
 		t_start = time.time()

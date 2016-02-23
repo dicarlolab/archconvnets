@@ -15,7 +15,7 @@ if no_mem:
 	save_name = 'ntm_no_mem_%f' % (-EPS)
 else:
 	from architectures.model_architecture_cp_batched import init_model
-	save_name = 'ntm_cp_uniform_batch_mem_%f' % (-EPS)
+	save_name = 'ntm_cp_%f' % (-EPS)
 
 free_all_buffers()
 

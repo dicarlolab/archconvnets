@@ -3,9 +3,9 @@ from ntm_core import *
 def init_model():
 	LAYERS = []
 
-	N_CONTROLLERS = 4
-	N_MEM_SLOTS = 6
-	M_LENGTH = 4
+	N_CONTROLLERS = 3
+	N_MEM_SLOTS = 3
+	M_LENGTH = 3
 
 	mem_shape = (BATCH_SZ, N_MEM_SLOTS, M_LENGTH)
 	
