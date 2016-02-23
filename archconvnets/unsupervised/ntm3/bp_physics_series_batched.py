@@ -8,32 +8,33 @@ from worlds.elastic_world_batched import generate_imgs
 
 no_mem = True
 no_mem = False
-T_AHEAD = 0
 INPUT_SCALE = 1e-1
 EPS = 5e-2
 
 if no_mem:
 	from architectures.model_architecture_movie_no_mem_batched import init_model
-	save_name = 'ntm_physics_no_mem_px_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
+	save_name = 'ntm_physics_series_no_mem_%f' % EPS
 else:
 	from architectures.model_architecture_movie_mem_batched import init_model
-	save_name = 'ntm_physics_%f_T_AHEAD_%i' % (-EPS, T_AHEAD)
+	save_name = 'ntm_physics_series_%f' % EPS
 	
 free_all_buffers()
 
 ################ init save vars
-frame = 0; frame_local = 0; err = 0
-
-EPOCH_LEN = 6 #6*6
-SAVE_FREQ = 5 # instantaneous checkpoint
+TIME_LENGTH = 3
+EPOCH_LEN = TIME_LENGTH*2
+SAVE_FREQ = EPOCH_LEN*2 # instantaneous checkpoint
 FRAME_LAG = 10 #SAVE_FREQ
 STOP_POINT = np.inf #SAVE_FREQ*15
+
+frame = 0; err = 0; frame_local = EPOCH_LEN; frame_save = 0
 
 input_buffer = np.zeros((SAVE_FREQ, BATCH_SZ, 1, 32, 32), dtype='single')
 output_buffer = np.zeros((SAVE_FREQ, BATCH_SZ, 16*16, 1), dtype='single')
 target_buffer = np.zeros((SAVE_FREQ, BATCH_SZ, 16*16, 1), dtype='single')
+err_t_series = np.zeros(EPOCH_LEN, dtype='single')
 
-err_log = []
+err_log = []; err_t_series_log = []
 
 t_start = time.time()
 
@@ -56,9 +57,9 @@ WEIGHTS_F1_INIT = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 #####################
 while True:
 	# end of movie:
-	if (frame % EPOCH_LEN) == 0:
+	if frame_local == EPOCH_LEN:
 		#### new movie
-		inputs, targets = generate_imgs(EPOCH_LEN + T_AHEAD)
+		inputs, targets = generate_imgs(EPOCH_LEN)
 		
 		#### reset state
 		free_list(OUTPUT_PREV)
@@ -70,18 +71,24 @@ while True:
 		frame_local = 0
 	
 	###### forward
-	set_buffer(inputs[frame_local], WEIGHTS[F1_IND][1])  # inputs
-	set_buffer(inputs[frame_local], WEIGHTS[STACK_SUM_PX_IND][1])  # inputs
-	set_buffer(targets[frame_local+T_AHEAD], WEIGHTS[TARGET_IND][1]) # target
+	if frame_local < TIME_LENGTH:
+		set_buffer(inputs[frame_local], WEIGHTS[F1_IND][1])  # inputs
+		set_buffer(inputs[frame_local], WEIGHTS[STACK_SUM_PX_IND][1])  # inputs
+		
+		input_buffer[frame_save] = copy.deepcopy(inputs[frame_local])
+	else:
+		input_buffer[frame_save] = copy.deepcopy(inputs[TIME_LENGTH - 1])
+	
+	set_buffer(targets[frame_local], WEIGHTS[TARGET_IND][1]) # target
 	
 	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 	
 	current_err = return_buffer(OUTPUT[-1])[0]
-	err += current_err;  output_buffer[frame % SAVE_FREQ]
+	err += current_err
+	err_t_series[frame_local] += current_err
 	
-	input_buffer[frame % SAVE_FREQ] = copy.deepcopy(inputs[frame_local])
-	target_buffer[frame % SAVE_FREQ] = copy.deepcopy(targets[frame_local+T_AHEAD])
-	output_buffer[frame % SAVE_FREQ] = return_buffer(OUTPUT[STACK_SUM_IND])
+	target_buffer[frame_save] = copy.deepcopy(targets[frame_local])
+	output_buffer[frame_save] = return_buffer(OUTPUT[STACK_SUM_IND])
 	
 	###### reverse
 	WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)
@@ -100,23 +107,24 @@ while True:
 			print 'starting'
 		
 	# print
-	if frame % SAVE_FREQ == 0 and frame != 0:
+	if (frame_save+1) % SAVE_FREQ == 0 and frame != 0:
+		frame_save = -1
+		err_t_series_log.append(err_t_series / (BATCH_SZ*SAVE_FREQ/EPOCH_LEN))
+		err_t_series = np.zeros(EPOCH_LEN, dtype='single')
+		
 		err_log.append(err / (BATCH_SZ*SAVE_FREQ)); err = 0
 		
 		print 'err: ', err_log[-1], 'batch: ', frame, 'time: ', time.time() - t_start, 'GPU:', GPU_IND, save_name
-		
-		#dF1 = return_buffer(WEIGHT_DERIVS[0][0])
-		#print np.max(dF1), np.min(dF1)
+		print 'err_t_series: ', err_t_series_log[-1]
 		
 		#######
 		WEIGHTS_F1 = return_buffer(WEIGHTS[find_layer(LAYERS, 'F1')][0])
 		savemat('/home/darren/' + save_name + '.mat', {'output_buffer': output_buffer, 'err_log': err_log, 'EPS': EPS, \
-				'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'EPOCH_LEN': EPOCH_LEN, 
+				'F1_init': WEIGHTS_F1_INIT, 'F1': WEIGHTS_F1, 'EPOCH_LEN': EPOCH_LEN, 'err_t_series': err_t_series_log,
 				'input_buffer': input_buffer, 'target_buffer': target_buffer, 'output_buffer': output_buffer})
 		
 		t_start = time.time()
 		
-	frame += 1
-	frame_local += 1
+	frame += 1; frame_local += 1; frame_save += 1
 	if frame == STOP_POINT:
 		print 'stopping'

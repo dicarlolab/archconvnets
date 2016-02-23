@@ -31,6 +31,8 @@ __global__ void conv_dfilter_nsum(float * imgs, float * deriv_above, float * out
 	if(ind < n_additional_duplicates) n_duplicates++;
 	
 	unsigned ind_g, ind_deriv, ind_img, o1, o2, img, a, f, f1, f2, r, c;
+	unsigned ind_deriv_temp, ind_img_temp;
+	
 	for(int dup = 0; dup < n_duplicates; dup++){
 		ind_g = dup*THREAD_CAPACITY + ind;
 		
@@ -53,20 +55,24 @@ __global__ void conv_dfilter_nsum(float * imgs, float * deriv_above, float * out
 		f1 = r / f_sz;
 		f2 = r % f_sz;
 		
+		ind_deriv_temp = img * dim_above*n_filters*out_sz*out_sz + a * n_filters*out_sz*out_sz + f * out_sz*out_sz;
+		ind_img_temp = img * n_channels*img_sz*img_sz + c * img_sz*img_sz + (f1 - PAD)*img_sz + f2 - PAD;
+		
 		out[ind_g] = 0;
+		//for(o1 = 0; o1 < out_sz; o1++){
 		for(o1 = 0; o1 < out_sz; o1++){
-			for(o2 = 0; o2 < out_sz; o2++){
-				/*# deriv_above [n_imgs, dim_above, n_filters, out_sz, out_sz]
-				# imgs [n_imgs, 3, in_sz, in_sz]*/
-				if ((o1 + f1 - PAD) < img_sz && (o2 + f2 - PAD) < img_sz){
-					ind_deriv = img * dim_above*n_filters*out_sz*out_sz + a * n_filters*out_sz*out_sz +
-									f * out_sz*out_sz + o1 * out_sz + o2;
-					
-					ind_img = img * n_channels*img_sz*img_sz + c * img_sz*img_sz + (o1 + f1 - PAD)*img_sz + o2 + f2 - PAD;
-					
-					out[ind_g] += deriv_above[ind_deriv] * imgs[ind_img];
-				}
-			} // o1
+			if ((o1 + f1 - PAD) < img_sz)
+				for(o2 = 0; o2 < out_sz; o2++){
+					/*# deriv_above [n_imgs, dim_above, n_filters, out_sz, out_sz]
+					# imgs [n_imgs, 3, in_sz, in_sz]*/
+					if ((o1 + f1 - PAD) < img_sz && (o2 + f2 - PAD) < img_sz){
+						ind_deriv = ind_deriv_temp + o1 * out_sz + o2;
+						
+						ind_img = ind_img_temp + o1*img_sz + o2;
+						
+						out[ind_g] += deriv_above[ind_deriv] * imgs[ind_img];
+					}
+				} // o1
 		} //o2
 	} // ind_g
 }

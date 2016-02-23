@@ -1,6 +1,7 @@
 import copy
 import numpy as np
-from ntm_core import *
+from archconvnets.unsupervised.ntm3.ntm_core import *
+import Image
 
 def check_collision(x_possible, x_sz):
     # check collision with other object
@@ -40,7 +41,7 @@ def update_state(x, v, m, x_sz):
 
 def init_state():
     n_objs = 2
-    v_scale = 2e-1
+    v_scale = 1e-1
     x_scale = .2
     
     x_sz = x_scale * np.ones(n_objs)
@@ -77,21 +78,25 @@ def show_state(x, v, m, x_sz, im_sz):
     return im
 
 def generate_imgs(n_imgs=34):
-    inputs = np.zeros((n_imgs, BATCH_SZ, 3, 32,32), dtype='single')
-    
-    x, v, m, x_sz, im_sz = init_state()
+	x, v, m, x_sz, im_sz = init_state()
 
-    for frame in range(n_imgs):
+	inputs = np.zeros((n_imgs, BATCH_SZ, im_sz, im_sz), dtype='single')
+	targets = np.zeros((n_imgs, BATCH_SZ, im_sz/2, im_sz/2), dtype='single')
+	
+	for batch in range(BATCH_SZ):
+		x[batch], v[batch] = update_state(x[batch], v[batch], m[batch], x_sz)
+	
+	for frame in range(n_imgs):
 		for batch in range(BATCH_SZ):
 			inputs[frame, batch] = show_state(x[batch], v[batch], m[batch], x_sz, im_sz) - .5
+			f_max = (inputs[frame, batch]+.5).max()
+			targets[frame, batch] = f_max*np.asarray(Image.fromarray(np.uint8((inputs[frame, batch]+.5)*255/f_max)).resize((16,16)))/255. - .5
 			x[batch], v[batch] = update_state(x[batch], v[batch], m[batch], x_sz)
-    
-    targets = copy.deepcopy(inputs)
-    targets = targets.reshape((n_imgs, BATCH_SZ, 3*32*32,1))
-    
-    inputs = inputs.reshape((n_imgs, BATCH_SZ, 3, 32, 32))
-    
-    return inputs, targets
+
+	inputs = inputs.reshape((n_imgs, BATCH_SZ, 1, im_sz, im_sz))
+	targets = targets.reshape((n_imgs, BATCH_SZ, ((im_sz/2)**2),1))
+
+	return inputs, targets
 	
 def generate_latents(EPOCH_LEN=32, T_AHEAD=2):
 	n_imgs = EPOCH_LEN + T_AHEAD
