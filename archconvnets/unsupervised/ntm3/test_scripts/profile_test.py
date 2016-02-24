@@ -13,7 +13,7 @@ from architectures.model_architecture_movie_lstm_conv_batched import init_model
 
 
 free_all_buffers()
-N_FRAMES = 10 #50*2
+N_FRAMES = 50 #50*2
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]

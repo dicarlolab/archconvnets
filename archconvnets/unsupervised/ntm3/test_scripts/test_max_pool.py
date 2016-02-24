@@ -2,14 +2,13 @@ import numpy as np
 import time
 from archconvnets.unsupervised.ntm3.ntm_core import *
 
-dim_above = 4
-n_imgs = 2
-n_filters = 7
-img_sz = 4
+n_imgs = 32
+n_filters = 16
+img_sz = 32
 out_sz = img_sz / 2
 pool_width = 3
 stride = 2
-dim_above = 5
+dim_above = 2
 
 imgs = np.single(np.random.random((n_imgs, n_filters, img_sz,img_sz))) - .5
 deriv_above = np.single(np.random.random((n_imgs, dim_above, n_filters, out_sz,out_sz))) - .5
