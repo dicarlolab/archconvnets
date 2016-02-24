@@ -84,6 +84,9 @@ def init_model():
 		add_sigmoid_F_bias_layer(LAYERS, 'STACK_SUM_PRE4', N_FC, init=init)
 		add_linear_F_bias_layer(LAYERS, 'STACK_SUM', N_TARGET, init=init)
 		
+		#add_add_layer(LAYERS, 'ERR', ['STACK_SUM', -1], scalar=-1, init=init)
+		#add_sq_points_layer(LAYERS, 'SQ_ERR', init=init)
+		
 		add_pearson_layer(LAYERS, 'ERR', ['STACK_SUM', -1], init=init)
 		
 		add_sum_layer(LAYERS,'ERR_SUM',init=init)
