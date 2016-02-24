@@ -5,17 +5,19 @@ from ntm_core import *
 from scipy.io import savemat
 from scipy.stats import zscore, pearsonr
 
-no_mem = True
-no_mem = False
+train = 2
 
-EPS = -1e-1
+EPS = -1e-2
 
-if no_mem:
+if train == 0:
 	from architectures.model_architecture_cp_no_mem import init_model
 	save_name = 'ntm_no_mem_%f' % (-EPS)
-else:
+elif train == 1:
 	from architectures.model_architecture_cp_batched import init_model
 	save_name = 'ntm_cp_%f' % (-EPS)
+elif train == 2:
+	from architectures.model_architecture_cp_batched_lstm import init_model
+	save_name = 'lstm_cp_%f' % (-EPS)
 
 free_all_buffers()
 
