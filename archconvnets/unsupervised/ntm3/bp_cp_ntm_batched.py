@@ -7,7 +7,7 @@ from scipy.stats import zscore, pearsonr
 
 train = 2
 
-EPS = -1e-2
+EPS = -1e-1
 
 if train == 0:
 	from architectures.model_architecture_cp_no_mem import init_model

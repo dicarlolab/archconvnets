@@ -8,7 +8,9 @@ from ntm_core import *
 #from architectures.model_architecture_cp import init_model
 #from architectures.movie_phys_latent import init_model
 #from architectures.model_architecture_cp_batched import init_model
-from architectures.model_architecture_movie_mem_batched import init_model
+#from architectures.model_architecture_movie_mem_batched import init_model
+from architectures.model_architecture_movie_lstm_conv_batched import init_model
+
 
 free_all_buffers()
 N_FRAMES = 10 #50*2
@@ -17,7 +19,9 @@ N_FRAMES = 10 #50*2
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
 
 F1_IND = 0
+STACK_SUM_PX_IND = find_layer(LAYERS, 'STACK_SUM_PX_lin')
 TARGET_IND = find_layer(LAYERS, 'ERR')
+
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) / 10
 target = random_function(np.concatenate(((N_FRAMES,), LAYERS[TARGET_IND]['in_shape'][1]))) / 10
 set_buffer(target[0], WEIGHTS[TARGET_IND][1]) # target
@@ -32,6 +36,7 @@ t_start = time.time()
 
 for frame in range(N_FRAMES):
 	set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
+	set_buffer(x1t[frame], WEIGHTS[STACK_SUM_PX_IND][1])  # inputs
 	set_buffer(target[frame], WEIGHTS[TARGET_IND][1])  # inputs
 	
 	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)

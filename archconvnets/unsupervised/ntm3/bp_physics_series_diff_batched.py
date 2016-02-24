@@ -6,26 +6,31 @@ from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
 from worlds.elastic_world_batched import generate_imgs
 
-no_mem = True
-#no_mem = False
-INPUT_SCALE = 1e-1
-EPS = 1e-3
+train = 0
+EPS = 1e-2
 
-if no_mem:
+if train == 0:
 	from architectures.model_architecture_movie_no_mem_batched import init_model
-	save_name = 'ntm_physics_series_diff_no_mem_%f' % EPS
-else:
+	save_name = 'ntm_physics_series_diff_no_mem2_%f' % EPS
+elif train == 1:
 	from architectures.model_architecture_movie_mem_batched import init_model
 	save_name = 'ntm_physics_series_diff_%f' % EPS
-	
+elif train == 2:
+	from architectures.model_architecture_movie_lstm_batched import init_model
+	save_name = 'lstm_physics_series_diff_%f' % EPS
+elif train == 3:
+	from architectures.model_architecture_movie_lstm_conv_batched import init_model
+	save_name = 'lstm_conv_physics_series_diff_%f' % EPS
+
 free_all_buffers()
 
 ################ init save vars
 TIME_LENGTH = 3
 EPOCH_LEN = TIME_LENGTH*2
 SAVE_FREQ = EPOCH_LEN*2 # instantaneous checkpoint
-FRAME_LAG = 50 #SAVE_FREQ
-STOP_POINT = np.inf #SAVE_FREQ*15
+FRAME_LAG = 50
+STOP_POINT = np.inf
+INPUT_SCALE = 1e-1
 
 frame = 0; err = 0; frame_local = EPOCH_LEN; frame_save = 0
 
