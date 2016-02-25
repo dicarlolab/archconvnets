@@ -6,7 +6,7 @@ from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
 from worlds.elastic_world_batched import generate_imgs
 
-train = 0
+train = 5
 EPS = 1e-2
 
 if train == 0:
@@ -21,7 +21,14 @@ elif train == 2:
 elif train == 3:
 	from architectures.model_architecture_movie_lstm_conv_batched import init_model
 	save_name = 'lstm_conv_physics_series_diff_%f' % EPS
+elif train == 4:
+	from architectures.model_architecture_movie_lstm_conv_stacked_batched import init_model
+	save_name = 'lstm_conv_stacked_physics_series_diff_%f' % EPS
+elif train == 5:
+	from architectures.model_architecture_movie_lstm_conv_stacked_batched import init_model
+	save_name = 'lstm_conv_stacked_physics_series_diff_no_mem_%f' % EPS
 
+	
 free_all_buffers()
 
 ################ init save vars
