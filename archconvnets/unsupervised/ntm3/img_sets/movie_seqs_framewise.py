@@ -19,7 +19,7 @@ N_FILES_TEST_MOVIE = 1
 N_CAT_MOVIE = len(np.unique(syn_cats))
 N_OBJ_MOVIE = 91
 
-N_TEST = 250
+N_TEST = 500
 N_BATCHES_TEST_MOVIE = N_TEST / BATCH_SZ
 
 z = loadmat('/home/darren/new_movies3_cut/0.mat')
@@ -110,6 +110,8 @@ def load_movie_seqs(batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, 
 	set_buffer(np.ascontiguousarray(target.reshape((BATCH_SZ, np.prod(target.shape[1:]), 1))), WEIGHTS[DIFF_IND][1])
 	set_buffer(px_input, WEIGHTS[F1_IND][1])
 	set_buffer(px_input, WEIGHTS[PX_IND][1])
+	
+	#print px_input.shape, np.ascontiguousarray(target.reshape((BATCH_SZ, np.prod(target.shape[1:]), 1))).shape, testing
 	
 	return objs,cats, cat_target, obj_target, movie_inputs, movie_targets
 	

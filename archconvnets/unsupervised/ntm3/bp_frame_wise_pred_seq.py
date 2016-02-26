@@ -9,7 +9,7 @@ from img_sets.movie_seqs_framewise import *
 
 EPS = 1e-2
 
-train_filters_on = 0
+train_filters_on = 3
 
 free_all_buffers()
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
@@ -28,7 +28,7 @@ elif train_filters_on == 2:
 else:
 	save_name = 'rand'
  
-save_name += '_EPS_%f' % EPS
+save_name += '_EPS_%f_N_FUTURE_%i' % (EPS, N_FUTURE)
 
 if NO_MEM:
 	save_name += '_no_mem'
@@ -40,8 +40,9 @@ obj_err = 0; obj_class = 0; obj_test_err = 0; obj_test_class = 0
 
 SAVE_FREQ = 10
 batch_LAG = 10
+batch_stop = np.inf #150*2
 
-err_log = []; err_t_series_log = []; err_test_log = []
+err_log = []; err_t_series_log = []; err_t_series_test_log = []; err_test_log = []
 cat_err_log = []; cat_class_log = []; obj_err_log = []; obj_class_log = []
 cat_test_err_log = []; cat_test_class_log = []; obj_test_err_log = []; obj_test_class_log = []
 
@@ -78,6 +79,8 @@ PARTIALS_PREV = init_partials(LAYERS, MEM_INDS)
 
 t_start = time.time()
 
+err_counter = 0;
+err_counter2 = 0
 #####################
 while True:
 	# reset states
@@ -90,7 +93,7 @@ while True:
 	###############
 	# forward movie
 	objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(batch, 0, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, PX_IND, WEIGHTS)
-	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, break_layer=MOVIE_BREAK_LAYER_IND)
+	OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 	
 	# predictions/errors
 	obj_pred = return_buffer(OUTPUT[OBJ_PRED_IND])
@@ -131,13 +134,17 @@ while True:
 				
 				err += cur_err
 				err_t_series[frame] += cur_err
+				err_counter2 += 1
 				
-				WEIGHT_DERIVS = reverse_network(OUT_IND, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)
-				WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS / BATCH_SZ, batch, batch_LAG)
+				WEIGHT_DERIVS = reverse_network(OUT_IND, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS, reset_derivs=False)
 			
 			### save predictions
 			if batch % SAVE_FREQ == 0 and batch != 0:
 				output_buffer[frame] = return_buffer(OUTPUT[PRED_IND])
+		
+		if batch <= batch_stop:
+			WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS / (N_FUTURE*BATCH_SZ), batch, batch_LAG)
+			zero_buffer_list(WEIGHT_DERIVS)
 
 	##############
 	# print/save/test
@@ -155,7 +162,7 @@ while True:
 			
 			###############
 			# forward movie
-			objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(t_batch, 0, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, PX_IND, WEIGHTS, testing=t_batch)
+			objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(t_batch, 0, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, PX_IND, WEIGHTS, testing=True)
 			OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 			
 			# predictions/errors
@@ -173,14 +180,18 @@ while True:
 				output_buffer_test[0] = return_buffer(OUTPUT[PRED_IND])
 				
 				for frame in range(1, EPOCH_LEN):
-					objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(t_batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, PX_IND, WEIGHTS, testing=t_batch)
-					OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
-					
 					# update partials_prev
 					OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
 					
+					objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(t_batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, PX_IND, WEIGHTS, testing=True)
+					OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
+					
 					if frame >= 3: # test phase
-						err_test += return_buffer(OUTPUT[OUT_IND])[0]
+						cur_err = return_buffer(OUTPUT[OUT_IND])[0]
+						
+						err_test += cur_err
+						err_t_series_test[frame] += cur_err
+						
 						output_buffer_test[frame] = return_buffer(OUTPUT[PRED_IND])
 			
 		######## log/save
@@ -203,6 +214,9 @@ while True:
 		
 		obj_test_err_log.append(obj_test_err / (BATCH_SZ*N_BATCHES_TEST_MOVIE)); obj_test_err = 0;
 		obj_test_class_log.append(np.single(obj_test_class) / (BATCH_SZ*N_BATCHES_TEST_MOVIE)); obj_test_class = 0;
+		
+		err_t_series_test_log.append(err_t_series_test / (BATCH_SZ*N_BATCHES_TEST_MOVIE/EPOCH_LEN))
+		err_t_series_test = np.zeros(EPOCH_LEN, dtype='single')
 		
 		print 'batch: ', (np.single(batch * BATCH_SZ) / (N_MOVIES*MOVIE_FILE_SZ)), batch, 'time: ', time.time() - t_start, 'GPU:', GPU_IND, save_name
 		print
