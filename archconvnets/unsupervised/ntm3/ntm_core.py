@@ -145,6 +145,63 @@ def init_gpu_list(LIST, LAYERS, args=True):
 
 
 # apply chain-rule down the network
+def reverse_network_btt(layer_ind, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS, frame, keep_dims=False, scalar=1, reset_derivs=True, abort_layer=None): # multiply all partials together
+	if abort_layer is not None:
+		abort_layer = find_layer(LAYERS, abort_layer)
+	
+	WEIGHT_DERIVS = init_gpu_list(WEIGHT_DERIVS, LAYERS)
+	if reset_derivs:
+		zero_buffer_list(WEIGHT_DERIVS)
+
+	WEIGHT_DERIVS = reverse_network_btt_recur(None, layer_ind, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS, frame, keep_dims, scalar, abort_layer)
+	
+	return WEIGHT_DERIVS
+
+def reverse_network_btt_recur(deriv_above, layer_ind, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS, frame, keep_dims, scalar, abort_layer): # multiply all partials together
+	L = LAYERS[layer_ind]
+	N_ARGS = len(L['in_shape'])
+	deriv_above_created = deriv_above is None
+	
+	if len(LAYERS[layer_ind]['out_shape']) > 1 and deriv_above is None: # skip image dim
+		n_imgs = LAYERS[layer_ind]['out_shape'][0]
+		deriv_above_shape = LAYERS[layer_ind]['out_shape'] + LAYERS[layer_ind]['out_shape'][1:]
+		deriv_above = init_buffer(np.single(np.tile(np.eye(np.prod(LAYERS[layer_ind]['out_shape'][1:]))[np.newaxis], (n_imgs, 1, 1))).reshape(deriv_above_shape))
+	elif deriv_above is None:
+		deriv_above_shape = LAYERS[layer_ind]['out_shape'] + LAYERS[layer_ind]['out_shape']
+		deriv_above = init_buffer(np.single(np.eye(np.prod(LAYERS[layer_ind]['out_shape'])).reshape(deriv_above_shape)))
+	
+	for arg in range(N_ARGS):
+		src = L['in_source'][arg]
+		if L['in_source'][arg] != -1: # don't compute gradients for user-supplied entries (Ex. images)
+			
+			# compute derivs
+			args = build_forward_args(L, layer_ind, OUTPUT[frame], OUTPUT[frame-1], WEIGHTS)
+			deriv_above_new = L['deriv_F'][arg](args, OUTPUT[frame][layer_ind], deriv_above, additional_args=L['additional_deriv_args'][arg])
+			
+			# input is a layer:
+			if isinstance(src, int) and src != -1:
+				# memory partials--keep going back through the network...take step back in time...
+				if L['in_prev'][arg]:
+					if frame > 1:
+						reverse_network_btt_recur(deriv_above_new, src, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS, frame-1, keep_dims, scalar, abort_layer)
+					
+				# another layer (At this time step, go back to earlier layers)
+				# [do not go back if this is the abort_layer where we stop backpropping]
+				elif src != abort_layer:
+					reverse_network_btt_recur(deriv_above_new, src, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS, frame, keep_dims, scalar, abort_layer)
+			
+			# input is not a layer, end here
+			else:
+				WEIGHT_DERIVS[layer_ind][arg] = add_points_inc((WEIGHT_DERIVS[layer_ind][arg], deriv_above_new), scalar=scalar)
+				
+			free_buffer(deriv_above_new)
+	
+	if deriv_above_created:
+		free_buffer(deriv_above)
+	
+	return WEIGHT_DERIVS
+
+# apply chain-rule down the network
 def reverse_network(layer_ind, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS, WEIGHT_DERIVS, keep_dims=False, scalar=1, reset_derivs=True, abort_layer=None): # multiply all partials together
 	if abort_layer is not None:
 		abort_layer = find_layer(LAYERS, abort_layer)

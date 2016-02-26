@@ -8,7 +8,7 @@ from architectures.model_architecture_simple import init_model
 #from architectures.highway import init_model
 
 free_all_buffers()
-N_FRAMES = 5
+N_FRAMES = 25
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
