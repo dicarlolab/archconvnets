@@ -74,12 +74,20 @@ def linear_F_dx(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	dim_above = np.prod(DERIV_ABOVE[1][1:1+n_dim_not_summed])
 	DERIV_ABOVE_reshaped = (n_imgs, dim_above, F_reshaped[0], X_reshaped[-1])
 	
+	'''print
+	print 'linear_F_dx'
+	print 'F_reshaped', F_reshaped
+	print 'X_reshaped', X_reshaped
+	print 'DERIV_ABOVE_reshaped', DERIV_ABOVE_reshaped
+	print 'DERIV_ABOVE', DERIV_ABOVE[1]
+	print 'LAYER_OUT', LAYER_OUT[1]'''
+	
 	# so we have deriv_above (3d: i,j,k) and x (2d: k,l), compute batched dot product (i,j,l)
 	_ntm_module3.linear_F_dx(F[0], F_reshaped, X_reshaped, DERIV_ABOVE[0], DERIV_ABOVE_reshaped, OUT_BUFFER[0], gpu_ind)
 	
 	OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed+1] + X[1][1:]
 	
-	check_buffer(OUT_BUFFER)
+	#check_buffer(OUT_BUFFER)
 	
 	t_main[1] += time.time() - t
 	return OUT_BUFFER
@@ -118,7 +126,7 @@ def linear_F_dF(args, LAYER_OUT, DERIV_ABOVE, OUT_BUFFER=None, additional_args=[
 	if dim_above != 1:
 		OUT_BUFFER[1] = DERIV_ABOVE[1][:n_dim_not_summed+1] + F[1]
 	
-	check_buffer(OUT_BUFFER)
+	#check_buffer(OUT_BUFFER)
 	
 	t_main[2] += time.time() - t
 	return OUT_BUFFER

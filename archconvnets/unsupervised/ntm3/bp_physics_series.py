@@ -25,7 +25,7 @@ elif train == 4:
 	from architectures.model_architecture_movie_lstm_conv_stacked_batched import init_model
 	save_name = 'lstm_conv_stacked_physics_series_diff_%f' % EPS
 elif train == 5:
-	from architectures.model_architecture_movie_lstm_conv_stacked_batched import init_model
+	from architectures.model_architecture_movie_lstm_conv_stacked_batched_no_mem import init_model
 	save_name = 'lstm_conv_stacked_physics_series_diff_no_mem_%f' % EPS
 
 	

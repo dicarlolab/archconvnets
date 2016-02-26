@@ -5,7 +5,7 @@ from scipy.io import savemat, loadmat
 
 targets = np.zeros((2500, 16-3, 3, 16, 16), dtype='uint8')
 
-for file in range(40,445):
+for file in range(443,540):
 	print file
 	z = loadmat('/home/darren/new_movies3/' + str(file) + '.mat')
 	inputs = z['imgs'][:,:3]
