@@ -7,9 +7,9 @@ from scipy.stats import zscore, pearsonr
 from architectures.model_architecture_movie_lstm_conv_framewise import *
 from img_sets.movie_seqs_framewise import *
 
-EPS = 1e-2
+EPS = 1e-1
 
-train_filters_on = 3
+train_filters_on = 0
 
 free_all_buffers()
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()

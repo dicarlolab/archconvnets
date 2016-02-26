@@ -3,6 +3,11 @@
 #define BUFFER_SZ1 buffer_sz[gpu_ind][buffer_ind1]
 #define BUFFER_SZ2 buffer_sz[gpu_ind][buffer_ind2]
 
+#define N_IMGS_MALLOC 256
+
+float ** buffer1_pointers_gpu = NULL, ** buffer2_pointers_gpu = NULL, **out_pointers_gpu = NULL;
+float ** buffer1_pointers = NULL, ** buffer2_pointers = NULL, **out_pointers = NULL;
+
 static PyObject *linear_F(PyObject *self, PyObject *args){
 	cudaError_t err;
 	int gpu_ind, buffer_ind1, buffer_ind2, out_buffer_ind;
@@ -73,20 +78,26 @@ static PyObject *linear_F(PyObject *self, PyObject *args){
 		
 		////////////////////////////////////////////////////////
 		// setup batch pointers on CPU, then copy to GPU
-		float ** buffer1_pointers = (float **) malloc(n_imgs * sizeof(float *));
-		float ** buffer2_pointers = (float **) malloc(n_imgs * sizeof(float *));
-		float ** out_pointers = (float **) malloc(n_imgs * sizeof(float *));	
 		
-		if(buffer1_pointers == NULL || buffer2_pointers == NULL || out_pointers == NULL){
-			printf("malloc err line: %i, %s\n",__LINE__,__FILE__);
+		if(n_imgs > N_IMGS_MALLOC){
+			printf("n_imgs exceeds internal buffer %li, %i, %s\n", n_imgs, N_IMGS_MALLOC, __FILE__);
 			return NULL;
 		}
 		
-		float ** buffer1_pointers_gpu, ** buffer2_pointers_gpu, **out_pointers_gpu;
-		
-		err = cudaMalloc((void**) &buffer1_pointers_gpu, n_imgs*sizeof(float*)); MALLOC_ERR_CHECK
-		err = cudaMalloc((void**) &buffer2_pointers_gpu, n_imgs*sizeof(float*)); MALLOC_ERR_CHECK
-		err = cudaMalloc((void**) &out_pointers_gpu, n_imgs*sizeof(float*)); MALLOC_ERR_CHECK
+		if(buffer1_pointers_gpu == NULL){
+			err = cudaMalloc((void**) &buffer1_pointers_gpu, N_IMGS_MALLOC*sizeof(float*)); MALLOC_ERR_CHECK
+			err = cudaMalloc((void**) &buffer2_pointers_gpu, N_IMGS_MALLOC*sizeof(float*)); MALLOC_ERR_CHECK
+			err = cudaMalloc((void**) &out_pointers_gpu, N_IMGS_MALLOC*sizeof(float*)); MALLOC_ERR_CHECK
+			
+			buffer1_pointers = (float **) malloc(N_IMGS_MALLOC * sizeof(float *));
+			buffer2_pointers = (float **) malloc(N_IMGS_MALLOC * sizeof(float *));
+			out_pointers = (float **) malloc(N_IMGS_MALLOC * sizeof(float *));	
+			
+			if(buffer1_pointers == NULL || buffer2_pointers == NULL || out_pointers == NULL){
+				printf("malloc err line: %i, %s\n",__LINE__,__FILE__);
+				return NULL;
+			}
+		}
 		
 		for(int batch = 0; batch < n_imgs; batch++){
 			buffer1_pointers[batch] = GPU_BUFFER1;
@@ -100,15 +111,6 @@ static PyObject *linear_F(PyObject *self, PyObject *args){
 		
 		err_blas = cublasSgemmBatched(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_N, buffer2_dim2, buffer1_dim1, buffer1_dim2, &alpha,
 									 (const float**) buffer2_pointers_gpu, buffer2_dim2, (const float**) buffer1_pointers_gpu, buffer1_dim2, &beta, out_pointers_gpu, buffer2_dim2, n_imgs);
-		
-		///////////////////////////////////////////// possible race condition if sync isn't present
-		cudaFree(buffer1_pointers_gpu);
-		cudaFree(buffer2_pointers_gpu);
-		cudaFree(out_pointers_gpu);
-		
-		free(buffer1_pointers);
-		free(buffer2_pointers);
-		free(out_pointers);
 	}
 	
 	ERR_CHECK_BLAS
@@ -116,8 +118,6 @@ static PyObject *linear_F(PyObject *self, PyObject *args){
 	#ifdef TIMING_DEBUG
 		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
 	#endif
-	
-	//cudaSetDevice(0); CHECK_CUDA_ERR
 	
 	Py_INCREF(Py_None);
 	return Py_None;

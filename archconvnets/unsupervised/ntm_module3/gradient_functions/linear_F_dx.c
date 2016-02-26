@@ -1,5 +1,9 @@
 #define DLDX_SZ (n_batches*x_dim0*x_dim1*sizeof(DATA_TYPE))
 
+#define N_BATCHES_MALLOC 2048
+float ** F_pointers_dx = NULL, ** deriv_above_pointers_dx = NULL, **out_pointers_dx = NULL;
+float ** F_pointers_dx_gpu = NULL, ** deriv_above_pointers_dx_gpu = NULL, **out_pointers_dx_gpu = NULL;
+
 __global__ void pairwise_product_kernel_dx(float * deriv_above, float * F, float * out_buffer, int dim_above, int F_dim1, int data_out_numel){
 	int ind = blockIdx.x*MAX_THREADS_PER_BLOCK + threadIdx.x;
 	
@@ -100,54 +104,51 @@ static PyObject * linear_F_dx(PyObject *self, PyObject *args){
 		
 		////////////////////////////////////////////////////////
 		// setup batch pointers
-		float ** F_pointers = (float **) malloc(n_batches * sizeof(float *));
-		float ** deriv_above_pointers = (float **) malloc(n_batches * sizeof(float *));
-		float ** out_pointers = (float **) malloc(n_batches * sizeof(float *));	
 		
-		if(F_pointers == NULL || deriv_above_pointers == NULL || out_pointers == NULL){
-			printf("malloc err line: %i\n",__LINE__);
+		if(n_batches > N_BATCHES_MALLOC){
+			printf("n_imgs exceeds internal buffer %li, %i, %s\n", n_imgs, N_BATCHES_MALLOC, __FILE__);
 			return NULL;
 		}
 		
-		float ** F_pointers_gpu, ** deriv_above_pointers_gpu, **out_pointers_gpu;
-		
-		err = cudaMalloc((void**) &F_pointers_gpu, n_batches*sizeof(float*)); MALLOC_ERR_CHECK
-		err = cudaMalloc((void**) &deriv_above_pointers_gpu, n_batches*sizeof(float*)); MALLOC_ERR_CHECK
-		err = cudaMalloc((void**) &out_pointers_gpu, n_batches*sizeof(float*)); MALLOC_ERR_CHECK
-		
+		if(F_pointers_dx == NULL){
+			F_pointers_dx = (float **) malloc(N_BATCHES_MALLOC * sizeof(float *));
+			deriv_above_pointers_dx = (float **) malloc(N_BATCHES_MALLOC * sizeof(float *));
+			out_pointers_dx = (float **) malloc(N_BATCHES_MALLOC * sizeof(float *));	
+			
+			if(F_pointers_dx == NULL || deriv_above_pointers_dx == NULL || out_pointers_dx == NULL){
+				printf("malloc err line: %i\n",__LINE__);
+				return NULL;
+			}
+			
+			err = cudaMalloc((void**) &F_pointers_dx_gpu, N_BATCHES_MALLOC*sizeof(float*)); MALLOC_ERR_CHECK
+			err = cudaMalloc((void**) &deriv_above_pointers_dx_gpu, N_BATCHES_MALLOC*sizeof(float*)); MALLOC_ERR_CHECK
+			err = cudaMalloc((void**) &out_pointers_dx_gpu, N_BATCHES_MALLOC*sizeof(float*)); MALLOC_ERR_CHECK
+		}
+			
 		int batch = 0;
 		for(int img = 0; img < n_imgs; img++){
 			for(int dim = 0; dim < dim_above; dim++){
-				F_pointers[batch] = gpu_buffers[gpu_ind][F_ind];
-				deriv_above_pointers[batch] = gpu_buffers[gpu_ind][deriv_above_ind] + img*dim_above*deriv_above_dim1*deriv_above_dim2 + dim*deriv_above_dim1*deriv_above_dim2;
-				out_pointers[batch] = gpu_buffers[gpu_ind][out_buffer_ind] + img*dim_above*x_dim0*x_dim1 + dim*x_dim0*x_dim1;
+				F_pointers_dx[batch] = gpu_buffers[gpu_ind][F_ind];
+				deriv_above_pointers_dx[batch] = gpu_buffers[gpu_ind][deriv_above_ind] + img*dim_above*deriv_above_dim1*deriv_above_dim2 + dim*deriv_above_dim1*deriv_above_dim2;
+				out_pointers_dx[batch] = gpu_buffers[gpu_ind][out_buffer_ind] + img*dim_above*x_dim0*x_dim1 + dim*x_dim0*x_dim1;
 				batch ++;
 			}
 		}
 		
-		cudaMemcpy(F_pointers_gpu, F_pointers, n_batches * sizeof(float *), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
-		cudaMemcpy(deriv_above_pointers_gpu, deriv_above_pointers, n_batches * sizeof(float *), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
-		cudaMemcpy(out_pointers_gpu, out_pointers, n_batches * sizeof(float *), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
+		cudaMemcpy(F_pointers_dx_gpu, F_pointers_dx, n_batches * sizeof(float *), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
+		cudaMemcpy(deriv_above_pointers_dx_gpu, deriv_above_pointers_dx, n_batches * sizeof(float *), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
+		cudaMemcpy(out_pointers_dx_gpu, out_pointers_dx, n_batches * sizeof(float *), cudaMemcpyHostToDevice); CHECK_CUDA_ERR
 		
 		cublasStatus_t err_blas = cublasSgemmBatched(handle_blas[gpu_ind], CUBLAS_OP_N, CUBLAS_OP_T, deriv_above_dim2, F_dim1, F_dim0, &alpha,
-									 (const float**) deriv_above_pointers_gpu, deriv_above_dim2,(const float**) F_pointers_gpu, F_dim1, &beta, out_pointers_gpu, deriv_above_dim2, n_batches);
+									 (const float**) deriv_above_pointers_dx_gpu, deriv_above_dim2,(const float**) F_pointers_dx_gpu, F_dim1, &beta, out_pointers_dx_gpu, deriv_above_dim2, n_batches);
 		
 
 		ERR_CHECK_BLAS
-		
-		#ifdef TIMING_DEBUG
-			err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
-		#endif
-		
-		///////////////////////////////////////////// possible race condition if sync isn't present
-		cudaFree(F_pointers_gpu);
-		cudaFree(deriv_above_pointers_gpu);
-		cudaFree(out_pointers_gpu);
-		
-		free(F_pointers);
-		free(deriv_above_pointers);
-		free(out_pointers);
 	}
+	
+	#ifdef TIMING_DEBUG
+		err = cudaDeviceSynchronize(); CHECK_CUDA_ERR
+	#endif
 	
 	Py_INCREF(Py_None);
 	return Py_None;
