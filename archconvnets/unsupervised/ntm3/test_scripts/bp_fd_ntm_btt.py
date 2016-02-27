@@ -1,19 +1,20 @@
 import numpy as np
 import time
 import scipy.optimize
-from ntm_core_btt import *
+from ntm_core import *
 #from model_architecture_movie import init_model
 from architectures.model_architecture_simple import init_model
 #from architectures.model_architecture_cp import init_model
 #from architectures.highway import init_model
 
 free_all_buffers()
-N_FRAMES = 25
+N_FRAMES = 2
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
 
 F1_IND = 0
+F12_IND = find_layer(LAYERS,'F12')
 X1_IND = find_layer(LAYERS,'FL_lin')
 X2_IND = find_layer(LAYERS,'T2_lin')
 X3_IND = find_layer(LAYERS,'T3_lin')
@@ -32,7 +33,7 @@ set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1])
 #set_buffer(random_function(LAYERS[X5_IND]['in_shape'][1]), WEIGHTS[X5_IND][1]) # target
 
 ################ which gradient to test
-gradient_layer = X1_IND
+gradient_layer = F1_IND
 gradient_arg = 0
 
 def f(y):
@@ -45,6 +46,7 @@ def f(y):
 	
 	for frame in range(1,1+N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
+		set_buffer(x1t[frame], WEIGHTS[F12_IND][1])  # inputs
 		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
@@ -63,9 +65,10 @@ def g(y):
 	
 	for frame in range(1,1+N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
+		set_buffer(x1t[frame], WEIGHTS[F12_IND][1])  # inputs
 		
 		OUTPUT[frame] = forward_network(LAYERS, WEIGHTS, OUTPUT[frame], OUTPUT[frame-1])
-		WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS, frame)
+		WEIGHT_DERIVS = reverse_network_btt(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS, frame)
 		
 	z = return_buffer(WEIGHT_DERIVS[gradient_layer][gradient_arg]).ravel()[i_ind]
 	
@@ -78,7 +81,7 @@ def g(y):
 assert isinstance(LAYERS[gradient_layer]['in_source'][gradient_arg], int) != True, 'derivative of intermediate layer'
 ref = return_buffer(WEIGHTS[gradient_layer][gradient_arg])
 np.random.seed(np.int64(time.time()))
-eps = np.sqrt(np.finfo(np.float).eps)*1e5
+eps = np.sqrt(np.finfo(np.float).eps)*1e6
 
 N_SAMPLES = 25
 ratios = np.zeros(N_SAMPLES)

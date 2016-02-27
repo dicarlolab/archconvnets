@@ -8,12 +8,13 @@ from architectures.model_architecture_simple import init_model
 #from architectures.highway import init_model
 
 free_all_buffers()
-N_FRAMES = 25
+N_FRAMES = 3
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
 
 F1_IND = 0
+F12_IND = find_layer(LAYERS,'F12')
 X1_IND = find_layer(LAYERS,'FL_lin')
 X2_IND = find_layer(LAYERS,'T2_lin')
 X3_IND = find_layer(LAYERS,'T3_lin')
@@ -32,7 +33,7 @@ set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1])
 #set_buffer(random_function(LAYERS[X5_IND]['in_shape'][1]), WEIGHTS[X5_IND][1]) # target
 
 ################ which gradient to test
-gradient_layer = X1_IND
+gradient_layer = F12_IND
 gradient_arg = 0
 
 def f(y):
@@ -45,6 +46,7 @@ def f(y):
 	
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
+		set_buffer(x1t[frame], WEIGHTS[F12_IND][1])  # inputs
 		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
@@ -62,6 +64,7 @@ def g(y):
 	
 	for frame in range(N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
+		set_buffer(x1t[frame], WEIGHTS[F12_IND][1])  # inputs
 		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		WEIGHT_DERIVS = reverse_network(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV, PARTIALS_PREV, WEIGHT_DERIVS)

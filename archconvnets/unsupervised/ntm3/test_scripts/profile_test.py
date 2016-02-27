@@ -4,12 +4,12 @@ import scipy.optimize
 from ntm_core import *
 #from architectures.model_architecture_movie_no_mem import init_model
 #from architectures.model_architecture_movie import init_model
-#from architectures.model_architecture_simple import init_model
+from architectures.model_architecture_simple import init_model
 #from architectures.model_architecture_cp import init_model
 #from architectures.movie_phys_latent import init_model
 #from architectures.model_architecture_cp_batched import init_model
 #from architectures.model_architecture_movie_mem_batched import init_model
-from architectures.model_architecture_movie_lstm_conv_batched import init_model
+#from architectures.model_architecture_movie_lstm_conv_batched import init_model
 
 
 free_all_buffers()
@@ -19,7 +19,7 @@ N_FRAMES = 50 #50*2
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
 
 F1_IND = 0
-STACK_SUM_PX_IND = find_layer(LAYERS, 'STACK_SUM_PX_lin')
+STACK_SUM_PX_IND = find_layer(LAYERS, 'F12')
 TARGET_IND = find_layer(LAYERS, 'ERR')
 
 x1t = random_function(np.concatenate(((N_FRAMES,), LAYERS[F1_IND]['in_shape'][1]))) / 10
@@ -67,6 +67,7 @@ import archconvnets.unsupervised.ntm_module3.gradient_functions.mult_points as m
 import archconvnets.unsupervised.ntm_module3.gradient_functions.conv as conv_module
 import archconvnets.unsupervised.ntm_module3.gradient_functions.max_pool as max_pool_module
 import archconvnets.unsupervised.ntm_module3.gradient_functions.pearson as pearson_module
+import archconvnets.unsupervised.ntm_module3.gradient_functions.concat as concat_module
 
 print
 print 'point_wise_add', t_add
@@ -90,3 +91,4 @@ print 'mult_points', mult_points_module.t_main
 print 'conv', conv_module.t_main
 print 'max_pool', max_pool_module.t_main
 print 'pearson', pearson_module.t_main
+print 'concat', concat_module.t_main

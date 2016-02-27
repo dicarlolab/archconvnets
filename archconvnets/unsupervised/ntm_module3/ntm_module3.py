@@ -280,3 +280,4 @@ from gradient_functions.bias import *
 from gradient_functions.conv import *
 from gradient_functions.max_pool import *
 from gradient_functions.pearson import *
+from gradient_functions.concat import *

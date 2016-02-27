@@ -36,7 +36,7 @@ def init_model():
 		add_add_layer(LAYERS, 'CEC1', ['IN_MULT1', 'CEC_MULT1'], init=init)
 		
 		add_mult_layer(LAYERS, 'OUT1', ['CEC1', 'OUT_GATE1'], init=init)
-		add_add_layer(LAYERS, 'OUT12', ['OUT1', 'F1'], init=init)
+		add_concat_layer(LAYERS, 'OUT12', ['OUT1', 'F1'], init=init)
 		
 		add_max_pool_layer(LAYERS, 'F1_MAX', init=init)
 		
@@ -60,7 +60,7 @@ def init_model():
 		add_add_layer(LAYERS, 'CEC', ['IN_MULT', 'CEC_MULT'], init=init)
 		
 		add_mult_layer(LAYERS, 'OUT', ['CEC', 'OUT_GATE'], init=init)
-		add_add_layer(LAYERS, 'OUT2', ['OUT', 'BYPASS'], init=init)
+		add_concat_layer(LAYERS, 'OUT2', ['OUT', 'BYPASS'], init=init)
 		
 		add_max_pool_layer(LAYERS, 'CEC_MAX', init=init)
 		
