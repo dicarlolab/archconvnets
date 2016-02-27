@@ -46,7 +46,7 @@ movie_train_targets = []
 Y_train_movie_cat = []
 Y_train_movie_obj = []
 
-def load_movie_seqs(batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, PX_IND, WEIGHTS, testing=False):
+def load_movie_seqs(batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, PX_INDS, WEIGHTS, testing=False):
 	global movie_train_objs, Y_train_movie_cat, Y_train_movie_obj, movie_train_inputs, movie_train_targets, movie_train_base_frame
 
 	movie_batch = batch % (MOVIE_FILE_SZ / BATCH_SZ)
@@ -108,10 +108,8 @@ def load_movie_seqs(batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, 
 		target = movie_targets[:,0]
 		
 	set_buffer(np.ascontiguousarray(target.reshape((BATCH_SZ, np.prod(target.shape[1:]), 1))), WEIGHTS[DIFF_IND][1])
-	set_buffer(px_input, WEIGHTS[F1_IND][1])
-	set_buffer(px_input, WEIGHTS[PX_IND][1])
-	
-	#print px_input.shape, np.ascontiguousarray(target.reshape((BATCH_SZ, np.prod(target.shape[1:]), 1))).shape, testing
+	for ind in PX_INDS:
+		set_buffer(px_input, WEIGHTS[ind][1])
 	
 	return objs,cats, cat_target, obj_target, movie_inputs, movie_targets
 	

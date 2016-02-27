@@ -4,7 +4,8 @@ import scipy.optimize
 from ntm_core import *
 from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
-from architectures.model_architecture_movie_lstm_conv_framewise import *
+#from architectures.model_architecture_movie_lstm_conv_framewise import *
+from architectures.model_architecture_movie_lstm_conv_framewise_bypassmax import *
 from img_sets.movie_seqs_framewise import *
 
 EPS = 1e-2
@@ -12,7 +13,7 @@ EPS = 1e-2
 train_filters_on = 3
 
 free_all_buffers()
-LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
+LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, PX_INDS = init_model()
 abort_cat = abort_obj = HEAD_INPUT
 MOVIE_BREAK_LAYER_IND = find_layer(LAYERS, 'OBJ_SUM_ERR')
 
@@ -28,7 +29,7 @@ elif train_filters_on == 2:
 else:
 	save_name = 'rand'
  
-save_name += '_EPS_%f_N_FUTURE_%i' % (EPS, N_FUTURE)
+save_name += '_EPS_%f_16FM_bypassmax_N_FUTURE_%i' % (EPS, N_FUTURE)
 
 if NO_MEM:
 	save_name += '_no_mem'
@@ -53,7 +54,7 @@ err_t_series_test = np.zeros(EPOCH_LEN, dtype='single')
 
 ################ init weights and inputs
 PRED_IND = find_layer(LAYERS, 'STACK_SUM')
-PX_IND = find_layer(LAYERS, 'STACK_SUM_PX_lin')
+#PX_IND = find_layer(LAYERS, 'STACK_SUM_PX_lin')
 
 OBJ_PRED_IND = find_layer(LAYERS, 'OBJ')
 CAT_PRED_IND = find_layer(LAYERS, 'CAT')
@@ -79,7 +80,7 @@ t_start = time.time()
 while True:
 	###############
 	# forward movie
-	objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(batch, 0, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, PX_IND, WEIGHTS)
+	objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(batch, 0, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, PX_INDS, WEIGHTS)
 	OUTPUT[1] = forward_network(LAYERS, WEIGHTS, OUTPUT[1], OUTPUT[0])
 	
 	# predictions/errors
@@ -103,7 +104,7 @@ while True:
 	if train_filters_on == 0:
 		for frame in range(1, EPOCH_LEN):
 			# new frame
-			objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, PX_IND, WEIGHTS)
+			objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, PX_INDS, WEIGHTS)
 			OUTPUT[frame+1] = forward_network(LAYERS, WEIGHTS, OUTPUT[frame+1], OUTPUT[frame])
 			
 			if frame >= 3: # test phase
@@ -133,7 +134,7 @@ while True:
 		for t_batch in range(N_BATCHES_TEST_MOVIE):
 			###############
 			# forward movie
-			objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(t_batch, 0, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, PX_IND, WEIGHTS, testing=True)
+			objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(t_batch, 0, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, PX_INDS, WEIGHTS, testing=True)
 			OUTPUT[1] = forward_network(LAYERS, WEIGHTS, OUTPUT[1], OUTPUT[0])
 			
 			# predictions/errors
@@ -148,7 +149,7 @@ while True:
 			
 			if train_filters_on == 0:
 				for frame in range(1, EPOCH_LEN):
-					objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(t_batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, F1_IND, PX_IND, WEIGHTS, testing=True)
+					objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(t_batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, PX_INDS, WEIGHTS, testing=True)
 					OUTPUT[frame+1] = forward_network(LAYERS, WEIGHTS, OUTPUT[frame+1], OUTPUT[frame])
 					
 					if frame >= 3: # test phase

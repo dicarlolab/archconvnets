@@ -9,9 +9,9 @@ def init_model():
 	U_M_FILTER_SZ = 5
 	
 	U_F1 = 16
-	U_M = 1
+	U_M = 16
 	
-	N_FC = 32*32*3
+	N_FC = 16*16
 
 	for init in [0,1]:
 		# below
