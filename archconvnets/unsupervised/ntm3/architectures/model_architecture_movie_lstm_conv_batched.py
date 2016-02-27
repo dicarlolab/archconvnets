@@ -10,7 +10,7 @@ def init_model():
 	U_M = 1
 	
 	N_TARGET = 16*16
-	N_FC = 32*32*3*2
+	N_FC = 16*16
 	HEAD_INPUT = 'F1_MAX'
 
 	for init in [0,1]:

@@ -21,7 +21,7 @@ TIME_LENGTH = 3
 EPOCH_LEN = TIME_LENGTH*2
 SAVE_FREQ = EPOCH_LEN*2 # instantaneous checkpoint
 FRAME_LAG = 50
-STOP_POINT = np.inf
+STOP_POINT = 15000 #np.inf
 INPUT_SCALE = 1e-1
 
 frame = 0; err = 0; frame_local = EPOCH_LEN; frame_save = 0

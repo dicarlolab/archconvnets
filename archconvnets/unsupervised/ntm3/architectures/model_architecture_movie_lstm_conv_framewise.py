@@ -11,7 +11,7 @@ def init_model():
 	U_F1 = 16
 	U_M = 1
 	
-	N_FC = 32*32*3
+	N_FC = 16*16
 
 	for init in [0,1]:
 		# below
