@@ -9,7 +9,7 @@ from img_sets.movie_seqs_framewise import *
 
 EPS = 1e-2
 
-train_filters_on = 0
+train_filters_on = 3
 
 free_all_buffers()
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
@@ -38,7 +38,7 @@ batch = 0; err = 0; err_test = 0; movie_ind = 0;
 cat_err = 0; cat_class = 0; cat_test_err = 0; cat_test_class = 0; 
 obj_err = 0; obj_class = 0; obj_test_err = 0; obj_test_class = 0
 
-SAVE_FREQ = 10
+SAVE_FREQ = 20
 batch_LAG = 10
 batch_stop = np.inf #150*2
 
