@@ -8,8 +8,8 @@ from worlds.elastic_world_batched import generate_imgs
 
 EPS = 1e-2
 
-from architectures.model_architecture_movie_lstm_conv_batched import init_model
-save_name = 'lstm_conv_physics_series_diff_%f' % EPS
+from architectures.model_architecture_movie_lstm_conv_batched_memonly_bypassmax import init_model
+save_name = 'lstm_conv_physics_series_diff_16FM_memonly_bypassmax_concat_%f' % EPS
 
 if NO_MEM:
 	save_name += '_no_mem'
@@ -36,12 +36,10 @@ err_log = []; err_t_series_log = []
 t_start = time.time()
 
 ################ init weights and inputs
-LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()
+LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, PX_INDS = init_model()
 
-STACK_SUM_PX_IND = find_layer(LAYERS, 'STACK_SUM_PX_lin')
 STACK_SUM_IND = find_layer(LAYERS, 'STACK_SUM')
 TARGET_IND = find_layer(LAYERS, 'ERR')
-F1_IND = 0
 
 OUTPUT = [None]*(1+EPOCH_LEN); WEIGHT_DERIVS = None; WEIGHT_DERIVS_RMS = None
 OUTPUT[0] = init_output_prev(LAYERS, MEM_INDS, PREV_VALS)
@@ -58,8 +56,8 @@ while True:
 	
 	###### forward
 	if frame_local < TIME_LENGTH: # load inputs
-		set_buffer(inputs[frame_local], WEIGHTS[F1_IND][1])  # inputs
-		set_buffer(inputs[frame_local], WEIGHTS[STACK_SUM_PX_IND][1])  # inputs
+		for ind in PX_INDS:
+			set_buffer(inputs[frame_local], WEIGHTS[ind][1])  # inputs
 		t = np.zeros_like(targets[frame_local])
 		
 		input_buffer[frame_save] = copy.deepcopy(inputs[frame_local])
