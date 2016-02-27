@@ -7,7 +7,7 @@ from scipy.stats import zscore, pearsonr
 
 train = 2
 
-EPS = -1e-1
+EPS = -1e-2
 
 if train == 0:
 	from architectures.model_architecture_cp_no_mem import init_model
@@ -29,7 +29,7 @@ err = 0
 n_saves = 0
 training = 0
 START_SIGNAL = 0; TRAIN_SIGNAL = 1
-SAVE_FREQ = 25 # instantaneous checkpoint
+SAVE_FREQ = 50 # instantaneous checkpoint
 FRAME_LAG = 5
 STOP_POINT = np.inf #5000 #np.inf #SAVE_FREQ*15
 inputs = np.zeros((BATCH_SZ, 2,1),dtype='single')

@@ -1,6 +1,6 @@
 GPU = True
 
-BATCH_SZ = 32
+BATCH_SZ = 128
 PANDA_PORT = 60000
 GPU_IND = 1
 IM_SZ = 32
@@ -15,4 +15,4 @@ CLASS_CIFAR = False
 IM_SZ_R = 16
 N_TARGET = IM_SZ_R*IM_SZ_R*3
 
-NO_MEM = True
+NO_MEM = False

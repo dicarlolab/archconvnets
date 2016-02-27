@@ -1,6 +1,6 @@
 #define DLDX_SZ (n_batches*x_dim0*x_dim1*sizeof(DATA_TYPE))
 
-#define N_BATCHES_MALLOC 2048
+#define N_BATCHES_MALLOC 5120
 float ** F_pointers_dx = NULL, ** deriv_above_pointers_dx = NULL, **out_pointers_dx = NULL;
 float ** F_pointers_dx_gpu = NULL, ** deriv_above_pointers_dx_gpu = NULL, **out_pointers_dx_gpu = NULL;
 
@@ -106,7 +106,7 @@ static PyObject * linear_F_dx(PyObject *self, PyObject *args){
 		// setup batch pointers
 		
 		if(n_batches > N_BATCHES_MALLOC){
-			printf("n_imgs exceeds internal buffer %li, %i, %s\n", n_imgs, N_BATCHES_MALLOC, __FILE__);
+			printf("n_imgs exceeds internal buffer %i, %i, %s\n", n_batches, N_BATCHES_MALLOC, __FILE__);
 			return NULL;
 		}
 		
