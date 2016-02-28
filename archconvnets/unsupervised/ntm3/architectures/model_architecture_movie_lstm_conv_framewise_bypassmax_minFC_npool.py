@@ -36,21 +36,21 @@ def init_model():
 		add_add_layer(LAYERS, 'CEC1', ['IN_MULT1', 'CEC_MULT1'], init=init)
 		
 		add_mult_layer(LAYERS, 'OUT1', ['CEC1', 'OUT_GATE1'], init=init)
-		add_add_layer(LAYERS, 'OUT12', ['OUT1', 'F1'], init=init)
+		add_add_layer(LAYERS, 'F1_MAX', ['OUT1', 'F1'], init=init)
 		
-		add_max_pool_layer(LAYERS, 'F1_MAX', init=init)
+		#add_max_pool_layer(LAYERS, 'F1_MAX', init=init)
 		
 		#### lstm
-		add_conv_layer(LAYERS, 'BYPASS', U_M, U_M_FILTER_SZ, source='F1_MAX', init=init)
+		add_conv_layer(LAYERS, 'BYPASS', U_M, U_M_FILTER_SZ, source='F1_MAX', PAD=2, init=init)
 		add_conv_layer(LAYERS, 'IN', U_M, U_M_FILTER_SZ, source='F1_MAX', init=init)
 		
-		add_conv_layer(LAYERS, 'IN_GATE_PRE', U_M, U_M_FILTER_SZ, source='F1_MAX', init=init)
+		add_conv_layer(LAYERS, 'IN_GATE_PRE', U_M, U_M_FILTER_SZ, source='F1_MAX', PAD=2, init=init)
 		add_sigmoid_layer(LAYERS, 'IN_GATE', init=init)
 		
-		add_conv_layer(LAYERS, 'FORGET_GATE_PRE', U_M, U_M_FILTER_SZ, source='F1_MAX', init=init)
+		add_conv_layer(LAYERS, 'FORGET_GATE_PRE', U_M, U_M_FILTER_SZ, source='F1_MAX', PAD=2, init=init)
 		add_sigmoid_layer(LAYERS, 'FORGET_GATE', init=init)
 		
-		add_conv_layer(LAYERS, 'OUT_GATE_PRE', U_M, U_M_FILTER_SZ, source='F1_MAX', init=init)
+		add_conv_layer(LAYERS, 'OUT_GATE_PRE', U_M, U_M_FILTER_SZ, source='F1_MAX', PAD=2, init=init)
 		add_sigmoid_layer(LAYERS, 'OUT_GATE', init=init)
 		
 		
@@ -62,7 +62,7 @@ def init_model():
 		add_mult_layer(LAYERS, 'OUT', ['CEC', 'OUT_GATE'], init=init)
 		add_add_layer(LAYERS, 'OUT2', ['OUT', 'BYPASS'], init=init)
 		
-		add_max_pool_layer(LAYERS, 'CEC_MAX', init=init)
+		#add_max_pool_layer(LAYERS, 'CEC_MAX', init=init)
 		
 		## synthetic categorization
 		add_linear_F_bias_layer(LAYERS, 'CAT', 7, source=HEAD_INPUT, init=init)

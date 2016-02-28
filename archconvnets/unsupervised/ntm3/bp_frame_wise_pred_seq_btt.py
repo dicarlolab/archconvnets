@@ -5,10 +5,10 @@ from ntm_core import *
 from scipy.io import loadmat, savemat
 from scipy.stats import zscore, pearsonr
 #from architectures.model_architecture_movie_lstm_conv_framewise import *
-from architectures.model_architecture_movie_lstm_conv_framewise_bypassmax_minFC import *
+from architectures.model_architecture_movie_lstm_conv_framewise_bypassmax_minFC_npool import *
 from img_sets.movie_seqs_framewise import *
 
-EPS = 1e-2
+EPS = 1e-1
 
 train_filters_on = 0
 
@@ -29,7 +29,7 @@ elif train_filters_on == 2:
 else:
 	save_name = 'rand'
  
-save_name += '_EPS_%f_16FM_bypassmax_concat_minFC_N_FUTURE_%i' % (EPS, N_FUTURE)
+save_name += '_EPS_%f_16FM_bypassmax_32F_minFC_npool_N_FUTURE_%i' % (EPS, N_FUTURE)
 
 if NO_MEM:
 	save_name += '_no_mem'
