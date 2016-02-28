@@ -1,6 +1,6 @@
 from ntm_core import *
 
-HEAD_INPUT = 'CEC_MAX'
+HEAD_INPUT = 'OUT4'
 
 def init_model():
 	LAYERS = []
@@ -42,7 +42,7 @@ def init_model():
 		
 		#### lstm
 		add_conv_layer(LAYERS, 'BYPASS', U_M, U_M_FILTER_SZ, source='F1_MAX', PAD=2, init=init)
-		add_conv_layer(LAYERS, 'IN', U_M, U_M_FILTER_SZ, source='F1_MAX', init=init)
+		add_conv_layer(LAYERS, 'IN', U_M, U_M_FILTER_SZ, source='F1_MAX', PAD=2, init=init)
 		
 		add_conv_layer(LAYERS, 'IN_GATE_PRE', U_M, U_M_FILTER_SZ, source='F1_MAX', PAD=2, init=init)
 		add_sigmoid_layer(LAYERS, 'IN_GATE', init=init)
@@ -61,6 +61,30 @@ def init_model():
 		
 		add_mult_layer(LAYERS, 'OUT', ['CEC', 'OUT_GATE'], init=init)
 		add_add_layer(LAYERS, 'OUT2', ['OUT', 'BYPASS'], init=init)
+		
+		#add_max_pool_layer(LAYERS, 'CEC_MAX', init=init)
+		
+		#### lstm
+		add_conv_layer(LAYERS, 'BYPASS3', U_M, U_M_FILTER_SZ, source='OUT2', PAD=2, init=init)
+		add_conv_layer(LAYERS, 'IN3', U_M, U_M_FILTER_SZ, source='OUT2', PAD=2, init=init)
+		
+		add_conv_layer(LAYERS, 'IN_GATE_PRE3', U_M, U_M_FILTER_SZ, source='OUT2', PAD=2, init=init)
+		add_sigmoid_layer(LAYERS, 'IN_GATE3', init=init)
+		
+		add_conv_layer(LAYERS, 'FORGET_GATE_PRE3', U_M, U_M_FILTER_SZ, source='OUT2', PAD=2, init=init)
+		add_sigmoid_layer(LAYERS, 'FORGET_GATE3', init=init)
+		
+		add_conv_layer(LAYERS, 'OUT_GATE_PRE3', U_M, U_M_FILTER_SZ, source='OUT2', PAD=2, init=init)
+		add_sigmoid_layer(LAYERS, 'OUT_GATE3', init=init)
+		
+		
+		add_mult_layer(LAYERS, 'IN_MULT3', ['IN3', 'IN_GATE3'], init=init)
+		add_mult_layer(LAYERS, 'CEC_MULT3', ['FORGET_GATE3', 'CEC3-'], init=init)
+		
+		add_add_layer(LAYERS, 'CEC3', ['IN_MULT3', 'CEC_MULT3'], init=init)
+		
+		add_mult_layer(LAYERS, 'OUT3', ['CEC3', 'OUT_GATE3'], init=init)
+		add_add_layer(LAYERS, 'OUT4', ['OUT3', 'BYPASS3'], init=init)
 		
 		#add_max_pool_layer(LAYERS, 'CEC_MAX', init=init)
 		
@@ -89,7 +113,7 @@ def init_model():
 	################ init weights and inputs
 	WEIGHTS = init_weights(LAYERS)
 	
-	MEM_INDS = find_layer(LAYERS, ['CEC1', 'CEC'])
+	MEM_INDS = find_layer(LAYERS, ['CEC1', 'CEC', 'CEC3'])
 	PX_INDS = find_layer(LAYERS, ['F1','IN1', 'IN_GATE_PRE1','FORGET_GATE_PRE1', 'OUT_GATE_PRE1'])
 	
 	PREV_VALS = random_function_list(LAYERS, MEM_INDS)

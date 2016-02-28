@@ -29,7 +29,7 @@ elif train_filters_on == 2:
 else:
 	save_name = 'rand'
  
-save_name += '_EPS_%f_16FM_bypassmax_32F_minFC_npool_N_FUTURE_%i' % (EPS, N_FUTURE)
+save_name += '_EPS_%f_16FM_bypassmax_32F_minFC_npool_3layer_N_FUTURE_%i' % (EPS, N_FUTURE)
 
 if NO_MEM:
 	save_name += '_no_mem'

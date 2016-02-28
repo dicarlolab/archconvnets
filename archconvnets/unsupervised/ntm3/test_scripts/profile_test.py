@@ -4,7 +4,7 @@ import scipy.optimize
 from ntm_core import *
 #from architectures.model_architecture_movie_no_mem import init_model
 #from architectures.model_architecture_movie import init_model
-from architectures.model_architecture_simple import init_model
+from architectures.model_architecture_movie_lstm_conv_framewise_bypassmax_minFC_npool import init_model
 #from architectures.model_architecture_cp import init_model
 #from architectures.movie_phys_latent import init_model
 #from architectures.model_architecture_cp_batched import init_model
@@ -13,7 +13,7 @@ from architectures.model_architecture_simple import init_model
 
 
 free_all_buffers()
-N_FRAMES = 50 #50*2
+N_FRAMES = 2 #50*2
 
 ################ init weights and inputs
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS = init_model()[:4]
