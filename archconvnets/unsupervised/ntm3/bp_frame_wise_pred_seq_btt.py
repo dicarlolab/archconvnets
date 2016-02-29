@@ -11,7 +11,7 @@ from img_sets.movie_seqs_framewise import *
 
 EPS = 7.5e-2
 
-train_filters_on = 0
+train_filters_on = 3
 
 free_all_buffers()
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, PX_INDS = init_model()
@@ -82,42 +82,40 @@ while True:
 	# forward movie
 	
 	# go through the frames:
-	if train_filters_on == 0:
-		for frame in range(EPOCH_LEN):
-			# new frame
-			objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, PX_INDS, WEIGHTS)
-			OUTPUT[frame+1] = forward_network(LAYERS, WEIGHTS, OUTPUT[frame+1], OUTPUT[frame])
-			
-			if frame == 2:
-				# predictions/errors
-				obj_pred = return_buffer(OUTPUT[frame][OBJ_PRED_IND])
-				cat_pred = return_buffer(OUTPUT[frame][CAT_PRED_IND])
-				
-				obj_err += return_buffer(OUTPUT[frame][OBJ_OUT_IND])[0]
-				cat_err += return_buffer(OUTPUT[frame][CAT_OUT_IND])[0]
-				
-				obj_class += (objs == obj_pred.argmax(1).squeeze()).sum()
-				cat_class += (cats == cat_pred.argmax(1).squeeze()).sum()
-				
-				# reverse
-				WEIGHT_DERIVS_OBJ = reverse_network_btt(OBJ_OUT_IND, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS_OBJ, frame, abort_layer=abort_obj)
-				WEIGHT_DERIVS_CAT = reverse_network_btt(CAT_OUT_IND, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS_CAT, frame, abort_layer=abort_cat)
-				
-				WEIGHT_DERIVS_RMS_OBJ = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_OBJ, WEIGHT_DERIVS_RMS_OBJ, EPS / BATCH_SZ, batch, batch_LAG)
-				WEIGHT_DERIVS_RMS_CAT = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CAT, WEIGHT_DERIVS_RMS_CAT, EPS / BATCH_SZ, batch, batch_LAG)
-			
-			if frame >= 3: # test phase
-				cur_err = return_buffer(OUTPUT[frame+1][OUT_IND])[0]
-				
-				err += cur_err
-				err_t_series[frame] += cur_err
-				
-				WEIGHT_DERIVS = reverse_network_btt(OUT_IND, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS, frame+1)#, reset_derivs=False)
-				WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS / (N_FUTURE*BATCH_SZ), batch, batch_LAG)
+	for frame in range(EPOCH_LEN):
+		# new frame
+		objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, PX_INDS, WEIGHTS)
+		OUTPUT[frame+1] = forward_network(LAYERS, WEIGHTS, OUTPUT[frame+1], OUTPUT[frame])
 		
-		#if batch <= batch_stop:
-		#	WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS / (N_FUTURE*BATCH_SZ), batch, batch_LAG)
-		#	zero_buffer_list(WEIGHT_DERIVS)
+		if frame == 2:
+			# predictions/errors
+			obj_pred = return_buffer(OUTPUT[frame][OBJ_PRED_IND])
+			cat_pred = return_buffer(OUTPUT[frame][CAT_PRED_IND])
+			
+			obj_err += return_buffer(OUTPUT[frame][OBJ_OUT_IND])[0]
+			cat_err += return_buffer(OUTPUT[frame][CAT_OUT_IND])[0]
+			
+			obj_class += (objs == obj_pred.argmax(1).squeeze()).sum()
+			cat_class += (cats == cat_pred.argmax(1).squeeze()).sum()
+			
+			# reverse
+			WEIGHT_DERIVS_OBJ = reverse_network_btt(OBJ_OUT_IND, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS_OBJ, frame, abort_layer=abort_obj)
+			WEIGHT_DERIVS_CAT = reverse_network_btt(CAT_OUT_IND, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS_CAT, frame, abort_layer=abort_cat)
+			
+			WEIGHT_DERIVS_RMS_OBJ = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_OBJ, WEIGHT_DERIVS_RMS_OBJ, EPS / BATCH_SZ, batch, batch_LAG)
+			WEIGHT_DERIVS_RMS_CAT = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS_CAT, WEIGHT_DERIVS_RMS_CAT, EPS / BATCH_SZ, batch, batch_LAG)
+			
+			if train_filters_on != 0:
+				break
+		
+		if frame >= 3: # test phase
+			cur_err = return_buffer(OUTPUT[frame+1][OUT_IND])[0]
+			
+			err += cur_err
+			err_t_series[frame] += cur_err
+			
+			WEIGHT_DERIVS = reverse_network_btt(OUT_IND, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS, frame+1)#, reset_derivs=False)
+			WEIGHT_DERIVS_RMS = update_weights_rms(LAYERS, WEIGHTS, WEIGHT_DERIVS, WEIGHT_DERIVS_RMS, EPS / (N_FUTURE*BATCH_SZ), batch, batch_LAG)
 
 	##############
 	# print/save/test
@@ -148,7 +146,7 @@ while True:
 						
 						obj_test_class += (objs == obj_pred.argmax(1).squeeze()).sum()
 						cat_test_class += (cats == cat_pred.argmax(1).squeeze()).sum()
-					
+						
 					if frame >= 3: # test phase
 						cur_err = return_buffer(OUTPUT[frame+1][OUT_IND])[0]
 						
