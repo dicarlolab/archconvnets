@@ -90,22 +90,22 @@ def init_model():
 		
 		## synthetic categorization
 		
-		add_linear_F_bias_layer(LAYERS, 'STACK_SUM0_CAT', 7, source='CEC2_MAX', init=init)
-		add_linear_F_bias_layer(LAYERS, 'STACK_SUM1_CAT', 7, source='CEC_MAX', init=init)
-		add_linear_F_bias_layer(LAYERS, 'STACK_SUM2_CAT', 7, source='F1_MAX', init=init)
-		add_add_layer(LAYERS, 'STACK_SUM3_CAT', ['STACK_SUM0_CAT', 'STACK_SUM1_CAT'], init=init)
-		add_add_layer(LAYERS, 'CAT', ['STACK_SUM3_CAT', 'STACK_SUM2_CAT'], init=init)
+		add_linear_F_bias_layer(LAYERS, 'CAT', 7, source='CEC2_MAX', init=init)
+		#add_linear_F_bias_layer(LAYERS, 'STACK_SUM1_CAT', 7, source='CEC_MAX', init=init)
+		#add_linear_F_bias_layer(LAYERS, 'STACK_SUM2_CAT', 7, source='F1_MAX', init=init)
+		#add_add_layer(LAYERS, 'STACK_SUM3_CAT', ['STACK_SUM0_CAT', 'STACK_SUM1_CAT'], init=init)
+		#add_add_layer(LAYERS, 'CAT', ['STACK_SUM3_CAT', 'STACK_SUM2_CAT'], init=init)
 		
 		add_pearson_layer(LAYERS, 'CAT_ERR', ['CAT', -1], init=init)
 		add_sum_layer(LAYERS, 'CAT_SUM_ERR', init=init)
 		
 		## synthetic identification
 		
-		add_linear_F_bias_layer(LAYERS, 'STACK_SUM0_OBJ', 91, source='CEC2_MAX', init=init)
-		add_linear_F_bias_layer(LAYERS, 'STACK_SUM1_OBJ', 91, source='CEC_MAX', init=init)
-		add_linear_F_bias_layer(LAYERS, 'STACK_SUM2_OBJ', 91, source='F1_MAX', init=init)
-		add_add_layer(LAYERS, 'STACK_SUM3_OBJ', ['STACK_SUM0_OBJ', 'STACK_SUM1_OBJ'], init=init)
-		add_add_layer(LAYERS, 'OBJ', ['STACK_SUM3_OBJ', 'STACK_SUM2_OBJ'], init=init)
+		add_linear_F_bias_layer(LAYERS, 'OBJ', 91, source='CEC2_MAX', init=init)
+		#add_linear_F_bias_layer(LAYERS, 'STACK_SUM1_OBJ', 91, source='CEC_MAX', init=init)
+		#add_linear_F_bias_layer(LAYERS, 'STACK_SUM2_OBJ', 91, source='F1_MAX', init=init)
+		#add_add_layer(LAYERS, 'STACK_SUM3_OBJ', ['STACK_SUM0_OBJ', 'STACK_SUM1_OBJ'], init=init)
+		#add_add_layer(LAYERS, 'OBJ', ['STACK_SUM3_OBJ', 'STACK_SUM2_OBJ'], init=init)
 		
 		add_pearson_layer(LAYERS, 'OBJ_ERR', ['OBJ', -1], init=init)
 		add_sum_layer(LAYERS, 'OBJ_SUM_ERR', init=init)
