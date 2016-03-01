@@ -33,7 +33,7 @@ set_buffer(random_function(LAYERS[ERR_IND]['in_shape'][1]), WEIGHTS[ERR_IND][1])
 #set_buffer(random_function(LAYERS[X5_IND]['in_shape'][1]), WEIGHTS[X5_IND][1]) # target
 
 ################ which gradient to test
-gradient_layer = F1_IND
+gradient_layer = find_layer(LAYERS, 'F1S')
 gradient_arg = 0
 
 def f(y):
@@ -46,7 +46,7 @@ def f(y):
 	
 	for frame in range(1,1+N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
-		set_buffer(x1t[frame], WEIGHTS[F12_IND][1])  # inputs
+		#set_buffer(x1t[frame], WEIGHTS[F12_IND][1])  # inputs
 		
 		OUTPUT = forward_network(LAYERS, WEIGHTS, OUTPUT, OUTPUT_PREV)
 		OUTPUT_PREV = copy_list(OUTPUT, OUTPUT_PREV)
@@ -65,7 +65,7 @@ def g(y):
 	
 	for frame in range(1,1+N_FRAMES):
 		set_buffer(x1t[frame], WEIGHTS[F1_IND][1])  # inputs
-		set_buffer(x1t[frame], WEIGHTS[F12_IND][1])  # inputs
+		#set_buffer(x1t[frame], WEIGHTS[F12_IND][1])  # inputs
 		
 		OUTPUT[frame] = forward_network(LAYERS, WEIGHTS, OUTPUT[frame], OUTPUT[frame-1])
 		WEIGHT_DERIVS = reverse_network_btt(len(LAYERS)-1, LAYERS, WEIGHTS, OUTPUT, WEIGHT_DERIVS, frame)

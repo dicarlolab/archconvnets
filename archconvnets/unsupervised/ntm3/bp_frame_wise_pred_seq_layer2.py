@@ -12,7 +12,7 @@ from img_sets.movie_seqs_framewise import *
 
 EPS = 7.5e-2
 
-train_filters_on = 3
+train_filters_on = 0
 
 free_all_buffers()
 LAYERS, WEIGHTS, MEM_INDS, PREV_VALS, PX_INDS = init_model()

@@ -25,18 +25,10 @@ def init_model():
 	for init in [0,1]:
 		# below
 		add_conv_layer(LAYERS, 'F1', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(BATCH_SZ,3,32,32), init=init)
-		add_conv_layer(LAYERS, 'F12', U_F1, U_F1_FILTER_SZ, source = -1, imgs_shape=(BATCH_SZ,3,32,32), init=init)
 		
-		add_concat_layer(LAYERS, 'F12s', ['F1', 'F12'], init=init)
-		
-		add_linear_F_bias_layer(LAYERS, HEAD_INPUT, U_F3, init=init)
-		
-		#add_linear_F_bias_layer(LAYERS, 'asdf', U_F3, init=init)
-		#add_add_layer(LAYERS, 'MEM', ['asdf', 'MEM-'], init=init)
-		
-		#add_add_layer(LAYERS, 'MEM_STACK', [HEAD_INPUT, 'MEM'], init=init)
+		add_filter_sum_layer(LAYERS, 'F1S', 3, init=init)
 
-		add_pearson_layer(LAYERS, 'ERR', [HEAD_INPUT, -1], init=init)
+		add_pearson_layer(LAYERS, 'ERR', ['F1S', -1], init=init)
 		add_sum_layer(LAYERS,'ERR_SUM',init=init)
 		
 
