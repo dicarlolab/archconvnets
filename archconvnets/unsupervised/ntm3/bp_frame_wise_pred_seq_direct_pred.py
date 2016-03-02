@@ -7,8 +7,10 @@ from scipy.stats import zscore, pearsonr
 #from architectures.model_architecture_movie_lstm_conv_framewise import *
 #from architectures.model_architecture_movie_lstm_conv_framewise_bypassmax_minFC_npool import *
 #from architectures.movie_lstm_pool import *
-from architectures.movie_lstm_1layer_direct import *
-from img_sets.movie_seqs_framewise import *
+
+#from architectures.movie_lstm_1layer_direct import *
+from architectures.movie_lstm_2layer_direct import *
+from img_sets.movie_seqs_framewise_same_sz_target import *
 
 EPS = 7.5e-2
 
@@ -31,7 +33,7 @@ elif train_filters_on == 2:
 else:
 	save_name = 'rand'
  
-save_name += '_EPS_%f_lstm_1layer_direct_N_FUTURE_%i' % (EPS, N_FUTURE)
+save_name += '_EPS_%f_lstm_2layer_direct_N_FUTURE_%i' % (EPS, N_FUTURE)
 
 if NO_MEM:
 	save_name += '_no_mem'
@@ -49,10 +51,10 @@ err_log = []; err_t_series_log = []; err_t_series_test_log = []; err_test_log = 
 cat_err_log = []; cat_class_log = []; obj_err_log = []; obj_class_log = []
 cat_test_err_log = []; cat_test_class_log = []; obj_test_err_log = []; obj_test_class_log = []
 
-output_buffer = np.zeros((EPOCH_LEN/2, BATCH_SZ, N_TARGET, 1), dtype='single')
-output_buffer_test = np.zeros((EPOCH_LEN/2, BATCH_SZ, N_TARGET, 1), dtype='single')
-err_t_series = np.zeros(EPOCH_LEN/2, dtype='single')
-err_t_series_test = np.zeros(EPOCH_LEN/2, dtype='single')
+output_buffer = np.zeros((EPOCH_LEN, BATCH_SZ, 3, 32, 32), dtype='single')
+output_buffer_test = np.zeros((EPOCH_LEN, BATCH_SZ, 3, 32, 32), dtype='single')
+err_t_series = np.zeros(EPOCH_LEN, dtype='single')
+err_t_series_test = np.zeros(EPOCH_LEN, dtype='single')
 
 ################ init weights and inputs
 PRED_IND = find_layer(LAYERS, 'STACK_SUM4')
@@ -83,12 +85,12 @@ while True:
 	# forward movie
 	
 	# go through the frames:
-	for frame in range(3):
+	for frame in range(EPOCH_LEN):
 		# new frame
 		objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, PX_INDS, WEIGHTS)
 		OUTPUT[frame+1] = forward_network(LAYERS, WEIGHTS, OUTPUT[frame+1], OUTPUT[frame])
 		
-		if frame == 1:
+		if frame == 2:
 			# predictions/errors
 			obj_pred = return_buffer(OUTPUT[frame][OBJ_PRED_IND])
 			cat_pred = return_buffer(OUTPUT[frame][CAT_PRED_IND])
@@ -109,7 +111,7 @@ while True:
 			if train_filters_on != 0:
 				break
 		
-		if frame >= 2: # test phase
+		if frame >= 3: # test phase
 			cur_err = return_buffer(OUTPUT[frame+1][OUT_IND])[0]
 			
 			err += cur_err
@@ -122,7 +124,7 @@ while True:
 	# print/save/test
 	if batch % SAVE_FREQ == 0 and batch != 0:
 		if train_filters_on == 0:
-			for frame in range(3):
+			for frame in range(EPOCH_LEN):
 				output_buffer[frame] = return_buffer(OUTPUT[frame+1][PRED_IND])
 		target_buffer = copy.deepcopy(frame_target)
 		input_buffer = copy.deepcopy(movie_inputs)
@@ -132,11 +134,11 @@ while True:
 		for t_batch in range(N_BATCHES_TEST_MOVIE):
 			###############
 			# forward movie
-			for frame in range(3):
+			for frame in range(EPOCH_LEN):
 				objs, cats, cat_target, obj_target, movie_inputs, frame_target = load_movie_seqs(t_batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, PX_INDS, WEIGHTS, testing=True)
 				OUTPUT[frame+1] = forward_network(LAYERS, WEIGHTS, OUTPUT[frame+1], OUTPUT[frame])
 				
-				if frame == 1:
+				if frame == 2:
 					# predictions/errors
 					obj_pred = return_buffer(OUTPUT[frame][OBJ_PRED_IND])
 					cat_pred = return_buffer(OUTPUT[frame][CAT_PRED_IND])
@@ -150,7 +152,7 @@ while True:
 					if train_filters_on != 0:
 						break
 					
-				if frame >= 2: # test phase
+				if frame >= 3: # test phase
 					cur_err = return_buffer(OUTPUT[frame+1][OUT_IND])[0]
 					
 					err_test += cur_err
@@ -158,7 +160,7 @@ while True:
 		
 		# collect test predictions
 		if train_filters_on == 0:
-			for frame in range(3):
+			for frame in range(EPOCH_LEN):
 				output_buffer_test[frame] = return_buffer(OUTPUT[frame+1][PRED_IND])
 			
 		######## log/save

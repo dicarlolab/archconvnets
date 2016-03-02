@@ -5,12 +5,6 @@ import Image
 import random
 from archconvnets.unsupervised.rosch_models_collated_reduced import *
 
-def resize_inputs(inputs): # 2500,3,32,32
-	inputs_resized = np.zeros((inputs.shape[0], 3, IM_SZ_R, IM_SZ_R), dtype='single')
-	for img in range(inputs.shape[0]):
-		inputs_resized[img] = np.asarray(Image.fromarray(inputs[img].transpose((1,2,0))).resize((IM_SZ_R,IM_SZ_R))).transpose((2,0,1))
-	return np.single(inputs_resized[:,np.newaxis])/255 - .5
-
 #############################
 # movies
 N_MOVIES = 539
@@ -22,12 +16,12 @@ N_OBJ_MOVIE = 91
 N_TEST = 500
 N_BATCHES_TEST_MOVIE = N_TEST / BATCH_SZ
 
-z = loadmat('/home/darren/new_movies3_cut/0.mat')
+z = loadmat('/home/darren/new_movies3/0.mat')
 
-movie_test_inputs = np.single(z['inputs'])/255 - .5
-movie_test_base_frame = resize_inputs(z['inputs'][:,-1])
+movie_test_inputs = np.single(z['imgs'])/255 - .5
+movie_test_base_frame = np.single(z['imgs'][:,2][:,np.newaxis])/255 - .5
 
-movie_test_targets = np.ascontiguousarray((np.single(z['targets'])/255 - movie_test_base_frame)[:, :N_FUTURE])
+movie_test_targets = np.ascontiguousarray((np.single(z['imgs'][:, 3:])/255 - movie_test_base_frame)[:, :N_FUTURE])
 
 movie_test_objs = z['obj_list'].squeeze()
 
@@ -65,12 +59,12 @@ def load_movie_seqs(batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, PX_INDS,
 		if movie_batch == 0:
 			movie_file = ((batch*BATCH_SZ)/MOVIE_FILE_SZ) % (N_MOVIES - N_FILES_TEST_MOVIE)
 			
-			z = loadmat('/home/darren/new_movies3_cut/' + str(movie_file + N_FILES_TEST_MOVIE) + '.mat')
+			z = loadmat('/home/darren/new_movies3/' + str(movie_file + N_FILES_TEST_MOVIE) + '.mat')
 			
-			movie_train_inputs = np.single(z['inputs'])/255 - .5
-			movie_train_base_frame = resize_inputs(z['inputs'][:,-1])
+			movie_train_inputs = np.single(z['imgs'])/255 - .5
+			movie_train_base_frame = np.single(z['imgs'][:,2][:,np.newaxis])/255 - .5
 			
-			movie_train_targets = np.ascontiguousarray((np.single(z['targets'])/255 - movie_train_base_frame)[:, :N_FUTURE])
+			movie_train_targets = np.ascontiguousarray((np.single(z['imgs'][:, 3:])/255 - movie_train_base_frame)[:, :N_FUTURE])
 			
 			movie_train_objs = z['obj_list'].squeeze()
 
@@ -107,7 +101,7 @@ def load_movie_seqs(batch, frame, CAT_DIFF_IND, OBJ_DIFF_IND, DIFF_IND, PX_INDS,
 		px_input = np.ascontiguousarray(movie_inputs[:,frame])
 		target = movie_targets[:,0]
 		
-	set_buffer(np.ascontiguousarray(target.reshape((BATCH_SZ, np.prod(target.shape[1:]), 1))), WEIGHTS[DIFF_IND][1])
+	set_buffer(np.ascontiguousarray(target), WEIGHTS[DIFF_IND][1])
 	for ind in PX_INDS:
 		set_buffer(px_input, WEIGHTS[ind][1])
 	
