@@ -38,7 +38,7 @@ from yamutils.mongo import SONify
 
 def get_checkpoint_fs(host, port, db_name, fs_name):
     try:
-        checkpoint_db = pm.Connection(host=host, port=port)[db_name]
+        checkpoint_db = pm.MongoClient(host=host, port=port)[db_name]
     except pm.errors.ConnectionFailure, e:
         raise(pm.errors.ConnectionFailure(e))
     else:
@@ -64,7 +64,7 @@ def cleanup_checkpoint_db(host, port, db_name, fs_name, keep_recents=True):
             idval = fs.put(blob, **rec)    
             print('saved record with filters to id %s' % repr(idval))
         
-    conn = pm.Connection(host=host, port=port)
+    conn = pm.MongoClient(host=host, port=port)
     conn.drop_database(rfs._GridFS__database)
 
 def read_checkpoint_from_file(go, cachefile):
@@ -182,7 +182,7 @@ class CheckpointWriter(Thread):
 
 # GPU Model interface
 class IGPUModel:
-    def __init__(self, model_name, op, load_dic, filename_options=[], dp_params={}):
+    def __init__(self, model_name, op, load_dic, filename_options=[], dp_params={}, test_dp_params=None, exit_after_start=True):
         # these are input parameters
         self.model_name = model_name
         self.op = op
@@ -192,12 +192,18 @@ class IGPUModel:
         self.device_ids = self.op.get_value('gpu')
         self.fill_excused_options()
         self.checkpoint_writer = None
+        self.exit_after_start = exit_after_start
         #assert self.op.all_values_given()
         
         for o in op.get_options_list():
             setattr(self, o.name, o.value)
 
         self.dp_params = dp_params
+        if test_dp_params is None:
+            self.test_dp_params = dp_params
+        else:
+            self.test_dp_params = test_dp_params
+
         self.loaded_from_checkpoint = load_dic is not None
         # these are things that the model must remember but they're not input parameters
         if self.loaded_from_checkpoint:
@@ -220,6 +226,9 @@ class IGPUModel:
     
         if not self.options["load_layers"].value_given:
             self.load_layers = None
+
+        if not self.options["dont_load_layers"].value_given:
+            self.dont_load_layers = None
 
         self.init_data_providers()
         if load_dic: 
@@ -247,12 +256,16 @@ class IGPUModel:
     
     def init_data_providers(self):
         self.dp_params['convnet'] = self
+        self.test_dp_params['convnet'] = self
         try:
-            self.test_data_provider = DataProvider.get_instance(self.data_path, self.test_batch_range,
-                                                                type=self.dp_type, dp_params=self.dp_params, test=True)
-            self.train_data_provider = DataProvider.get_instance(self.data_path, self.train_batch_range,
-                                                                     self.model_state["epoch"], self.model_state["batchnum"],
-                                                                     type=self.dp_type, dp_params=self.dp_params, test=False)
+            self.test_data_provider = DataProvider.get_instance(self.data_path, 
+                                                                self.test_batch_range,
+                                                                type=self.dp_type, 
+                                                      dp_params=self.test_dp_params, test=True)
+            self.train_data_provider = DataProvider.get_instance(self.data_path, 
+                                                                 self.train_batch_range,
+                                        self.model_state["epoch"], self.model_state["batchnum"],
+                                     type=self.dp_type, dp_params=self.dp_params, test=False)
         except DataProviderException, e:
             print "Unable to create data provider: %s" % e
             self.print_data_providers()
@@ -273,7 +286,8 @@ class IGPUModel:
         self.cleanup()
         if self.force_save:
             self.save_state().join()
-        sys.exit(0)
+        if self.exit_after_start:
+            sys.exit(0)
     
     def train(self):
         print "============================================"
@@ -315,7 +329,7 @@ class IGPUModel:
                 self.print_test_results()
                 self.print_test_status()
                 self.conditional_save()
-            
+
             self.print_elapsed_time(time() - compute_time_py)
     
     def cleanup(self):

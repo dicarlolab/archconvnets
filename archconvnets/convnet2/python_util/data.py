@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import numpy as n
 from numpy.random import randn, rand, random_integers
 import os
@@ -112,6 +111,7 @@ class DataProvider:
 
     @classmethod
     def get_instance(cls, data_dir, batch_range=None, init_epoch=1, init_batchnum=None, type="default", dp_params={}, test=False):
+        print('DP3', dp_params)
         # why the fuck can't i reference DataProvider in the original definition?
         #cls.dp_classes['default'] = DataProvider
         type = type or DataProvider.get_batch_meta(data_dir)['dp_type'] # allow data to decide data provider
@@ -335,7 +335,7 @@ class DLDataProvider(LabeledDataProvider):
 
         #compute number of batches
         mlen = len(meta)
-        batch_size = dp_params['batch_size']
+        self.batch_size = batch_size = dp_params['batch_size']
         num_batches = self.num_batches = int(math.ceil(mlen / float(batch_size)))
         batch_regex = re.compile('data_batch_([\d]+)')
         imgs_mean = None
@@ -495,16 +495,28 @@ class DLDataProvider(LabeledDataProvider):
         if ma in self.dset.meta.dtype.names:
             metacol = self.dset.meta[ma][:]
         else:
-            metacol = getattr(self.dset, ma)[:]
+            mc = getattr(self.dset, ma)
+            if hasattr(mc, '__call__'):
+                metacol = mc()
+            else:
+                metacol = mc[:]
         if perm is not None:
-        	assert perm.shape == metacol.shape
+        	assert perm.shape == metacol.shape[:1]
         	metacol = metacol[perm]
         if hasattr(self, 'subslice'):
             metacol = metacol[self.subslice]
-        try:
-            metacol + 1
-            labels_unique = None
-        except TypeError:
+        if hasattr(self, 'labels_discrete'):
+            labels_discrete = self.labels_discrete
+        else:
+            labels_discrete = None
+        if labels_discrete is None:
+            try:
+                metacol + 1
+            except TypeError:
+                labels_discrete = True
+            else:
+                labels_discrete = False
+        if labels_discrete:
             labels_unique = n.unique(metacol)
             s = metacol.argsort()
             cat_s = metacol[s]
@@ -517,6 +529,8 @@ class DLDataProvider(LabeledDataProvider):
             #for label in range(len(labels_unique)):
             #    labels[metacol == labels_unique[label]] = label
             #metacol = labels
+        else:
+            labels_unique = None
         return metacol, labels_unique
 
     def get_indset(self):
@@ -586,7 +600,6 @@ class DLDataProvider2(DLDataProvider):
         modulename, attrname = dp_params['dataset_name']
         module = importlib.import_module(modulename)
         self.dp_params = dp_params
-        print('DP_PARAMS', dp_params)
         dataset_obj = getattr(module, attrname)
         print(module, attrname)
         dataset_data = dp_params.get('dataset_data', None)
@@ -607,6 +620,8 @@ class DLDataProvider2(DLDataProvider):
                 self.subslice = fast.isin(perm, subslice).nonzero()[0]
             else:
                 self.subslice = subslice
+        if 'labels_discrete' in dp_params:
+            self.labels_discrete = dp_params['labels_discrete']
 
         metacol = self.metacol = self.get_metacol()
         if hasattr(metacol, 'keys'):
@@ -735,7 +750,10 @@ class DLDataProvider2(DLDataProvider):
 
     def get_stims(self, bn, batch_size):
         if hasattr(self, 'subslice'):
+                t0 = systime.time()
     		subslice_inds = self.subslice[bn * batch_size: (bn + 1) * batch_size]
+                t1 = systime.time()
+                print('subslicetime: %f' % (t1 - t0))
     		mbs = 256
     		bn0 = subslice_inds.min() / mbs
     		bn1 = subslice_inds.max() / mbs
@@ -743,30 +761,47 @@ class DLDataProvider2(DLDataProvider):
     		stims = []
     		for _bn in range(bn0, bn1 + 1):
                     print('subbatch', _bn)
-                    _s = n.asarray(self.stimarray[_bn * mbs: (_bn + 1) * mbs])
+                    t0 = systime.time()
+                    _s = self.stimarray[_bn * mbs: (_bn + 1) * mbs]
+                    t1 = systime.time()
+                    _s = n.asarray(_s)
+                    t2 = systime.time()
                     new_inds = fast.isin(n.arange(_bn * mbs, (_bn + 1) * mbs), subslice_inds)
+                    t3 = systime.time()
                     new_array = _s[new_inds]
+                    t4 = systime.time()
                     stims.append(new_array)
+                    print('subbatchtimes: %f, %f, %f, %f' % (t1 - t0, t2 - t1, t3 - t2, t4 - t3))
+                t0 = systime.time()
     		stims = n.concatenate(stims)
+                t1 = systime.time()
+                print('subbatchconcattime: %f' % (t1 - t0))
+
         else:
             stims = n.asarray(self.stimarray[bn * batch_size: (bn + 1) * batch_size])
         return stims
 
     def get_batch(self, batch_num):
         print('bn', batch_num)
+        t0 = systime.time()
         batch_size = self.batch_size
         stims = self.get_stims(batch_num, batch_size)
+        t1 = systime.time()
         print('got stims')
         if 'float' in repr(stims.dtype):
             stims = n.uint8(n.round(255 * stims))
+        t2 = systime.time()
         print('to uint8')
         if hasattr(self.metacol, 'keys'):
             lbls = OrderedDict([(k, self.metacol[k][batch_num * batch_size: (batch_num + 1) * batch_size]) for k in self.metacol])
         else:
             lbls = self.metacol[batch_num * batch_size: (batch_num + 1) * batch_size]
+        t3 = systime.time()
         print('got meta')
         d = dldata_to_convnet_reformatting(stims, lbls)
+        t4 = systime.time()
         print('done')
+        print('Get next batch: t1 - t0: %f, t2 - t1: %f, t3 - t2: %f, t4 - t3: %f' % (t1 - t0, t2 - t1, t3 - t2, t4 - t3))
         return d
 
 
