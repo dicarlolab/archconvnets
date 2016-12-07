@@ -24,7 +24,9 @@ import math as m
 import layer as lay
 from convdata import (ImageDataProvider, CIFARDataProvider, DummyConvNetLogRegDataProvider, 
                       CroppedGeneralDataProvider, CroppedGeneralDataRandomProvider, 
-                      CroppedGeneralDataMapProvider, CroppedImageAndVectorProvider)
+                      CroppedGeneralDataMapProvider, 
+                      CroppedGeneralDataProvider1, 
+                      CroppedImageAndVectorProvider)
 from os import linesep as NL
 import copy as cp
 import os
@@ -110,16 +112,29 @@ class FeatureWriterDriver(Driver):
                                                           'label_names': labels_unique})
 
 class ConvNet(IGPUModel):
-    def __init__(self, op, load_dic, dp_params=None):
+    def __init__(self, op, load_dic, dp_params=None, test_dp_params=None, exit_after_start=True):
         if dp_params is None:
             dp_params = {}
         filename_options = []
         if op.options["dp_params"].value_given:
             dp_params.update(op.options["dp_params"].value)        
+        test_dp_given = (test_dp_params is not None) or op.options["test_dp_params"].value_given
+        if test_dp_given:
+            if test_dp_params is None:
+                test_dp_params = {}
+            if op.options["test_dp_params"].value_given:
+                test_dp_params.update(op.options["test_dp_params"].value)
+        else:
+            test_dp_params = dp_params
+            
         for v in ('crop_border', 'img_flip', 'color_noise', 'multiview_test', 'inner_size', 'scalar_mean', 'minibatch_size'):
             dp_params[v] = op.get_value(v)
+            test_dp_params[v] = op.get_value(v)
 
-        IGPUModel.__init__(self, "ConvNet", op, load_dic, filename_options, dp_params=dp_params)
+        IGPUModel.__init__(self, "ConvNet", op, load_dic, filename_options, 
+                               dp_params=dp_params, 
+                               test_dp_params=test_dp_params,
+                               exit_after_start=exit_after_start)
 
     def import_model(self):
         lib_name = "cudaconvnet._ConvNet"
@@ -137,6 +152,7 @@ class ConvNet(IGPUModel):
     def init_model_state(self):
         ms = self.model_state
         load_layers = self.load_layers
+        dont_load_layers = self.dont_load_layers
         if self.loaded_from_checkpoint:
             layers = ms['layers']
             if load_layers is not None:
@@ -150,11 +166,26 @@ class ConvNet(IGPUModel):
                 for name in pop_keys:
                     print('Popping layer %s because it is not in load_layers' % name)
                     layers.pop(name)
+            if dont_load_layers is not None:
+                pop_keys = []
+                for _n in layers:
+                    if '_neuron' in _n:
+                        if _n.split('_neuron')[0] in dont_load_layers:
+                            pop_keys.append(_n)
+                    elif _n in dont_load_layers:
+                        pop_keys.append(_n)
+                for name in pop_keys:
+                    print('Popping layer %s because it is in dont_load_layers' % name)
+                    layers.pop(name)
+
         else:
             layers = OrderedDict([])
         ms['layers'] = lay.LayerParser.parse_layers(os.path.join(self.layer_path, self.layer_def),
                                                     os.path.join(self.layer_path, self.layer_params),
-                                                    self, layers=layers, load_layers=load_layers)
+                                                    self, layers=layers, load_layers=load_layers, 
+                                                    dont_load_layers=dont_load_layers,
+                                                    layer_template_args=self.layer_template_args,
+                                                    param_template_args=self.param_template_args)
         
         self.do_decouple_conv()
         self.do_unshare_weights()
@@ -305,7 +336,8 @@ class ConvNet(IGPUModel):
         # ----------options related with general data provider----
         op.add_option("random-seed", "random_seed", IntegerOptionParser,
                 "Random Seed", default=0)
-        op.add_option("dp-params", "dp_params", JSONOptionParser, "Data provider paramers", default='')
+        op.add_option("dp-params", "dp_params", JSONOptionParser, "Data provider parameters", default='')
+        op.add_option("test-dp-params", "test_dp_params", JSONOptionParser, "Test data provider parameters", default='')
         op.add_option("write-features", "write_features", ListOptionParser(StringOptionParser),
               "Write features from given layer(s)", default="", requires=['feature-path'])                    
         op.add_option("feature-path", "feature_path", StringOptionParser,
@@ -313,6 +345,15 @@ class ConvNet(IGPUModel):
 
         op.add_option('load-layers', "load_layers", ListOptionParser(StringOptionParser), 
                       "Load these layers", default="")
+
+        op.add_option('dont-load-layers', "dont_load_layers", ListOptionParser(StringOptionParser), 
+                      "DO not load these layers", default="")
+
+        op.add_option('layer-template-args', "layer_template_args", JSONOptionParser, 
+                      "Arguments for layer definition template", default="")
+
+        op.add_option('param-template-args', "param_template_args", JSONOptionParser, 
+                      "Arguments for param definition template", default="")
 
         op.add_option("img-flip", "img_flip", BooleanOptionParser,
                 "Whether flip training image", default=True )
@@ -328,6 +369,7 @@ class ConvNet(IGPUModel):
         DataProvider.register_data_provider('image', 'JPEG-encoded image data provider', ImageDataProvider)
         DataProvider.register_data_provider('cifar', 'CIFAR-10 data provider', CIFARDataProvider)
         DataProvider.register_data_provider('general-cropped', 'Cropped General', CroppedGeneralDataProvider)
+        DataProvider.register_data_provider('general-cropped-1', 'Cropped General-1', CroppedGeneralDataProvider1)
         DataProvider.register_data_provider('general-map-cropped', 'Cropped General Mop', CroppedGeneralDataMapProvider)
         DataProvider.register_data_provider('general-cropped-rand', 'Cropped General Random',
                                             CroppedGeneralDataRandomProvider)                

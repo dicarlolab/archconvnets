@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import numpy as n
+import scipy.stats as scipystats
 import os
 from time import time, asctime, localtime, strftime
 from util import *
@@ -224,6 +225,22 @@ class IGPUModel:
                 idval = model_name + "_" + '_'.join(['%s_%s' % (char, self.options[opt].get_str_value()) for opt, char in filename_options]) + '_' + strftime('%Y-%m-%d_%H.%M.%S')
                 self.experiment_data = collections.OrderedDict([('experiment_id', idval)])
     
+        if not self.options["num_epochs_to_train"].value_given:
+            self.num_epochs_to_train = self.num_epochs
+        print("num_epochs_to_train: %d, num_epochs total: %d" % (self.num_epochs_to_train, self.num_epochs))
+
+        if not self.options["checkpoint_fs_savehost"].value_given:
+            self.checkpoint_fs_savehost = self.checkpoint_fs_host
+
+        if not self.options["checkpoint_fs_saveport"].value_given:
+            self.checkpoint_fs_saveport = self.checkpoint_fs_port
+
+        if not self.options["checkpoint_db_savename"].value_given:
+            self.checkpoint_db_savename = self.checkpoint_db_name
+
+        if not self.options["checkpoint_fs_savename"].value_given:
+            self.checkpoint_fs_savename = self.checkpoint_fs_name
+
         if not self.options["load_layers"].value_given:
             self.load_layers = None
 
@@ -304,7 +321,7 @@ class IGPUModel:
             self.conditional_save()
 
         next_data = self.get_next_batch()
-        while self.epoch <= self.num_epochs:
+        while self.epoch <= self.num_epochs_to_train:
             data = next_data
             self.epoch, self.batchnum = data[0], data[1]
             self.print_iteration()
@@ -323,13 +340,27 @@ class IGPUModel:
             self.train_outputs += [batch_output]
             self.print_train_results()
 
+            self._stop = None
             if self.get_num_batches_done() % self.testing_freq == 0:
+                tfreq = self.testing_freq
                 self.sync_with_host()
                 self.test_outputs += [self.get_test_error()]
                 self.print_test_results()
                 self.print_test_status()
+                if self.stop_when_not_improving:
+                    t_thres = self.tstatistic_threshold
+                    p_thres = self.pval_threshold
+                    train_errors = np.array([x[0] for x in self.train_outputs[-tfreq:]])
+                    _T = len(train_errors)
+                    t0 = train_errors[:_T/2]
+                    t1 = train_errors[_T/2:]
+                    tstat, pval = scipystats.ttest_ind(t0, t1, equal_var=False)
+                    if tstat < t_thres or pval > p_thres:
+                        self._stop = (tstat, pval)
                 self.conditional_save()
 
+            if self._stop is not None:
+                break
             self.print_elapsed_time(time() - compute_time_py)
     
     def cleanup(self):
@@ -350,10 +381,10 @@ class IGPUModel:
         t0 = time()
         nbatch = dp.get_next_batch()
         t1 = time()
-        print('call next batch', t1 - t0)
+        #print('call next batch', t1 - t0)
         res = self.parse_batch_data(nbatch, train=train)
         t2 = time()
-        print('IGPUmodel parse batch', t2 - t1)
+        #print('IGPUmodel parse batch', t2 - t1)
         return res
     
     def parse_batch_data(self, batch_data, train=True):
@@ -395,8 +426,10 @@ class IGPUModel:
         
     def conditional_save(self):
         batch_error = self.test_outputs[-1][0]
-        if batch_error > 0 and batch_error < self.max_test_err:
+        if (batch_error > 0 and batch_error < self.max_test_err) and self._stop is None:
             self.save_state()
+        elif self._stop is not None:
+            print "Stopping due to lack of improvement: t=%.5f, p=%.5f" % self._stop
         else:
             print "\tTest error > %g, not saving." % self.max_test_err,
     
@@ -446,10 +479,10 @@ class IGPUModel:
         assert self.checkpoint_writer is None
         print('Creating Checkpoint Writer')
         self.checkpoint_writer = CheckpointWriter(dic,
-                                                  self.checkpoint_fs_host,
-                                                  self.checkpoint_fs_port,
-                                                  self.checkpoint_db_name,
-                                                  self.checkpoint_fs_name,
+                                                  self.checkpoint_fs_savehost,
+                                                  self.checkpoint_fs_saveport,
+                                                  self.checkpoint_db_savename,
+                                                  self.checkpoint_fs_savename,
                                                   self.save_filters,
                                                   self.save_recent_filters,
                                                   self.saving_freq,
@@ -544,11 +577,15 @@ class IGPUModel:
         op.add_option("data-provider", "dp_type", StringOptionParser, "Data provider", default="default")
         op.add_option("test-freq", "testing_freq", IntegerOptionParser, "Testing frequency", default=25)
         op.add_option("epochs", "num_epochs", IntegerOptionParser, "Number of epochs", default=500)
+        op.add_option("epochs-to-train", "num_epochs_to_train", IntegerOptionParser, "Number of epochs to train", default=500)
         op.add_option("start-epoch", "starting_epoch", IntegerOptionParser, "Epoch to begin with", default=1)
         op.add_option("start-batch", "starting_batch", IntegerOptionParser, "Batch to begin with", default=0)
         op.add_option("data-path", "data_path", StringOptionParser, "Data path")
         
         op.add_option("max-test-err", "max_test_err", FloatOptionParser, "Maximum test error for saving")
+        op.add_option("stop-when-not-improving", "stop_when_not_improving", BooleanOptionParser, "Stop when not improving?", default=False)
+        op.add_option("tstatistic-threshold", "tstatistic_threshold", FloatOptionParser, "T-statistic threshold for stopping", default=10)
+        op.add_option("pval-threshold", "pval_threshold", FloatOptionParser, "p-val threshold for stopping", default=1e-3)
         op.add_option("test-only", "test_only", BooleanOptionParser, "Test and quit?", default=0)
         op.add_option("test-one", "test_one", BooleanOptionParser, "Test on one batch at a time?", default=1)
         op.add_option("save-initial", "save_initial", BooleanOptionParser, "Save initial state as checkpoint before training?", default=0)
@@ -561,12 +598,18 @@ class IGPUModel:
         op.add_option("saving-freq", "saving_freq", IntegerOptionParser, 
                       "Frequency for saving filters to db filesystem, as a multiple of testing-freq", 
                       default=1)
-        op.add_option("checkpoint-fs-host", "checkpoint_fs_host", StringOptionParser, "Host for Saving Checkpoints to DB", default="localhost")
-        op.add_option("checkpoint-fs-port", "checkpoint_fs_port", IntegerOptionParser, "Port for Saving Checkpoints to DB", default=27017)
+        op.add_option("checkpoint-fs-host", "checkpoint_fs_host", StringOptionParser, "Host for Loading Checkpoints to DB", default="localhost")
+        op.add_option("checkpoint-fs-port", "checkpoint_fs_port", IntegerOptionParser, "Port for Loading Checkpoints to DB", default=27017)
         op.add_option("checkpoint-db-name", "checkpoint_db_name", StringOptionParser,
-                "Name for mongodb database for saved checkpoints", default="convnet_checkpoint_db")
+                "Name for mongodb database for loaded checkpoints", default="convnet_checkpoint_db")
         op.add_option("checkpoint-fs-name", "checkpoint_fs_name", StringOptionParser,
-                "Name for gridfs FS for saved checkpoints", default="convnet_checkpoint_fs")
+                "Name for gridfs FS for loaded checkpoints", default="convnet_checkpoint_fs")
+        op.add_option("checkpoint-fs-savehost", "checkpoint_fs_savehost", StringOptionParser, "Host for Saving Checkpoints to DB")
+        op.add_option("checkpoint-fs-saveport", "checkpoint_fs_saveport", IntegerOptionParser, "Port for Saving Checkpoints to DB")
+        op.add_option("checkpoint-db-savename", "checkpoint_db_savename", StringOptionParser,
+                                       "Name for mongodb database for saved checkpoints")
+        op.add_option("checkpoint-fs-savename", "checkpoint_fs_savename", StringOptionParser,
+                                              "Name for gridfs FS for saved checkpoints")
         op.add_option("experiment-data", "experiment_data", JSONOptionParser, "Data for grouping results in database", default="")
         op.add_option("load-query", "load_query", JSONOptionParser, "Query for loading checkpoint from database", default="", excuses=OptionsParser.EXCUSE_ALL)        
         

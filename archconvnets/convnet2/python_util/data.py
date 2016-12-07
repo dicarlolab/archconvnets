@@ -460,7 +460,7 @@ class DLDataProvider(LabeledDataProvider):
         else:
             d['labels'] = n.c_[n.require(d['labels'], dtype=n.single)]
         t3 = systime.time()
-        print('timing: nextbatch %.4f order %.4f labels %.4f' % (t1 - t0, t2 - t1, t3 -  t2))
+        #print('timing: nextbatch %.4f order %.4f labels %.4f' % (t1 - t0, t2 - t1, t3 -  t2))
         return epoch, batchnum, d
 
     def get_batch(self, batch_num):
@@ -696,10 +696,10 @@ class DLDataProvider2(DLDataProvider):
                 print('Meta batch %d' % bn)
                 #get stimuli and put in the required format
                 stims = self.get_stims(bn, batch_size)
-                print('Got stims', stims.shape, stims.nbytes)
+                #print('Got stims', stims.shape, stims.nbytes)
                 if 'float' in repr(stims.dtype):
                     stims = n.uint8(n.round(255 * stims))
-                print('Converted to uint8', stims.nbytes)
+                #print('Converted to uint8', stims.nbytes)
                 d = dldata_to_convnet_reformatting(stims, None)
                 #add to the mean
                 if imgs_mean is None:
@@ -760,7 +760,7 @@ class DLDataProvider2(DLDataProvider):
                 print(bn0, bn1)
     		stims = []
     		for _bn in range(bn0, bn1 + 1):
-                    print('subbatch', _bn)
+#                    print('subbatch', _bn)
                     t0 = systime.time()
                     _s = self.stimarray[_bn * mbs: (_bn + 1) * mbs]
                     t1 = systime.time()
@@ -771,11 +771,11 @@ class DLDataProvider2(DLDataProvider):
                     new_array = _s[new_inds]
                     t4 = systime.time()
                     stims.append(new_array)
-                    print('subbatchtimes: %f, %f, %f, %f' % (t1 - t0, t2 - t1, t3 - t2, t4 - t3))
+ #                   print('subbatchtimes: %f, %f, %f, %f' % (t1 - t0, t2 - t1, t3 - t2, t4 - t3))
                 t0 = systime.time()
     		stims = n.concatenate(stims)
                 t1 = systime.time()
-                print('subbatchconcattime: %f' % (t1 - t0))
+                #print('subbatchconcattime: %f' % (t1 - t0))
 
         else:
             stims = n.asarray(self.stimarray[bn * batch_size: (bn + 1) * batch_size])
@@ -787,21 +787,21 @@ class DLDataProvider2(DLDataProvider):
         batch_size = self.batch_size
         stims = self.get_stims(batch_num, batch_size)
         t1 = systime.time()
-        print('got stims')
+        #print('got stims')
         if 'float' in repr(stims.dtype):
             stims = n.uint8(n.round(255 * stims))
         t2 = systime.time()
-        print('to uint8')
+        #print('to uint8')
         if hasattr(self.metacol, 'keys'):
             lbls = OrderedDict([(k, self.metacol[k][batch_num * batch_size: (batch_num + 1) * batch_size]) for k in self.metacol])
         else:
             lbls = self.metacol[batch_num * batch_size: (batch_num + 1) * batch_size]
         t3 = systime.time()
-        print('got meta')
+        #print('got meta')
         d = dldata_to_convnet_reformatting(stims, lbls)
         t4 = systime.time()
-        print('done')
-        print('Get next batch: t1 - t0: %f, t2 - t1: %f, t3 - t2: %f, t4 - t3: %f' % (t1 - t0, t2 - t1, t3 - t2, t4 - t3))
+        #print('done')
+        #print('Get next batch: t1 - t0: %f, t2 - t1: %f, t3 - t2: %f, t4 - t3: %f' % (t1 - t0, t2 - t1, t3 - t2, t4 - t3))
         return d
 
 

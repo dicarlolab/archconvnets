@@ -15,6 +15,8 @@
 from math import exp
 import sys
 import ConfigParser as cfg
+import io
+import string
 import os
 import numpy as n
 import numpy.random as nr
@@ -303,25 +305,34 @@ class LayerParser:
                 NeuronLayerParser().detach_neuron_layer(name, layers)
 
     @staticmethod
-    def parse_layers(layer_cfg_path, param_cfg_path, model, layers={}, load_layers=None):
+    def parse_layers(layer_cfg_path, param_cfg_path, model, layers={}, 
+                     load_layers=None, dont_load_layers=None, layer_template_args=None, param_template_args=None, check_for_used=False):
         try:
             if (not model.loaded_from_checkpoint) and (not os.path.exists(layer_cfg_path)):
                 raise LayerParsingError("Layer definition file '%s' does not exist" % layer_cfg_path)
 
             if os.path.exists(layer_cfg_path):
-                print('lcp', layer_cfg_path)
+                print('Layer Config Path: %s' % layer_cfg_path)
                 mcp = MyConfigParser(dict_type=OrderedDict)
-                mcp.readfp(open(layer_cfg_path))
+                if not layer_template_args:
+                    mcp.readfp(open(layer_cfg_path))
+                else:
+                    cfgtemp = string.Template(open(layer_cfg_path).read())
+                    cfgstr = cfgtemp.substitute(**layer_template_args)
+                    mcp.readfp(io.BytesIO(cfgstr))
                 for name in mcp.sections():
-                    if load_layers is not None and name not in load_layers:
+                    if (load_layers is not None and name not in load_layers) or (dont_load_layers is not None and name in dont_load_layers):
                         continue
                     if name not in layers:
+                        print('%s not found, parsing' % name)
                         if not mcp.has_option(name, 'type'):
                             raise LayerParsingError("Layer '%s': no type given" % name)
                         ltype = mcp.safe_get(name, 'type')
                         if ltype not in layer_parsers:
                             raise LayerParsingError("Layer '%s': Unknown layer type: '%s'" % (name, ltype))
                         layers[name] = layer_parsers[ltype]().parse(name, mcp, layers, model)
+                    else:
+                        print('%s already in layers' % name)
 
                 LayerParser.detach_neuron_layers(layers)
                 for l in layers.values():
@@ -332,7 +343,7 @@ class LayerParser:
                 for name,l in layers.items():
                     if not l['type'].startswith('cost.'):
                         found = max(name in l2['inputs'] for l2 in layers.values() if 'inputs' in l2)
-                        if not found:
+                        if check_for_used and not found:
                             raise LayerParsingError("Layer '%s' of type '%s' is unused" % (name, l['type']))
             else:
                 print("layer path %s does not exist, ignoring" % layer_cfg_path)
@@ -340,8 +351,13 @@ class LayerParser:
                 raise LayerParsingError("Layer parameter file '%s' does not exist" % param_cfg_path)
 
             mcp = MyConfigParser(dict_type=OrderedDict)
-            mcp.readfp(open(param_cfg_path))
-#            mcp.convnet = model
+            if not param_template_args:
+                mcp.readfp(open(param_cfg_path))
+            else:
+                cfgtemp = string.Template(open(param_cfg_path).read())
+                cfgstr = cfgtemp.substitute(**param_template_args)
+                mcp.readfp(io.BytesIO(cfgstr))
+
             for name,l in layers.items():
                 if not mcp.has_section(name) and l['requiresParams']:
                     raise LayerParsingError("Layer '%s' of type '%s' requires extra parameters, but none given in file '%s', %s." % (name, l['type'], param_cfg_path, str(l['requiresParams'])))
@@ -1530,6 +1546,7 @@ neuron_parsers = sorted([NeuronParser('ident', 'f(x) = x', uses_acts=False, uses
                          NeuronParser('softrelu', 'f(x) = log(1 + e^x)', uses_acts=True, uses_inputs=False),
                          NeuronParser('square', 'f(x) = x^2', uses_acts=False, uses_inputs=True),
                          NeuronParser('sqrt', 'f(x) = sqrt(x)', uses_acts=True, uses_inputs=False),
+                         ParamNeuronParser('power[a]', 'f(x) = power(x, a)', uses_acts=True, uses_inputs=True),
                          ParamNeuronParser('log[a]', 'f(x) = log(a + x)', uses_acts=False, uses_inputs=True),
                          ParamNeuronParser('tanh[a,b]', 'f(x) = a * tanh(b * x)', uses_acts=True, uses_inputs=False),
                          ParamNeuronParser('brelu[a]', 'f(x) = min(a, max(0, x))', uses_acts=True, uses_inputs=False),

@@ -377,7 +377,7 @@ class CroppedGeneralDataProvider(DLDataProvider2):
         t5 = time()
         self.batches_generated += 1
         #assert( cropped.shape[1] == datadic['labels'].shape[1] )
-        print('convnet gnb times', t1 - t0, t2 - t1, t3 - t2, t4 - t3, t5 - t4)
+        #print('convnet gnb times', t1 - t0, t2 - t1, t3 - t2, t4 - t3, t5 - t4)
         
         if hasattr(datadic['labels'], 'keys'):
             bdata = [cropped] + datadic['labels'].values()
@@ -404,11 +404,11 @@ class CroppedGeneralDataProvider(DLDataProvider2):
 
     def __trim_borders(self, x, target):
         #y = x.reshape(3, 32, 32, x.shape[1])
-        if (not self.multiview) and (self.border_size == 0) and (not self.img_flip):
+        if (not self.multiview) and (self.border_size == 0) and (not self.img_flip) and (not self.noise_level):
             t0 = time()
             target[:] = x.copy()
             t1 = time()
-            print('copying time', t1 - t0)
+            #print('copying time', t1 - t0)
             return 
 
         y = x.reshape(self.num_colors, self.img_size, self.img_size, x.shape[1])
@@ -462,7 +462,6 @@ class CroppedGeneralDataProvider(DLDataProvider2):
                 timer3 += (t3 - t2)
                 timer4 += (t4 - t3)
             print('inner loop timing', timer1, timer2, timer3, timer4)
-
 
 
 class CroppedGeneralDataRandomProvider( CroppedGeneralDataProvider ):
@@ -671,3 +670,176 @@ class CroppedGeneralDataMapProvider(DLDataMapProvider):
 
 class CroppedImageAndVectorProvider():
     pass
+
+
+
+class CroppedGeneralDataProvider1(DLDataProvider):
+    """
+    This is the data provider that should generally be used. Several parameters should be passed in a dictionary called
+    dp_params when calling ConvNet:
+    dataset name: Tuple of moule and dataset name to use
+    meta_attribute: which column in the meta field to use
+    perm_type: 'random' or otherwise, specifies how to order data before batch creation
+    preproc: preprocessing spec which is a dictionary that speciies how to preprocess images (see dldata.stimulus_sets.
+    dataset_templates.ImageLoaderPreprocesser for details)
+
+    Here is an example:
+    dp_params = {'dataset_name': ('dldata.stimulus_sets.synthetic.synthetic_datasets', 'TrainingDataset'),
+    'batch_size': 128,
+    'meta_attribute': 'obj',
+    'perm_type': 'random',
+    'perm_seed': 0,
+    'preproc': {'resize_to': (128, 128, 3),
+    'mode': 'RGB',
+    'dtype': 'float32',
+    'normalize': False}
+    }
+    """
+    def __init__(self, data_dir,
+            batch_range=None,
+            init_epoch=1, init_batchnum=None, dp_params=None, test=False):
+
+        DLDataProvider.__init__(self, data_dir, batch_range, init_epoch, init_batchnum, dp_params, test)
+
+        preproc = dp_params['preproc'] if hasattr(dp_params['preproc'], 'keys') else dp_params['preproc'][0]
+        self.num_colors = 1 if preproc['mode'] in ['L', 'L_alpha'] else 3
+        self.img_size = preproc['resize_to'][0]
+
+        self.noise_level = dp_params.get('noise_level')
+        if not hasattr(dp_params['crop_border'], '__iter__'):
+            cb = dp_params['crop_border'] 
+        else:
+            cb = dp_params['crop_border'][0]
+        self.border_size = cb
+        self.inner_size = self.img_size - self.border_size*2
+        self.multiview = dp_params['multiview_test'] and test
+
+        self.img_flip = dp_params['img_flip']
+        if self.img_flip:
+            self.num_views = 5*2
+        else :
+            self.num_views = 5;
+        self.data_mult = self.num_views if self.multiview else 1
+        print self.border_size
+        print self.num_colors
+        print self.img_size
+        print self.inner_size
+        self.batches_generated = 0
+        self.data_mean = self.batch_meta['data_mean'].reshape((self.num_colors, self.img_size,
+                         self.img_size))[:,self.border_size: self.border_size+self.inner_size,
+                                        self.border_size: self.border_size+self.inner_size].reshape((self.get_data_dims(), 1))
+
+    def get_num_views(self):
+        return self.num_views
+
+    def get_next_batch(self):
+        t0 = time()
+        epoch, batchnum, datadic = DLDataProvider.get_next_batch(self)
+        t1 = time()
+        if hasattr(datadic['labels'], 'keys'):
+            for k in datadic['labels']:
+                datadic['labels'][k] = n.require(n.tile(datadic['labels'][k].reshape((1,
+                                                    datadic['data'].shape[1])),
+                                                    (1, self.data_mult)),
+                                      requirements='C')
+        else:
+            datadic['labels'] = n.require(n.tile(datadic['labels'].reshape((1,
+                                                    datadic['data'].shape[1])),
+                                                    (1, self.data_mult)),
+                                      requirements='C')
+        t2 = time()
+        # correct for cropped_data size
+        cropped = n.zeros((self.get_data_dims(),
+                     datadic['data'].shape[1]*self.data_mult), dtype=n.single)
+        t3 = time()
+        self.__trim_borders(datadic['data'], cropped)
+        t4 = time()
+        cropped -= self.data_mean
+        t5 = time()
+        self.batches_generated += 1
+        #assert( cropped.shape[1] == datadic['labels'].shape[1] )
+        #print('convnet gnb times', t1 - t0, t2 - t1, t3 - t2, t4 - t3, t5 - t4)
+        
+        if hasattr(datadic['labels'], 'keys'):
+            bdata = [cropped] + datadic['labels'].values()
+        else:
+            bdata = [cropped, datadic['labels']]
+        
+        return epoch, batchnum, bdata
+
+    def get_data_dims(self, idx=0):
+        return self.inner_size**2 * self.num_colors if idx == 0 else 1
+
+    def get_out_img_size( self ):
+        return self.inner_size
+
+    def get_out_img_depth( self ):
+        return self.num_colors
+
+    # Takes as input an array returned by get_next_batch
+    # Returns a (numCases, imgSize, imgSize, 3) array which can be
+    # fed to pylab for plotting.
+    # This is used by shownet.py to plot test case predictions.
+    def get_plottable_data(self, data):
+        return n.require((data + self.data_mean).T.reshape(data.shape[1], 3, self.inner_size, self.inner_size).swapaxes(1,3).swapaxes(1,2) / 255.0, dtype=n.single)
+
+    def __trim_borders(self, x, target):
+        #y = x.reshape(3, 32, 32, x.shape[1])
+        if (not self.multiview) and (self.border_size == 0) and (not self.img_flip):
+            t0 = time()
+            target[:] = x.copy()
+            t1 = time()
+            print('copying time', t1 - t0)
+            return 
+
+        y = x.reshape(self.num_colors, self.img_size, self.img_size, x.shape[1])
+
+        if self.test: # don't need to loop over cases
+            if self.multiview:
+                start_positions = [(0,0),  (0, self.border_size*2),
+                                   (self.border_size, self.border_size),
+                                  (self.border_size*2, 0), (self.border_size*2, self.border_size*2)]
+                end_positions = [(sy+self.inner_size, sx+self.inner_size) for (sy,sx) in start_positions]
+
+                if self.img_flip: # flip image
+                    for i in xrange(self.num_views/2):
+                        pic = y[:,start_positions[i][0]:end_positions[i][0],start_positions[i][1]:end_positions[i][1],:]
+                        target[:,i * x.shape[1]:(i+1)* x.shape[1]] = pic.reshape((self.get_data_dims(),x.shape[1]))
+                        target[:,(self.num_views/2 + i) * x.shape[1]:(self.num_views/2 +i+1)* x.shape[1]] = pic[:,:,::-1,:].reshape((self.get_data_dims(),x.shape[1]))
+
+                else :
+                    for i in xrange(self.num_views):
+                        pic = y[:,start_positions[i][0]:end_positions[i][0],start_positions[i][1]:end_positions[i][1],:]
+                        target[:,i * x.shape[1]:(i+1)* x.shape[1]] = pic.reshape((self.get_data_dims(),x.shape[1]))
+
+            else:
+                pic = y[:,self.border_size:self.border_size+self.inner_size,self.border_size:self.border_size+self.inner_size, :] # just take the center for now
+                target[:,:] = pic.reshape((self.get_data_dims(), x.shape[1]))
+        else:
+            timer1 = 0
+            timer2 = 0
+            timer3 = 0
+            timer4 = 0
+            for c in xrange(x.shape[1]): # loop over cases
+                t0 = time()
+                startY, startX = nr.randint(0,self.border_size*2 + 1), nr.randint(0,self.border_size*2 + 1)
+                endY, endX = startY + self.inner_size, startX + self.inner_size
+                t1 = time()
+                pic = y[:,startY:endY,startX:endX, c]
+                t2 = time()
+                if self.img_flip and nr.randint(2) == 0: # also flip the image with 50% probability
+                    pic = pic[:,:,::-1]
+                if self.noise_level and nr.randint(2) == 0:
+                    noise_coefficient = n.random.uniform(low=0, high=self.noise_level)
+                    ns = (n.random.RandomState().randn(*pic.shape) * noise_coefficient).astype(pic.dtype)
+                    mx = n.abs(pic).max()
+                    pic += ns
+                    pic *= mx / n.abs(pic).max()
+                t3 = time()
+                target[:,c] = pic.reshape((self.get_data_dims(),))
+                t4 = time()
+                timer1 += (t1 - t0)
+                timer2 += (t2 - t1)
+                timer3 += (t3 - t2)
+                timer4 += (t4 - t3)
+            print('inner loop timing', timer1, timer2, timer3, timer4)

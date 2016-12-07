@@ -165,7 +165,7 @@ class OptionsParser:
         """Merges the options in op2 into this instance, but does not overwrite
         this instances's SET options with op2's default values."""
         for name, o in self.options.iteritems():
-            if name in op2.options and ((op2.options[name].value_given and op2.options[name].value != self.options[name].value) or not op2.options[name].save):
+            if name in op2.options and ((op2.options[name].value_given and ((op2.options[name].value != self.options[name].value) or not self.options[name].value_given)) or not op2.options[name].save):
                 if op2.options[name].set_once:
                     raise OptionException("Option %s (%s) cannot be changed" % (op2.options[name].prefixed_letter, op2.options[name].desc))
                 self.options[name] = op2.options[name]
